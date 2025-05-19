@@ -76,10 +76,26 @@
               transition:fade
             >
               <div class="py-1.5">
-                <a href="/product-request" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Product Request</a>
-                <a href="/product-request-approval" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Product Request Approval</a>
-                <a href="/update-product-price" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Update Product Price</a>
-                <a href="/compare-sku" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Compare SKU</a>
+                <a 
+                  href="/product-request" 
+                  class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                  on:click={() => productsOpen = false}
+                >Product Request</a>
+                <a 
+                  href="/product-request-approval" 
+                  class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                  on:click={() => productsOpen = false}
+                >Product Request Approval</a>
+                <a 
+                  href="/update-product-price" 
+                  class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                  on:click={() => productsOpen = false}
+                >Update Product Price</a>
+                <a 
+                  href="/compare-sku" 
+                  class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                  on:click={() => productsOpen = false}
+                >Compare SKU</a>
               </div>
             </div>
           {/if}
@@ -111,7 +127,11 @@
               transition:fade
             >
               <div class="py-1.5">
-                <a href="/gross-profit-calculator" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Gross Profit Calculator</a>
+                <a 
+                  href="/gross-profit-calculator" 
+                  class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                  on:click={() => ordersOpen = false}
+                >Gross Profit Calculator</a>
               </div>
             </div>
           {/if}
@@ -139,10 +159,26 @@
       </button>
       {#if mobileProductsOpen}
         <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
-          <a href="/product-request" class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50">Product Request</a>
-          <a href="/product-request-approval" class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50">Product Request Approval</a>
-          <a href="/update-product-price" class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50">Update Product Price</a>
-          <a href="/compare-sku" class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50">Compare SKU</a>
+          <a 
+            href="/product-request" 
+            class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+            on:click={() => mobileProductsOpen = false}
+          >Product Request</a>
+          <a 
+            href="/product-request-approval" 
+            class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+            on:click={() => mobileProductsOpen = false}
+          >Product Request Approval</a>
+          <a 
+            href="/update-product-price" 
+            class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+            on:click={() => mobileProductsOpen = false}
+          >Update Product Price</a>
+          <a 
+            href="/compare-sku" 
+            class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+            on:click={() => mobileProductsOpen = false}
+          >Compare SKU</a>
         </div>
       {/if}
       <!-- Mobile Orders Dropdown -->
@@ -152,7 +188,11 @@
       </button>
       {#if mobileOrdersOpen}
         <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
-          <a href="/gross-profit-calculator" class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50">Gross Profit Calculator</a>
+          <a 
+            href="/gross-profit-calculator" 
+            class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+            on:click={() => mobileOrdersOpen = false}
+          >Gross Profit Calculator</a>
         </div>
       {/if}
     </div>

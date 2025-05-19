@@ -17,6 +17,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test
+rapidclean-ba9be-firebase-adminsdk-fbsvc-d039b47ff5.json
 
 # Vite
 vite.config.js.timestamp-*

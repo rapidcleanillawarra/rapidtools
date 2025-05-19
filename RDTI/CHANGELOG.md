@@ -43,6 +43,30 @@ This file logs all major changes, experiments, and pivots made during the develo
 
 ---
 
+## 2025-05-19
+
+### Header Navigation Improvements
+- Implemented responsive header with mobile-friendly design using Tailwind CSS
+- Added dropdown menus for Products and Orders sections
+- Fixed dropdown interaction issues:
+  - Improved hover behavior to maintain dropdown visibility
+  - Enhanced click handling for better mobile support
+  - Adjusted z-index and positioning for proper layering
+  - Created larger hover areas for better user experience
+- Navigation structure:
+  - Home (direct link)
+  - Products (dropdown: Product Request, Product Request Approval, Update Product Price, Compare SKU)
+  - Orders (dropdown: Gross Profit Calculator)
+- All styling implemented using Tailwind utility classes for maintainability
+
+**Lessons Learned:**
+- When implementing dropdowns, consider both hover and click interactions for better accessibility
+- Use wrapper elements to create larger hover areas for better user experience
+- Position dropdowns using `top-full` instead of margins for more reliable placement
+- Keep mobile and desktop interactions consistent while maintaining responsive design
+
+---
+
 **Lessons Learned:**
 - Firebase Auth is best handled on the client in SvelteKit; SSR route guards are not compatible with client-only auth.
 - Always wrap navigation (`goto`) in a browser check to avoid SSR errors.

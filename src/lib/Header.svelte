@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { fade } from 'svelte/transition';
+  import Select from 'svelte-select';
   let mobileMenuOpen = false;
   let productsOpen = false;
   let ordersOpen = false;
@@ -7,6 +9,16 @@
   // For mobile dropdowns
   let mobileProductsOpen = false;
   let mobileOrdersOpen = false;
+
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.products-dropdown') && productsOpen) {
+      productsOpen = false;
+    }
+    if (!target.closest('.orders-dropdown') && ordersOpen) {
+      ordersOpen = false;
+    }
+  }
 
   onMount(() => {
     const close = () => {
@@ -18,9 +30,11 @@
     };
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
+    window.addEventListener('click', handleClickOutside);
     return () => {
       window.removeEventListener('hashchange', close);
       window.removeEventListener('popstate', close);
+      window.removeEventListener('click', handleClickOutside);
     };
   });
 </script>
@@ -34,41 +48,73 @@
       </div>
       <!-- Desktop Nav -->
       <div class="hidden md:flex space-x-6 items-center">
-        <a href="/" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 rounded">Home</a>
+        <a href="/" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">Home</a>
         <!-- Products Dropdown -->
-        <div class="relative group">
-          <div class="flex items-center" on:mouseenter={() => productsOpen = true} on:mouseleave={() => productsOpen = false}>
-            <button type="button" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" on:click={() => productsOpen = !productsOpen}>
-              Products
-              <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <div class="absolute left-0 w-56 pt-2 top-[calc(100%-4px)] z-50">
-              <div class="bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out {productsOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}">
-                <div class="py-1.5">
-                  <a href="/product-request" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Product Request</a>
-                  <a href="/product-request-approval" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Product Request Approval</a>
-                  <a href="/update-product-price" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Update Product Price</a>
-                  <a href="/compare-sku" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Compare SKU</a>
-                </div>
+        <div class="relative products-dropdown">
+          <button 
+            type="button" 
+            class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" 
+            on:click|stopPropagation={() => {
+              productsOpen = !productsOpen;
+              if (productsOpen) ordersOpen = false;
+            }}
+          >
+            Products
+            <svg 
+              class="w-4 h-4 ml-1 transform transition-transform duration-200" 
+              class:rotate-180={productsOpen}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          {#if productsOpen}
+            <div 
+              class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+              transition:fade
+            >
+              <div class="py-1.5">
+                <a href="/product-request" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Product Request</a>
+                <a href="/product-request-approval" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Product Request Approval</a>
+                <a href="/update-product-price" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Update Product Price</a>
+                <a href="/compare-sku" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Compare SKU</a>
               </div>
             </div>
-          </div>
+          {/if}
         </div>
         <!-- Orders Dropdown -->
-        <div class="relative group">
-          <div class="flex items-center" on:mouseenter={() => ordersOpen = true} on:mouseleave={() => ordersOpen = false}>
-            <button type="button" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" on:click={() => ordersOpen = !ordersOpen}>
-              Orders
-              <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-            <div class="absolute left-0 w-56 pt-2 top-[calc(100%-4px)] z-50">
-              <div class="bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out {ordersOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}">
-                <div class="py-1.5">
-                  <a href="/gross-profit-calculator" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Gross Profit Calculator</a>
-                </div>
+        <div class="relative orders-dropdown">
+          <button 
+            type="button" 
+            class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" 
+            on:click|stopPropagation={() => {
+              ordersOpen = !ordersOpen;
+              if (ordersOpen) productsOpen = false;
+            }}
+          >
+            Orders
+            <svg 
+              class="w-4 h-4 ml-1 transform transition-transform duration-200" 
+              class:rotate-180={ordersOpen}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          {#if ordersOpen}
+            <div 
+              class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+              transition:fade
+            >
+              <div class="py-1.5">
+                <a href="/gross-profit-calculator" class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150">Gross Profit Calculator</a>
               </div>
             </div>
-          </div>
+          {/if}
         </div>
       </div>
       <!-- Mobile Hamburger -->
@@ -85,11 +131,11 @@
   <!-- Mobile Menu -->
   {#if mobileMenuOpen}
     <div class="md:hidden bg-gray-900 border-t border-gray-800 px-2 pt-2 pb-3 space-y-1">
-      <a href="/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 rounded">Home</a>
+      <a href="/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Home</a>
       <!-- Mobile Products Dropdown -->
-      <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 rounded focus:outline-none" on:click={() => mobileProductsOpen = !mobileProductsOpen}>
+      <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileProductsOpen = !mobileProductsOpen}>
         <span>Products</span>
-        <svg class="w-4 h-4 ml-1 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" class:rotate-180={mobileProductsOpen}><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <svg class="w-4 h-4 ml-1 transform transition-transform duration-200" class:rotate-180={mobileProductsOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </button>
       {#if mobileProductsOpen}
         <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
@@ -100,9 +146,9 @@
         </div>
       {/if}
       <!-- Mobile Orders Dropdown -->
-      <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 rounded focus:outline-none" on:click={() => mobileOrdersOpen = !mobileOrdersOpen}>
+      <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileOrdersOpen = !mobileOrdersOpen}>
         <span>Orders</span>
-        <svg class="w-4 h-4 ml-1 transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" class:rotate-180={mobileOrdersOpen}><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <svg class="w-4 h-4 ml-1 transform transition-transform duration-200" class:rotate-180={mobileOrdersOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </button>
       {#if mobileOrdersOpen}
         <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">

@@ -5,7 +5,7 @@
   import { currentUser, logoutUser } from '$lib/firebase';
   import { page } from '$app/stores';
   import { base } from '$app/paths';
-  import { userProfile, type UserProfile } from '$lib/userProfile';
+  import { userProfile, type UserProfile, fetchUserProfile } from '$lib/userProfile';
   let mobileMenuOpen = false;
   let productsOpen = false;
   let ordersOpen = false;
@@ -16,11 +16,24 @@
   let profile: UserProfile | null = null;
   const unsubCurrentUser = currentUser.subscribe(value => {
     user = value;
+    if (value) {
+      loadUserProfile(value.uid);
+    } else {
+      profile = null;
+    }
   });
 
   const unsubUserProfile = userProfile.subscribe(value => {
     profile = value;
   });
+
+  async function loadUserProfile(uid: string) {
+    try {
+      await fetchUserProfile(uid);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  }
 
   // Check if we're on the landing page
   let isLandingPage: boolean;
@@ -80,7 +93,7 @@
 
 {#if !isLandingPage}
   <nav class="bg-gray-900 border-b border-gray-800 w-full sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="max-w-[98%] mx-auto px-4 sm:px-6">
       <div class="flex justify-between items-center h-16">
         <!-- Logo / App Name -->
         <div class="flex-shrink-0 flex items-center">

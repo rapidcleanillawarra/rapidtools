@@ -20,6 +20,16 @@ const config = {
 		}),
 		paths: {
 			base: process.env.NODE_ENV === 'production' ? '/rapidcleanillawarra' : ''
+		},
+		prerender: {
+			handleHttpError: ({ path, referrer, message }) => {
+				// ignore 404s that occur in prerendering
+				if (message.includes('404')) {
+					return;
+				}
+				// otherwise fail the build
+				throw new Error(message);
+			}
 		}
 	}
 };

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { currentUser, isLoadingAuth, authError, loginWithEmailPassword } from '$lib/firebase';
 
   let email = '';
@@ -13,7 +14,7 @@
   const unsubCurrentUser = currentUser.subscribe(value => {
     currentAuthUser = value;
     if (currentAuthUser && !currentIsLoadingAuth) {
-      goto('/dashboard', { replaceState: true });
+      goto(base + '/dashboard', { replaceState: true });
     }
   });
 
@@ -21,7 +22,7 @@
     currentIsLoadingAuth = value;
     // If loading finishes and user is authenticated, redirect.
     if (!currentIsLoadingAuth && currentAuthUser) {
-        goto('/dashboard', { replaceState: true });
+        goto(base + '/dashboard', { replaceState: true });
     }
   });
 
@@ -48,7 +49,7 @@
   onMount(() => {
     // Initial check in case auth state is already resolved
     if (!currentIsLoadingAuth && currentAuthUser) {
-        goto('/dashboard', { replaceState: true });
+        goto(base + '/dashboard', { replaceState: true });
     }
     return () => {
       unsubCurrentUser();

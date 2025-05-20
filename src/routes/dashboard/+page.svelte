@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { browser } from '$app/environment';
+  import { base } from '$app/paths';
   import { currentUser, isLoadingAuth, authError, logoutUser } from '$lib/firebase';
   import { userProfile, type UserProfile, fetchUserProfile, createUserProfile } from '$lib/userProfile';
   import type { User } from 'firebase/auth';
@@ -20,7 +21,7 @@
   const unsubCurrentUser = currentUser.subscribe(value => {
     currentAuthUser = value;
     if (browser && !currentIsLoadingAuth && !currentAuthUser) {
-      goto('/', { replaceState: true });
+      goto(base + '/', { replaceState: true });
     }
     if (value) {
       loadUserProfile(value.uid);
@@ -30,7 +31,7 @@
   const unsubIsLoadingAuth = isLoadingAuth.subscribe(value => {
     currentIsLoadingAuth = value;
     if (browser && !value && !currentAuthUser) {
-      goto('/', { replaceState: true });
+      goto(base + '/', { replaceState: true });
     }
   });
   
@@ -99,7 +100,7 @@
 
   onMount(() => {
     if (browser && !currentIsLoadingAuth && !currentAuthUser) {
-      goto('/', { replaceState: true });
+      goto(base + '/', { replaceState: true });
     }
     return () => {
       unsubCurrentUser();
@@ -173,7 +174,7 @@
     {/if}
   {:else if currentAuthError}
     <p class="error">Authentication Error: {typeof currentAuthError === 'object' && currentAuthError !== null && 'message' in currentAuthError ? (currentAuthError as {message: string}).message : 'An unknown error occurred'}. Please try logging in again.</p>
-    <p><a href="/">Go to Login</a></p>
+    <p><a href="{base}/">Go to Login</a></p>
   {:else}
     <p>You are not authenticated. Redirecting to login...</p>
   {/if}

@@ -264,6 +264,46 @@
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
   </svg>`;
 
+  // Function to handle Excel paste
+  function handlePaste(event: ClipboardEvent, rowIndex: number, field: keyof ProductRow) {
+    event.preventDefault();
+    const clipboardData = event.clipboardData?.getData('text') || '';
+    
+    // Split the clipboard data into rows
+    const pastedRows = clipboardData.split('\n')
+      .map(row => row.split('\t'))
+      .filter(row => row.some(cell => cell.trim() !== '')); // Filter out empty rows
+
+    if (pastedRows.length === 0) return;
+
+    // For single cell paste
+    if (pastedRows.length === 1 && pastedRows[0].length === 1) {
+      const value = pastedRows[0][0].trim();
+      if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
+        rows[rowIndex][field] = value;
+      }
+      return;
+    }
+
+    // For multi-cell paste in a single column
+    const values = pastedRows.map(row => row[0]?.trim() || '');
+    
+    // Create new rows if needed
+    while (rowIndex + values.length > rows.length) {
+      rows = [...rows, createEmptyRow()];
+    }
+
+    // Update the specific column for each row
+    values.forEach((value, index) => {
+      if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
+        rows[rowIndex + index][field] = value;
+      }
+    });
+
+    // Show notification
+    showNotification(`Pasted ${values.length} values into ${field} column`, 'success');
+  }
+
   onMount(() => {
     console.log('Component mounted, fetching brands and suppliers...');
     fetchBrands();
@@ -333,6 +373,7 @@
                   <input
                     type="text"
                     bind:value={row.sku}
+                    on:paste={(e) => handlePaste(e, i, 'sku')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="SKU"
                   />
@@ -344,6 +385,7 @@
                   <input
                     type="text"
                     bind:value={row.productName}
+                    on:paste={(e) => handlePaste(e, i, 'productName')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Product Name"
                   />
@@ -391,6 +433,7 @@
                   <input
                     type="number"
                     bind:value={row.purchasePrice}
+                    on:paste={(e) => handlePaste(e, i, 'purchasePrice')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Purchase Price"
                     step="0.01"
@@ -403,6 +446,7 @@
                   <input
                     type="number"
                     bind:value={row.rrp}
+                    on:paste={(e) => handlePaste(e, i, 'rrp')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="RRP"
                     step="0.01"

@@ -2,6 +2,9 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import Select from 'svelte-select';
+  import { db } from '$lib/firebase';
+  import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+  import { currentUser } from '$lib/firebase';
 
   interface SelectOption {
     value: string;
@@ -35,6 +38,14 @@
   let rows: ProductRow[] = [createEmptyRow()];
   let isLoading = false;
   let notification = { show: false, message: '', type: 'info' };
+
+  // State for user
+  let user: any;
+  
+  // Subscribe to user changes
+  currentUser.subscribe((u) => {
+    user = u;
+  });
 
   function createEmptyRow(): ProductRow {
     return {
@@ -137,6 +148,10 @@
 
   async function handleProductRequestSubmit() {
     isLoading = true;
+    console.log('=== Starting Product Request Submission ===');
+    console.log('Current user:', user);
+    console.log('Number of rows to submit:', rows.length);
+    
     try {
       // Validate rows
       let valid = true;
@@ -148,18 +163,24 @@
         !row.purchasePrice
       );
       
+      console.log('Validation check - Invalid rows:', invalidRows.length);
       if (invalidRows.length > 0) {
+        console.error('Validation failed - Missing required fields:', invalidRows);
         throw new Error('Please fill in all required fields');
       }
 
       // Check for duplicate SKUs within the form
       const skus = rows.map(row => row.sku);
+      console.log('SKUs to be submitted:', skus);
+      
       const duplicates = skus.filter((sku, index) => skus.indexOf(sku) !== index);
       if (duplicates.length > 0) {
+        console.error('Duplicate SKUs found in form:', duplicates);
         throw new Error('Duplicate SKUs found within the submitted requests. Please ensure each SKU is unique.');
       }
 
       // Check if SKUs already exist in the system
+      console.log('Checking SKUs against existing system...');
       const response = await fetch(skuCheckUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +188,7 @@
       });
 
       const data = await response.json();
-      console.log('SKU check response:', data);
+      console.log('SKU check API response:', data);
 
       if (data.Ack === "Success") {
         const existingSKUs = new Set(data.Item?.map((item: any) => item.SKU) || []);
@@ -175,20 +196,58 @@
         
         if (duplicateRows.length > 0) {
           const duplicateSkus = duplicateRows.map(row => row.sku).join(', ');
+          console.error('SKUs already exist in system:', duplicateSkus);
           throw new Error(`The following SKUs already exist: ${duplicateSkus}`);
         }
 
-        // If all validation passes, proceed with saving
+        console.log('=== Starting Firebase Submission ===');
+        // If all validation passes, save to Firestore
+        const savePromises = rows.map(row => {
+          const productData = {
+            sku: row.sku,
+            product_name: row.productName,
+            brand: row.brand?.label || '',
+            primary_supplier: row.supplier?.value || '',
+            purchase_price: parseFloat(row.purchasePrice) || 0,
+            rrp: parseFloat(row.rrp) || 0,
+            status: 'request',
+            date_created: serverTimestamp(),
+            requestor_uid: user?.uid || '',
+            requestor_email: user?.email || ''
+          };
+          
+          console.log('Preparing to save product data:', productData);
+          return addDoc(collection(db, 'product_requests'), productData)
+            .then(docRef => {
+              console.log('Successfully saved product with SKU:', productData.sku, 'Document ID:', docRef.id);
+              return docRef;
+            })
+            .catch(error => {
+              console.error('Error saving product with SKU:', productData.sku, 'Error:', error);
+              throw error;
+            });
+        });
+
+        console.log('Waiting for all Firebase submissions to complete...');
+        const results = await Promise.all(savePromises);
+        console.log('All Firebase submissions completed successfully!');
+        console.log('Saved document references:', results.map(ref => ref.id));
+
         showNotification('Product request submitted successfully', 'success');
         
         // Clear form and add new row
         rows = [createEmptyRow()];
+        console.log('Form cleared and reset');
       } else {
+        console.error('SKU check API returned error:', data);
         throw new Error('SKU check failed. Please try again later.');
       }
     } catch (error: any) {
+      console.error('=== Submission Error ===');
+      console.error('Error details:', error);
       showNotification(error.message || 'An error occurred', 'error');
     } finally {
+      console.log('=== Submission Process Completed ===');
       isLoading = false;
     }
   }
@@ -199,6 +258,11 @@
       notification = { ...notification, show: false };
     }, 3000);
   }
+
+  // SVG icon for delete button
+  const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-5 h-5">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>`;
 
   onMount(() => {
     console.log('Component mounted, fetching brands and suppliers...');
@@ -231,54 +295,63 @@
 
       <!-- Product Rows -->
       <div class="overflow-visible">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Name</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Brand
-                <button
-                  on:click={() => applyToAll('brand', rows[0]?.brand)}
-                  class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
-                >
-                  Apply to All
-                </button>
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Supplier
-                <button
-                  on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-                  class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
-                >
-                  Apply to All
-                </button>
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purchase Price</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">RRP</th>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            {#each rows as row, i}
-              <tr class={row.exists ? 'bg-green-50' : ''}>
-                <td class="px-6 py-4 whitespace-nowrap">
+        <!-- Headers -->
+        <div class="hidden md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+          <div>SKU</div>
+          <div>Product Name</div>
+          <div>
+            Brand
+            <button
+              on:click={() => applyToAll('brand', rows[0]?.brand)}
+              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
+            >
+              Apply to All
+            </button>
+          </div>
+          <div>
+            Supplier
+            <button
+              on:click={() => applyToAll('supplier', rows[0]?.supplier)}
+              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
+            >
+              Apply to All
+            </button>
+          </div>
+          <div>Purchase Price</div>
+          <div>RRP</div>
+          <div></div>
+        </div>
+
+        <!-- Rows -->
+        <div class="divide-y divide-gray-200">
+          {#each rows as row, i}
+            <div class="bg-white md:hover:bg-gray-50 transition-colors">
+              <div class="md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+                <!-- SKU -->
+                <div class="mb-4 md:mb-0">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">SKU</label>
                   <input
                     type="text"
                     bind:value={row.sku}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="SKU"
                   />
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                </div>
+
+                <!-- Product Name -->
+                <div class="mb-4 md:mb-0">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Product Name</label>
                   <input
                     type="text"
                     bind:value={row.productName}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Product Name"
                   />
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap relative">
+                </div>
+
+                <!-- Brand -->
+                <div class="mb-4 md:mb-0">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Brand</label>
                   {#if loadingBrands}
                     <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
                   {:else if brandError}
@@ -289,15 +362,14 @@
                       bind:value={row.brand}
                       placeholder="Select Brand"
                       containerStyles="position: relative;"
-                      listOffset={8}
-                      isVirtualList={true}
-                      listAutoWidth={true}
-                      listPlacement="bottom"
-                      portal="#select-portal"
+                      portal={null}
                     />
                   {/if}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap relative">
+                </div>
+
+                <!-- Supplier -->
+                <div class="mb-4 md:mb-0">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Supplier</label>
                   {#if loadingSuppliers}
                     <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
                   {:else if supplierError}
@@ -308,15 +380,14 @@
                       bind:value={row.supplier}
                       placeholder="Select Supplier"
                       containerStyles="position: relative;"
-                      listOffset={8}
-                      isVirtualList={true}
-                      listAutoWidth={true}
-                      listPlacement="bottom"
-                      portal="#select-portal"
+                      portal={null}
                     />
                   {/if}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                </div>
+
+                <!-- Purchase Price -->
+                <div class="mb-4 md:mb-0 input-wrapper">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
                   <input
                     type="number"
                     bind:value={row.purchasePrice}
@@ -324,8 +395,11 @@
                     placeholder="Purchase Price"
                     step="0.01"
                   />
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                </div>
+
+                <!-- RRP -->
+                <div class="mb-4 md:mb-0">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">RRP</label>
                   <input
                     type="number"
                     bind:value={row.rrp}
@@ -333,20 +407,33 @@
                     placeholder="RRP"
                     step="0.01"
                   />
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
+                </div>
+
+                <!-- Action -->
+                <div class="text-right md:text-center">
                   <button
                     on:click={() => removeRow(i)}
-                    class="text-red-600 hover:text-red-900"
+                    class="md:p-1 md:rounded hover:bg-red-50 transition-colors inline-flex items-center justify-center"
                     disabled={rows.length === 1}
+                    title="Remove row"
                   >
-                    Remove
+                    <!-- Mobile view: Text button -->
+                    <span class="md:hidden bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                      Remove
+                    </span>
+                    
+                    <!-- Desktop view: Icon only -->
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" 
+                      class="hidden md:block w-4 h-4 text-red-600 hover:text-red-900">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span class="sr-only">Remove row</span>
                   </button>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
+                </div>
+              </div>
+            </div>
+          {/each}
+        </div>
       </div>
     </div>
   </div>
@@ -393,7 +480,7 @@
     --padding: 0 0.75rem;
     --placeholder-color: #9ca3af;
     width: 100%;
-    min-width: 300px;
+    position: relative;
   }
 
   :global(.svelte-select .selectContainer) {
@@ -402,12 +489,65 @@
     height: var(--height);
     background: var(--background);
     min-height: var(--height);
-    min-width: 300px;
     padding: 0;
   }
 
-  :global(.svelte-select .selectContainer:hover) {
-    border: var(--border-hover);
+  :global(.svelte-select .items) {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    border: var(--border);
+    border-radius: var(--border-radius);
+    background: var(--background);
+    margin-top: 4px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    z-index: 999;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  :global(.svelte-select .item) {
+    font-size: var(--font-size);
+    line-height: 1.25;
+    padding: 0.5rem 0.75rem;
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  :global(.svelte-select .item.hover) {
+    background-color: #f3f4f6;
+  }
+
+  :global(.svelte-select .item.active) {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  #select-portal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
+    overflow: visible;
+    z-index: 999;
+  }
+
+  /* Add styles for the select wrapper */
+  .select-wrapper {
+    position: relative;
+    z-index: 10;
+  }
+  
+  .select-wrapper:focus-within {
+    z-index: 20;
+  }
+
+  /* Ensure other elements don't overlap */
+  .input-wrapper {
+    position: relative;
+    z-index: 1;
   }
 
   :global(.svelte-select .value-container) {
@@ -439,48 +579,20 @@
     font-size: var(--font-size);
   }
 
-  :global(.svelte-select .items) {
-    border: var(--border);
-    border-radius: var(--border-radius);
-    background: var(--background);
-    margin-top: 4px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    position: fixed;
-    z-index: 9999;
-    width: auto;
-    min-width: 300px;
-    max-width: 400px;
-    max-height: 300px;
-    overflow-y: auto;
+  :global(button:disabled) {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
-  :global(.svelte-select .item) {
-    font-size: var(--font-size);
-    line-height: 1.25;
-    padding: 0.5rem 0.75rem;
-    white-space: normal;
-    word-break: break-word;
-  }
-
-  :global(.svelte-select .item.hover) {
-    background-color: #f3f4f6;
-  }
-
-  :global(.svelte-select .item.active) {
-    background-color: #dbeafe;
-    color: #1e40af;
-  }
-
-  :global(.svelte-select .clear-select) {
+  :global(.sr-only) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     padding: 0;
-  }
-
-  #select-portal {
-    position: relative;
-    z-index: 9999;
-  }
-
-  :global(.portal .items) {
-    position: fixed !important;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 </style> 

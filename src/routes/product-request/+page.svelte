@@ -25,6 +25,7 @@
   const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
   const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
   const skuCheckUrl = 'https://prod-03.australiasoutheast.logic.azure.com:443/workflows/151bc47e0ba4447b893d1c9fea9af46f/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bRyr_oW-ud06XlU5VLhBqQ7tyU__jD3clEOGIEhax-Q';
+  const notificationUrl = 'https://prod-24.australiasoutheast.logic.azure.com:443/workflows/16979e5f23434b988b37be58343e93e9/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=loAkudpZIyE7_2o54CIncgVBLoXBtND6G_4Qm2MJzOE';
 
   // State for brands and suppliers
   let brands: SelectOption[] = [];
@@ -146,6 +147,92 @@
     }
   }
 
+  // Function to send email notification
+  async function sendEmailNotification(products: ProductRow[]) {
+    console.log('=== Starting Email Notification Process ===');
+    console.log('Current user:', user);
+    
+    if (!user?.email) {
+      console.error('No user email available for notification');
+      return;
+    }
+
+    try {
+      // Create HTML table for products
+      const productTable = `
+        <table style="border-collapse: collapse; width: 100%; margin-top: 20px;">
+          <thead>
+            <tr style="background-color: #f3f4f6;">
+              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">SKU</th>
+              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Product Name</th>
+              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Brand</th>
+              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Supplier</th>
+              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">Purchase Price</th>
+              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">RRP</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${products.map(product => `
+              <tr>
+                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.sku}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.productName}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.brand?.label || '-'}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.supplier?.label || '-'}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.purchasePrice).toFixed(2)}</td>
+                <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.rrp).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      // Create email body with user info and product table
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif;">
+          <h2>Product Request Submission</h2>
+          
+          <div style="margin-bottom: 20px;">
+            <h3>Requestor Information:</h3>
+            <p>Email: ${user.email}</p>
+            <p>Name: ${user.displayName || 'N/A'}</p>
+            <p>User ID: ${user.uid}</p>
+            <p>Submission Time: ${new Date().toLocaleString()}</p>
+          </div>
+
+          <div>
+            <h3>Requested Products:</h3>
+            ${productTable}
+          </div>
+        </div>
+      `;
+
+      console.log('Preparing email payload');
+
+      const response = await fetch(notificationUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email_subject: 'Product Request Submission Confirmation',
+          email_body: emailBody,
+          email_send_to: user.email
+        })
+      });
+
+      const data = await response.json();
+      console.log('Email notification API response:', data);
+
+      if (!response.ok) {
+        throw new Error('Failed to send email notification');
+      }
+
+      console.log('Email notification sent successfully');
+    } catch (error) {
+      console.error('Error sending email notification:', error);
+    } finally {
+      console.log('=== Email Notification Process Completed ===');
+    }
+  }
+
   async function handleProductRequestSubmit() {
     isLoading = true;
     console.log('=== Starting Product Request Submission ===');
@@ -233,6 +320,9 @@
         console.log('All Firebase submissions completed successfully!');
         console.log('Saved document references:', results.map(ref => ref.id));
 
+        // Send email notification after successful submission
+        await sendEmailNotification(rows);
+
         showNotification('Product request submitted successfully', 'success');
         
         // Clear form and add new row
@@ -265,20 +355,31 @@
   </svg>`;
 
   // Function to handle Excel paste
-  function handlePaste(event: ClipboardEvent, rowIndex: number, field: keyof ProductRow) {
+  async function handlePaste(event: ClipboardEvent, rowIndex: number, field: keyof ProductRow) {
+    console.log('=== Starting Paste Operation ===');
+    console.log('Paste target:', { field, rowIndex });
+    
     event.preventDefault();
     const clipboardData = event.clipboardData?.getData('text') || '';
+    console.log('Raw clipboard data:', clipboardData);
     
     // Split the clipboard data into rows
     const pastedRows = clipboardData.split('\n')
       .map(row => row.split('\t'))
       .filter(row => row.some(cell => cell.trim() !== '')); // Filter out empty rows
 
-    if (pastedRows.length === 0) return;
+    console.log('Processed rows:', pastedRows);
+
+    if (pastedRows.length === 0) {
+      console.log('No valid data to paste');
+      return;
+    }
 
     // For single cell paste
     if (pastedRows.length === 1 && pastedRows[0].length === 1) {
       const value = pastedRows[0][0].trim();
+      console.log('Single cell paste:', { value, field, rowIndex });
+      
       if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
         rows[rowIndex][field] = value;
       }
@@ -287,11 +388,14 @@
 
     // For multi-cell paste in a single column
     const values = pastedRows.map(row => row[0]?.trim() || '');
+    console.log('Multi-cell paste values:', values);
     
     // Create new rows if needed
+    const initialRowCount = rows.length;
     while (rowIndex + values.length > rows.length) {
       rows = [...rows, createEmptyRow()];
     }
+    console.log(`Added ${rows.length - initialRowCount} new rows`);
 
     // Update the specific column for each row
     values.forEach((value, index) => {
@@ -301,7 +405,10 @@
     });
 
     // Show notification
-    showNotification(`Pasted ${values.length} values into ${field} column`, 'success');
+    const notificationMessage = `Pasted ${values.length} values into ${field} column`;
+    showNotification(notificationMessage, 'success');
+    console.log(notificationMessage);
+    console.log('=== Paste Operation Completed ===');
   }
 
   onMount(() => {

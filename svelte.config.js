@@ -19,11 +19,11 @@ const config = {
 			strict: true
 		}),
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/rapidcleanillawarra' : ''
+			base: process.env.NODE_ENV === 'production' ? '/rapidtools' : ''
 		},
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {
-				// ignore 404s that occur in prerendering
+				// ignore 404s during prerendering
 				if (message.includes('404')) {
 					return;
 				}

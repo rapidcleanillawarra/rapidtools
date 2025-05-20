@@ -71,4 +71,47 @@ This file logs all major changes, experiments, and pivots made during the develo
 - Firebase Auth is best handled on the client in SvelteKit; SSR route guards are not compatible with client-only auth.
 - Always wrap navigation (`goto`) in a browser check to avoid SSR errors.
 - Manual user creation in Firebase Console is a reliable fallback if Admin SDK seeding fails.
-- Keep a changelog to track all major pivots and experiments for future maintainers. 
+- Keep a changelog to track all major pivots and experiments for future maintainers.
+
+## 2025-05-20
+
+### Product Request Form Enhancement
+- Implemented a modern, responsive data table for product requests using Tailwind CSS
+- Added key features:
+  - Sticky header with backdrop blur effect for better UX
+  - Responsive grid layout (7-column desktop, stacked mobile)
+  - Smart form controls with custom styling:
+    - Brand and Supplier dropdowns using svelte-select
+    - Numeric inputs for prices with proper validation
+    - "Apply to All" functionality for Brand and Supplier fields
+  - Mobile optimizations:
+    - Stacked layout with clear field labels
+    - Touch-friendly buttons and controls
+    - Converted icon buttons to text buttons for better mobile UX
+- Improved accessibility:
+  - Screen reader labels
+  - Proper heading hierarchy
+  - Semantic HTML structure
+  - Focus indicators
+- Added interactive features:
+  - Row hover states
+  - Loading indicators
+  - Success/error notifications
+  - Background processing overlay
+- Implemented proper z-index management for dropdowns and overlays
+- Added comprehensive error handling and validation
+- Integrated with Firebase for data persistence
+- Added proper TypeScript interfaces for type safety
+
+**Technical Details:**
+- Used CSS Grid for responsive layout management
+- Implemented custom styling for svelte-select components
+- Added proper error boundaries and loading states
+- Optimized performance with transition effects
+- Maintained consistent styling with Tailwind utility classes
+
+**Lessons Learned:**
+- Proper z-index management is crucial for dropdown components
+- Mobile-first design requires careful consideration of touch targets
+- TypeScript interfaces help maintain code quality in complex forms
+- Proper loading states and error handling improve user experience 

@@ -4,6 +4,7 @@
   import Select from 'svelte-select';
   import { currentUser, logoutUser } from '$lib/firebase';
   import { page } from '$app/stores';
+  import { base } from '$app/paths';
   import { userProfile, type UserProfile } from '$lib/userProfile';
   let mobileMenuOpen = false;
   let productsOpen = false;
@@ -24,7 +25,7 @@
   // Check if we're on the landing page
   let isLandingPage: boolean;
   const unsubPage = page.subscribe(value => {
-    isLandingPage = value.url.pathname === '/';
+    isLandingPage = value.url.pathname === base + '/' || value.url.pathname === base;
   });
 
   // For mobile dropdowns
@@ -48,7 +49,7 @@
     try {
       await logoutUser();
       // The currentUser store will automatically update
-      window.location.href = '/'; // Redirect to home/login page
+      window.location.href = base + '/'; // Redirect to home/login page
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -87,7 +88,7 @@
         </div>
         <!-- Desktop Nav -->
         <div class="hidden md:flex space-x-6 items-center">
-          <a href="/" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">Home</a>
+          <a href="{base}/" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">Home</a>
           <!-- Products Dropdown -->
           <div class="relative products-dropdown">
             <button 
@@ -116,22 +117,22 @@
               >
                 <div class="py-1.5">
                   <a 
-                    href="/product-request" 
+                    href="{base}/product-request" 
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Product Request</a>
                   <a 
-                    href="/product-request-approval" 
+                    href="{base}/product-request-approval" 
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Product Request Approval</a>
                   <a 
-                    href="/update-product-price" 
+                    href="{base}/update-product-price" 
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Update Product Price</a>
                   <a 
-                    href="/compare-sku" 
+                    href="{base}/compare-sku" 
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Compare SKU</a>
@@ -167,7 +168,7 @@
               >
                 <div class="py-1.5">
                   <a 
-                    href="/gross-profit-calculator" 
+                    href="{base}/gross-profit-calculator" 
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => ordersOpen = false}
                   >Gross Profit Calculator</a>
@@ -237,7 +238,7 @@
     <!-- Mobile Menu -->
     {#if mobileMenuOpen}
       <div class="md:hidden bg-gray-900 border-t border-gray-800 px-2 pt-2 pb-3 space-y-1">
-        <a href="/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Home</a>
+        <a href="{base}/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Home</a>
         <!-- Mobile Products Dropdown -->
         <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileProductsOpen = !mobileProductsOpen}>
           <span>Products</span>
@@ -246,22 +247,22 @@
         {#if mobileProductsOpen}
           <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
             <a 
-              href="/product-request" 
+              href="{base}/product-request" 
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProductsOpen = false}
             >Product Request</a>
             <a 
-              href="/product-request-approval" 
+              href="{base}/product-request-approval" 
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProductsOpen = false}
             >Product Request Approval</a>
             <a 
-              href="/update-product-price" 
+              href="{base}/update-product-price" 
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProductsOpen = false}
             >Update Product Price</a>
             <a 
-              href="/compare-sku" 
+              href="{base}/compare-sku" 
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProductsOpen = false}
             >Compare SKU</a>
@@ -275,7 +276,7 @@
         {#if mobileOrdersOpen}
           <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
             <a 
-              href="/gross-profit-calculator" 
+              href="{base}/gross-profit-calculator" 
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileOrdersOpen = false}
             >Gross Profit Calculator</a>
@@ -292,7 +293,7 @@
               {/if}
             </div>
             <a 
-              href="/edit-profile"
+              href="{base}/edit-profile"
               class="block w-full text-left text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
             >
               Edit Profile

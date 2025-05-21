@@ -398,6 +398,17 @@
   :global(.svelte-select .item.active) {
     background-color: #e5e7eb;
   }
+
+  :global(.icon.clear-select) {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    margin-right: 4px;
+  }
+
+  :global(.svelte-select input) {
+    width: calc(100% - 24px); /* Adjust input width to account for smaller clear button */
+  }
 </style>
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
@@ -426,7 +437,7 @@
       <!-- Product Requests Table -->
       <div class="overflow-visible">
         <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[40px_1.2fr_1fr_1.2fr_200px_200px_200px_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>
             <input
               type="checkbox"
@@ -470,7 +481,7 @@
         <div class="divide-y divide-gray-200">
           {#each productRequests as request}
             <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[40px_1.2fr_1fr_1.2fr_200px_200px_200px_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Checkbox -->
                 <div class="mb-4 md:mb-0">
                   <input

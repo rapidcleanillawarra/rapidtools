@@ -14,7 +14,7 @@ const config = {
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
-			fallback: 'index.html',
+			fallback: '404.html',
 			precompress: false,
 			strict: true
 		}),
@@ -30,7 +30,8 @@ const config = {
 				// otherwise fail the build
 				throw new Error(message);
 			}
-		}
+		},
+		appDir: 'app'
 	}
 };
 

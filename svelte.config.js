@@ -14,12 +14,13 @@ const config = {
 		adapter: adapter({
 			pages: 'build',
 			assets: 'build',
-			fallback: '404.html',
+			fallback: 'index.html',
 			precompress: false,
 			strict: true
 		}),
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/rapidtools' : ''
+			base: process.env.NODE_ENV === 'production' ? '/rapidtools' : '',
+			assets: process.env.NODE_ENV === 'production' ? 'https://rapidcleanillawarra.github.io/rapidtools' : ''
 		},
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {
@@ -29,9 +30,12 @@ const config = {
 				}
 				// otherwise fail the build
 				throw new Error(message);
-			}
+			},
+			default: true,
+			entries: ['*']
 		},
-		appDir: 'app'
+		appDir: 'app',
+		trailingSlash: 'always'
 	}
 };
 

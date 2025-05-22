@@ -7,6 +7,12 @@ export default defineConfig({
 	base: process.env.NODE_ENV === 'production' ? '/rapidtools/' : '/',
 	build: {
 		target: 'esnext',
-		minify: 'esbuild'
+		minify: 'esbuild',
+		assetsDir: 'assets',
+		rollupOptions: {
+			output: {
+				manualChunks: undefined
+			}
+		}
 	}
 });

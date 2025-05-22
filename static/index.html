@@ -3,7 +3,8 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<link rel="icon" href="/rapidtools/favicon.png" />
+		<title>RapidTools</title>
 		<!-- Start Single Page Apps for GitHub Pages -->
 		<script type="text/javascript">
 			// Single Page Apps for GitHub Pages
@@ -21,9 +22,9 @@
 			}(window.location))
 		</script>
 		<!-- End Single Page Apps for GitHub Pages -->
-		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
-		<div style="display: contents">%sveltekit.body%</div>
+		<div id="app"></div>
+		<script type="module" src="/rapidtools/app/immutable/start.js"></script>
 	</body>
 </html> 

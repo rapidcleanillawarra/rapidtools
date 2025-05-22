@@ -121,50 +121,48 @@
             <table id="orderLineTable">
               <thead>
                 <tr>
-                  <th align="left">Product Name</th>
-                  <th align="left">SKU</th>
-                  <th align="left">Quantity</th>
-                  <th align="left">Cost Price</th>
-                  <th align="left">RRP</th>
-                  <th align="left">Unit Price</th>
-                  <th align="left">Percent Discount</th>
-                  <th align="left">Accumulated Discount</th>
-                  <th align="left">Unit Price Discounted</th>
-                  <th align="left">GPP Ex GST</th>
-                  <th align="left">Total Ex GST</th>
-                  <th align="left">
-                    Save Discount Price
+                  <th align="center" style="width: 3%;">
                     <input 
                       type="checkbox" 
                       bind:checked={saveAllDiscounts}
                       on:change={handleSaveAllDiscountsChange}
-                      style="margin-left: 10px;"
                       disabled={loading}
                     >
                   </th>
+                  <th align="left" style="width: 10%;">Product Name</th>
+                  <th align="left" style="width: 10%;">SKU</th>
+                  <th align="right" style="width: 5%;">Quantity</th>
+                  <th align="right" style="width: 5%;">Cost Price</th>
+                  <th align="right" style="width: 10%;">RRP</th>
+                  <th align="right" style="width: 10%;">Unit Price</th>
+                  <th align="right" style="width: 10%;">% Discount</th>
+                  <th align="right" style="width: 10%;">Accum. Discount</th>
+                  <th align="right" style="width: 10%;">Unit Price Disc.</th>
+                  <th align="right" style="width: 10%;">GPP Ex GST</th>
+                  <th align="right" style="width: 10%;">Total Ex GST</th>
                 </tr>
               </thead>
               <tbody>
                 {#each orderLines as line}
                   <tr class={line.highlight}>
-                    <td>{line.productName}</td>
-                    <td>{line.sku}</td>
-                    <td>{line.quantity}</td>
-                    <td>{line.costPrice}</td>
-                    <td>{line.rrp}</td>
-                    <td>{line.unitPrice}</td>
-                    <td>{line.percentDiscount}%</td>
-                    <td>{line.accumulatedDiscount}</td>
-                    <td>{line.unitPriceDiscounted}</td>
-                    <td>{line.gppExGst}%</td>
-                    <td>{line.totalExGst}</td>
-                    <td>
+                    <td style="text-align: center;">
                       <input 
                         type="checkbox" 
                         bind:checked={line.saveDiscount}
                         disabled={loading}
                       >
                     </td>
+                    <td title={line.productName}>{line.productName}</td>
+                    <td title={line.sku}>{line.sku}</td>
+                    <td title={line.quantity.toString()} style="text-align: right;">{line.quantity}</td>
+                    <td title={line.costPrice.toString()} style="text-align: right;">{line.costPrice}</td>
+                    <td title={line.rrp.toString()} style="text-align: right;">{line.rrp}</td>
+                    <td title={line.unitPrice.toString()} style="text-align: right;">{line.unitPrice}</td>
+                    <td title={line.percentDiscount.toString() + '%'} style="text-align: right;">{line.percentDiscount}%</td>
+                    <td title={line.accumulatedDiscount.toString()} style="text-align: right;">{line.accumulatedDiscount}</td>
+                    <td title={line.unitPriceDiscounted.toString()} style="text-align: right;">{line.unitPriceDiscounted}</td>
+                    <td title={line.gppExGst.toString() + '%'} style="text-align: right;">{line.gppExGst}%</td>
+                    <td title={line.totalExGst.toString()} style="text-align: right;">{line.totalExGst}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -190,10 +188,11 @@
 <style>
   .global-container {
     padding: 20px;
+    width: 100%;
   }
 
   .order-container {
-    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
   }
 
@@ -202,6 +201,7 @@
     display: flex;
     gap: 10px;
     align-items: center;
+    width: 100%;
   }
 
   .table-legends {
@@ -209,6 +209,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
+    width: 100%;
   }
 
   .legend-item {
@@ -248,12 +249,30 @@
   td {
     padding: 10px;
     border: 1px solid #ddd;
-    text-align: right;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow: visible;
   }
 
   td:first-child,
   td:nth-child(2) {
     text-align: left;
+  }
+
+  td:nth-child(3),
+  td:nth-child(4),
+  td:nth-child(5),
+  td:nth-child(6),
+  td:nth-child(7),
+  td:nth-child(8),
+  td:nth-child(9),
+  td:nth-child(10),
+  td:nth-child(11) {
+    text-align: right;
+  }
+
+  td:nth-child(12) {
+    text-align: center;
   }
 
   input[type="number"] {
@@ -270,7 +289,7 @@
   }
 
   .table-responsive {
-    overflow-x: auto;
+    width: 100%;
     margin: 20px 0;
     border: 1px solid #ddd;
     border-radius: 4px;
@@ -281,6 +300,7 @@
     width: 100%;
     border-collapse: collapse;
     background-color: white;
+    table-layout: fixed;
   }
 
   th {
@@ -289,10 +309,10 @@
     background-color: rgb(0, 120, 215);
     color: white;
     padding: 12px 10px;
-    text-align: left;
-    border: none;
     font-weight: 500;
-    white-space: nowrap;
+    white-space: normal;
+    word-wrap: break-word;
+    overflow: visible;
   }
 
   tr:nth-child(even) {
@@ -353,5 +373,29 @@
 
   .order-info p {
     margin: 5px 0;
+  }
+
+  /* Checkbox styling */
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+
+  input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Ensure the table container takes full width */
+  .row, .col-12 {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Remove hover tooltip styles */
+  td:hover::after, th:hover::after {
+    display: none;
   }
 </style> 

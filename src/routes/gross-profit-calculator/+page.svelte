@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { OrderLine, OrderInfo } from './types';
-  import { OrderService } from './services/order';
+  import { GPPService } from './services/gpp.service';
   
   let orderId = '';
   let orderInfo: OrderInfo | null = null;
@@ -11,7 +11,7 @@
   let error: string | null = null;
   let success: string | null = null;
 
-  const orderService = OrderService.getInstance();
+  const gppService = GPPService.getInstance();
 
   async function handleSubmit() {
     if (!orderId.trim()) {
@@ -24,7 +24,7 @@
     success = null;
 
     try {
-      const result = await orderService.getOrderDetails(orderId);
+      const result = await gppService.fetchOrderDetails(orderId);
       orderInfo = result.orderInfo;
       orderLines = result.orderLines;
     } catch (e) {
@@ -53,7 +53,7 @@
     success = null;
 
     try {
-      await orderService.applyCustomerPricing(orderId, orderLines);
+      await gppService.saveCustomerPricing(orderId, orderLines);
       success = 'Customer pricing applied successfully';
     } catch (e) {
       error = e instanceof Error ? e.message : 'An error occurred while applying customer pricing';
@@ -235,6 +235,14 @@
 
   .low-gpp {
     background-color: #ffcdd2;
+  }
+
+  .equal-price td {
+    background-color: #c8e6c9;
+  }
+
+  .lower-price td {
+    background-color: #bbdefb;
   }
 
   td {

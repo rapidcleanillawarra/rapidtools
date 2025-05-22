@@ -30,12 +30,9 @@ const config = {
 				}
 				// otherwise fail the build
 				throw new Error(message);
-			},
-			default: true,
-			entries: ['*']
+			}
 		},
-		appDir: 'app',
-		trailingSlash: 'always'
+		appDir: 'app'
 	}
 };
 

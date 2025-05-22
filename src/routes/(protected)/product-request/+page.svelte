@@ -332,7 +332,9 @@ For any questions or concerns, please contact the system administrator.`;
             status: 'request',
             date_created: serverTimestamp(),
             requestor_uid: user?.uid || '',
-            requestor_email: user?.email || ''
+            requestor_email: user?.email || '',
+            requestor_firstName: profile?.firstName || '',
+            requestor_lastName: profile?.lastName || ''
           };
           
           console.log('Preparing to save product data:', productData);

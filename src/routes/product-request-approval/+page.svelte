@@ -187,9 +187,10 @@
       } else {
         throw new Error('Failed to load suppliers: Invalid response format');
       }
-    } catch (error) {
+    } catch (err: unknown) {
+      const error = err as Error;
       console.error('Error in fetchSuppliers:', error);
-      supplierError = error instanceof Error ? error.message : 'Failed to load suppliers';
+      supplierError = error.message || 'Failed to load suppliers';
     } finally {
       loadingSuppliers = false;
       console.log('fetchSuppliers completed. Suppliers:', suppliers, 'Error:', supplierError);
@@ -274,7 +275,8 @@
           supplier: req.primary_supplier
         }))
       });
-    } catch (error) {
+    } catch (err: unknown) {
+      const error = err as Error;
       console.error('Error loading product requests:', error);
       console.error('Error details:', {
         name: error.name,
@@ -305,7 +307,8 @@
           markup.brand?.toLowerCase().includes(term.toLowerCase())
         );
       });
-    } catch (error) {
+    } catch (err: unknown) {
+      const error = err as Error;
       console.error('Error searching markups:', error);
       toastError('Failed to search markups');
     }
@@ -364,6 +367,54 @@
     position: relative;
   }
 
+  /* Add styles for the clear button */
+  :global(.svelte-select .icon.clear-select) {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    margin-right: 4px;
+  }
+
+  :global(.svelte-select .icon.clear-select svg) {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Add new table cell styles */
+  .table-cell {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
+  }
+
+  .requestor-cell {
+    width: 100%;
+  }
+
+  .sku-cell {
+    width: 100%;
+  }
+
+  .product-name-cell {
+    width: 100%;
+  }
+
+  .brand-cell {
+    width: 100%;
+  }
+
+  .supplier-cell {
+    width: 100%;
+  }
+
+  .category-cell {
+    width: 100%;
+  }
+
+  .price-cell {
+    width: 100%;
+  }
+
   :global(.svelte-select .selectContainer) {
     border: var(--border);
     border-radius: var(--border-radius);
@@ -399,13 +450,6 @@
     background-color: #e5e7eb;
   }
 
-  :global(.icon.clear-select) {
-    width: 16px;
-    height: 16px;
-    min-width: 16px;
-    margin-right: 4px;
-  }
-
   :global(.svelte-select input) {
     width: calc(100% - 24px); /* Adjust input width to account for smaller clear button */
   }
@@ -437,7 +481,7 @@
       <!-- Product Requests Table -->
       <div class="overflow-visible">
         <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[40px_1.2fr_1fr_1.2fr_200px_200px_200px_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>
             <input
               type="checkbox"
@@ -446,42 +490,42 @@
               class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
           </div>
-          <div>Requestor Name</div>
-          <div>SKU</div>
-          <div>Product Name</div>
-          <div>Brand</div>
-          <div>Primary Supplier</div>
-          <div>
+          <div class="table-cell requestor-cell">Requestor Name</div>
+          <div class="table-cell sku-cell">SKU</div>
+          <div class="table-cell product-name-cell">Product Name</div>
+          <div class="table-cell brand-cell">Brand</div>
+          <div class="table-cell supplier-cell">Primary Supplier</div>
+          <div class="table-cell category-cell">
             Category
             <button 
               class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
               on:click={applyCategoryToAll}
             >Apply All</button>
           </div>
-          <div>Purchase Price</div>
-          <div>
+          <div class="table-cell price-cell">Purchase Price</div>
+          <div class="table-cell price-cell">
             Client MUP
             <button 
               class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
               on:click={applyClientMupToAll}
             >Apply All</button>
           </div>
-          <div>
+          <div class="table-cell price-cell">
             Retail MUP
             <button 
               class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
               on:click={applyRetailMupToAll}
             >Apply All</button>
           </div>
-          <div>Client Price</div>
-          <div>RRP</div>
+          <div class="table-cell price-cell">Client Price</div>
+          <div class="table-cell price-cell">RRP</div>
         </div>
 
         <!-- Rows -->
         <div class="divide-y divide-gray-200">
           {#each productRequests as request}
             <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[40px_1.2fr_1fr_1.2fr_200px_200px_200px_0.8fr_0.8fr_0.8fr_0.8fr_0.8fr] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Checkbox -->
                 <div class="mb-4 md:mb-0">
                   <input
@@ -501,25 +545,25 @@
                 </div>
 
                 <!-- Requestor Name -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell requestor-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Requestor Name</label>
                   <span class="text-gray-900">{request.requestor_firstName} {request.requestor_lastName}</span>
                 </div>
 
                 <!-- SKU -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell sku-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">SKU</label>
                   <span class="text-gray-900">{request.sku}</span>
                 </div>
 
                 <!-- Product Name -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell product-name-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Product Name</label>
                   <span class="text-gray-900">{request.product_name}</span>
                 </div>
 
                 <!-- Brand -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell brand-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Brand</label>
                   {#if loadingBrands}
                     <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
@@ -541,7 +585,7 @@
                 </div>
 
                 <!-- Primary Supplier -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell supplier-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Primary Supplier</label>
                   {#if loadingSuppliers}
                     <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
@@ -561,7 +605,7 @@
                 </div>
 
                 <!-- Category -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell category-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Category</label>
                   <Select
                     items={categoriesList}
@@ -575,7 +619,7 @@
                 </div>
 
                 <!-- Purchase Price -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell price-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
                   <input
                     type="number"
@@ -587,7 +631,7 @@
                 </div>
 
                 <!-- Client MUP -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell price-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Client MUP</label>
                   <input
                     type="number"
@@ -599,7 +643,7 @@
                 </div>
 
                 <!-- Retail MUP -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell price-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Retail MUP</label>
                   <input
                     type="number"
@@ -611,7 +655,7 @@
                 </div>
 
                 <!-- Client Price -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell price-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Client Price</label>
                   <input
                     type="number"
@@ -623,7 +667,7 @@
                 </div>
 
                 <!-- RRP -->
-                <div class="mb-4 md:mb-0">
+                <div class="mb-4 md:mb-0 table-cell price-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">RRP</label>
                   <input
                     type="number"

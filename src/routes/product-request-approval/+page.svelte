@@ -41,27 +41,41 @@
       // Calculate client price: purchase price * client MUP * 1.1 (GST)
       if (purchasePrice && clientMup) {
         request.client_price = parseFloat((purchasePrice * clientMup * 1.1).toFixed(2));
+        // Force Svelte reactivity
+        productRequests = productRequests;
       }
 
       // Calculate RRP: purchase price * retail MUP * 1.1 (GST)
       if (purchasePrice && retailMup) {
         request.rrp = parseFloat((purchasePrice * retailMup * 1.1).toFixed(2));
+        // Force Svelte reactivity
+        productRequests = productRequests;
       }
     } else {
       // Calculate MUPs from prices
       const clientPrice = parseFloat(request.client_price?.toString() || '0');
       const rrp = parseFloat(request.rrp?.toString() || '0');
 
-      // Calculate client MUP: (client price / 1.1) / purchase price
+      // Calculate client MUP: client price / (purchase price * 1.1)
       if (purchasePrice && clientPrice) {
-        request.client_mup = parseFloat(((clientPrice / 1.1) / purchasePrice).toFixed(2));
+        request.client_mup = parseFloat((clientPrice / (purchasePrice * 1.1)).toFixed(2));
+        // Force Svelte reactivity
+        productRequests = productRequests;
       }
 
-      // Calculate retail MUP: (RRP / 1.1) / purchase price
+      // Calculate retail MUP: RRP / (purchase price * 1.1)
       if (purchasePrice && rrp) {
-        request.retail_mup = parseFloat(((rrp / 1.1) / purchasePrice).toFixed(2));
+        request.retail_mup = parseFloat((rrp / (purchasePrice * 1.1)).toFixed(2));
+        // Force Svelte reactivity
+        productRequests = productRequests;
       }
     }
+
+    // Ensure all values are properly formatted to 2 decimal places
+    if (request.client_price) request.client_price = parseFloat(request.client_price.toFixed(2));
+    if (request.rrp) request.rrp = parseFloat(request.rrp.toFixed(2));
+    if (request.client_mup) request.client_mup = parseFloat(request.client_mup.toFixed(2));
+    if (request.retail_mup) request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
   }
 
   // Function to apply client MUP to all rows
@@ -349,6 +363,14 @@
       loadProductRequests(),
       searchMarkups()
     ]);
+
+    // Calculate retail MUP for any requests that have RRP but no retail MUP
+    productRequests.forEach(request => {
+      if (request.rrp && (!request.retail_mup || request.retail_mup === 0)) {
+        calculatePrices(request, 'price');
+      }
+    });
+
     loading = false;
   });
 </script>

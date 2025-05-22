@@ -29,6 +29,37 @@
   let selectedRows: Set<string> = new Set();
   let selectAll = false;
 
+  interface SkuToRequestMap {
+    [key: string]: ProductRequest[];
+  }
+
+  interface ApiItem {
+    SKU: string;
+    [key: string]: any;
+  }
+
+  interface ApiResponse {
+    Ack: string;
+    Item: ApiItem[];
+    [key: string]: any;
+  }
+
+  interface ProductRequestPayload {
+    SKU: string;
+    Model: string;
+    Brand: string;
+    PrimarySupplier: string;
+    DefaultPurchasePrice: number;
+    Category: number;
+    RRP: number;
+    ClientMUP: number;
+    RetailMUP: number;
+    PriceGroup: number;
+    requestor_email: string;
+    requestor_firstname: string;
+    requestor_lastname: string;
+  }
+
   // Function to calculate client price and RRP
   function calculatePrices(request: ProductRequest, source: 'mup' | 'price' = 'mup') {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
@@ -342,8 +373,90 @@
       toastError('Please select at least one request');
       return;
     }
-    // Implementation for submitting checked rows
-    toastSuccess('Selected requests submitted successfully');
+
+    loading = true;
+    const selectedRequests = productRequests.filter(req => selectedRows.has(req.id));
+    console.log('Selected requests to process:', selectedRequests);
+
+    try {
+      const createProductUrl = 'https://prod-52.australiasoutheast.logic.azure.com:443/workflows/fa1aaf833393486a82d6edb76ad0ff33/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=FLveH751-xsf6plOm8Fm3awsXw2oFBHAfogkn0IwnGY';
+
+      for (const request of selectedRequests) {
+        try {
+          // Validate required fields
+          if (!request.sku || !request.product_name || !request.brand || 
+              !request.primary_supplier || !request.category || 
+              !request.purchase_price || !request.client_mup || 
+              !request.retail_mup || !request.rrp) {
+            console.log('Validation failed for request:', request);
+            toastError(`Missing required fields for SKU: ${request.sku || 'Unknown SKU'}`);
+            continue;
+          }
+
+          const priceGroup = request.purchase_price * request.client_mup * 1.1;
+          
+          const payload: ProductRequestPayload = {
+            SKU: request.sku,
+            Model: request.product_name,
+            Brand: request.brand,
+            PrimarySupplier: request.primary_supplier,
+            DefaultPurchasePrice: parseFloat(request.purchase_price.toString()),
+            Category: parseInt(request.category, 10),
+            RRP: parseFloat(request.rrp.toString()),
+            ClientMUP: parseFloat(request.client_mup.toString()),
+            RetailMUP: parseFloat(request.retail_mup.toString()),
+            PriceGroup: parseFloat(priceGroup.toFixed(2)),
+            requestor_email: request.requestor_email || '',
+            requestor_firstname: request.requestor_firstName || '',
+            requestor_lastname: request.requestor_lastName || ''
+          };
+
+          console.log('Sending product creation request for SKU:', request.sku);
+          console.log('Request payload:', payload);
+
+          const response = await fetch(createProductUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          const responseData = await response.json();
+          console.log('Product creation response for SKU', request.sku, ':', responseData);
+
+          if (response.ok) {
+            // Update Firestore status
+            await db.collection('product_requests').doc(request.id).update({
+              status: 'product_created',
+              product_creation_date: new Date().toISOString(),
+              category: request.category,
+              client_mup: request.client_mup,
+              retail_mup: request.retail_mup,
+              client_price: request.client_price,
+              rrp: request.rrp
+            });
+
+            toastSuccess(`Product created successfully for SKU: ${request.sku}`);
+            
+            // Remove the processed request from the list
+            productRequests = productRequests.filter(req => req.id !== request.id);
+            selectedRows.delete(request.id);
+          } else {
+            console.error('Failed to create product:', responseData);
+            toastError(`Failed to create product for SKU: ${request.sku}. ${responseData.message || ''}`);
+          }
+        } catch (error) {
+          console.error('Error processing request:', error);
+          toastError(`Error processing SKU: ${request.sku}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error during submission:', error);
+      toastError('Error during submission. Please try again later.');
+    } finally {
+      loading = false;
+      selectedRows = selectedRows; // Trigger reactivity
+      productRequests = productRequests; // Trigger reactivity
+    }
   }
 
   async function handleDeleteChecked() {

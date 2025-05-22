@@ -453,6 +453,42 @@
   :global(.svelte-select input) {
     width: calc(100% - 24px); /* Adjust input width to account for smaller clear button */
   }
+
+  /* Mobile styles */
+  @media (max-width: 768px) {
+    .mobile-row {
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .mobile-field {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+    }
+
+    .mobile-label {
+      font-weight: 500;
+      color: #374151;
+      width: 40%;
+    }
+
+    .mobile-value {
+      width: 60%;
+    }
+
+    .mobile-buttons {
+      position: sticky;
+      top: 0;
+      background-color: white;
+      padding: 1rem;
+      z-index: 40;
+      border-bottom: 1px solid #e5e7eb;
+    }
+  }
 </style>
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
@@ -461,7 +497,7 @@
     
     <!-- Product Request Form -->
     <div class="space-y-6">
-      <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm">
+      <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm mobile-buttons">
         <button
           class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
           on:click={handleDeleteChecked}
@@ -480,7 +516,7 @@
 
       <!-- Product Requests Table -->
       <div class="overflow-visible">
-        <!-- Headers -->
+        <!-- Desktop Headers -->
         <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>
             <input
@@ -524,7 +560,8 @@
         <!-- Rows -->
         <div class="divide-y divide-gray-200">
           {#each productRequests as request}
-            <div class="bg-white md:hover:bg-gray-50 transition-colors">
+            <!-- Desktop View -->
+            <div class="bg-white md:hover:bg-gray-50 transition-colors hidden md:block">
               <div class="md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Checkbox -->
                 <div class="mb-4 md:mb-0">
@@ -669,6 +706,167 @@
                 <!-- RRP -->
                 <div class="mb-4 md:mb-0 table-cell price-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">RRP</label>
+                  <input
+                    type="number"
+                    bind:value={request.rrp}
+                    on:input={() => calculatePrices(request, 'price')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Mobile View -->
+            <div class="md:hidden mobile-row">
+              <div class="mobile-field">
+                <span class="mobile-label">Select</span>
+                <div class="mobile-value">
+                  <input
+                    type="checkbox"
+                    checked={selectedRows.has(request.id)}
+                    on:change={(event) => {
+                      const target = event.target as HTMLInputElement;
+                      if (target.checked) {
+                        selectedRows.add(request.id);
+                      } else {
+                        selectedRows.delete(request.id);
+                      }
+                      selectedRows = selectedRows;
+                    }}
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Requestor Name</span>
+                <span class="mobile-value text-gray-900">{request.requestor_firstName} {request.requestor_lastName}</span>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">SKU</span>
+                <span class="mobile-value text-gray-900">{request.sku}</span>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Product Name</span>
+                <span class="mobile-value text-gray-900">{request.product_name}</span>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Brand</span>
+                <div class="mobile-value">
+                  {#if loadingBrands}
+                    <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
+                  {:else if brandError}
+                    <div class="text-red-600 text-sm">{brandError}</div>
+                  {:else}
+                    <Select
+                      items={brands}
+                      value={brands.find(b => b.value === request.brand) || null}
+                      placeholder="Select Brand"
+                      containerStyles="position: relative;"
+                      on:change={(e) => {
+                        request.brand = e.detail?.value || '';
+                        searchMarkups();
+                      }}
+                    />
+                  {/if}
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Primary Supplier</span>
+                <div class="mobile-value">
+                  {#if loadingSuppliers}
+                    <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
+                  {:else if supplierError}
+                    <div class="text-red-600 text-sm">{supplierError}</div>
+                  {:else}
+                    <Select
+                      items={suppliers}
+                      value={suppliers.find(s => s.value === request.primary_supplier)}
+                      placeholder="Select Supplier"
+                      containerStyles="position: relative;"
+                      on:change={(e) => {
+                        request.primary_supplier = e.detail?.value || '';
+                      }}
+                    />
+                  {/if}
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Category</span>
+                <div class="mobile-value">
+                  <Select
+                    items={categoriesList}
+                    value={categoriesList.find(c => c.value === request.category) || null}
+                    placeholder="Select Category"
+                    containerStyles="position: relative;"
+                    on:change={(e) => {
+                      request.category = e.detail?.value || '';
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Purchase Price</span>
+                <div class="mobile-value">
+                  <input
+                    type="number"
+                    value={request.purchase_price}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    step="0.01"
+                    readonly
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Client MUP</span>
+                <div class="mobile-value">
+                  <input
+                    type="number"
+                    bind:value={request.client_mup}
+                    on:input={() => calculatePrices(request, 'mup')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Retail MUP</span>
+                <div class="mobile-value">
+                  <input
+                    type="number"
+                    bind:value={request.retail_mup}
+                    on:input={() => calculatePrices(request, 'mup')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Client Price</span>
+                <div class="mobile-value">
+                  <input
+                    type="number"
+                    bind:value={request.client_price}
+                    on:input={() => calculatePrices(request, 'price')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">RRP</span>
+                <div class="mobile-value">
                   <input
                     type="number"
                     bind:value={request.rrp}

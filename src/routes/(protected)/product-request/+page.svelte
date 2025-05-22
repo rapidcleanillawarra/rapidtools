@@ -5,6 +5,7 @@
   import { db } from '$lib/firebase';
   import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
   import { currentUser } from '$lib/firebase';
+  import { userProfile, type UserProfile } from '$lib/userProfile';
 
   interface SelectOption {
     value: string;
@@ -42,10 +43,16 @@
 
   // State for user
   let user: any;
+  let profile: UserProfile | null = null;
   
   // Subscribe to user changes
   currentUser.subscribe((u) => {
     user = u;
+  });
+
+  // Subscribe to profile changes
+  userProfile.subscribe((p) => {
+    profile = p;
   });
 
   function createEmptyRow(): ProductRow {
@@ -151,6 +158,7 @@
   async function sendEmailNotification(products: ProductRow[]) {
     console.log('=== Starting Email Notification Process ===');
     console.log('Current user:', user);
+    console.log('Current profile:', profile);
     
     if (!user?.email) {
       console.error('No user email available for notification');
@@ -158,53 +166,76 @@
     }
 
     try {
-      // Create HTML table for products
+      // Create a table format with inline styles that works in both email and Teams
       const productTable = `
-        <table style="border-collapse: collapse; width: 100%; margin-top: 20px;">
-          <thead>
-            <tr style="background-color: #f3f4f6;">
-              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">SKU</th>
-              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Product Name</th>
-              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Brand</th>
-              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">Supplier</th>
-              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">Purchase Price</th>
-              <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">RRP</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${products.map(product => `
-              <tr>
-                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.sku}</td>
-                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.productName}</td>
-                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.brand?.label || '-'}</td>
-                <td style="border: 1px solid #e5e7eb; padding: 8px;">${product.supplier?.label || '-'}</td>
-                <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.purchasePrice).toFixed(2)}</td>
-                <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.rrp).toFixed(2)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
+<table style="border-collapse: collapse; width: 100%; margin: 10px 0; font-family: Arial, sans-serif;">
+  <thead>
+    <tr style="background-color: #f3f4f6;">
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">#</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">SKU</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Name</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Brand</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Supplier</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Purchase Price</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">RRP</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${products.map((product, index) => `
+    <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${index + 1}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.sku}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.productName}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.brand?.label || '-'}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.supplier?.label || '-'}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.purchasePrice).toFixed(2)}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.rrp).toFixed(2)}</td>
+    </tr>
+    `).join('')}
+  </tbody>
+</table>`;
 
-      // Create email body with user info and product table
+      // For Teams, create a simplified ASCII table
+      const teamsTable = products.map((product, index) => `
+${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(product.purchasePrice).toFixed(2)} | $${parseFloat(product.rrp).toFixed(2)}`).join('\n');
+
+      // Create email body with HTML formatting
       const emailBody = `
-        <div style="font-family: Arial, sans-serif;">
-          <h2>Product Request Submission</h2>
-          
-          <div style="margin-bottom: 20px;">
-            <h3>Requestor Information:</h3>
-            <p>Email: ${user.email}</p>
-            <p>Name: ${user.displayName || 'N/A'}</p>
-            <p>User ID: ${user.uid}</p>
-            <p>Submission Time: ${new Date().toLocaleString()}</p>
-          </div>
+<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <h2 style="color: #2563eb; margin-bottom: 20px;">🔔 Product Request Submission</h2>
 
-          <div>
-            <h3>Requested Products:</h3>
-            ${productTable}
-          </div>
-        </div>
-      `;
+  <div style="margin-bottom: 20px; padding: 15px; background-color: #f8fafc; border-radius: 6px;">
+    <h3 style="color: #1e40af; margin-top: 0;">👤 Requestor Information</h3>
+    <p style="margin: 5px 0;">• Email: ${user.email}</p>
+    <p style="margin: 5px 0;">• Name: ${profile ? `${profile.firstName} ${profile.lastName}` : 'N/A'}</p>
+    <p style="margin: 5px 0;">• User ID: ${user.uid}</p>
+    <p style="margin: 5px 0;">• Submission Time: ${new Date().toLocaleString()}</p>
+  </div>
+
+  <div style="margin-bottom: 20px;">
+    <h3 style="color: #1e40af;">📦 Requested Products</h3>
+    ${productTable}
+  </div>
+
+  <p style="color: #6b7280; font-style: italic; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+    For any questions or concerns, please contact reach out to Joeven.
+  </p>
+</div>`;
+
+      // Create Teams message with plain text formatting
+      const teamsMessage = `
+🔔 Product Request Submission
+
+👤 Requestor Information
+• Email: ${user.email}
+• Name: ${profile ? `${profile.firstName} ${profile.lastName}` : 'N/A'}
+• User ID: ${user.uid}
+• Submission Time: ${new Date().toLocaleString()}
+
+📦 Requested Products
+${teamsTable}
+
+For any questions or concerns, please contact the system administrator.`;
 
       console.log('Preparing email payload');
 
@@ -214,7 +245,8 @@
         body: JSON.stringify({
           email_subject: 'Product Request Submission Confirmation',
           email_body: emailBody,
-          email_send_to: user.email
+          email_send_to: user.email,
+          teams_message: teamsMessage
         })
       });
 

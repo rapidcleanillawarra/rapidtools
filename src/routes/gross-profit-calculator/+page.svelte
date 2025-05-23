@@ -61,6 +61,43 @@
       loading = false;
     }
   }
+
+  function handleDiscountChange(line: OrderLine, event: Event) {
+    const input = event.target as HTMLInputElement;
+    let newDiscount = parseFloat(input.value);
+    
+    // Validate input
+    if (isNaN(newDiscount) || newDiscount < 0) newDiscount = 0;
+    else if (newDiscount > 100) newDiscount = 100;
+    newDiscount = parseFloat(newDiscount.toFixed(2));
+    
+    // Update the line with new calculations
+    const unitPrice = line.unitPrice;
+    const costPrice = line.costPrice;
+    const quantity = line.quantity;
+    
+    // Calculate new values
+    const unitPriceDiscounted = unitPrice * (1 - newDiscount / 100);
+    const gppExGst = unitPriceDiscounted > 0 
+      ? ((unitPriceDiscounted - costPrice) / unitPriceDiscounted) * 100
+      : 0;
+    const totalExGst = quantity * unitPriceDiscounted;
+    
+    // Calculate accumulated discount if RRP is available
+    const accumulatedDiscount = line.rrp > 0
+      ? ((line.rrp - (unitPriceDiscounted * 1.1)) / line.rrp) * 100
+      : 0;
+
+    // Update the line
+    line.percentDiscount = newDiscount;
+    line.unitPriceDiscounted = parseFloat(unitPriceDiscounted.toFixed(3));
+    line.gppExGst = parseFloat(gppExGst.toFixed(3));
+    line.totalExGst = parseFloat(totalExGst.toFixed(3));
+    line.accumulatedDiscount = parseFloat(accumulatedDiscount.toFixed(2));
+    
+    // Force Svelte to update
+    orderLines = [...orderLines];
+  }
 </script>
 
 <div class="global-container">
@@ -172,17 +209,28 @@
                         disabled={loading}
                       >
                     </td>
-                    <td title={line.productName}>{line.productName}</td>
-                    <td title={line.sku}>{line.sku}</td>
-                    <td title={line.quantity.toString()} style="text-align: left;">{line.quantity}</td>
-                    <td title={line.costPrice.toString()} style="text-align: left;">{line.costPrice}</td>
-                    <td title={line.rrp.toString()} style="text-align: left;">{line.rrp}</td>
-                    <td title={line.unitPrice.toString()} style="text-align: left;">{line.unitPrice}</td>
-                    <td title={line.percentDiscount.toString() + '%'} style="text-align: left;">{line.percentDiscount}%</td>
-                    <td title={line.accumulatedDiscount.toString()} style="text-align: left;">{line.accumulatedDiscount}</td>
-                    <td title={line.unitPriceDiscounted.toString()} style="text-align: left;">{line.unitPriceDiscounted}</td>
-                    <td title={line.gppExGst.toString() + '%'} style="text-align: left;">{line.gppExGst}%</td>
-                    <td title={line.totalExGst.toString()} style="text-align: left;">{line.totalExGst}</td>
+                    <td>{line.productName}</td>
+                    <td>{line.sku}</td>
+                    <td style="text-align: left;">{line.quantity}</td>
+                    <td style="text-align: left;">{line.costPrice}</td>
+                    <td style="text-align: left;">{line.rrp}</td>
+                    <td style="text-align: left;">{line.unitPrice}</td>
+                    <td style="text-align: left;">
+                      <input 
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={line.percentDiscount}
+                        on:blur={(e) => handleDiscountChange(line, e)}
+                        on:focus={(e) => (e.target as HTMLInputElement).select()}
+                        style="width: 80px;"
+                        disabled={loading}
+                      >
+                    </td>
+                    <td style="text-align: left;">{line.accumulatedDiscount}%</td>
+                    <td style="text-align: left;">{line.unitPriceDiscounted}</td>
+                    <td style="text-align: left;">{line.gppExGst}%</td>
+                    <td style="text-align: left;">{line.totalExGst}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -297,15 +345,32 @@
 
   input[type="number"] {
     width: 80px;
-    padding: 4px;
+    padding: 4px 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
+    text-align: right;
   }
 
   input[type="number"]:focus {
     outline: none;
     border-color: rgb(0, 120, 215);
     box-shadow: 0 0 0 2px rgba(0, 120, 215, 0.2);
+  }
+
+  input[type="number"]:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+  }
+
+  /* Remove spinner buttons from number input */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
   }
 
   .table-responsive {

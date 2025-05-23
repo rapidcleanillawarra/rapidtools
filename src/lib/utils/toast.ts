@@ -3,17 +3,23 @@ import { toast } from '@zerodevx/svelte-toast';
 export const toastSuccess = (message: string) => {
   toast.push(message, {
     theme: {
-      '--toastBackground': '#48BB78',
-      '--toastBarBackground': '#2F855A'
-    }
+      '--toastBackground': '#22c55e',
+      '--toastBarBackground': '#16a34a',
+      '--toastColor': 'white',
+      '--toastBarHeight': '0px'
+    },
+    duration: 5000
   });
 };
 
 export const toastError = (message: string) => {
   toast.push(message, {
     theme: {
-      '--toastBackground': '#F56565',
-      '--toastBarBackground': '#C53030'
-    }
+      '--toastBackground': '#ef4444',
+      '--toastBarBackground': '#dc2626',
+      '--toastColor': 'white',
+      '--toastBarHeight': '0px'
+    },
+    duration: 5000
   });
 }; 

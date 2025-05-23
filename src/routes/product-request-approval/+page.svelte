@@ -2,10 +2,11 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { db } from '$lib/firebase';
-  import { collection, query, where, getDocs } from 'firebase/firestore';
+  import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import type { ProductRequest, Brand, Supplier, Category, Markup } from '$lib/types';
   import Select from 'svelte-select';
+  import { SvelteToast } from '@zerodevx/svelte-toast';
 
   interface SelectOption {
     value: string;
@@ -21,13 +22,15 @@
   let suppliers: SelectOption[] = [];
   let categoriesList: Category[] = [];
   let markupResults: Record<string, Markup[]> = {};
-  let loading = true;
+  let loading = false;
   let loadingBrands = false;
   let loadingSuppliers = false;
   let brandError = '';
   let supplierError = '';
   let selectedRows: Set<string> = new Set();
   let selectAll = false;
+  let deleteLoading = false;
+  let submitLoading = false;
 
   interface SkuToRequestMap {
     [key: string]: ProductRequest[];
@@ -374,11 +377,14 @@
       return;
     }
 
-    loading = true;
-    const selectedRequests = productRequests.filter(req => selectedRows.has(req.id));
-    console.log('Selected requests to process:', selectedRequests);
+    submitLoading = true;
+    const successfulSubmits: string[] = [];
+    const failedSubmits: string[] = [];
 
     try {
+      const selectedRequests = productRequests.filter(req => selectedRows.has(req.id));
+      console.log('Selected requests to process:', selectedRequests);
+
       const createProductUrl = 'https://prod-52.australiasoutheast.logic.azure.com:443/workflows/fa1aaf833393486a82d6edb76ad0ff33/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=FLveH751-xsf6plOm8Fm3awsXw2oFBHAfogkn0IwnGY';
 
       for (const request of selectedRequests) {
@@ -389,7 +395,7 @@
               !request.purchase_price || !request.client_mup || 
               !request.retail_mup || !request.rrp) {
             console.log('Validation failed for request:', request);
-            toastError(`Missing required fields for SKU: ${request.sku || 'Unknown SKU'}`);
+            failedSubmits.push(`${request.sku || 'Unknown SKU'} (missing required fields)`);
             continue;
           }
 
@@ -424,8 +430,9 @@
           console.log('Product creation response for SKU', request.sku, ':', responseData);
 
           if (response.ok) {
-            // Update Firestore status
-            await db.collection('product_requests').doc(request.id).update({
+            // Update Firestore status using v9 syntax
+            const docRef = doc(db, 'product_requests', request.id);
+            await updateDoc(docRef, {
               status: 'product_created',
               product_creation_date: new Date().toISOString(),
               category: request.category,
@@ -435,25 +442,42 @@
               rrp: request.rrp
             });
 
-            toastSuccess(`Product created successfully for SKU: ${request.sku}`);
-            
-            // Remove the processed request from the list
+            // Remove from local list and track success
             productRequests = productRequests.filter(req => req.id !== request.id);
             selectedRows.delete(request.id);
+            successfulSubmits.push(request.sku);
           } else {
             console.error('Failed to create product:', responseData);
-            toastError(`Failed to create product for SKU: ${request.sku}. ${responseData.message || ''}`);
+            failedSubmits.push(`${request.sku} (${responseData.message || 'API error'})`);
           }
         } catch (error) {
           console.error('Error processing request:', error);
-          toastError(`Error processing SKU: ${request.sku}`);
+          failedSubmits.push(request.sku);
+        }
+      }
+
+      // Show success message for successful submits
+      if (successfulSubmits.length > 0) {
+        if (successfulSubmits.length === 1) {
+          toastSuccess(`Successfully created product: ${successfulSubmits[0]}`);
+        } else {
+          toastSuccess(`Successfully created ${successfulSubmits.length} products: ${successfulSubmits.join(', ')}`);
+        }
+      }
+
+      // Show error message for failed submits
+      if (failedSubmits.length > 0) {
+        if (failedSubmits.length === 1) {
+          toastError(`Failed to create product: ${failedSubmits[0]}`);
+        } else {
+          toastError(`Failed to create ${failedSubmits.length} products: ${failedSubmits.join(', ')}`);
         }
       }
     } catch (error) {
       console.error('Error during submission:', error);
       toastError('Error during submission. Please try again later.');
     } finally {
-      loading = false;
+      submitLoading = false;
       selectedRows = selectedRows; // Trigger reactivity
       productRequests = productRequests; // Trigger reactivity
     }
@@ -464,8 +488,57 @@
       toastError('Please select at least one request');
       return;
     }
-    // Implementation for deleting checked rows
-    toastSuccess('Selected requests deleted successfully');
+
+    deleteLoading = true;
+    const successfulDeletes: string[] = [];
+    const failedDeletes: string[] = [];
+
+    try {
+      const selectedRequests = productRequests.filter(req => selectedRows.has(req.id));
+      
+      for (const request of selectedRequests) {
+        try {
+          // Update status to "delete" in Firebase
+          const docRef = doc(db, 'product_requests', request.id);
+          await updateDoc(docRef, {
+            status: 'delete'
+          });
+          
+          // Remove from local list
+          productRequests = productRequests.filter(req => req.id !== request.id);
+          selectedRows.delete(request.id);
+          successfulDeletes.push(request.sku || request.id);
+        } catch (error) {
+          console.error(`Error deleting request ${request.sku}:`, error);
+          failedDeletes.push(request.sku || request.id);
+        }
+      }
+      
+      // Show success message for successful deletes
+      if (successfulDeletes.length > 0) {
+        if (successfulDeletes.length === 1) {
+          toastSuccess(`Successfully deleted request: ${successfulDeletes[0]}`);
+        } else {
+          toastSuccess(`Successfully deleted ${successfulDeletes.length} requests: ${successfulDeletes.join(', ')}`);
+        }
+      }
+
+      // Show error message for failed deletes
+      if (failedDeletes.length > 0) {
+        if (failedDeletes.length === 1) {
+          toastError(`Failed to delete request: ${failedDeletes[0]}`);
+        } else {
+          toastError(`Failed to delete ${failedDeletes.length} requests: ${failedDeletes.join(', ')}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error in delete operation:', error);
+      toastError('An unexpected error occurred during deletion. Please try again.');
+    } finally {
+      deleteLoading = false;
+      selectedRows = selectedRows; // Trigger reactivity
+      productRequests = productRequests; // Trigger reactivity
+    }
   }
 
   onMount(async () => {
@@ -487,6 +560,13 @@
     loading = false;
   });
 </script>
+
+<SvelteToast options={{ 
+  duration: 4000,
+  pausable: true,
+  reversed: false,
+  intro: { y: -200 }
+}} />
 
 <style>
   :global(.svelte-select) {
@@ -624,6 +704,19 @@
       border-bottom: 1px solid #e5e7eb;
     }
   }
+
+  :global(.svelte-toast) {
+    top: 2rem !important;
+    right: 2rem !important;
+  }
+  
+  :global(.svelte-toast-item) {
+    padding: 1rem !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  }
 </style>
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
@@ -634,18 +727,28 @@
     <div class="space-y-6">
       <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm mobile-buttons">
         <button
-          class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
+          class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
           on:click={handleDeleteChecked}
-          disabled={selectedRows.size === 0}
+          disabled={selectedRows.size === 0 || deleteLoading}
         >
-          Delete Checked Request
+          {#if deleteLoading}
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+            Deleting...
+          {:else}
+            Delete Checked Request
+          {/if}
         </button>
         <button
-          class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+          class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
           on:click={handleSubmitChecked}
-          disabled={selectedRows.size === 0}
+          disabled={selectedRows.size === 0 || submitLoading}
         >
-          Submit Checked Rows
+          {#if submitLoading}
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+            Submitting...
+          {:else}
+            Submit Checked Rows
+          {/if}
         </button>
       </div>
 
@@ -1062,16 +1165,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Loading Overlay -->
-  {#if loading}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-xl">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-        <p class="mt-4 text-gray-700">Loading...</p>
-      </div>
-    </div>
-  {/if}
 </div>
 
 <!-- Add portal container at the end of the body -->

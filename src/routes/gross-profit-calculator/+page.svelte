@@ -103,14 +103,14 @@
         </div>
         <div class="info-block">
           <strong>Order User Group:</strong> 
-          <span class={orderInfo.customerGroup === orderInfo.orderUserGroup ? 'group-match' : 'group-mismatch'}>
+          <span class={orderInfo.isGroupMismatch ? 'group-mismatch' : 'group-match'}>
             {orderInfo.orderUserGroup}
           </span>
         </div>
         <div class="info-block">
           <strong>Current User Group:</strong> {orderInfo.customerGroup}
         </div>
-        {#if orderInfo.customerGroup !== orderInfo.orderUserGroup}
+        {#if orderInfo.isGroupMismatch}
           <div class="notification">
             The current user group does not match the order's user group.
           </div>

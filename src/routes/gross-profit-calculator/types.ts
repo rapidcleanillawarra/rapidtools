@@ -21,5 +21,6 @@ export interface OrderInfo {
   orderUserGroup: string;
   orderDate: string;
   orderStatus: string;
+  isGroupMismatch: boolean;
   // Add more fields as needed
 } 

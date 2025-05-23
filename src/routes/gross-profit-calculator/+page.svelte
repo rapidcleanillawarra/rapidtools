@@ -90,10 +90,13 @@
 
     // Update the line
     line.percentDiscount = newDiscount;
-    line.unitPriceDiscounted = parseFloat(unitPriceDiscounted.toFixed(3));
+    line.unitPriceDiscounted = parseFloat(unitPriceDiscounted.toFixed(2));
     line.gppExGst = parseFloat(gppExGst.toFixed(3));
-    line.totalExGst = parseFloat(totalExGst.toFixed(3));
+    line.totalExGst = parseFloat(totalExGst.toFixed(2));
     line.accumulatedDiscount = parseFloat(accumulatedDiscount.toFixed(2));
+    
+    // Update the highlight based on GPP Ex GST
+    line.highlight = gppExGst < 20 ? 'low-gpp' : '';
     
     // Force Svelte to update
     orderLines = [...orderLines];
@@ -214,7 +217,7 @@
                     <td style="text-align: left;">{line.quantity}</td>
                     <td style="text-align: left;">{line.costPrice}</td>
                     <td style="text-align: left;">{line.rrp}</td>
-                    <td style="text-align: left;">{line.unitPrice}</td>
+                    <td style="text-align: left;">{line.unitPrice.toFixed(2)}</td>
                     <td style="text-align: left;">
                       <input 
                         type="number"
@@ -228,9 +231,9 @@
                       >
                     </td>
                     <td style="text-align: left;">{line.accumulatedDiscount}%</td>
-                    <td style="text-align: left;">{line.unitPriceDiscounted}</td>
+                    <td style="text-align: left;">{line.unitPriceDiscounted.toFixed(2)}</td>
                     <td style="text-align: left;">{line.gppExGst}%</td>
-                    <td style="text-align: left;">{line.totalExGst}</td>
+                    <td style="text-align: left;">{line.totalExGst.toFixed(2)}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -303,7 +306,12 @@
   }
 
   .low-gpp {
-    background-color: #ffcdd2;
+    background-color: #ffebee !important;
+  }
+
+  .low-gpp td {
+    background-color: #ffebee !important;
+    color: #c62828;
   }
 
   .equal-price td {

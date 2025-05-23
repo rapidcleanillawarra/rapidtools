@@ -100,7 +100,7 @@ export class GPPService {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          username,
+          username: [username],
           userGroup: userGroup || "N/A"
         })
       });
@@ -110,11 +110,23 @@ export class GPPService {
       }
 
       const data = await response.json();
+      
+      if (!data?.Customer?.length) {
+        return this.getDefaultOrderInfo();
+      }
+
+      const customer = data.Customer[0];
+      const billing = customer.BillingAddress || {};
+      const customerName = `${billing.BillFirstName || ""} ${billing.BillLastName || ""}`.trim();
+      const customerUserGroup = customer.UserGroup || "N/A";
+
       return {
-        customerName: data.customerName || "N/A",
-        customerId: data.customerId || "N/A",
-        orderDate: data.orderDate || new Date().toISOString(),
-        orderStatus: data.orderStatus || "N/A"
+        customerName: customerName || "N/A",
+        customerId: customer.Username || "N/A",
+        customerGroup: customerUserGroup,
+        orderUserGroup: userGroup || "N/A",
+        orderDate: new Date().toISOString(),
+        orderStatus: "N/A"
       };
     } catch (error) {
       console.error('Error fetching customer info:', error);
@@ -126,6 +138,8 @@ export class GPPService {
     return {
       customerName: "N/A",
       customerId: "N/A",
+      customerGroup: "N/A",
+      orderUserGroup: "N/A",
       orderDate: new Date().toISOString(),
       orderStatus: "N/A"
     };

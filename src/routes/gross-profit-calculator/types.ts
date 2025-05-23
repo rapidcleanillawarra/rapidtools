@@ -17,6 +17,8 @@ export interface OrderLine {
 export interface OrderInfo {
   customerName: string;
   customerId: string;
+  customerGroup: string;
+  orderUserGroup: string;
   orderDate: string;
   orderStatus: string;
   // Add more fields as needed

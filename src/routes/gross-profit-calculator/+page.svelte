@@ -98,9 +98,29 @@
     <!-- Container for customer information -->
     {#if orderInfo}
       <div id="orderInfo" class="order-info">
-        <p>Customer: {orderInfo.customerName}</p>
-        <p>Order Date: {orderInfo.orderDate}</p>
-        <p>Order Status: {orderInfo.orderStatus}</p>
+        <div class="info-block">
+          <strong>Customer Name:</strong> {orderInfo.customerName}
+        </div>
+        <div class="info-block">
+          <strong>Order User Group:</strong> 
+          <span class={orderInfo.customerGroup === orderInfo.orderUserGroup ? 'group-match' : 'group-mismatch'}>
+            {orderInfo.orderUserGroup}
+          </span>
+        </div>
+        <div class="info-block">
+          <strong>Current User Group:</strong> {orderInfo.customerGroup}
+        </div>
+        {#if orderInfo.customerGroup !== orderInfo.orderUserGroup}
+          <div class="notification">
+            The current user group does not match the order's user group.
+          </div>
+        {/if}
+        <div class="info-block">
+          <strong>Order Date:</strong> {orderInfo.orderDate}
+        </div>
+        <div class="info-block">
+          <strong>Order Status:</strong> {orderInfo.orderStatus}
+        </div>
       </div>
     {/if}
 
@@ -131,15 +151,15 @@
                   </th>
                   <th align="left" style="width: 10%;">Product Name</th>
                   <th align="left" style="width: 10%;">SKU</th>
-                  <th align="right" style="width: 5%;">Quantity</th>
-                  <th align="right" style="width: 5%;">Cost Price</th>
-                  <th align="right" style="width: 10%;">RRP</th>
-                  <th align="right" style="width: 10%;">Unit Price</th>
-                  <th align="right" style="width: 10%;">% Discount</th>
-                  <th align="right" style="width: 10%;">Accum. Discount</th>
-                  <th align="right" style="width: 10%;">Unit Price Disc.</th>
-                  <th align="right" style="width: 10%;">GPP Ex GST</th>
-                  <th align="right" style="width: 10%;">Total Ex GST</th>
+                  <th align="left" style="width: 5%;">Qty</th>
+                  <th align="left" style="width: 5%;">Cost Price</th>
+                  <th align="left" style="width: 10%;">RRP</th>
+                  <th align="left" style="width: 10%;">Unit Price</th>
+                  <th align="left" style="width: 10%;">% Discount</th>
+                  <th align="left" style="width: 10%;">Accum. Discount</th>
+                  <th align="left" style="width: 10%;">Unit Price Disc.</th>
+                  <th align="left" style="width: 10%;">GPP Ex GST</th>
+                  <th align="left" style="width: 10%;">Total Ex GST</th>
                 </tr>
               </thead>
               <tbody>
@@ -154,15 +174,15 @@
                     </td>
                     <td title={line.productName}>{line.productName}</td>
                     <td title={line.sku}>{line.sku}</td>
-                    <td title={line.quantity.toString()} style="text-align: right;">{line.quantity}</td>
-                    <td title={line.costPrice.toString()} style="text-align: right;">{line.costPrice}</td>
-                    <td title={line.rrp.toString()} style="text-align: right;">{line.rrp}</td>
-                    <td title={line.unitPrice.toString()} style="text-align: right;">{line.unitPrice}</td>
-                    <td title={line.percentDiscount.toString() + '%'} style="text-align: right;">{line.percentDiscount}%</td>
-                    <td title={line.accumulatedDiscount.toString()} style="text-align: right;">{line.accumulatedDiscount}</td>
-                    <td title={line.unitPriceDiscounted.toString()} style="text-align: right;">{line.unitPriceDiscounted}</td>
-                    <td title={line.gppExGst.toString() + '%'} style="text-align: right;">{line.gppExGst}%</td>
-                    <td title={line.totalExGst.toString()} style="text-align: right;">{line.totalExGst}</td>
+                    <td title={line.quantity.toString()} style="text-align: left;">{line.quantity}</td>
+                    <td title={line.costPrice.toString()} style="text-align: left;">{line.costPrice}</td>
+                    <td title={line.rrp.toString()} style="text-align: left;">{line.rrp}</td>
+                    <td title={line.unitPrice.toString()} style="text-align: left;">{line.unitPrice}</td>
+                    <td title={line.percentDiscount.toString() + '%'} style="text-align: left;">{line.percentDiscount}%</td>
+                    <td title={line.accumulatedDiscount.toString()} style="text-align: left;">{line.accumulatedDiscount}</td>
+                    <td title={line.unitPriceDiscounted.toString()} style="text-align: left;">{line.unitPriceDiscounted}</td>
+                    <td title={line.gppExGst.toString() + '%'} style="text-align: left;">{line.gppExGst}%</td>
+                    <td title={line.totalExGst.toString()} style="text-align: left;">{line.totalExGst}</td>
                   </tr>
                 {/each}
               </tbody>
@@ -268,7 +288,7 @@
   td:nth-child(9),
   td:nth-child(10),
   td:nth-child(11) {
-    text-align: right;
+    text-align: left;
   }
 
   td:nth-child(12) {
@@ -325,7 +345,7 @@
 
   .submit-area {
     margin: 20px 0;
-    text-align: right;
+    text-align: left;
   }
 
   button {
@@ -397,5 +417,32 @@
   /* Remove hover tooltip styles */
   td:hover::after, th:hover::after {
     display: none;
+  }
+
+  .info-block {
+    margin: 5px 0;
+  }
+
+  .group-match {
+    color: #2e7d32;
+    background-color: #e8f5e9;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .group-mismatch {
+    color: #c62828;
+    background-color: #ffebee;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .notification {
+    margin-top: 10px;
+    padding: 8px;
+    background-color: #fff3e0;
+    color: #e65100;
+    border-radius: 4px;
+    font-size: 14px;
   }
 </style> 

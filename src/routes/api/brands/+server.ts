@@ -6,12 +6,16 @@ import { collection, getDocs } from 'firebase/firestore';
 export const GET: RequestHandler = async () => {
   try {
     const brandsSnapshot = await getDocs(collection(db, 'brands'));
-    const brands = brandsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      value: doc.data().name,
-      label: doc.data().name
-    }));
+    const brands = brandsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      const name = data.name;
+      return {
+        id: doc.id,
+        ...data,
+        value: name,
+        label: name
+      };
+    });
     
     return json(brands);
   } catch (error) {

@@ -1,11 +1,12 @@
-import { writable } from 'svelte/store';
-import type { SelectOption, PriceGroupDetail, ApiProductItem } from './types';
+import { writable, get } from 'svelte/store';
+import type { SelectOption } from './types';
 
 // API Endpoints
 export const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
 export const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
 export const categoriesUrl = 'https://prod-47.australiasoutheast.logic.azure.com:443/workflows/0d67bc8f1bb64e78a2495f13a7498081/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fJJzmNyuARuwEcNCoMuWwMS9kmWZQABw9kJXsUj9Wk8';
 export const updatePricingUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/a14abba8479c457bafd63fe32fd9fea4/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Evz4dRmWiP8p-hxjZxofNX1q_o_-ufQK2c_XI4Quxto';
+export const filterProductsUrl = 'https://prod-19.australiasoutheast.logic.azure.com:443/workflows/67422be18c5e4af0ad9291110dedb2fd/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=N_VRTyaFEkOUGjtwu8O56_L-qY6xwvHuGWEOvqKsoAk';
 
 // State stores
 export const products = writable<any[]>([]);
@@ -31,6 +32,19 @@ export const productNameFilter = writable('');
 export const brandFilter = writable<SelectOption | null>(null);
 export const supplierFilter = writable<SelectOption | null>(null);
 export const categoryFilter = writable<SelectOption | null>(null);
+
+interface Product {
+  sku: string;
+  product_name: string;
+  brand: string;
+  primary_supplier: string;
+  category: string;
+  purchase_price: number;
+  client_price: number;
+  rrp: number;
+  client_mup: number;
+  retail_mup: number;
+}
 
 // Function to calculate client price and RRP
 export function calculatePrices(product: any, source: 'mup' | 'price' = 'mup') {
@@ -210,90 +224,123 @@ export async function fetchCategories() {
   }
 }
 
-// Function to handle select all
+// Function to handle select all checkbox
 export function handleSelectAll(checked: boolean) {
-  products.subscribe(prods => {
-    if (checked) {
-      selectedRows.update(rows => {
-        prods.forEach(prod => rows.add(prod.sku));
-        return rows;
-      });
-    } else {
-      selectedRows.set(new Set());
-    }
-  })();
+  selectAll.set(checked);
+  if (checked) {
+    const allSkus = new Set<string>();
+    products.update(prods => {
+      prods.forEach(prod => allSkus.add(prod.sku));
+      return prods;
+    });
+    selectedRows.set(allSkus);
+  } else {
+    selectedRows.set(new Set<string>());
+  }
 }
 
 // Function to handle submit checked rows
 export async function handleSubmitChecked() {
-  let currentSelectedRows: Set<string> = new Set();
-  selectedRows.subscribe(value => {
-    currentSelectedRows = value;
-  })();
-
-  if (currentSelectedRows.size === 0) {
-    return { success: false, message: 'Please select at least one row' };
-  }
-
   submitLoading.set(true);
   try {
-    let currentProducts: any[] = [];
-    products.subscribe(value => {
-      currentProducts = value;
+    const selectedProducts: Array<{
+      sku: string;
+      client_price: number;
+      rrp: number;
+      [key: string]: any;
+    }> = [];
+    
+    let currentSelectedRows: Set<string>;
+    selectedRows.subscribe(value => {
+      currentSelectedRows = value;
     })();
 
-    const selectedProducts = currentProducts.filter(prod => currentSelectedRows.has(prod.sku));
-    const items = selectedProducts.map(prod => ({
-      SKU: prod.sku,
-      DefaultPurchasePrice: parseFloat(prod.purchase_price) || 0,
-      RRP: parseFloat(prod.rrp) || 0,
-      Misc02: parseFloat(prod.client_mup) || 0,
-      Misc09: parseFloat(prod.retail_mup) || 0,
-      PriceGroups: {
-        PriceGroup: [
-          { Group: "Default Client Group", Price: parseFloat(prod.client_price) || 0 },
-          { Group: "Default RRP (Dont Assign to clients)", Price: parseFloat(prod.rrp) || 0 }
-        ]
-      }
-    }));
+    products.update(prods => {
+      selectedProducts.push(...prods.filter(prod => currentSelectedRows.has(prod.sku)));
+      return prods;
+    });
 
-    const payload = { Item: items };
+    if (selectedProducts.length === 0) {
+      return { success: false, message: 'No products selected' };
+    }
+
     const response = await fetch(updatePricingUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        products: selectedProducts.map(prod => ({
+          sku: prod.sku,
+          client_price: prod.client_price,
+          rrp: prod.rrp
+        }))
+      })
     });
 
     const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to update pricing');
+    if (data.status === 200 && data.message?.Ack === "Success") {
+      // Mark updated products
+      products.update(prods => {
+        return prods.map(prod => {
+          if (currentSelectedRows.has(prod.sku)) {
+            return { ...prod, updated: true };
+          }
+          return prod;
+        });
+      });
+      return { success: true, message: 'Products updated successfully' };
+    } else {
+      throw new Error('Failed to update products: Invalid response format');
     }
-
-    // Mark updated rows with success class
-    const updatedSkus = (data.Item || []).map((i: any) => i.SKU);
-    products.update(prods => 
-      prods.map(prod => ({
-        ...prod,
-        updated: updatedSkus.includes(prod.sku)
-      }))
-    );
-    
-    selectedRows.set(new Set());
-    selectAll.set(false);
-
-    return { 
-      success: true, 
-      message: `Successfully updated pricing for ${currentSelectedRows.size} products` 
-    };
-  } catch (error: any) {
-    return { 
-      success: false, 
-      message: error.message || 'Failed to update pricing' 
-    };
+  } catch (err: unknown) {
+    const error = err as Error;
+    return { success: false, message: error.message || 'Failed to update products' };
   } finally {
     submitLoading.set(false);
   }
+}
+
+// Function to transform API response to our product format
+function transformApiResponse(apiResponse: any): Product[] {
+  console.log('Starting API response transformation');
+  
+  // Handle case where Item is not an array
+  const items = Array.isArray(apiResponse.Item) ? apiResponse.Item : [apiResponse.Item];
+  console.log('Items to process:', items);
+
+  return items.map((item: any) => {
+    console.log('Processing item:', item);
+    
+    // Handle PriceGroups structure
+    const priceGroups = Array.isArray(item.PriceGroups) ? item.PriceGroups[0] : item.PriceGroups;
+    const priceGroupArray = Array.isArray(priceGroups?.PriceGroup) ? priceGroups.PriceGroup : [priceGroups?.PriceGroup];
+    
+    // Find the client price from PriceGroups
+    const clientPrice = priceGroupArray?.find(
+      (pg: any) => pg?.Group === "Default Client Group"
+    )?.Price || item.RRP || '0';
+
+    // Find the RRP from PriceGroups
+    const rrp = priceGroupArray?.find(
+      (pg: any) => pg?.Group === "Default RRP (Dont Assign to clients)"
+    )?.Price || item.RRP || '0';
+
+    const transformedProduct = {
+      sku: item.InventoryID || '',  // Using InventoryID as SKU
+      product_name: item.Model || '',
+      brand: item.Brand || '',
+      primary_supplier: item.PrimarySupplier || '',
+      category: Array.isArray(item.Categories) ? (item.Categories[0] || '') : '',
+      purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
+      client_price: parseFloat(clientPrice),
+      rrp: parseFloat(rrp),
+      client_mup: parseFloat(item.Misc02 || '0'),
+      retail_mup: parseFloat(item.Misc09 || '0')
+    };
+
+    console.log('Transformed product:', transformedProduct);
+    return transformedProduct;
+  });
 }
 
 // Function to handle filter submit
@@ -304,96 +351,111 @@ export async function handleFilterSubmit(filters: {
   supplierFilter: SelectOption | null;
   categoryFilter: SelectOption | null;
 }) {
-  const f: any = {
-    Active: true,
-    OutputSelector: [
-      "SKU",
-      "Model",
-      "Categories",
-      "Brand",
-      "PrimarySupplier",
-      "RRP",
-      "DefaultPurchasePrice",
-      "PriceGroups",
-      "Misc02",
-      "Misc09",
-      "InventoryID"
-    ]
-  };
-
-  // Read and split SKUs from textarea into an array
-  if (filters.skuFilter) {
-    const skuArr = filters.skuFilter
-      .split(/\r?\n/)
-      .map(s => s.trim())
-      .filter(Boolean);
-    if (skuArr.length) {
-      f.SKU = skuArr;
-    }
-  }
-
-  if (filters.productNameFilter) f.Name = filters.productNameFilter;
-  if (filters.brandFilter) f.Brand = filters.brandFilter.value;
-  if (filters.supplierFilter) f.PrimarySupplier = filters.supplierFilter.value;
-  if (filters.categoryFilter) f.CategoryID = filters.categoryFilter.value;
-
   try {
-    const response = await fetch(
-      'https://prod-19.australiasoutheast.logic.azure.com:443/workflows/67422be18c5e4af0ad9291110dedb2fd/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=N_VRTyaFEkOUGjtwu8O56_L-qY6xwvHuGWEOvqKsoAk',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ Filter: f })
+    console.log('Starting handleFilterSubmit with filters:', filters);
+    loading.set(true);
+
+    // Reset selection state
+    selectedRows.set(new Set<string>());
+    selectAll.set(false);
+
+    // Prepare SKUs for filter
+    const skus = filters.skuFilter
+      ? filters.skuFilter.split('\n').map(sku => sku.trim()).filter(Boolean)
+      : [];
+    console.log('Prepared SKUs:', skus);
+
+    // Prepare the request payload
+    const payload = {
+      Filter: {
+        SKU: skus.length === 1 ? skus[0] : '',
+        Name: filters.productNameFilter || '',
+        Brand: filters.brandFilter?.value || '',
+        Active: true,
+        OutputSelector: [
+          "SKU",
+          "Model",
+          "Categories",
+          "Brand",
+          "PrimarySupplier",
+          "RRP",
+          "DefaultPurchasePrice",
+          "PriceGroups",
+          "Misc02",
+          "Misc09"
+        ]
       }
-    );
+    };
+    console.log('Request payload:', JSON.stringify(payload, null, 2));
+    console.log('Making API call to:', filterProductsUrl);
+
+    // Make API call with filter payload
+    const response = await fetch(filterProductsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    console.log('API Response status:', response.status);
+    console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to load products: ${response.status} ${response.statusText}. Error: ${errorText}`);
+      console.error('API Error response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('API Response data:', JSON.stringify(data, null, 2));
 
-    if (!data.Item) {
-      products.set([]);
-      originalProducts.set([]);
-      filteredProducts.set([]);
-      return { success: true, message: 'No products found' };
+    if (data.Ack !== "Success") {
+      console.error('API returned non-success Ack:', data);
+      throw new Error('Failed to fetch products: Invalid response format');
     }
 
-    // Transform the data
-    const transformedProducts = (data.Item as ApiProductItem[]).map(item => {
-      const clientPrice = item.PriceGroups?.PriceGroup
-        ? (Array.isArray(item.PriceGroups.PriceGroup)
-            ? item.PriceGroups.PriceGroup.find((pg: PriceGroupDetail) => pg.Group === "Default Client Group" || pg.GroupID === "2")?.Price
-            : item.PriceGroups.PriceGroup.Group === "Default Client Group" || item.PriceGroups.PriceGroup.GroupID === "2"
-              ? item.PriceGroups.PriceGroup.Price
-              : '0')
-        : '0';
+    // Transform API response to our product format
+    let filteredProds = transformApiResponse(data);
+    console.log('Transformed products:', filteredProds);
 
-      return {
-        sku: item.SKU || '',
-        product_name: item.Model || '',
-        brand: item.Brand || '',
-        primary_supplier: item.PrimarySupplier || '',
-        category: Array.isArray(item.Categories) ? item.Categories[0] || '' : '',
-        purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
-        client_mup: parseFloat(item.Misc02 || '0'),
-        retail_mup: parseFloat(item.Misc09 || '0'),
-        client_price: parseFloat(clientPrice),
-        rrp: parseFloat(item.RRP || '0'),
-        inventory_id: item.InventoryID || ''
-      };
+    // Apply additional client-side filters for supplier and category
+    if (filters.supplierFilter) {
+      filteredProds = filteredProds.filter((prod: Product) => 
+        prod.primary_supplier === filters.supplierFilter?.value
+      );
+      console.log('After supplier filter:', filteredProds.length, 'products');
+    }
+
+    if (filters.categoryFilter) {
+      filteredProds = filteredProds.filter((prod: Product) => 
+        prod.category === filters.categoryFilter?.value
+      );
+      console.log('After category filter:', filteredProds.length, 'products');
+    }
+
+    // Update stores with a fresh array to trigger reactivity
+    console.log('Setting products store with:', filteredProds);
+    products.set([...filteredProds]);
+    filteredProducts.set([...filteredProds]);
+    console.log('Stores updated. Current state:', {
+      productsLength: get(products).length,
+      filteredLength: get(filteredProducts).length
     });
 
-    originalProducts.set(transformedProducts);
-    products.set(transformedProducts);
-    filteredProducts.set(transformedProducts);
-
-    return { success: true, message: 'Filters applied successfully' };
+    return { 
+      success: true, 
+      message: `Found ${filteredProds.length} products matching the filters` 
+    };
   } catch (err: unknown) {
-    const error = err instanceof Error ? err : new Error(String(err));
-    console.error('Error applying filters:', error);
-    return { success: false, message: 'Error applying filters: ' + error.message };
+    const error = err as Error;
+    console.error('Error in handleFilterSubmit:', error);
+    // Clear products on error
+    products.set([]);
+    filteredProducts.set([]);
+    return { 
+      success: false, 
+      message: error.message || 'Failed to apply filters' 
+    };
+  } finally {
+    loading.set(false);
   }
 } 

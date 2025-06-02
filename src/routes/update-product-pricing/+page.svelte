@@ -35,7 +35,7 @@
     handleSelectAll,
     handleSubmitChecked,
     handleFilterSubmit
-  } from './page';
+  } from './stores';
 
   interface SelectOption {
     value: string;
@@ -84,27 +84,41 @@
     });
   }
 
-  $: {
-    // Initialize products from data prop
+  // Initialize products only on mount, not on every data change
+  onMount(() => {
+    console.log('Component mounted, initializing data');
     if (data?.products && Array.isArray(data.products)) {
-      console.log('Processing products data:', {
-        receivedCount: data.products.length,
-        currentOriginalCount: $originalProducts.length
-      });
+      console.log('Setting initial products:', data.products.length);
+      $originalProducts = [...data.products];
+      $products = [...data.products];
+      $filteredProducts = [...data.products];
+    }
+  });
 
-      if ($originalProducts.length === 0) {
-        console.log('Initializing products arrays');
-        $originalProducts = [...data.products];
-        $products = [...data.products];
-        $filteredProducts = [...data.products];
-        console.log('Products arrays initialized:', {
-          originalCount: $originalProducts.length,
-          productsCount: $products.length,
-          filteredCount: $filteredProducts.length
-        });
-      }
+  // Add reactive statement to log products store changes
+  $: {
+    console.log('Products store changed:', {
+      productsLength: $products.length,
+      sampleProduct: $products[0],
+      allProducts: $products
+    });
+  }
+
+  // Add logging to filter submit
+  async function handleFilterClick() {
+    console.log('Filter button clicked');
+    const result = await handleFilterSubmit({
+      skuFilter: $skuFilter,
+      productNameFilter: $productNameFilter,
+      brandFilter: $brandFilter,
+      supplierFilter: $supplierFilter,
+      categoryFilter: $categoryFilter
+    });
+    console.log('Filter result:', result);
+    if (result.success) {
+      toastSuccess(result.message);
     } else {
-      console.warn('Invalid or missing products data:', data);
+      toastError(result.message);
     }
   }
 
@@ -214,6 +228,7 @@
           <button
             class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={() => {
+              console.log('Reset filters clicked');
               $skuFilter = '';
               $productNameFilter = '';
               $brandFilter = null;
@@ -221,26 +236,17 @@
               $categoryFilter = null;
               $products = [...$originalProducts];
               $filteredProducts = [...$originalProducts];
+              console.log('After reset:', {
+                productsLength: $products.length,
+                filteredLength: $filteredProducts.length
+              });
             }}
           >
             Reset Filters
           </button>
           <button
             class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            on:click={async () => {
-              const result = await handleFilterSubmit({
-                skuFilter: $skuFilter,
-                productNameFilter: $productNameFilter,
-                brandFilter: $brandFilter,
-                supplierFilter: $supplierFilter,
-                categoryFilter: $categoryFilter
-              });
-              if (result.success) {
-                toastSuccess(result.message);
-              } else {
-                toastError(result.message);
-              }
-            }}
+            on:click={handleFilterClick}
           >
             Apply Filters
           </button>
@@ -273,176 +279,187 @@
 
     <!-- Products Table -->
     <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200 table-fixed">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[40px]">
-              <input
-                type="checkbox"
-                bind:checked={$selectAll}
-                on:change={(e) => {
-                  const target = e.target as HTMLInputElement | null;
-                  if (target) {
-                    handleSelectAll(target.checked);
-                  }
-                }}
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-            </th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">SKU</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[150px]">Product Name</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Brand</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Primary Supplier</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Category</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">Purchase Price</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
-              Client MUP
-              <button 
-                class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
-                on:click={applyClientMupToAll}
-              >Apply All</button>
-            </th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
-              Retail MUP
-              <button 
-                class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
-                on:click={applyRetailMupToAll}
-              >Apply All</button>
-            </th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">Client Price</th>
-            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">RRP</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
-          {#each $products as product (product.sku)}
-            <tr class={product.updated ? 'bg-green-50' : ''}>
-              <td class="px-2 py-1 whitespace-nowrap">
+      {#if $loading}
+        <div class="flex justify-center items-center py-8">
+          <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+        </div>
+      {:else if $products.length === 0}
+        <div class="text-center py-8 text-gray-500">
+          No products found
+        </div>
+      {:else}
+        <table class="min-w-full divide-y divide-gray-200 table-fixed">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[40px]">
                 <input
                   type="checkbox"
-                  checked={$selectedRows.has(product.sku)}
-                  on:change={(event) => {
-                    const target = event.target as HTMLInputElement;
-                    if (target.checked) {
-                      $selectedRows = new Set([...$selectedRows, product.sku]);
-                    } else {
-                      $selectedRows.delete(product.sku);
-                      $selectedRows = $selectedRows;
+                  bind:checked={$selectAll}
+                  on:change={(e) => {
+                    const target = e.target as HTMLInputElement | null;
+                    if (target) {
+                      handleSelectAll(target.checked);
                     }
                   }}
                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-              </td>
-              <td class="px-2 py-1 text-sm break-words">{product.sku}</td>
-              <td class="px-2 py-1 text-sm break-words">{product.product_name}</td>
-              <td class="px-2 py-1 text-sm">
-                {#if $loadingBrands}
-                  <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-                {:else if $brandError}
-                  <div class="text-red-600 text-xs">{$brandError}</div>
-                {:else}
-                  <div class="relative">
-                    <Select
-                      items={$brands}
-                      value={$brands.find(b => b.value === product.brand)}
-                      placeholder="Select Brand"
-                      containerStyles="position: static;"
-                      on:change={(e) => {
-                        product.brand = e.detail?.value || '';
-                        $products = $products;
-                      }}
-                    />
-                  </div>
-                {/if}
-              </td>
-              <td class="px-2 py-1 text-sm">
-                {#if $loadingSuppliers}
-                  <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-                {:else if $supplierError}
-                  <div class="text-red-600 text-xs">{$supplierError}</div>
-                {:else}
-                  <div class="relative">
-                    <Select
-                      items={$suppliers}
-                      value={$suppliers.find(s => s.value === product.primary_supplier)}
-                      placeholder="Select Supplier"
-                      containerStyles="position: static;"
-                      on:change={(e) => {
-                        product.primary_supplier = e.detail?.value || '';
-                        $products = $products;
-                      }}
-                    />
-                  </div>
-                {/if}
-              </td>
-              <td class="px-2 py-1 text-sm">
-                {#if $loadingCategories}
-                  <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-                {:else if $categoryError}
-                  <div class="text-red-600 text-xs">{$categoryError}</div>
-                {:else}
-                  <div class="relative">
-                    <Select
-                      items={$categories}
-                      value={$categories.find(c => c.value === product.category)}
-                      placeholder="Select Category"
-                      containerStyles="position: static;"
-                      on:change={(e) => {
-                        product.category = e.detail?.value || '';
-                        $products = $products;
-                      }}
-                    />
-                  </div>
-                {/if}
-              </td>
-              <td class="px-2 py-1 text-sm">
-                <input
-                  type="number"
-                  bind:value={product.purchase_price}
-                  on:input={() => calculatePrices(product)}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                  step="0.01"
-                />
-              </td>
-              <td class="px-2 py-1 text-sm">
-                <input
-                  type="number"
-                  bind:value={product.client_mup}
-                  on:input={() => calculatePrices(product, 'mup')}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                  step="0.01"
-                />
-              </td>
-              <td class="px-2 py-1 text-sm">
-                <input
-                  type="number"
-                  bind:value={product.retail_mup}
-                  on:input={() => calculatePrices(product, 'mup')}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                  step="0.01"
-                />
-              </td>
-              <td class="px-2 py-1 text-sm">
-                <input
-                  type="number"
-                  bind:value={product.client_price}
-                  on:input={() => calculatePrices(product, 'price')}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                  step="0.01"
-                />
-              </td>
-              <td class="px-2 py-1 text-sm">
-                <input
-                  type="number"
-                  bind:value={product.rrp}
-                  on:input={() => calculatePrices(product, 'price')}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                  step="0.01"
-                />
-              </td>
+              </th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">SKU</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[150px]">Product Name</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Brand</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Primary Supplier</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Category</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">Purchase Price</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
+                Client MUP
+                <button 
+                  class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
+                  on:click={applyClientMupToAll}
+                >Apply All</button>
+              </th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
+                Retail MUP
+                <button 
+                  class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
+                  on:click={applyRetailMupToAll}
+                >Apply All</button>
+              </th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">Client Price</th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">RRP</th>
             </tr>
-          {/each}
-        </tbody>
-      </table>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {#each $products as product (product.sku)}
+              {@debug product}
+              <tr class={product.updated ? 'bg-green-50' : ''}>
+                <td class="px-2 py-1 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={$selectedRows.has(product.sku)}
+                    on:change={(event) => {
+                      const target = event.target as HTMLInputElement;
+                      if (target.checked) {
+                        $selectedRows = new Set([...$selectedRows, product.sku]);
+                      } else {
+                        $selectedRows.delete(product.sku);
+                        $selectedRows = $selectedRows;
+                      }
+                    }}
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm break-words">{product.sku}</td>
+                <td class="px-2 py-1 text-sm break-words">{product.product_name}</td>
+                <td class="px-2 py-1 text-sm">
+                  {#if $loadingBrands}
+                    <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
+                  {:else if $brandError}
+                    <div class="text-red-600 text-xs">{$brandError}</div>
+                  {:else}
+                    <div class="relative">
+                      <Select
+                        items={$brands}
+                        value={$brands.find(b => b.value === product.brand)}
+                        placeholder="Select Brand"
+                        containerStyles="position: static;"
+                        on:change={(e) => {
+                          product.brand = e.detail?.value || '';
+                          $products = $products;
+                        }}
+                      />
+                    </div>
+                  {/if}
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  {#if $loadingSuppliers}
+                    <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
+                  {:else if $supplierError}
+                    <div class="text-red-600 text-xs">{$supplierError}</div>
+                  {:else}
+                    <div class="relative">
+                      <Select
+                        items={$suppliers}
+                        value={$suppliers.find(s => s.value === product.primary_supplier)}
+                        placeholder="Select Supplier"
+                        containerStyles="position: static;"
+                        on:change={(e) => {
+                          product.primary_supplier = e.detail?.value || '';
+                          $products = $products;
+                        }}
+                      />
+                    </div>
+                  {/if}
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  {#if $loadingCategories}
+                    <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
+                  {:else if $categoryError}
+                    <div class="text-red-600 text-xs">{$categoryError}</div>
+                  {:else}
+                    <div class="relative">
+                      <Select
+                        items={$categories}
+                        value={$categories.find(c => c.value === product.category)}
+                        placeholder="Select Category"
+                        containerStyles="position: static;"
+                        on:change={(e) => {
+                          product.category = e.detail?.value || '';
+                          $products = $products;
+                        }}
+                      />
+                    </div>
+                  {/if}
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  <input
+                    type="number"
+                    bind:value={product.purchase_price}
+                    on:input={() => calculatePrices(product)}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                    step="0.01"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  <input
+                    type="number"
+                    bind:value={product.client_mup}
+                    on:input={() => calculatePrices(product, 'mup')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                    step="0.01"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  <input
+                    type="number"
+                    bind:value={product.retail_mup}
+                    on:input={() => calculatePrices(product, 'mup')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                    step="0.01"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  <input
+                    type="number"
+                    bind:value={product.client_price}
+                    on:input={() => calculatePrices(product, 'price')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                    step="0.01"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  <input
+                    type="number"
+                    bind:value={product.rrp}
+                    on:input={() => calculatePrices(product, 'price')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                    step="0.01"
+                  />
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
     </div>
   </div>
 </div>

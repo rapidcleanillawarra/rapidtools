@@ -144,23 +144,74 @@
     ]);
   });
 
+  // Declare reactive variables
+  let paginatedProducts: any[] = [];
+  let totalPages = 0;
+  let currentPageItems = {
+    start: 0,
+    end: 0,
+    total: 0
+  };
+
   // Add reactive statements for pagination and sorting
-  $: paginatedProducts = getPaginatedProducts($products);
-  $: totalPages = getTotalPages($products.length);
-  
-  // Add reactive statement for sort changes
   $: {
-    if ($sortField !== null) {
-      console.log('Sorting by:', $sortField, 'Direction:', $sortDirection);
-      // Force a recalculation of paginatedProducts when sort changes
-      paginatedProducts = getPaginatedProducts($products);
-    }
+    console.log('Products or sort changed:', {
+      totalProducts: $products.length,
+      currentPage: $currentPage,
+      itemsPerPage: $itemsPerPage,
+      sortField: $sortField,
+      sortDirection: $sortDirection
+    });
+    
+    // Recalculate pagination and sorting
+    paginatedProducts = getPaginatedProducts($products);
+    totalPages = getTotalPages($products.length);
+    
+    // Update current page items info
+    currentPageItems = {
+      start: ($currentPage - 1) * $itemsPerPage + 1,
+      end: Math.min($currentPage * $itemsPerPage, $products.length),
+      total: $products.length
+    };
+
+    console.log('Updated state:', {
+      paginatedProductsLength: paginatedProducts.length,
+      totalPages,
+      currentPageItems
+    });
+  }
+
+  // Watch for sort changes
+  $: if ($sortField !== null || $sortDirection) {
+    console.log('Sort changed:', { field: $sortField, direction: $sortDirection });
+    // Force recalculation of paginated products
+    paginatedProducts = getPaginatedProducts($products);
+  }
+
+  // Reset to first page when products change
+  $: if ($products) {
+    console.log('Products updated, resetting to first page');
+    currentPage.set(1);
   }
 
   // Function to handle page change
   function handlePageChange(newPage: number) {
+    console.log('Page change requested:', { newPage, currentPage: $currentPage, totalPages });
     if (newPage >= 1 && newPage <= totalPages) {
       currentPage.set(newPage);
+      // Scroll to top of table
+      document.querySelector('.overflow-x-auto')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  // Function to handle items per page change
+  function handleItemsPerPageChange(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const value = parseInt(select.value);
+    console.log('Items per page change:', { value, currentItemsPerPage: $itemsPerPage });
+    if (!isNaN(value)) {
+      itemsPerPage.set(value);
+      currentPage.set(1); // Reset to first page when changing items per page
     }
   }
 
@@ -172,8 +223,41 @@
 
   // Function to handle sorting
   function handleSortClick(field: string) {
-    console.log('Sorting by field:', field);
-    handleSort(field);
+    console.log('Sort click:', { field, currentField: $sortField, currentDirection: $sortDirection });
+    
+    if ($sortField === field) {
+      // If clicking the same field, toggle direction
+      sortDirection.update(dir => dir === 'asc' ? 'desc' : 'asc');
+    } else {
+      // If clicking a new field, set it and default to asc
+      sortField.set(field);
+      sortDirection.set('asc');
+    }
+  }
+
+  // Function to get price comparison status
+  function getPriceComparisonStatus(product: any): string[] {
+    const statuses: string[] = [];
+    
+    if (!product.purchase_price) return statuses;
+
+    // Check client price ratio
+    if (product.client_price) {
+      const clientRatio = (product.purchase_price / product.client_price) * 100;
+      if (clientRatio >= 85) {
+        statuses.push('PP>CP');
+      }
+    }
+
+    // Check RRP ratio
+    if (product.rrp) {
+      const rrpRatio = (product.purchase_price / product.rrp) * 100;
+      if (rrpRatio >= 85) {
+        statuses.push('PP>RRP');
+      }
+    }
+
+    return statuses;
   }
 </script>
 
@@ -405,6 +489,12 @@
               >
                 RRP {getSortIcon('rrp')}
               </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('updated')}
+              >
+                Status {getSortIcon('updated')}
+              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -533,6 +623,22 @@
                     step="0.01"
                   />
                 </td>
+                <td class="px-2 py-1 text-sm flex gap-2">
+                  {#each getPriceComparisonStatus(product) as status}
+                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${
+                      status === 'PP>CP' 
+                        ? 'bg-purple-900' 
+                        : 'bg-red-900'
+                    }`}>
+                      {status}
+                    </span>
+                  {/each}
+                  {#if product.updated}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Updated
+                    </span>
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -540,36 +646,52 @@
       {/if}
     </div>
 
-    <!-- Add pagination controls after the table -->
+    <!-- Add items per page selector before the pagination controls -->
     <div class="mt-4 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+      <div class="flex items-center">
+        <span class="mr-2 text-sm text-gray-700">Items per page:</span>
+        <select
+          class="rounded border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
+          on:change={handleItemsPerPageChange}
+          value={$itemsPerPage}
+        >
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      
       <div class="flex flex-1 justify-between sm:hidden">
         <button
-          class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={() => handlePageChange($currentPage - 1)}
           disabled={$currentPage === 1}
         >
           Previous
         </button>
         <button
-          class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           on:click={() => handlePageChange($currentPage + 1)}
           disabled={$currentPage === totalPages}
         >
           Next
         </button>
       </div>
+      
       <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
         <div>
           <p class="text-sm text-gray-700">
-            Showing <span class="font-medium">{($currentPage - 1) * $itemsPerPage + 1}</span> to{' '}
-            <span class="font-medium">{Math.min($currentPage * $itemsPerPage, $products.length)}</span> of{' '}
-            <span class="font-medium">{$products.length}</span> results
+            Showing <span class="font-medium">{currentPageItems.start}</span> to{' '}
+            <span class="font-medium">{currentPageItems.end}</span> of{' '}
+            <span class="font-medium">{currentPageItems.total}</span> results
           </p>
         </div>
         <div>
           <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
             <button
-              class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+              class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
               on:click={() => handlePageChange($currentPage - 1)}
               disabled={$currentPage === 1}
             >
@@ -578,16 +700,59 @@
                 <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
               </svg>
             </button>
-            {#each Array(totalPages) as _, i}
+            
+            <!-- Show ellipsis and limited page numbers -->
+            {#if totalPages <= 7}
+              {#each Array(totalPages) as _, i}
+                <button
+                  class="relative inline-flex items-center px-4 py-2 text-sm font-semibold {$currentPage === i + 1 ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'}"
+                  on:click={() => handlePageChange(i + 1)}
+                >
+                  {i + 1}
+                </button>
+              {/each}
+            {:else}
+              <!-- First page -->
               <button
-                class="relative inline-flex items-center px-4 py-2 text-sm font-semibold {$currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-gray-900'} ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
-                on:click={() => handlePageChange(i + 1)}
+                class="relative inline-flex items-center px-4 py-2 text-sm font-semibold {$currentPage === 1 ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
+                on:click={() => handlePageChange(1)}
               >
-                {i + 1}
+                1
               </button>
-            {/each}
+              
+              <!-- Left ellipsis -->
+              {#if $currentPage > 3}
+                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
+              {/if}
+              
+              <!-- Pages around current page -->
+              {#each Array(3) as _, i}
+                {#if $currentPage - 1 + i > 1 && $currentPage - 1 + i < totalPages}
+                  <button
+                    class="relative inline-flex items-center px-4 py-2 text-sm font-semibold {$currentPage === $currentPage - 1 + i ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
+                    on:click={() => handlePageChange($currentPage - 1 + i)}
+                  >
+                    {$currentPage - 1 + i}
+                  </button>
+                {/if}
+              {/each}
+              
+              <!-- Right ellipsis -->
+              {#if $currentPage < totalPages - 2}
+                <span class="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
+              {/if}
+              
+              <!-- Last page -->
+              <button
+                class="relative inline-flex items-center px-4 py-2 text-sm font-semibold {$currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
+                on:click={() => handlePageChange(totalPages)}
+              >
+                {totalPages}
+              </button>
+            {/if}
+            
             <button
-              class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+              class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
               on:click={() => handlePageChange($currentPage + 1)}
               disabled={$currentPage === totalPages}
             >

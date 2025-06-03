@@ -361,9 +361,10 @@ export async function handleFilterSubmit(filters: {
     console.log('Starting handleFilterSubmit with filters:', filters);
     loading.set(true);
 
-    // Reset selection state
+    // Reset selection state and pagination
     selectedRows.set(new Set<string>());
     selectAll.set(false);
+    resetPagination();
 
     // Prepare SKUs for filter
     const skus = filters.skuFilter
@@ -468,6 +469,14 @@ export async function handleFilterSubmit(filters: {
 
 // Get paginated and sorted products
 export function getPaginatedProducts(allProducts: any[]): any[] {
+  console.log('Getting paginated products:', {
+    totalProducts: allProducts.length,
+    currentPage: get(currentPage),
+    itemsPerPage: get(itemsPerPage),
+    sortField: get(sortField),
+    sortDirection: get(sortDirection)
+  });
+
   let sorted = [...allProducts];
   
   // Apply sorting if a sort field is selected
@@ -475,6 +484,7 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
   const currentSortDirection = get(sortDirection);
   
   if (currentSortField) {
+    console.log('Sorting by:', { field: currentSortField, direction: currentSortDirection });
     sorted.sort((a, b) => {
       let aValue = a[currentSortField];
       let bValue = b[currentSortField];
@@ -483,9 +493,18 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
       if (aValue === null || aValue === undefined) aValue = '';
       if (bValue === null || bValue === undefined) bValue = '';
       
-      // Convert to strings for string comparison or numbers for numeric comparison
+      // Handle boolean values (for 'updated' field)
+      if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+        return currentSortDirection === 'asc' 
+          ? (aValue === bValue ? 0 : aValue ? -1 : 1)
+          : (aValue === bValue ? 0 : aValue ? 1 : -1);
+      }
+      
+      // Handle numeric values
       if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return currentSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+        return currentSortDirection === 'asc' 
+          ? aValue - bValue 
+          : bValue - aValue;
       }
       
       // Convert to strings for string comparison
@@ -498,19 +517,40 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
     });
   }
   
-  // Apply pagination
-  const page = get(currentPage);
+  // Get pagination values
   const perPage = get(itemsPerPage);
-  const start = (page - 1) * perPage;
-  const end = start + perPage;
+  const totalPages = Math.max(1, Math.ceil(sorted.length / perPage));
+  const page = Math.max(1, Math.min(get(currentPage), totalPages));
   
+  // Calculate slice indices
+  const start = (page - 1) * perPage;
+  const end = Math.min(start + perPage, sorted.length);
+  
+  console.log('Pagination calculation:', {
+    page,
+    perPage,
+    totalPages,
+    start,
+    end,
+    resultLength: end - start
+  });
+
+  // Return the paginated slice
   return sorted.slice(start, end);
 }
 
 // Get total number of pages
 export function getTotalPages(totalItems: number): number {
   const perPage = get(itemsPerPage);
-  return Math.ceil(totalItems / perPage);
+  const pages = Math.max(1, Math.ceil(totalItems / perPage));
+  console.log('Calculating total pages:', { totalItems, perPage, pages });
+  return pages;
+}
+
+// Reset pagination
+export function resetPagination() {
+  console.log('Resetting pagination');
+  currentPage.set(1);
 }
 
 // Handle sort change

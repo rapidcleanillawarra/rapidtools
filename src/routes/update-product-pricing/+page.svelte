@@ -34,7 +34,14 @@
     fetchCategories,
     handleSelectAll,
     handleSubmitChecked,
-    handleFilterSubmit
+    handleFilterSubmit,
+    currentPage,
+    itemsPerPage,
+    sortField,
+    sortDirection,
+    getPaginatedProducts,
+    getTotalPages,
+    handleSort
   } from './stores';
 
   interface SelectOption {
@@ -136,6 +143,38 @@
       fetchCategories()
     ]);
   });
+
+  // Add reactive statements for pagination and sorting
+  $: paginatedProducts = getPaginatedProducts($products);
+  $: totalPages = getTotalPages($products.length);
+  
+  // Add reactive statement for sort changes
+  $: {
+    if ($sortField !== null) {
+      console.log('Sorting by:', $sortField, 'Direction:', $sortDirection);
+      // Force a recalculation of paginatedProducts when sort changes
+      paginatedProducts = getPaginatedProducts($products);
+    }
+  }
+
+  // Function to handle page change
+  function handlePageChange(newPage: number) {
+    if (newPage >= 1 && newPage <= totalPages) {
+      currentPage.set(newPage);
+    }
+  }
+
+  // Function to get sort icon
+  function getSortIcon(field: string): string {
+    if ($sortField !== field) return '↕️';
+    return $sortDirection === 'asc' ? '↑' : '↓';
+  }
+
+  // Function to handle sorting
+  function handleSortClick(field: string) {
+    console.log('Sorting by field:', field);
+    handleSort(field);
+  }
 </script>
 
 <SvelteToast options={{ 
@@ -304,12 +343,42 @@
                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
               </th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">SKU</th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[150px]">Product Name</th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Brand</th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Primary Supplier</th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">Category</th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">Purchase Price</th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('sku')}
+              >
+                SKU {getSortIcon('sku')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[150px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('product_name')}
+              >
+                Product Name {getSortIcon('product_name')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('brand')}
+              >
+                Brand {getSortIcon('brand')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('primary_supplier')}
+              >
+                Primary Supplier {getSortIcon('primary_supplier')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('category')}
+              >
+                Category {getSortIcon('category')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('purchase_price')}
+              >
+                Purchase Price {getSortIcon('purchase_price')}
+              </th>
               <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
                 Client MUP
                 <button 
@@ -324,13 +393,22 @@
                   on:click={applyRetailMupToAll}
                 >Apply All</button>
               </th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">Client Price</th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">RRP</th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('client_price')}
+              >
+                Client Price {getSortIcon('client_price')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('rrp')}
+              >
+                RRP {getSortIcon('rrp')}
+              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            {#each $products as product (product.sku)}
-              {@debug product}
+            {#each paginatedProducts as product (product.sku)}
               <tr class={product.updated ? 'bg-green-50' : ''}>
                 <td class="px-2 py-1 whitespace-nowrap">
                   <input
@@ -460,6 +538,67 @@
           </tbody>
         </table>
       {/if}
+    </div>
+
+    <!-- Add pagination controls after the table -->
+    <div class="mt-4 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+      <div class="flex flex-1 justify-between sm:hidden">
+        <button
+          class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          on:click={() => handlePageChange($currentPage - 1)}
+          disabled={$currentPage === 1}
+        >
+          Previous
+        </button>
+        <button
+          class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          on:click={() => handlePageChange($currentPage + 1)}
+          disabled={$currentPage === totalPages}
+        >
+          Next
+        </button>
+      </div>
+      <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+        <div>
+          <p class="text-sm text-gray-700">
+            Showing <span class="font-medium">{($currentPage - 1) * $itemsPerPage + 1}</span> to{' '}
+            <span class="font-medium">{Math.min($currentPage * $itemsPerPage, $products.length)}</span> of{' '}
+            <span class="font-medium">{$products.length}</span> results
+          </p>
+        </div>
+        <div>
+          <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+            <button
+              class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+              on:click={() => handlePageChange($currentPage - 1)}
+              disabled={$currentPage === 1}
+            >
+              <span class="sr-only">Previous</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            {#each Array(totalPages) as _, i}
+              <button
+                class="relative inline-flex items-center px-4 py-2 text-sm font-semibold {$currentPage === i + 1 ? 'bg-blue-600 text-white' : 'text-gray-900'} ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+                on:click={() => handlePageChange(i + 1)}
+              >
+                {i + 1}
+              </button>
+            {/each}
+            <button
+              class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0"
+              on:click={() => handlePageChange($currentPage + 1)}
+              disabled={$currentPage === totalPages}
+            >
+              <span class="sr-only">Next</span>
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </nav>
+        </div>
+      </div>
     </div>
   </div>
 </div>

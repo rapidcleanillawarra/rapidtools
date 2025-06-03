@@ -33,6 +33,12 @@ export const brandFilter = writable<SelectOption | null>(null);
 export const supplierFilter = writable<SelectOption | null>(null);
 export const categoryFilter = writable<SelectOption | null>(null);
 
+// Pagination and sorting stores
+export const currentPage = writable(1);
+export const itemsPerPage = writable(10);
+export const sortField = writable<string | null>(null);
+export const sortDirection = writable<'asc' | 'desc'>('asc');
+
 interface Product {
   sku: string;
   product_name: string;
@@ -458,4 +464,65 @@ export async function handleFilterSubmit(filters: {
   } finally {
     loading.set(false);
   }
+}
+
+// Get paginated and sorted products
+export function getPaginatedProducts(allProducts: any[]): any[] {
+  let sorted = [...allProducts];
+  
+  // Apply sorting if a sort field is selected
+  const currentSortField = get(sortField);
+  const currentSortDirection = get(sortDirection);
+  
+  if (currentSortField) {
+    sorted.sort((a, b) => {
+      let aValue = a[currentSortField];
+      let bValue = b[currentSortField];
+      
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+      
+      // Convert to strings for string comparison or numbers for numeric comparison
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return currentSortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+      
+      // Convert to strings for string comparison
+      const aString = String(aValue).toLowerCase();
+      const bString = String(bValue).toLowerCase();
+      
+      return currentSortDirection === 'asc' 
+        ? aString.localeCompare(bString)
+        : bString.localeCompare(aString);
+    });
+  }
+  
+  // Apply pagination
+  const page = get(currentPage);
+  const perPage = get(itemsPerPage);
+  const start = (page - 1) * perPage;
+  const end = start + perPage;
+  
+  return sorted.slice(start, end);
+}
+
+// Get total number of pages
+export function getTotalPages(totalItems: number): number {
+  const perPage = get(itemsPerPage);
+  return Math.ceil(totalItems / perPage);
+}
+
+// Handle sort change
+export function handleSort(field: string) {
+  sortField.update(currentField => {
+    if (currentField === field) {
+      // If clicking the same field, toggle direction
+      sortDirection.update(dir => dir === 'asc' ? 'desc' : 'asc');
+      return field;
+    }
+    // If clicking a new field, set to asc
+    sortDirection.set('asc');
+    return field;
+  });
 } 

@@ -140,7 +140,7 @@
                     on:click={() => productsOpen = false}
                   >Product Request Approval</a>
                   <a 
-                    href="{base}/update-product-price" 
+                    href="{base}/update-product-pricing" 
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Update Product Price</a>

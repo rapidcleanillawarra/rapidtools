@@ -4,6 +4,7 @@
   import { fade } from 'svelte/transition';
   import { SvelteToast } from '@zerodevx/svelte-toast';
   import { toastSuccess, toastError } from '$lib/utils/toast';
+  import Select from 'svelte-select';
   import {
     invoices,
     originalInvoices,
@@ -20,11 +21,25 @@
     sortField,
     sortDirection,
     getPaginatedInvoices,
-    getTotalPages
+    getTotalPages,
+    selectedCustomerGroup,
+    dateFrom,
+    dateTo,
+    selectedStatus,
+    applyFilters
   } from './stores';
   import type { CustomerGroupInvoice } from './types';
 
   export let data: { invoices: CustomerGroupInvoice[] };
+
+  // Customer groups for the dropdown
+  let customerGroups: string[] = [];
+  
+  // Status options
+  const statusOptions = [
+    { value: 'paid', label: 'Paid' },
+    { value: 'unpaid', label: 'Unpaid' }
+  ];
 
   // Add logging for when data changes
   $: {
@@ -34,7 +49,7 @@
     });
   }
 
-  // Initialize invoices only on mount
+  // Initialize invoices and customer groups only on mount
   onMount(() => {
     console.log('Component mounted, initializing data');
     if (data?.invoices && Array.isArray(data.invoices)) {
@@ -42,6 +57,9 @@
       $originalInvoices = [...data.invoices];
       $invoices = [...data.invoices];
       $filteredInvoices = [...data.invoices];
+      
+      // Extract unique customer groups
+      customerGroups = [...new Set(data.invoices.map(inv => inv.customerGroupName))];
     }
   });
 
@@ -74,6 +92,13 @@
       end: Math.min($currentPage * $itemsPerPage, $invoices.length),
       total: $invoices.length
     };
+  }
+
+  // Handle filter changes
+  $: {
+    if ($selectedCustomerGroup !== null || $dateFrom !== null || $dateTo !== null || $selectedStatus !== null) {
+      applyFilters();
+    }
   }
 
   // Function to handle page change
@@ -125,6 +150,12 @@
       submitLoading.set(false);
     }
   }
+
+  // Handle date input changes with proper type checking
+  function handleDateChange(event: Event, setter: (date: Date | null) => void) {
+    const input = event.target as HTMLInputElement;
+    setter(input.value ? new Date(input.value) : null);
+  }
 </script>
 
 <SvelteToast options={{ 
@@ -137,6 +168,49 @@
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
     <h2 class="text-2xl font-bold mb-6 text-gray-900">Customer Group Invoices</h2>
+
+    <!-- Filter Section -->
+    <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Customer Group</label>
+        <Select
+          items={customerGroups.map(group => ({ value: group, label: group }))}
+          placeholder="Select customer group"
+          clearable={true}
+          on:clear={() => selectedCustomerGroup.set(null)}
+          on:select={({ detail }) => selectedCustomerGroup.set(detail.value)}
+        />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+        <input
+          type="date"
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          on:change={(e) => handleDateChange(e, dateFrom.set)}
+        />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+        <input
+          type="date"
+          class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          on:change={(e) => handleDateChange(e, dateTo.set)}
+        />
+      </div>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+        <Select
+          items={statusOptions}
+          placeholder="Select status"
+          clearable={true}
+          on:clear={() => selectedStatus.set(null)}
+          on:select={({ detail }) => selectedStatus.set(detail.value)}
+        />
+      </div>
+    </div>
 
     <!-- Action Buttons -->
     <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm">
@@ -185,25 +259,37 @@
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('invoiceNumber')}
               >
-                Invoice Number {getSortIcon('invoiceNumber')}
-              </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('customerGroupName')}
-              >
-                Customer Group {getSortIcon('customerGroupName')}
-              </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('totalAmount')}
-              >
-                Total Amount {getSortIcon('totalAmount')}
+                Invoice # {getSortIcon('invoiceNumber')}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('dateIssued')}
               >
                 Date Issued {getSortIcon('dateIssued')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('dueDate')}
+              >
+                Due Date {getSortIcon('dueDate')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('totalAmount')}
+              >
+                Total Invoice {getSortIcon('totalAmount')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('username')}
+              >
+                Username {getSortIcon('username')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('company')}
+              >
+                Company {getSortIcon('company')}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -233,13 +319,17 @@
                   />
                 </td>
                 <td class="px-2 py-1 text-sm">{invoice.invoiceNumber}</td>
-                <td class="px-2 py-1 text-sm">{invoice.customerGroupName}</td>
-                <td class="px-2 py-1 text-sm">
-                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
-                </td>
                 <td class="px-2 py-1 text-sm">
                   {new Date(invoice.dateIssued).toLocaleDateString()}
                 </td>
+                <td class="px-2 py-1 text-sm">
+                  {new Date(invoice.dueDate).toLocaleDateString()}
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
+                </td>
+                <td class="px-2 py-1 text-sm">{invoice.username}</td>
+                <td class="px-2 py-1 text-sm">{invoice.company}</td>
                 <td class="px-2 py-1 text-sm">
                   <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                     ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : 

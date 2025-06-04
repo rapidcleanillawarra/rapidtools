@@ -1,9 +1,12 @@
 export interface CustomerGroupInvoice {
   invoiceNumber: string;
-  customerGroupName: string;
-  totalAmount: number;
-  status: 'pending' | 'paid' | 'overdue';
   dateIssued: string;
+  dueDate: string;
+  totalAmount: number;
+  username: string;
+  company: string;
+  customerGroupName: string;
+  status: 'pending' | 'paid' | 'overdue';
   updated?: boolean;
 }
 

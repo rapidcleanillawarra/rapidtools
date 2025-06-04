@@ -185,6 +185,11 @@
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => ordersOpen = false}
                   >Gross Profit Calculator</a>
+                  <a 
+                    href="{base}/customer-group-invoices" 
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => ordersOpen = false}
+                  >Customer Group Invoices</a>
                 </div>
               </div>
             {/if}
@@ -293,6 +298,11 @@
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileOrdersOpen = false}
             >Gross Profit Calculator</a>
+            <a 
+              href="{base}/customer-group-invoices" 
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileOrdersOpen = false}
+            >Customer Group Invoices</a>
           </div>
         {/if}
         <!-- Mobile User Profile -->

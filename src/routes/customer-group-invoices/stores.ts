@@ -29,6 +29,12 @@ export const itemsPerPage = writable<number>(10);
 export const sortField = writable<string | null>(null);
 export const sortDirection = writable<'asc' | 'desc'>('asc');
 
+// Filter stores
+export const selectedCustomerGroup = writable<string | null>(null);
+export const dateFrom = writable<Date | null>(null);
+export const dateTo = writable<Date | null>(null);
+export const selectedStatus = writable<'paid' | 'unpaid' | null>(null);
+
 // Function to handle select all
 export function handleSelectAll(checked: boolean) {
   if (checked) {
@@ -54,11 +60,21 @@ export function getPaginatedInvoices(allInvoices: CustomerGroupInvoice[]): Custo
       const aValue = a[sortFieldValue as keyof CustomerGroupInvoice];
       const bValue = b[sortFieldValue as keyof CustomerGroupInvoice];
       
-      if (sortDirectionValue === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return bValue < aValue ? -1 : bValue > aValue ? 1 : 0;
+      if (aValue === undefined || bValue === undefined) return 0;
+      
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirectionValue === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
       }
+      
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortDirectionValue === 'asc'
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+      
+      return 0;
     });
   }
 
@@ -99,4 +115,43 @@ export async function handleSubmitChecked() {
   } finally {
     submitLoading.set(false);
   }
+}
+
+// Function to apply filters
+export function applyFilters() {
+  const allInvoices = get(originalInvoices);
+  const customerGroup = get(selectedCustomerGroup);
+  const fromDate = get(dateFrom);
+  const toDate = get(dateTo);
+  const status = get(selectedStatus);
+
+  let filtered = [...allInvoices];
+
+  if (customerGroup) {
+    filtered = filtered.filter(inv => 
+      inv.customerGroupName.toLowerCase().includes(customerGroup.toLowerCase())
+    );
+  }
+
+  if (fromDate) {
+    filtered = filtered.filter(inv => 
+      new Date(inv.dateIssued) >= fromDate
+    );
+  }
+
+  if (toDate) {
+    filtered = filtered.filter(inv => 
+      new Date(inv.dateIssued) <= toDate
+    );
+  }
+
+  if (status) {
+    filtered = filtered.filter(inv => 
+      status === 'paid' ? inv.status === 'paid' : inv.status !== 'paid'
+    );
+  }
+
+  filteredInvoices.set(filtered);
+  invoices.set(filtered);
+  currentPage.set(1); // Reset to first page when filters change
 } 

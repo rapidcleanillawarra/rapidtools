@@ -6,7 +6,8 @@ export interface CustomerGroupInvoice {
   username: string;
   company: string;
   customerGroupName: string;
-  status: 'pending' | 'paid' | 'overdue';
+  status: string;
+  statusColor: string;
   updated?: boolean;
 }
 

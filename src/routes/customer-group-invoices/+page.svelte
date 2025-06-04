@@ -41,8 +41,9 @@
 
   // Status options
   const statusOptions = [
-    { value: 'paid', label: 'Paid' },
-    { value: 'unpaid', label: 'Unpaid' }
+    { value: 'Unpaid', label: 'Unpaid' },
+    { value: 'PartiallyPaid', label: 'Partial Paid' },
+    { value: 'FullyPaid', label: 'Fully Paid' }
   ];
 
   // Add logging for when data changes
@@ -110,8 +111,8 @@
   async function handleApplyFilter() {
     try {
       // Validate filters before proceeding
-      if (!$selectedCustomerGroup || !$dateFrom || !$dateTo || !$selectedStatus) {
-        toastError('Please fill in all filter fields');
+      if (!$selectedCustomerGroup || $selectedStatus.length === 0) {
+        toastError('Please select a customer group and at least one status');
         return;
       }
 
@@ -145,6 +146,14 @@
       const customer_group_customers = await customerResponse.json();
       console.log('Customer Group Customers:', customer_group_customers);
 
+      // Create a map of username to UserGroup for company lookup
+      const customerGroupMap = new Map(
+        customer_group_customers.Customer.map((customer: { Username: string; UserGroup: string }) => [
+          customer.Username,
+          customer.UserGroup
+        ])
+      );
+
       // Extract usernames from the customer group response
       const usernames = customer_group_customers.Customer.map((customer: { Username: string }) => customer.Username);
       console.log('Extracted Usernames:', usernames);
@@ -157,14 +166,15 @@
         Filter: {
           OrderStatus: "Dispatched",
           Username: usernames,
-          PaymentStatus: ["Pending", "PartialPaid"],
+          PaymentStatus: ["Pending", "PartialPaid", "FullyPaid"],
           OutputSelector: [
             "ID",
             "Username",
             "UserGroup",
             "DatePaymentDue",
             "OrderPayment",
-            "GrandTotal"
+            "GrandTotal",
+            "DatePlaced"
           ]
         },
         action: "GetOrder"
@@ -184,17 +194,52 @@
       const orders_data = await ordersResponse.json();
       console.log('Get Orders API Response:', orders_data);
 
-      // Update the invoices store with the orders data
-      const mappedInvoices = orders_data.Order.map((order: any) => ({
-        invoiceNumber: order.ID,
-        dateIssued: order.DatePaymentDue,
-        dueDate: order.DatePaymentDue,
-        totalAmount: parseFloat(order.GrandTotal),
-        username: order.Username,
-        company: order.UserGroup,
-        status: '', // Leave status empty for now
-        customerGroupName: order.UserGroup
-      }));
+      // Calculate payment status for each order
+      const mappedInvoices = orders_data.Order.map((order: any) => {
+        // Calculate total payments
+        const totalPayments = order.OrderPayment?.reduce((sum: number, payment: any) => 
+          sum + (parseFloat(payment.Amount) || 0), 0) || 0;
+        
+        const grandTotal = parseFloat(order.GrandTotal) || 0;
+        
+        // Determine payment status
+        let status = 'Unpaid';
+        let statusColor = 'bg-red-100 text-red-800';
+        
+        if (totalPayments > 0) {
+          if (Math.abs(totalPayments - grandTotal) < 0.01) { // Using small epsilon for float comparison
+            status = 'Fully Paid';
+            statusColor = 'bg-green-100 text-green-800';
+          } else {
+            status = 'Partially Paid';
+            statusColor = 'bg-yellow-100 text-yellow-800';
+          }
+        }
+
+        return {
+          invoiceNumber: order.ID,
+          dateIssued: order.DatePlaced,
+          dueDate: order.DatePaymentDue,
+          totalAmount: grandTotal,
+          username: order.Username,
+          company: customerGroupMap.get(order.Username) || order.UserGroup,
+          status,
+          statusColor,
+          customerGroupName: order.UserGroup
+        };
+      }).filter((invoice: CustomerGroupInvoice) => {
+        // If no status filter is selected, show all
+        if (!$selectedStatus || $selectedStatus.length === 0) return true;
+        
+        // Check if the invoice status matches any of the selected statuses
+        return $selectedStatus.some(selected => {
+          const statusValue = selected.value;
+          if (statusValue === 'Unpaid') return invoice.status === 'Unpaid';
+          if (statusValue === 'PartiallyPaid') return invoice.status === 'Partially Paid';
+          if (statusValue === 'FullyPaid') return invoice.status === 'Fully Paid';
+          return false;
+        });
+      });
 
       console.log('Mapped Invoices:', mappedInvoices);
 
@@ -279,8 +324,9 @@
 
   // Handle status selection
   function handleStatusSelect(event: CustomEvent) {
-    const value = event.detail?.value;
-    selectedStatus.set(value as 'paid' | 'unpaid');
+    const values = event.detail?.value || [];
+    console.log('Selected status values:', values);
+    selectedStatus.set(values);
     validateFilters();
   }
 </script>
@@ -339,8 +385,9 @@
           items={statusOptions}
           placeholder="Select status"
           clearable={true}
+          multiple={true}
           on:clear={() => {
-            selectedStatus.set(null);
+            selectedStatus.set([]);
             validateFilters();
           }}
           on:select={handleStatusSelect}
@@ -490,12 +537,8 @@
                 <td class="px-2 py-1 text-sm">{invoice.username}</td>
                 <td class="px-2 py-1 text-sm">{invoice.company}</td>
                 <td class="px-2 py-1 text-sm">
-                  <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${invoice.status === 'paid' ? 'bg-green-100 text-green-800' : 
-                      invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                      'bg-red-100 text-red-800'}`}
-                  >
-                    {invoice.status || 'N/A'}
+                  <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.statusColor}`}>
+                    {invoice.status}
                   </span>
                 </td>
               </tr>

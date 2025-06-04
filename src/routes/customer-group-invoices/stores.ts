@@ -39,7 +39,7 @@ export const sortDirection = writable<'asc' | 'desc'>('asc');
 export const selectedCustomerGroup = writable<string | null>(null);
 export const dateFrom = writable<Date | null>(null);
 export const dateTo = writable<Date | null>(null);
-export const selectedStatus = writable<'paid' | 'unpaid' | null>(null);
+export const selectedStatus = writable<{ value: string; label: string }[]>([]);
 
 // Store for customer groups
 export const customerGroups = writable<{ value: string; label: string }[]>([]);
@@ -60,14 +60,18 @@ export function validateFilters(): boolean {
   }
 
   // Validate status
-  if (!get(selectedStatus)) {
-    statusError.set('Please select a status');
+  if (!get(selectedStatus) || get(selectedStatus).length === 0) {
+    statusError.set('Please select at least one status');
     isValid = false;
   }
 
-  // Validate dates
-  if (!validateDates(get(dateFrom), get(dateTo))) {
-    isValid = false;
+  // Validate dates only if both are provided
+  const fromDate = get(dateFrom);
+  const toDate = get(dateTo);
+  if (fromDate && toDate) {
+    if (!validateDates(fromDate, toDate)) {
+      isValid = false;
+    }
   }
 
   return isValid;
@@ -264,11 +268,12 @@ export function applyFilters() {
     );
   }
 
-  if (status) {
-    filtered = filtered.filter(inv => 
-      status === 'paid' ? inv.status === 'paid' : inv.status !== 'paid'
-    );
-  }
+  // Remove status filtering for now
+  // if (status && status.length > 0) {
+  //   filtered = filtered.filter(inv => 
+  //     status.some(s => s.value === inv.status)
+  //   );
+  // }
 
   console.log('Filtered results:', {
     beforeFilter: allInvoices.length,

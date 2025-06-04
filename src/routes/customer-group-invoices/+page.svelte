@@ -11,6 +11,7 @@
     filteredInvoices,
     loading,
     filterLoading,
+    currentLoadingStep,
     invoiceError,
     dateError,
     customerGroupError,
@@ -82,34 +83,145 @@
 
   // Add reactive statements for pagination and sorting
   $: {
-    console.log('Invoices or sort changed:', {
-      totalInvoices: $invoices.length,
-      currentPage: $currentPage,
-      itemsPerPage: $itemsPerPage,
-      sortField: $sortField,
-      sortDirection: $sortDirection
-    });
-    
-    // Recalculate pagination and sorting
-    paginatedInvoices = getPaginatedInvoices($invoices);
-    totalPages = getTotalPages($invoices.length);
-    
-    // Update current page items info
-    currentPageItems = {
-      start: ($currentPage - 1) * $itemsPerPage + 1,
-      end: Math.min($currentPage * $itemsPerPage, $invoices.length),
-      total: $invoices.length
-    };
+    if ($invoices && $invoices.length > 0) {
+      console.log('Recalculating pagination with invoices:', $invoices.length);
+      paginatedInvoices = getPaginatedInvoices($invoices);
+      totalPages = getTotalPages($invoices.length);
+      
+      // Update current page items info
+      currentPageItems = {
+        start: ($currentPage - 1) * $itemsPerPage + 1,
+        end: Math.min($currentPage * $itemsPerPage, $invoices.length),
+        total: $invoices.length
+      };
+    } else {
+      console.log('No invoices available for pagination');
+      paginatedInvoices = [];
+      totalPages = 0;
+      currentPageItems = {
+        start: 0,
+        end: 0,
+        total: 0
+      };
+    }
   }
 
   // Function to handle filter application
   async function handleApplyFilter() {
     try {
-      await applyFiltersViaAPI();
+      // Validate filters before proceeding
+      if (!$selectedCustomerGroup || !$dateFrom || !$dateTo || !$selectedStatus) {
+        toastError('Please fill in all filter fields');
+        return;
+      }
+
+      filterLoading.set(true);
+      currentLoadingStep.set('Fetching customer group data...');
+      
+      // Prepare payload for Get Customer API
+      const customerPayload = {
+        Filter: {
+          UserGroup: [parseInt($selectedCustomerGroup || '0')],
+          OutputSelector: [
+            "Username",
+            "EmailAddress",
+            "UserGroup"
+          ]
+        },
+        action: "GetCustomer"
+      };
+
+      console.log('Get Customer API Payload:', customerPayload);
+      
+      // First API call - Get Customer Group
+      const customerResponse = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(customerPayload)
+      });
+
+      const customer_group_customers = await customerResponse.json();
+      console.log('Customer Group Customers:', customer_group_customers);
+
+      // Extract usernames from the customer group response
+      const usernames = customer_group_customers.Customer.map((customer: { Username: string }) => customer.Username);
+      console.log('Extracted Usernames:', usernames);
+
+      // Update loading message for second API call
+      currentLoadingStep.set('Fetching orders data...');
+
+      // Prepare payload for Get Orders API
+      const ordersPayload = {
+        Filter: {
+          OrderStatus: "Dispatched",
+          Username: usernames,
+          PaymentStatus: ["Pending", "PartialPaid"],
+          OutputSelector: [
+            "ID",
+            "Username",
+            "UserGroup",
+            "DatePaymentDue",
+            "OrderPayment",
+            "GrandTotal"
+          ]
+        },
+        action: "GetOrder"
+      };
+
+      console.log('Get Orders API Payload:', ordersPayload);
+
+      // Second API call - Get Orders
+      const ordersResponse = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(ordersPayload)
+      });
+
+      const orders_data = await ordersResponse.json();
+      console.log('Get Orders API Response:', orders_data);
+
+      // Update the invoices store with the orders data
+      const mappedInvoices = orders_data.Order.map((order: any) => ({
+        invoiceNumber: order.ID,
+        dateIssued: order.DatePaymentDue,
+        dueDate: order.DatePaymentDue,
+        totalAmount: parseFloat(order.GrandTotal),
+        username: order.Username,
+        company: order.UserGroup,
+        status: '', // Leave status empty for now
+        customerGroupName: order.UserGroup
+      }));
+
+      console.log('Mapped Invoices:', mappedInvoices);
+
+      // Update all necessary stores
+      $invoices = mappedInvoices;
+      $originalInvoices = mappedInvoices;
+      $filteredInvoices = mappedInvoices;
+      $currentPage = 1; // Reset to first page
+
+      // Calculate pagination
+      paginatedInvoices = getPaginatedInvoices($invoices);
+      totalPages = getTotalPages($invoices.length);
+      
+      console.log('Current Page:', $currentPage);
+      console.log('Total Pages:', totalPages);
+      console.log('Paginated Invoices:', paginatedInvoices);
+      console.log('Items Per Page:', $itemsPerPage);
+
+      // Apply local filters after getting the response
+      applyFilters();
       toastSuccess('Filters applied successfully');
     } catch (error) {
       console.error('Error applying filters:', error);
       toastError(error instanceof Error ? error.message : 'Failed to apply filters');
+    } finally {
+      filterLoading.set(false);
+      currentLoadingStep.set('');
     }
   }
 
@@ -159,14 +271,16 @@
   }
 
   // Handle customer group selection
-  function handleCustomerGroupSelect(detail: { value: string }) {
-    selectedCustomerGroup.set(detail.value);
+  function handleCustomerGroupSelect(event: CustomEvent) {
+    const value = event.detail?.value;
+    selectedCustomerGroup.set(value);
     validateFilters();
   }
 
   // Handle status selection
-  function handleStatusSelect(detail: { value: string }) {
-    selectedStatus.set(detail.value as 'paid' | 'unpaid');
+  function handleStatusSelect(event: CustomEvent) {
+    const value = event.detail?.value;
+    selectedStatus.set(value as 'paid' | 'unpaid');
     validateFilters();
   }
 </script>
@@ -260,13 +374,26 @@
       </button>
     </div>
 
+    <!-- Add this before the Invoices Table section -->
+    {#if $filterLoading}
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div class="flex items-center justify-center mb-4">
+            <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+          </div>
+          <p class="text-center text-gray-700 font-medium">{$currentLoadingStep}</p>
+          <p class="text-center text-sm text-gray-500 mt-2">This may take a few moments</p>
+        </div>
+      </div>
+    {/if}
+
     <!-- Invoices Table -->
     <div class="overflow-x-auto">
       {#if $loading}
         <div class="flex justify-center items-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
         </div>
-      {:else if $invoices.length === 0}
+      {:else if !$invoices || $invoices.length === 0}
         <div class="text-center py-8 text-gray-500">
           No invoices found
         </div>
@@ -368,13 +495,8 @@
                       invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                       'bg-red-100 text-red-800'}`}
                   >
-                    {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                    {invoice.status || 'N/A'}
                   </span>
-                  {#if invoice.updated}
-                    <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Updated
-                    </span>
-                  {/if}
                 </td>
               </tr>
             {/each}

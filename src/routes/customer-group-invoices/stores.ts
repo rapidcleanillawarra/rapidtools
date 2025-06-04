@@ -15,6 +15,7 @@ export const filteredInvoices = writable<CustomerGroupInvoice[]>([]);
 // Loading states
 export const loading = writable<boolean>(false);
 export const filterLoading = writable<boolean>(false);
+export const currentLoadingStep = writable<string>('');
 
 // Error states
 export const invoiceError = writable<string | null>(null);
@@ -101,7 +102,7 @@ export async function fetchCustomerGroups() {
     const groups = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {
-        value: data.name,
+        value: data.id,
         label: data.name
       };
     });
@@ -130,6 +131,14 @@ export function getPaginatedInvoices(allInvoices: CustomerGroupInvoice[]): Custo
   const sortFieldValue = get(sortField);
   const sortDirectionValue = get(sortDirection);
 
+  console.log('getPaginatedInvoices input:', {
+    totalInvoices: allInvoices.length,
+    currentPage: currentPageValue,
+    itemsPerPage: itemsPerPageValue,
+    sortField: sortFieldValue,
+    sortDirection: sortDirectionValue
+  });
+
   let sortedInvoices = [...allInvoices];
 
   if (sortFieldValue) {
@@ -157,7 +166,15 @@ export function getPaginatedInvoices(allInvoices: CustomerGroupInvoice[]): Custo
 
   const start = (currentPageValue - 1) * itemsPerPageValue;
   const end = start + itemsPerPageValue;
-  return sortedInvoices.slice(start, end);
+  const paginated = sortedInvoices.slice(start, end);
+
+  console.log('getPaginatedInvoices output:', {
+    start,
+    end,
+    paginatedLength: paginated.length
+  });
+
+  return paginated;
 }
 
 // Function to get total pages
@@ -219,6 +236,14 @@ export function applyFilters() {
   const toDate = get(dateTo);
   const status = get(selectedStatus);
 
+  console.log('Applying filters with:', {
+    totalInvoices: allInvoices.length,
+    customerGroup,
+    fromDate,
+    toDate,
+    status
+  });
+
   let filtered = [...allInvoices];
 
   if (customerGroup) {
@@ -245,7 +270,15 @@ export function applyFilters() {
     );
   }
 
-  filteredInvoices.set(filtered);
-  invoices.set(filtered);
-  currentPage.set(1); // Reset to first page when filters change
+  console.log('Filtered results:', {
+    beforeFilter: allInvoices.length,
+    afterFilter: filtered.length
+  });
+
+  // Only update if we have results
+  if (filtered.length > 0) {
+    filteredInvoices.set(filtered);
+    invoices.set(filtered);
+    currentPage.set(1); // Reset to first page when filters change
+  }
 } 

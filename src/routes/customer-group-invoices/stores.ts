@@ -1,5 +1,7 @@
 import { writable, get } from 'svelte/store';
 import type { CustomerGroupInvoice } from './types';
+import { db } from '$lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
 
 // Store for all invoices
 export const invoices = writable<CustomerGroupInvoice[]>([]);
@@ -12,10 +14,13 @@ export const filteredInvoices = writable<CustomerGroupInvoice[]>([]);
 
 // Loading states
 export const loading = writable<boolean>(false);
-export const submitLoading = writable<boolean>(false);
+export const filterLoading = writable<boolean>(false);
 
-// Error state
+// Error states
 export const invoiceError = writable<string | null>(null);
+export const dateError = writable<string | null>(null);
+export const customerGroupError = writable<string | null>(null);
+export const statusError = writable<string | null>(null);
 
 // Selected rows
 export const selectedRows = writable<Set<string>>(new Set());
@@ -34,6 +39,78 @@ export const selectedCustomerGroup = writable<string | null>(null);
 export const dateFrom = writable<Date | null>(null);
 export const dateTo = writable<Date | null>(null);
 export const selectedStatus = writable<'paid' | 'unpaid' | null>(null);
+
+// Store for customer groups
+export const customerGroups = writable<{ value: string; label: string }[]>([]);
+
+// Function to validate all filters
+export function validateFilters(): boolean {
+  let isValid = true;
+
+  // Reset all error states
+  dateError.set(null);
+  customerGroupError.set(null);
+  statusError.set(null);
+
+  // Validate customer group
+  if (!get(selectedCustomerGroup)) {
+    customerGroupError.set('Please select a customer group');
+    isValid = false;
+  }
+
+  // Validate status
+  if (!get(selectedStatus)) {
+    statusError.set('Please select a status');
+    isValid = false;
+  }
+
+  // Validate dates
+  if (!validateDates(get(dateFrom), get(dateTo))) {
+    isValid = false;
+  }
+
+  return isValid;
+}
+
+// Function to validate dates
+export function validateDates(fromDate: Date | null, toDate: Date | null): boolean {
+  if (!fromDate || !toDate) return true; // Allow empty dates
+  
+  // Reset date error
+  dateError.set(null);
+  
+  // Convert to start and end of day for proper comparison
+  const from = new Date(fromDate);
+  from.setHours(0, 0, 0, 0);
+  
+  const to = new Date(toDate);
+  to.setHours(23, 59, 59, 999);
+  
+  if (to < from) {
+    dateError.set('End date must be greater than or equal to start date');
+    return false;
+  }
+  
+  return true;
+}
+
+// Function to fetch customer groups from Firestore
+export async function fetchCustomerGroups() {
+  try {
+    const querySnapshot = await getDocs(collection(db, 'maropost_customer_groups'));
+    const groups = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        value: data.name,
+        label: data.name
+      };
+    });
+    customerGroups.set(groups);
+  } catch (error) {
+    console.error('Error fetching customer groups:', error);
+    throw error;
+  }
+}
 
 // Function to handle select all
 export function handleSelectAll(checked: boolean) {
@@ -88,36 +165,53 @@ export function getTotalPages(totalItems: number): number {
   return Math.ceil(totalItems / get(itemsPerPage));
 }
 
-// Function to handle submit checked rows
-export async function handleSubmitChecked() {
-  submitLoading.set(true);
+// Function to apply filters via API
+export async function applyFiltersViaAPI() {
+  // Validate all filters before proceeding
+  if (!validateFilters()) {
+    const errorMessages = [
+      get(dateError),
+      get(customerGroupError),
+      get(statusError)
+    ].filter(Boolean).join(', ');
+    throw new Error(errorMessages || 'Invalid filter values');
+  }
+
+  filterLoading.set(true);
   try {
-    const selectedInvoices = get(invoices).filter(inv => get(selectedRows).has(inv.invoiceNumber));
+    const filterParams = {
+      customerGroup: get(selectedCustomerGroup),
+      dateFrom: get(dateFrom)?.toISOString(),
+      dateTo: get(dateTo)?.toISOString(),
+      status: get(selectedStatus)
+    };
 
-    if (selectedInvoices.length === 0) {
-      return { success: false, message: 'No invoices selected' };
-    }
-
-    // Mock successful update
-    invoices.update(invs => {
-      return invs.map(inv => {
-        if (get(selectedRows).has(inv.invoiceNumber)) {
-          return { ...inv, updated: true };
-        }
-        return inv;
-      });
+    const response = await fetch('/api/customer-group-invoices/filter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(filterParams)
     });
 
-    return { success: true, message: 'Invoices updated successfully' };
-  } catch (err: unknown) {
-    const error = err as Error;
-    return { success: false, message: error.message || 'Failed to update invoices' };
+    if (!response.ok) {
+      throw new Error('Failed to fetch filtered invoices');
+    }
+
+    const data = await response.json();
+    invoices.set(data.invoices);
+    filteredInvoices.set(data.invoices);
+    originalInvoices.set(data.invoices);
+    currentPage.set(1); // Reset to first page when filters change
+  } catch (error) {
+    console.error('Error applying filters:', error);
+    throw error;
   } finally {
-    submitLoading.set(false);
+    filterLoading.set(false);
   }
 }
 
-// Function to apply filters
+// Function to apply filters locally
 export function applyFilters() {
   const allInvoices = get(originalInvoices);
   const customerGroup = get(selectedCustomerGroup);

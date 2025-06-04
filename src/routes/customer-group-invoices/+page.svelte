@@ -10,12 +10,14 @@
     originalInvoices,
     filteredInvoices,
     loading,
-    submitLoading,
+    filterLoading,
     invoiceError,
+    dateError,
+    customerGroupError,
+    statusError,
     selectedRows,
     selectAll,
     handleSelectAll,
-    handleSubmitChecked,
     currentPage,
     itemsPerPage,
     sortField,
@@ -26,15 +28,16 @@
     dateFrom,
     dateTo,
     selectedStatus,
-    applyFilters
+    applyFilters,
+    applyFiltersViaAPI,
+    validateFilters,
+    customerGroups,
+    fetchCustomerGroups
   } from './stores';
   import type { CustomerGroupInvoice } from './types';
 
   export let data: { invoices: CustomerGroupInvoice[] };
 
-  // Customer groups for the dropdown
-  let customerGroups: string[] = [];
-  
   // Status options
   const statusOptions = [
     { value: 'paid', label: 'Paid' },
@@ -50,16 +53,21 @@
   }
 
   // Initialize invoices and customer groups only on mount
-  onMount(() => {
+  onMount(async () => {
     console.log('Component mounted, initializing data');
     if (data?.invoices && Array.isArray(data.invoices)) {
       console.log('Setting initial invoices:', data.invoices.length);
       $originalInvoices = [...data.invoices];
       $invoices = [...data.invoices];
       $filteredInvoices = [...data.invoices];
-      
-      // Extract unique customer groups
-      customerGroups = [...new Set(data.invoices.map(inv => inv.customerGroupName))];
+    }
+    
+    // Fetch customer groups from Firestore
+    try {
+      await fetchCustomerGroups();
+    } catch (error) {
+      console.error('Failed to fetch customer groups:', error);
+      toastError('Failed to load customer groups');
     }
   });
 
@@ -94,10 +102,14 @@
     };
   }
 
-  // Handle filter changes
-  $: {
-    if ($selectedCustomerGroup !== null || $dateFrom !== null || $dateTo !== null || $selectedStatus !== null) {
-      applyFilters();
+  // Function to handle filter application
+  async function handleApplyFilter() {
+    try {
+      await applyFiltersViaAPI();
+      toastSuccess('Filters applied successfully');
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      toastError(error instanceof Error ? error.message : 'Failed to apply filters');
     }
   }
 
@@ -136,25 +148,26 @@
     }
   }
 
-  // Function to handle submit checked rows
-  async function handleSubmit() {
-    submitLoading.set(true);
-    try {
-      const result = await handleSubmitChecked();
-      if (result.success) {
-        toastSuccess(result.message);
-      } else {
-        toastError(result.message);
-      }
-    } finally {
-      submitLoading.set(false);
-    }
-  }
-
-  // Handle date input changes with proper type checking
+  // Handle date input changes with proper type checking and validation
   function handleDateChange(event: Event, setter: (date: Date | null) => void) {
     const input = event.target as HTMLInputElement;
-    setter(input.value ? new Date(input.value) : null);
+    const newDate = input.value ? new Date(input.value) : null;
+    setter(newDate);
+    
+    // Validate dates whenever either date changes
+    validateFilters();
+  }
+
+  // Handle customer group selection
+  function handleCustomerGroupSelect(detail: { value: string }) {
+    selectedCustomerGroup.set(detail.value);
+    validateFilters();
+  }
+
+  // Handle status selection
+  function handleStatusSelect(detail: { value: string }) {
+    selectedStatus.set(detail.value as 'paid' | 'unpaid');
+    validateFilters();
   }
 </script>
 
@@ -174,12 +187,18 @@
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Customer Group</label>
         <Select
-          items={customerGroups.map(group => ({ value: group, label: group }))}
+          items={$customerGroups}
           placeholder="Select customer group"
           clearable={true}
-          on:clear={() => selectedCustomerGroup.set(null)}
-          on:select={({ detail }) => selectedCustomerGroup.set(detail.value)}
+          on:clear={() => {
+            selectedCustomerGroup.set(null);
+            validateFilters();
+          }}
+          on:select={handleCustomerGroupSelect}
         />
+        {#if $customerGroupError}
+          <p class="mt-1 text-sm text-red-600">{$customerGroupError}</p>
+        {/if}
       </div>
       
       <div>
@@ -206,24 +225,37 @@
           items={statusOptions}
           placeholder="Select status"
           clearable={true}
-          on:clear={() => selectedStatus.set(null)}
-          on:select={({ detail }) => selectedStatus.set(detail.value)}
+          on:clear={() => {
+            selectedStatus.set(null);
+            validateFilters();
+          }}
+          on:select={handleStatusSelect}
         />
+        {#if $statusError}
+          <p class="mt-1 text-sm text-red-600">{$statusError}</p>
+        {/if}
       </div>
     </div>
 
-    <!-- Action Buttons -->
-    <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm">
+    <!-- Date Error Message -->
+    {#if $dateError}
+      <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+        <p class="text-sm text-red-600">{$dateError}</p>
+      </div>
+    {/if}
+
+    <!-- Apply Filter Button -->
+    <div class="mb-6 flex justify-end">
       <button
         class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
-        on:click={handleSubmit}
-        disabled={$selectedRows.size === 0 || $submitLoading}
+        on:click={handleApplyFilter}
+        disabled={$filterLoading || !!$dateError || !!$customerGroupError || !!$statusError}
       >
-        {#if $submitLoading}
+        {#if $filterLoading}
           <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-          Updating...
+          Applying...
         {:else}
-          Submit Checked Rows
+          Apply Filter
         {/if}
       </button>
     </div>

@@ -16,9 +16,6 @@
     dateError,
     customerGroupError,
     statusError,
-    selectedRows,
-    selectAll,
-    handleSelectAll,
     currentPage,
     itemsPerPage,
     sortField,
@@ -518,19 +515,6 @@
         <table class="min-w-full divide-y divide-gray-200 table-fixed">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[40px]">
-                <input
-                  type="checkbox"
-                  bind:checked={$selectAll}
-                  on:change={(e) => {
-                    const target = e.target as HTMLInputElement | null;
-                    if (target) {
-                      handleSelectAll(target.checked);
-                    }
-                  }}
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-              </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('invoiceNumber')}
@@ -590,22 +574,6 @@
           <tbody class="bg-white divide-y divide-gray-200">
             {#each paginatedInvoices as invoice (invoice.invoiceNumber)}
               <tr class={invoice.updated ? 'bg-green-50' : ''}>
-                <td class="px-2 py-1 whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={$selectedRows.has(invoice.invoiceNumber)}
-                    on:change={(event) => {
-                      const target = event.target as HTMLInputElement;
-                      if (target.checked) {
-                        $selectedRows = new Set([...$selectedRows, invoice.invoiceNumber]);
-                      } else {
-                        $selectedRows.delete(invoice.invoiceNumber);
-                        $selectedRows = $selectedRows;
-                      }
-                    }}
-                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                </td>
                 <td class="px-2 py-1 text-sm">{invoice.invoiceNumber}</td>
                 <td class="px-2 py-1 text-sm">
                   {new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}

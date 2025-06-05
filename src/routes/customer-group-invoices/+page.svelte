@@ -23,8 +23,6 @@
     itemsPerPage,
     sortField,
     sortDirection,
-    getPaginatedInvoices,
-    getTotalPages,
     selectedCustomerGroup,
     dateFrom,
     dateTo,
@@ -36,6 +34,14 @@
     fetchCustomerGroups
   } from './stores';
   import type { CustomerGroupInvoice } from './types';
+  import { handlePrint } from './utils/print';
+  import { 
+    getSortIcon, 
+    handleSort, 
+    getPaginatedInvoices, 
+    getTotalPages, 
+    getCurrentPageItems 
+  } from './utils/table';
 
   export let data: { invoices: CustomerGroupInvoice[] };
 
@@ -45,17 +51,6 @@
     { value: 'PartiallyPaid', label: 'Partial Paid' },
     { value: 'FullyPaid', label: 'Fully Paid' }
   ];
-
-  // Define status mapping type
-  type StatusMap = {
-    [key: string]: string;
-  };
-
-  // Define status option type
-  type StatusOption = {
-    value: string;
-    label: string;
-  };
 
   // Add logging for when data changes
   $: {
@@ -97,15 +92,11 @@
   $: {
     if ($invoices && $invoices.length > 0) {
       console.log('Recalculating pagination with invoices:', $invoices.length);
-      paginatedInvoices = getPaginatedInvoices($invoices);
-      totalPages = getTotalPages($invoices.length);
+      paginatedInvoices = getPaginatedInvoices($invoices, $currentPage, $itemsPerPage);
+      totalPages = getTotalPages($invoices.length, $itemsPerPage);
       
       // Update current page items info
-      currentPageItems = {
-        start: ($currentPage - 1) * $itemsPerPage + 1,
-        end: Math.min($currentPage * $itemsPerPage, $invoices.length),
-        total: $invoices.length
-      };
+      currentPageItems = getCurrentPageItems($currentPage, $itemsPerPage, $invoices.length);
     } else {
       console.log('No invoices available for pagination');
       paginatedInvoices = [];
@@ -274,7 +265,7 @@
           const matchesStatus = $selectedStatus.some(selected => {
             const statusValue = selected.value;
             // Map the status values to match the invoice status format
-            const statusMap: StatusMap = {
+            const statusMap: { [key: string]: string } = {
               'Unpaid': 'Unpaid',
               'PartiallyPaid': 'Partially Paid',
               'FullyPaid': 'Fully Paid'
@@ -316,8 +307,8 @@
       $currentPage = 1; // Reset to first page
 
       // Calculate pagination
-      paginatedInvoices = getPaginatedInvoices($invoices);
-      totalPages = getTotalPages($invoices.length);
+      paginatedInvoices = getPaginatedInvoices($invoices, $currentPage, $itemsPerPage);
+      totalPages = getTotalPages($invoices.length, $itemsPerPage);
       
       console.log('Current Page:', $currentPage);
       console.log('Total Pages:', totalPages);
@@ -355,47 +346,18 @@
     }
   }
 
-  // Function to get sort icon
-  function getSortIcon(field: string): string {
-    if ($sortField !== field) return '↕️';
-    return $sortDirection === 'asc' ? '↑' : '↓';
-  }
-
   // Function to handle sorting
   function handleSortClick(field: keyof CustomerGroupInvoice) {
-    if ($sortField === field) {
-      sortDirection.update(dir => dir === 'asc' ? 'desc' : 'asc');
-    } else {
-      sortField.set(field);
-      sortDirection.set('asc');
-    }
-
-    // Apply sorting to invoices
-    $invoices = [...$invoices].sort((a, b) => {
-      const valueA = a[field] ?? '';
-      const valueB = b[field] ?? '';
-
-      // Handle date fields
-      if (field === 'dateIssued' || field === 'dueDate') {
-        const dateA = new Date(valueA as string).getTime();
-        const dateB = new Date(valueB as string).getTime();
-        return $sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-      }
-
-      // Handle numeric fields
-      if (field === 'totalAmount') {
-        const numA = parseFloat(valueA as string) || 0;
-        const numB = parseFloat(valueB as string) || 0;
-        return $sortDirection === 'asc' ? numA - numB : numB - numA;
-      }
-
-      // Handle string fields
-      const strA = String(valueA).toLowerCase();
-      const strB = String(valueB).toLowerCase();
-      return $sortDirection === 'asc' 
-        ? strA.localeCompare(strB)
-        : strB.localeCompare(strA);
-    });
+    const { sortedInvoices, newSortField, newSortDirection } = handleSort(
+      $invoices,
+      field,
+      $sortField,
+      $sortDirection
+    );
+    
+    sortField.set(newSortField);
+    sortDirection.set(newSortDirection);
+    $invoices = sortedInvoices;
   }
 
   // Handle date input changes with proper type checking and validation
@@ -441,234 +403,6 @@
     console.log('Updated status values:', currentValues);
     selectedStatus.set(currentValues);
     validateFilters();
-  }
-
-  // Add print function
-  function handlePrint() {
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      toastError('Please allow popups to print the table');
-      return;
-    }
-
-    // Get all data while maintaining current sort order
-    const allData = [...$invoices];
-
-    // Calculate date range if not set by filters
-    let dateFrom: Date, dateTo: Date;
-    if (printData.dateFrom && printData.dateTo) {
-      dateFrom = printData.dateFrom;
-      dateTo = printData.dateTo;
-    } else {
-      // Find earliest and latest due dates from the data
-      const dates = allData.map(invoice => new Date(invoice.dueDate).getTime());
-      dateFrom = new Date(Math.min(...dates));
-      dateTo = new Date(Math.max(...dates));
-    }
-
-    // Format dates for display
-    const formatDate = (date: Date): string => {
-      return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-    };
-
-    // Create the print content
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Customer Group Invoices</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-            }
-            .header {
-              margin-bottom: 20px;
-            }
-            .header-row {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 15px;
-            }
-            .header-content {
-              flex: 1;
-            }
-            .header-logo {
-              width: 200px;
-              height: auto;
-            }
-            .second-row {
-              display: grid;
-              grid-template-columns: 1fr 1fr 1fr;
-              gap: 20px;
-              margin-top: 15px;
-            }
-            .statement-title {
-              font-size: 18px;
-              font-weight: bold;
-              color: #1a1a1a;
-            }
-            .address {
-              text-align: right;
-              font-size: 14px;
-              color: #1a1a1a;
-              line-height: 1.4;
-            }
-            .header h1 {
-              margin: 0;
-              color: #1a1a1a;
-            }
-            .header p {
-              margin: 5px 0;
-              color: #666;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 20px;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f8f9fa;
-              font-weight: bold;
-            }
-            .status-badge {
-              padding: 4px 8px;
-              border-radius: 12px;
-              font-size: 12px;
-              font-weight: 500;
-            }
-            .footer {
-              margin-top: 20px;
-              text-align: right;
-              color: #666;
-              font-size: 12px;
-            }
-            @media print {
-              body {
-                margin: 0;
-                padding: 15px;
-              }
-              table {
-                page-break-inside: auto;
-              }
-              tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
-              }
-              thead {
-                display: table-header-group;
-              }
-              tfoot {
-                display: table-footer-group;
-              }
-            }
-            .date-range {
-              text-align: center;
-              font-size: 14px;
-              color: #1a1a1a;
-              line-height: 1.4;
-            }
-            .date-range-label {
-              font-weight: bold;
-              margin-bottom: 5px;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="header-row">
-              <div class="header-content">
-                <h1>Customer Group Invoices</h1>
-                <p>Printed on: ${new Date().toLocaleString()}</p>
-                <p>Total Records: ${allData.length}</p>
-              </div>
-              <img src="https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New.png" alt="Rapid Supplies Logo" class="header-logo">
-            </div>
-            <div class="second-row">
-              <div class="statement-title">
-                Statement of Account for ${printData.customerGroupLabel}
-              </div>
-              <div class="date-range">
-                <div class="date-range-label">Date Range:</div>
-                From: ${formatDate(dateFrom)}<br>
-                To: ${formatDate(dateTo)}
-              </div>
-              <div class="address">
-                RapidIllawarraPtyLtd<br>
-                112a Industrial Road<br>
-                OAKFLATS NSW 2529<br>
-                AUSTRALIA
-              </div>
-            </div>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Date Issued</th>
-                <th>Due Date</th>
-                <th>Total Invoice</th>
-                <th>Payments</th>
-                <th>Balance AUD</th>
-                <th>Username</th>
-                <th>Company</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${allData.map(invoice => `
-                <tr>
-                  <td>${invoice.invoiceNumber}</td>
-                  <td>${new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                  <td>${new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                  <td>${new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}</td>
-                  <td>${new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}</td>
-                  <td>${new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.balance)}</td>
-                  <td>${invoice.username}</td>
-                  <td>${invoice.company}</td>
-                  <td>
-                    <span class="status-badge" style="background-color: ${invoice.statusColor.split(' ')[0].replace('bg-', '#')}; color: ${invoice.statusColor.split(' ')[1].replace('text-', '#')}">
-                      ${invoice.status}
-                    </span>
-                  </td>
-                </tr>
-              `).join('')}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colspan="9" class="footer">
-                  Page 1 of 1 - Total Records: ${allData.length}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </body>
-      </html>
-    `;
-
-    // Write the content to the new window
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-
-    // Wait for content to load then print
-    printWindow.onload = function() {
-      printWindow.print();
-      // Close the window after printing
-      printWindow.onafterprint = function() {
-        printWindow.close();
-      };
-    };
   }
 </script>
 
@@ -735,34 +469,7 @@
             console.log('New selected status:', $selectedStatus);
             validateFilters();
           }}
-          on:select={(e) => {
-            console.log('Status select event triggered');
-            console.log('Event detail:', e.detail);
-            const detail = e.detail;
-            if (detail?.value) {
-              console.log('New value to add:', detail.value);
-              // Use the value directly from the event detail
-              const newValue = {
-                value: detail.value,
-                label: detail.label
-              };
-              console.log('Formatted new value:', newValue);
-              console.log('Current selected status:', $selectedStatus);
-              selectedStatus.update(values => {
-                const exists = values.some(v => v.value === newValue.value);
-                console.log('Value exists in current selection:', exists);
-                if (!exists) {
-                  const newValues = [...values, newValue];
-                  console.log('Updated values:', newValues);
-                  return newValues;
-                }
-                console.log('No change to values');
-                return values;
-              });
-              console.log('Final selected status:', $selectedStatus);
-              validateFilters();
-            }
-          }}
+          on:select={handleStatusSelect}
         />
         {#if $statusError}
           <p class="mt-1 text-sm text-red-600">{$statusError}</p>
@@ -781,7 +488,7 @@
     <div class="mb-6 flex justify-end gap-4">
       <button
         class="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
-        on:click={handlePrint}
+        on:click={() => handlePrint($invoices, printData)}
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -846,55 +553,55 @@
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('invoiceNumber')}
               >
-                Invoice # {getSortIcon('invoiceNumber')}
+                Invoice # {getSortIcon('invoiceNumber', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('dateIssued')}
               >
-                Date Issued {getSortIcon('dateIssued')}
+                Date Issued {getSortIcon('dateIssued', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('dueDate')}
               >
-                Due Date {getSortIcon('dueDate')}
+                Due Date {getSortIcon('dueDate', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('totalAmount')}
               >
-                Total Invoice {getSortIcon('totalAmount')}
+                Total Invoice {getSortIcon('totalAmount', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('amountPaid')}
               >
-                Payments {getSortIcon('amountPaid')}
+                Payments {getSortIcon('amountPaid', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('balance')}
               >
-                Balance AUD {getSortIcon('balance')}
+                Balance AUD {getSortIcon('balance', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('username')}
               >
-                Username {getSortIcon('username')}
+                Username {getSortIcon('username', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('company')}
               >
-                Company {getSortIcon('company')}
+                Company {getSortIcon('company', $sortField, $sortDirection)}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('status')}
               >
-                Status {getSortIcon('status')}
+                Status {getSortIcon('status', $sortField, $sortDirection)}
               </th>
             </tr>
           </thead>

@@ -32,7 +32,7 @@ export const currentPage = writable<number>(1);
 export const itemsPerPage = writable<number>(10);
 
 // Sorting
-export const sortField = writable<string | null>(null);
+export const sortField = writable<string>('');
 export const sortDirection = writable<'asc' | 'desc'>('asc');
 
 // Filter stores

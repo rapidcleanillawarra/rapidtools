@@ -39,7 +39,10 @@ export const sortDirection = writable<'asc' | 'desc'>('asc');
 export const selectedCustomerGroup = writable<string | null>(null);
 export const dateFrom = writable<Date | null>(null);
 export const dateTo = writable<Date | null>(null);
-export const selectedStatus = writable<{ value: string; label: string }[]>([]);
+export const selectedStatus = writable<{ value: string; label: string }[]>([
+  { value: 'Unpaid', label: 'Unpaid' },
+  { value: 'PartiallyPaid', label: 'Partial Paid' }
+]);
 
 // Store for customer groups
 export const customerGroups = writable<{ value: string; label: string }[]>([]);

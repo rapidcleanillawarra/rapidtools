@@ -303,6 +303,7 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
               <th>Date Issued</th>
               <th>Invoice #</th>
               <th>Due Date</th>
+              <th>Company</th>
               <th class="right">Invoice Total</th>
               <th class="right">Payments</th>
               <th class="right">Balance AUD</th>
@@ -314,6 +315,7 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
                 <td>${new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                 <td>${invoice.invoiceNumber}</td>
                 <td>${new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                <td>${invoice.company}</td>
                 <td class="right">${Number(invoice.totalAmount).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="right">${Number(invoice.amountPaid).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td class="right">${Number(invoice.balance).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -322,7 +324,7 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
           </tbody>
           <tfoot>
             <tr class="summary-row">
-              <td colspan="5" class="summary-label">BALANCE DUE AUD</td>
+              <td colspan="6" class="summary-label">BALANCE DUE AUD</td>
               <td class="summary-value right">${allData.reduce((sum, inv) => sum + Number(inv.balance), 0).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>

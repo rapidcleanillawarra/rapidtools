@@ -133,7 +133,8 @@
           OutputSelector: [
             "Username",
             "EmailAddress",
-            "UserGroup"
+            "UserGroup",
+            "BillingAddress"
           ]
         },
         action: "GetCustomer"
@@ -163,9 +164,9 @@
 
       // Create a map of username to UserGroup for company lookup
       const customerGroupMap = new Map(
-        customer_group_customers.Customer.map((customer: { Username: string; UserGroup: string }) => [
+        customer_group_customers.Customer.map((customer: { Username: string; BillingAddress: { BillCompany: string } }) => [
           customer.Username,
-          customer.UserGroup
+          customer.BillingAddress.BillCompany
         ])
       );
 
@@ -496,15 +497,17 @@
 
     <!-- Apply Filter Button -->
     <div class="mb-6 flex justify-end gap-4">
-      <button
-        class="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
-        on:click={() => handlePrint($invoices, printData)}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-        </svg>
-        Print Table
-      </button>
+      {#if $invoices && $invoices.length > 0}
+        <button
+          class="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
+          on:click={() => handlePrint($invoices, printData)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Print Table
+        </button>
+      {/if}
       <button
         class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
         on:click={handleApplyFilter}

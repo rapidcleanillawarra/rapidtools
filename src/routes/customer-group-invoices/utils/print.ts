@@ -28,6 +28,71 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
     dateTo = new Date(Math.max(...dates));
   }
 
+  // Calculate overdue and current amounts
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const firstDayOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+  const lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
+
+  console.log('Current Date:', now.toISOString());
+  console.log('Current Month:', currentMonth);
+  console.log('Current Year:', currentYear);
+
+  let overdueAmount = 0;
+  let currentAmount = 0;
+
+  allData.forEach(invoice => {
+    const dueDate = new Date(invoice.dueDate);
+    const gracePeriodEnd = new Date(dueDate);
+    gracePeriodEnd.setDate(dueDate.getDate() + 10); // Add 10 days for grace period
+
+    console.log('Invoice:', {
+      invoiceNumber: invoice.invoiceNumber,
+      dueDate: dueDate.toISOString(),
+      gracePeriodEnd: gracePeriodEnd.toISOString(),
+      balance: invoice.balance,
+      isOverdue: now > gracePeriodEnd,
+      isWithinCurrentMonth: dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear
+    });
+
+    // Check if invoice is within current month
+    const isWithinCurrentMonth = 
+      dueDate.getMonth() === currentMonth && 
+      dueDate.getFullYear() === currentYear;
+
+    if (now > gracePeriodEnd) {
+      // Overdue: Current date is beyond grace period
+      console.log('Adding to overdue:', invoice.invoiceNumber, invoice.balance);
+      overdueAmount += Number(invoice.balance);
+    } else if (isWithinCurrentMonth) {
+      // Current: Due date is within current month
+      console.log('Adding to current (within month):', invoice.invoiceNumber, invoice.balance);
+      currentAmount += Number(invoice.balance);
+    } else if (now <= gracePeriodEnd) {
+      // Current: Within grace period (but not in current month)
+      console.log('Adding to current (within grace):', invoice.invoiceNumber, invoice.balance);
+      currentAmount += Number(invoice.balance);
+    } else {
+      console.log('Excluding invoice:', invoice.invoiceNumber);
+    }
+  });
+
+  console.log('Final amounts:', {
+    overdueAmount,
+    currentAmount,
+    total: overdueAmount + currentAmount
+  });
+
+  // Format currency values
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString('en-AU', { 
+      style: 'decimal', 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    });
+  };
+
   // Format dates for display
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString('en-US', { 
@@ -210,7 +275,7 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
               <th>Date Issued</th>
               <th>Invoice #</th>
               <th>Due Date</th>
-              <th class="right">Grand Total</th>
+              <th class="right">Invoice Total</th>
               <th class="right">Payments</th>
               <th class="right">Balance AUD</th>
             </tr>
@@ -263,19 +328,19 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
               <table style="width: 100%; border-collapse: collapse; font-size: 18px;">
                 <tr>
                   <td style="font-weight: bold; border-bottom: 1px solid #aaa; padding-bottom: 4px;">Customer</td>
-                  <td style="border-bottom: 1px solid #aaa; padding-bottom: 4px;">[Customer Name]</td>
+                  <td style="border-bottom: 1px solid #aaa; padding-bottom: 4px;">${printData.customerGroupLabel}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold; padding-top: 10px;">Overdue</td>
-                  <td style="padding-top: 10px;">[Overdue Amount]</td>
+                  <td style="padding-top: 10px;">${formatCurrency(overdueAmount)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold;">Current</td>
-                  <td>[Current Amount]</td>
+                  <td>${formatCurrency(currentAmount)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold;">Total AUD Due</td>
-                  <td>[Total Due]</td>
+                  <td>${formatCurrency(overdueAmount + currentAmount)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold; padding-top: 18px;">Amount Enclosed</td>

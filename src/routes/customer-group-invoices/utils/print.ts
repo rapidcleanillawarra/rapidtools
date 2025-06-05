@@ -47,6 +47,7 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
           body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background: #fafbfc;
           }
           .header {
             margin-bottom: 20px;
@@ -89,49 +90,79 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
             margin: 5px 0;
             color: #666;
           }
+          .print-table-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+          }
           table {
+            background: #fff;
             width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
+            max-width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 0 auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
           }
           th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
+            padding: 8px 8px;
           }
           th {
-            background-color: #f8f9fa;
+            border-bottom: 2px solid #222;
             font-weight: bold;
+            background: #fff;
+            text-align: left;
+            font-size: 16px;
           }
-          .status-badge {
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
+          td {
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
           }
-          .footer {
-            margin-top: 20px;
+          td.right, th.right {
             text-align: right;
-            color: #666;
-            font-size: 12px;
+          }
+          tr:last-child td {
+            border-bottom: 2px solid #222;
+          }
+          .summary-row td {
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            background: #fff;
+            padding-top: 18px;
+            padding-bottom: 18px;
+          }
+          .summary-label {
+            text-align: right;
+            padding-right: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 1px;
+          }
+          .summary-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #222;
+            text-align: right;
+            min-width: 120px;
           }
           @media print {
             body {
               margin: 0;
-              padding: 15px;
+              padding: 5mm 5mm 5mm 5mm;
+              background: #fff;
+            }
+            .print-table-container {
+              margin-top: 0;
             }
             table {
-              page-break-inside: auto;
+              box-shadow: none;
+              width: 100% !important;
+              max-width: 100% !important;
             }
-            tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
-            }
-            thead {
-              display: table-header-group;
-            }
-            tfoot {
-              display: table-footer-group;
+            th, td {
+              padding: 4px 4px !important;
+              font-size: 12px !important;
             }
           }
           .date-range {
@@ -150,7 +181,6 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
         <div class="header">
           <div class="header-row">
             <div class="header-content">
-              <h1>Customer Group Invoices</h1>
               <p>Printed on: ${new Date().toLocaleString()}</p>
               <p>Total Records: ${allData.length}</p>
             </div>
@@ -173,47 +203,38 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
             </div>
           </div>
         </div>
+        <div class="print-table-container">
         <table>
           <thead>
             <tr>
-              <th>Invoice #</th>
               <th>Date Issued</th>
+              <th>Invoice #</th>
               <th>Due Date</th>
-              <th>Total Invoice</th>
-              <th>Payments</th>
-              <th>Balance AUD</th>
-              <th>Username</th>
-              <th>Company</th>
-              <th>Status</th>
+              <th class="right">Grand Total</th>
+              <th class="right">Payments</th>
+              <th class="right">Balance AUD</th>
             </tr>
           </thead>
           <tbody>
             ${allData.map(invoice => `
               <tr>
+                <td>${new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                 <td>${invoice.invoiceNumber}</td>
-                <td>${new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                <td>${new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                <td>${new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}</td>
-                <td>${new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}</td>
-                <td>${new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.balance)}</td>
-                <td>${invoice.username}</td>
-                <td>${invoice.company}</td>
-                <td>
-                  <span class="status-badge" style="background-color: ${invoice.statusColor.split(' ')[0].replace('bg-', '#')}; color: ${invoice.statusColor.split(' ')[1].replace('text-', '#')}">
-                    ${invoice.status}
-                  </span>
-                </td>
+                <td>${new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</td>
+                <td class="right">${Number(invoice.totalAmount).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="right">${Number(invoice.amountPaid).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="right">${Number(invoice.balance).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               </tr>
             `).join('')}
           </tbody>
           <tfoot>
-            <tr>
-              <td colspan="9" class="footer">
-                Page 1 of 1 - Total Records: ${allData.length}
-              </td>
+            <tr class="summary-row">
+              <td colspan="5" class="summary-label">BALANCE DUE AUD</td>
+              <td class="summary-value right">${allData.reduce((sum, inv) => sum + Number(inv.balance), 0).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>
         </table>
+        </div>
       </body>
     </html>
   `;

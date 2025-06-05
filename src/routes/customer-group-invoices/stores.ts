@@ -47,6 +47,15 @@ export const selectedStatus = writable<{ value: string; label: string }[]>([
 // Store for customer groups
 export const customerGroups = writable<{ value: string; label: string }[]>([]);
 
+// Store for customers
+export const customers = writable<{ value: string; label: string }[]>([]);
+
+// Store for selected customer
+export const selectedCustomer = writable<string | null>(null);
+
+// Store for filter type toggle
+export const filterType = writable<'group' | 'customer'>('group');
+
 // Add search state
 export const searchFilters = writable({
   invoiceNumber: '',
@@ -69,10 +78,18 @@ export function validateFilters(): boolean {
   customerGroupError.set(null);
   statusError.set(null);
 
-  // Validate customer group
-  if (!get(selectedCustomerGroup)) {
-    customerGroupError.set('Please select a customer group');
-    isValid = false;
+  // Validate based on filter type
+  const currentFilterType = get(filterType);
+  if (currentFilterType === 'group') {
+    if (!get(selectedCustomerGroup)) {
+      customerGroupError.set('Please select a customer group');
+      isValid = false;
+    }
+  } else {
+    if (!get(selectedCustomer)) {
+      customerGroupError.set('Please select a customer');
+      isValid = false;
+    }
   }
 
   // Validate status
@@ -125,10 +142,58 @@ export async function fetchCustomerGroups() {
         value: data.id,
         label: data.name
       };
-    });
+    }).sort((a, b) => a.label.localeCompare(b.label)); // Sort alphabetically by label
+    
     customerGroups.set(groups);
   } catch (error) {
     console.error('Error fetching customer groups:', error);
+    throw error;
+  }
+}
+
+// Function to fetch customers from API
+export async function fetchCustomers() {
+  try {
+    const payload = {
+      Filter: {
+        Active: true,
+        OutputSelector: [
+          "Username",
+          "EmailAddress",
+          "BillingAddress"
+        ]
+      },
+      action: "GetCustomer"
+    };
+
+    const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch customers');
+    }
+
+    const data = await response.json();
+    
+    // Transform the customer data for the dropdown
+    const customerList = data.Customer.map((customer: any) => {
+      const { BillingAddress } = customer;
+      const displayName = `${BillingAddress.BillCompany} - ${BillingAddress.BillFirstName} ${BillingAddress.BillLastName}`;
+      
+      return {
+        value: customer.Username,
+        label: displayName
+      };
+    });
+
+    customers.set(customerList);
+  } catch (error) {
+    console.error('Error fetching customers:', error);
     throw error;
   }
 }

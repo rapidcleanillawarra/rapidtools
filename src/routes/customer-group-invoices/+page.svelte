@@ -21,6 +21,8 @@
     sortField,
     sortDirection,
     selectedCustomerGroup,
+    selectedCustomer,
+    filterType,
     dateFrom,
     dateTo,
     selectedStatus,
@@ -28,8 +30,10 @@
     applyFiltersViaAPI,
     validateFilters,
     customerGroups,
+    customers,
     fetchCustomerGroups,
-    searchFilters
+    searchFilters,
+    fetchCustomers
   } from './stores';
   import type { CustomerGroupInvoice } from './types';
   import { handlePrint } from './utils/print';
@@ -58,12 +62,15 @@
       $filteredInvoices = [...data.invoices];
     }
     
-    // Fetch customer groups from Firestore
+    // Fetch customer groups and customers from Firestore
     try {
-      await fetchCustomerGroups();
+      await Promise.all([
+        fetchCustomerGroups(),
+        fetchCustomers()
+      ]);
     } catch (error) {
-      console.error('Failed to fetch customer groups:', error);
-      toastError('Failed to load customer groups');
+      console.error('Failed to fetch data:', error);
+      toastError('Failed to load customer data');
     }
   });
 
@@ -118,18 +125,31 @@
   async function handleApplyFilter() {
     try {
       // Validate filters before proceeding
-      if (!$selectedCustomerGroup || $selectedStatus.length === 0) {
-        toastError('Please select a customer group and at least one status');
+      if ($selectedStatus.length === 0) {
+        toastError('Please select at least one status');
+        return;
+      }
+
+      if ($filterType === 'group' && !$selectedCustomerGroup) {
+        toastError('Please select a customer group');
+        return;
+      }
+
+      if ($filterType === 'customer' && !$selectedCustomer) {
+        toastError('Please select a customer');
         return;
       }
 
       filterLoading.set(true);
-      currentLoadingStep.set('Fetching customer group data...');
+      currentLoadingStep.set('Fetching customer data...');
       
       // Prepare payload for Get Customer API
       const customerPayload = {
         Filter: {
-          UserGroup: [parseInt($selectedCustomerGroup || '0')],
+          ...($filterType === 'group' 
+            ? { UserGroup: [parseInt($selectedCustomerGroup || '0')] }
+            : { Username: [$selectedCustomer] }
+          ),
           OutputSelector: [
             "Username",
             "EmailAddress",
@@ -142,7 +162,7 @@
 
       console.log('Get Customer API Payload:', customerPayload);
       
-      // First API call - Get Customer Group
+      // First API call - Get Customer
       const customerResponse = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
         method: 'POST',
         headers: {
@@ -156,7 +176,7 @@
 
       // Check if we have any customers in the response
       if (!customer_group_customers.Customer || customer_group_customers.Customer.length === 0) {
-        toastError('No users found in the selected customer group');
+        toastError('No users found in the selected ' + ($filterType === 'group' ? 'customer group' : 'customer'));
         filterLoading.set(false);
         currentLoadingStep.set('');
         return;
@@ -368,6 +388,13 @@
     validateFilters();
   }
 
+  // Handle customer selection
+  function handleCustomerSelect(event: CustomEvent) {
+    const value = event.detail?.value;
+    selectedCustomer.set(value);
+    validateFilters();
+  }
+
   // Handle status selection
   function handleStatusSelect(event: CustomEvent) {
     const detail = event.detail;
@@ -431,17 +458,47 @@
     <!-- Filter Section -->
     <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Customer Group</label>
-        <Select
-          items={$customerGroups}
-          placeholder="Select customer group"
-          clearable={true}
-          on:clear={() => {
-            selectedCustomerGroup.set(null);
-            validateFilters();
-          }}
-          on:select={handleCustomerGroupSelect}
-        />
+        <div class="flex items-center justify-between mb-2">
+          <label class="block text-sm font-medium text-gray-700">Filter Type</label>
+          <div class="flex items-center space-x-2">
+            <button
+              class={`px-3 py-1 text-sm rounded-md ${$filterType === 'group' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              on:click={() => filterType.set('group')}
+            >
+              Group
+            </button>
+            <button
+              class={`px-3 py-1 text-sm rounded-md ${$filterType === 'customer' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+              on:click={() => filterType.set('customer')}
+            >
+              Customer
+            </button>
+          </div>
+        </div>
+        
+        {#if $filterType === 'group'}
+          <Select
+            items={$customerGroups}
+            placeholder="Select customer group"
+            clearable={true}
+            on:clear={() => {
+              selectedCustomerGroup.set(null);
+              validateFilters();
+            }}
+            on:select={handleCustomerGroupSelect}
+          />
+        {:else}
+          <Select
+            items={$customers}
+            placeholder="Select customer"
+            clearable={true}
+            on:clear={() => {
+              selectedCustomer.set(null);
+              validateFilters();
+            }}
+            on:select={handleCustomerSelect}
+          />
+        {/if}
         {#if $customerGroupError}
           <p class="mt-1 text-sm text-red-600">{$customerGroupError}</p>
         {/if}

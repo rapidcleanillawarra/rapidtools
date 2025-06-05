@@ -6,7 +6,89 @@ interface PrintData {
   dateTo: Date | null;
 }
 
+interface CalculatedAmounts {
+  overdueAmount: number;
+  currentAmount: number;
+  totalAmount: number;
+  invoiceDetails: Array<{
+    invoiceNumber: string;
+    dueDate: Date;
+    gracePeriodEnd: Date;
+    balance: number;
+    isOverdue: boolean;
+    isWithinCurrentMonth: boolean;
+    category: 'overdue' | 'current' | 'excluded';
+  }>;
+}
+
+export function calculateInvoiceAmounts(invoices: CustomerGroupInvoice[]): CalculatedAmounts {
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+  const firstDayOfCurrentMonth = new Date(currentYear, currentMonth, 1);
+  const lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
+
+  let overdueAmount = 0;
+  let currentAmount = 0;
+  const invoiceDetails: CalculatedAmounts['invoiceDetails'] = [];
+
+  invoices.forEach(invoice => {
+    const dueDate = new Date(invoice.dueDate);
+    const gracePeriodEnd = new Date(dueDate);
+    gracePeriodEnd.setDate(dueDate.getDate() + 10); // Add 10 days for grace period
+
+    const isWithinCurrentMonth = 
+      dueDate.getMonth() === currentMonth && 
+      dueDate.getFullYear() === currentYear;
+
+    let category: 'overdue' | 'current' | 'excluded' = 'excluded';
+    let amount = 0;
+
+    if (now > gracePeriodEnd) {
+      category = 'overdue';
+      amount = Number(invoice.balance);
+      overdueAmount += amount;
+    } else if (isWithinCurrentMonth) {
+      category = 'current';
+      amount = Number(invoice.balance);
+      currentAmount += amount;
+    } else if (now <= gracePeriodEnd) {
+      category = 'current';
+      amount = Number(invoice.balance);
+      currentAmount += amount;
+    }
+
+    invoiceDetails.push({
+      invoiceNumber: invoice.invoiceNumber,
+      dueDate,
+      gracePeriodEnd,
+      balance: Number(invoice.balance),
+      isOverdue: now > gracePeriodEnd,
+      isWithinCurrentMonth,
+      category
+    });
+  });
+
+  return {
+    overdueAmount,
+    currentAmount,
+    totalAmount: overdueAmount + currentAmount,
+    invoiceDetails
+  };
+}
+
 export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintData) {
+  // Calculate amounts first
+  const calculatedAmounts = calculateInvoiceAmounts(invoices);
+  
+  // Log the calculated amounts for debugging
+  console.log('Calculated Amounts:', {
+    overdue: calculatedAmounts.overdueAmount,
+    current: calculatedAmounts.currentAmount,
+    total: calculatedAmounts.totalAmount
+  });
+  console.log('Invoice Details:', calculatedAmounts.invoiceDetails);
+
   // Create a new window for printing
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -27,62 +109,6 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
     dateFrom = new Date(Math.min(...dates));
     dateTo = new Date(Math.max(...dates));
   }
-
-  // Calculate overdue and current amounts
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const firstDayOfCurrentMonth = new Date(currentYear, currentMonth, 1);
-  const lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0);
-
-  console.log('Current Date:', now.toISOString());
-  console.log('Current Month:', currentMonth);
-  console.log('Current Year:', currentYear);
-
-  let overdueAmount = 0;
-  let currentAmount = 0;
-
-  allData.forEach(invoice => {
-    const dueDate = new Date(invoice.dueDate);
-    const gracePeriodEnd = new Date(dueDate);
-    gracePeriodEnd.setDate(dueDate.getDate() + 10); // Add 10 days for grace period
-
-    console.log('Invoice:', {
-      invoiceNumber: invoice.invoiceNumber,
-      dueDate: dueDate.toISOString(),
-      gracePeriodEnd: gracePeriodEnd.toISOString(),
-      balance: invoice.balance,
-      isOverdue: now > gracePeriodEnd,
-      isWithinCurrentMonth: dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear
-    });
-
-    // Check if invoice is within current month
-    const isWithinCurrentMonth = 
-      dueDate.getMonth() === currentMonth && 
-      dueDate.getFullYear() === currentYear;
-
-    if (now > gracePeriodEnd) {
-      // Overdue: Current date is beyond grace period
-      console.log('Adding to overdue:', invoice.invoiceNumber, invoice.balance);
-      overdueAmount += Number(invoice.balance);
-    } else if (isWithinCurrentMonth) {
-      // Current: Due date is within current month
-      console.log('Adding to current (within month):', invoice.invoiceNumber, invoice.balance);
-      currentAmount += Number(invoice.balance);
-    } else if (now <= gracePeriodEnd) {
-      // Current: Within grace period (but not in current month)
-      console.log('Adding to current (within grace):', invoice.invoiceNumber, invoice.balance);
-      currentAmount += Number(invoice.balance);
-    } else {
-      console.log('Excluding invoice:', invoice.invoiceNumber);
-    }
-  });
-
-  console.log('Final amounts:', {
-    overdueAmount,
-    currentAmount,
-    total: overdueAmount + currentAmount
-  });
 
   // Format currency values
   const formatCurrency = (amount: number) => {
@@ -332,15 +358,15 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
                 </tr>
                 <tr>
                   <td style="font-weight: bold; padding-top: 10px;">Overdue</td>
-                  <td style="padding-top: 10px;">${formatCurrency(overdueAmount)}</td>
+                  <td style="padding-top: 10px;">${formatCurrency(calculatedAmounts.overdueAmount)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold;">Current</td>
-                  <td>${formatCurrency(currentAmount)}</td>
+                  <td>${formatCurrency(calculatedAmounts.currentAmount)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold;">Total AUD Due</td>
-                  <td>${formatCurrency(overdueAmount + currentAmount)}</td>
+                  <td>${formatCurrency(calculatedAmounts.totalAmount)}</td>
                 </tr>
                 <tr>
                   <td style="font-weight: bold; padding-top: 18px;">Amount Enclosed</td>

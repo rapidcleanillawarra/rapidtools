@@ -52,19 +52,9 @@
     { value: 'FullyPaid', label: 'Fully Paid' }
   ];
 
-  // Add logging for when data changes
-  $: {
-    console.log('Data changed:', {
-      hasData: !!data,
-      invoicesLength: data?.invoices?.length || 0
-    });
-  }
-
   // Initialize invoices and customer groups only on mount
   onMount(async () => {
-    console.log('Component mounted, initializing data');
     if (data?.invoices && Array.isArray(data.invoices)) {
-      console.log('Setting initial invoices:', data.invoices.length);
       $originalInvoices = [...data.invoices];
       $invoices = [...data.invoices];
       $filteredInvoices = [...data.invoices];
@@ -91,14 +81,12 @@
   // Add reactive statements for pagination and sorting
   $: {
     if ($invoices && $invoices.length > 0) {
-      console.log('Recalculating pagination with invoices:', $invoices.length);
       paginatedInvoices = getPaginatedInvoices($invoices, $currentPage, $itemsPerPage);
       totalPages = getTotalPages($invoices.length, $itemsPerPage);
       
       // Update current page items info
       currentPageItems = getCurrentPageItems($currentPage, $itemsPerPage, $invoices.length);
     } else {
-      console.log('No invoices available for pagination');
       paginatedInvoices = [];
       totalPages = 0;
       currentPageItems = {
@@ -270,7 +258,6 @@
       .filter((invoice: CustomerGroupInvoice) => {
         // First apply status filter
         if ($selectedStatus && $selectedStatus.length > 0) {
-          console.log('Filtering by statuses:', $selectedStatus);
           const matchesStatus = $selectedStatus.some(selected => {
             const statusValue = selected.value;
             // Map the status values to match the invoice status format
@@ -280,11 +267,6 @@
               'FullyPaid': 'Fully Paid'
             };
             const mappedStatus = statusMap[statusValue];
-            console.log('Comparing status:', {
-              invoiceStatus: invoice.status,
-              selectedStatus: statusValue,
-              mappedStatus: mappedStatus
-            });
             return invoice.status === mappedStatus;
           });
           if (!matchesStatus) return false;
@@ -307,8 +289,6 @@
         return true;
       });
 
-      console.log('Mapped and filtered Invoices:', mappedInvoices);
-
       // Update all necessary stores
       $invoices = mappedInvoices;
       $originalInvoices = mappedInvoices;
@@ -318,11 +298,6 @@
       // Calculate pagination
       paginatedInvoices = getPaginatedInvoices($invoices, $currentPage, $itemsPerPage);
       totalPages = getTotalPages($invoices.length, $itemsPerPage);
-      
-      console.log('Current Page:', $currentPage);
-      console.log('Total Pages:', totalPages);
-      console.log('Paginated Invoices:', paginatedInvoices);
-      console.log('Items Per Page:', $itemsPerPage);
 
       // Apply local filters after getting the response
       applyFilters();
@@ -388,7 +363,6 @@
 
   // Handle status selection
   function handleStatusSelect(event: CustomEvent) {
-    console.log('Status select event:', event);
     const detail = event.detail;
     
     // Get the current selected values
@@ -409,7 +383,6 @@
       }
     }
     
-    console.log('Updated status values:', currentValues);
     selectedStatus.set(currentValues);
     validateFilters();
   }

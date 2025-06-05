@@ -44,6 +44,19 @@ export const selectedStatus = writable<{ value: string; label: string }[]>([]);
 // Store for customer groups
 export const customerGroups = writable<{ value: string; label: string }[]>([]);
 
+// Add search state
+export const searchFilters = writable({
+  invoiceNumber: '',
+  dateIssued: '',
+  dueDate: '',
+  totalAmount: '',
+  amountPaid: '',
+  balance: '',
+  username: '',
+  company: '',
+  status: ''
+});
+
 // Function to validate all filters
 export function validateFilters(): boolean {
   let isValid = true;

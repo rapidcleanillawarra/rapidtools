@@ -28,7 +28,8 @@
     applyFiltersViaAPI,
     validateFilters,
     customerGroups,
-    fetchCustomerGroups
+    fetchCustomerGroups,
+    searchFilters
   } from './stores';
   import type { CustomerGroupInvoice } from './types';
   import { handlePrint } from './utils/print';
@@ -151,6 +152,14 @@
 
       const customer_group_customers = await customerResponse.json();
       console.log('Customer Group Customers:', customer_group_customers);
+
+      // Check if we have any customers in the response
+      if (!customer_group_customers.Customer || customer_group_customers.Customer.length === 0) {
+        toastError('No users found in the selected customer group');
+        filterLoading.set(false);
+        currentLoadingStep.set('');
+        return;
+      }
 
       // Create a map of username to UserGroup for company lookup
       const customerGroupMap = new Map(
@@ -383,6 +392,28 @@
     selectedStatus.set(currentValues);
     validateFilters();
   }
+
+  // Add search function
+  function handleSearch(event: Event, field: string) {
+    const input = event.target as HTMLInputElement;
+    searchFilters.update(filters => ({
+      ...filters,
+      [field]: input.value.toLowerCase()
+    }));
+    
+    // Apply search filters
+    $invoices = $originalInvoices.filter(invoice => {
+      return Object.entries($searchFilters).every(([key, value]) => {
+        if (!value) return true; // Skip empty search fields
+        
+        const invoiceValue = String(invoice[key as keyof CustomerGroupInvoice]).toLowerCase();
+        return invoiceValue.includes(value);
+      });
+    });
+    
+    // Reset to first page when searching
+    currentPage.set(1);
+  }
 </script>
 
 <SvelteToast options={{ 
@@ -507,100 +538,167 @@
         <div class="flex justify-center items-center py-8">
           <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
         </div>
-      {:else if !$invoices || $invoices.length === 0}
-        <div class="text-center py-8 text-gray-500">
-          No invoices found
-        </div>
       {:else}
         <table class="min-w-full divide-y divide-gray-200 table-fixed">
           <thead class="bg-gray-50">
             <tr>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('invoiceNumber')}
-              >
-                Invoice # {getSortIcon('invoiceNumber', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('invoiceNumber')}>
+                    Invoice # {getSortIcon('invoiceNumber', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'invoiceNumber')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('dateIssued')}
-              >
-                Date Issued {getSortIcon('dateIssued', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('dateIssued')}>
+                    Date Issued {getSortIcon('dateIssued', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'dateIssued')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('dueDate')}
-              >
-                Due Date {getSortIcon('dueDate', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('dueDate')}>
+                    Due Date {getSortIcon('dueDate', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'dueDate')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('totalAmount')}
-              >
-                Total Invoice {getSortIcon('totalAmount', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('totalAmount')}>
+                    Total Invoice {getSortIcon('totalAmount', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'totalAmount')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('amountPaid')}
-              >
-                Payments {getSortIcon('amountPaid', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('amountPaid')}>
+                    Payments {getSortIcon('amountPaid', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'amountPaid')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('balance')}
-              >
-                Balance AUD {getSortIcon('balance', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('balance')}>
+                    Balance AUD {getSortIcon('balance', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'balance')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('username')}
-              >
-                Username {getSortIcon('username', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('username')}>
+                    Username {getSortIcon('username', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'username')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('company')}
-              >
-                Company {getSortIcon('company', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('company')}>
+                    Company {getSortIcon('company', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'company')}
+                  />
+                </div>
               </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('status')}
-              >
-                Status {getSortIcon('status', $sortField, $sortDirection)}
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col">
+                  <div class="flex items-center cursor-pointer hover:bg-gray-100" on:click={() => handleSortClick('status')}>
+                    Status {getSortIcon('status', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    placeholder="Search..."
+                    on:input={(e) => handleSearch(e, 'status')}
+                  />
+                </div>
               </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            {#each paginatedInvoices as invoice (invoice.invoiceNumber)}
-              <tr class={invoice.updated ? 'bg-green-50' : ''}>
-                <td class="px-2 py-1 text-sm">{invoice.invoiceNumber}</td>
-                <td class="px-2 py-1 text-sm">
-                  {new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </td>
-                <td class="px-2 py-1 text-sm">
-                  {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </td>
-                <td class="px-2 py-1 text-sm">
-                  <span class={invoice.isZeroInvoice ? 'text-red-600 font-semibold' : ''}>
-                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
-                  </span>
-                </td>
-                <td class="px-2 py-1 text-sm">
-                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}
-                </td>
-                <td class="px-2 py-1 text-sm">
-                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.balance)}
-                </td>
-                <td class="px-2 py-1 text-sm">{invoice.username}</td>
-                <td class="px-2 py-1 text-sm">{invoice.company}</td>
-                <td class="px-2 py-1 text-sm">
-                  <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.statusColor}`}>
-                    {invoice.status}
-                  </span>
+            {#if !$invoices || $invoices.length === 0}
+              <tr>
+                <td colspan="9" class="px-2 py-4 text-center text-gray-500">
+                  No results found
                 </td>
               </tr>
-            {/each}
+            {:else}
+              {#each paginatedInvoices as invoice (invoice.invoiceNumber)}
+                <tr class={invoice.updated ? 'bg-green-50' : ''}>
+                  <td class="px-2 py-1 text-sm">{invoice.invoiceNumber}</td>
+                  <td class="px-2 py-1 text-sm">
+                    {new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </td>
+                  <td class="px-2 py-1 text-sm">
+                    {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  </td>
+                  <td class="px-2 py-1 text-sm">
+                    <span class={invoice.isZeroInvoice ? 'text-red-600 font-semibold' : ''}>
+                      {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
+                    </span>
+                  </td>
+                  <td class="px-2 py-1 text-sm">
+                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}
+                  </td>
+                  <td class="px-2 py-1 text-sm">
+                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.balance)}
+                  </td>
+                  <td class="px-2 py-1 text-sm">{invoice.username}</td>
+                  <td class="px-2 py-1 text-sm">{invoice.company}</td>
+                  <td class="px-2 py-1 text-sm">
+                    <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.statusColor}`}>
+                      {invoice.status}
+                    </span>
+                  </td>
+                </tr>
+              {/each}
+            {/if}
           </tbody>
         </table>
       {/if}

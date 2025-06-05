@@ -228,14 +228,22 @@
           sum + (parseFloat(payment.Amount) || 0), 0) || 0;
         
         const grandTotal = parseFloat(order.GrandTotal) || 0;
-        const balance = grandTotal - totalPayments;
+        
+        // Round both values to 2 decimal places to avoid floating-point precision issues
+        const roundedTotalPayments = Math.round(totalPayments * 100) / 100;
+        const roundedGrandTotal = Math.round(grandTotal * 100) / 100;
+        const balance = roundedGrandTotal - roundedTotalPayments;
+
+        // Check for zero invoice with no payments
+        const hasNoPayments = !order.OrderPayment || order.OrderPayment.length === 0;
+        const isZeroInvoice = roundedGrandTotal === 0 && roundedTotalPayments === 0 && hasNoPayments;
         
         // Determine payment status
         let status = 'Unpaid';
         let statusColor = 'bg-red-100 text-red-800';
         
-        if (totalPayments > 0) {
-          if (totalPayments >= grandTotal) {
+        if (roundedTotalPayments > 0) {
+          if (roundedTotalPayments >= roundedGrandTotal) {
             status = 'Fully Paid';
             statusColor = 'bg-green-100 text-green-800';
           } else {
@@ -248,14 +256,15 @@
           invoiceNumber: order.ID,
           dateIssued: order.DatePlaced,
           dueDate: order.DatePaymentDue,
-          totalAmount: grandTotal,
-          amountPaid: totalPayments,
+          totalAmount: roundedGrandTotal,
+          amountPaid: roundedTotalPayments,
           balance: balance,
           username: order.Username,
           company: customerGroupMap.get(order.Username) || order.UserGroup,
           status,
           statusColor,
-          customerGroupName: order.UserGroup
+          customerGroupName: order.UserGroup,
+          isZeroInvoice
         };
       })
       .filter((invoice: CustomerGroupInvoice) => {
@@ -632,7 +641,9 @@
                   {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </td>
                 <td class="px-2 py-1 text-sm">
-                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
+                  <span class={invoice.isZeroInvoice ? 'text-red-600 font-semibold' : ''}>
+                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
+                  </span>
                 </td>
                 <td class="px-2 py-1 text-sm">
                   {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}

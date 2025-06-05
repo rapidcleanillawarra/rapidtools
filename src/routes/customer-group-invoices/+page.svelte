@@ -46,6 +46,17 @@
     { value: 'FullyPaid', label: 'Fully Paid' }
   ];
 
+  // Define status mapping type
+  type StatusMap = {
+    [key: string]: string;
+  };
+
+  // Define status option type
+  type StatusOption = {
+    value: string;
+    label: string;
+  };
+
   // Add logging for when data changes
   $: {
     console.log('Data changed:', {
@@ -227,21 +238,48 @@
           statusColor,
           customerGroupName: order.UserGroup
         };
-      }).filter((invoice: CustomerGroupInvoice) => {
-        // If no status filter is selected, show all
-        if (!$selectedStatus || $selectedStatus.length === 0) return true;
-        
-        // Check if the invoice status matches any of the selected statuses
-        return $selectedStatus.some(selected => {
-          const statusValue = selected.value;
-          if (statusValue === 'Unpaid') return invoice.status === 'Unpaid';
-          if (statusValue === 'PartiallyPaid') return invoice.status === 'Partially Paid';
-          if (statusValue === 'FullyPaid') return invoice.status === 'Fully Paid';
-          return false;
-        });
+      })
+      .filter((invoice: CustomerGroupInvoice) => {
+        // First apply status filter
+        if ($selectedStatus && $selectedStatus.length > 0) {
+          console.log('Filtering by statuses:', $selectedStatus);
+          const matchesStatus = $selectedStatus.some(selected => {
+            const statusValue = selected.value;
+            // Map the status values to match the invoice status format
+            const statusMap: StatusMap = {
+              'Unpaid': 'Unpaid',
+              'PartiallyPaid': 'Partially Paid',
+              'FullyPaid': 'Fully Paid'
+            };
+            const mappedStatus = statusMap[statusValue];
+            console.log('Comparing status:', {
+              invoiceStatus: invoice.status,
+              selectedStatus: statusValue,
+              mappedStatus: mappedStatus
+            });
+            return invoice.status === mappedStatus;
+          });
+          if (!matchesStatus) return false;
+        }
+
+        // Then apply date filter if both dates are selected
+        if ($dateFrom && $dateTo) {
+          const dueDate = new Date(invoice.dueDate);
+          const fromDate = new Date($dateFrom);
+          fromDate.setHours(0, 0, 0, 0); // Start of day
+          const toDate = new Date($dateTo);
+          toDate.setHours(23, 59, 59, 999); // End of day
+
+          // Check if due date is within range
+          if (dueDate < fromDate || dueDate > toDate) {
+            return false;
+          }
+        }
+
+        return true;
       });
 
-      console.log('Mapped Invoices:', mappedInvoices);
+      console.log('Mapped and filtered Invoices:', mappedInvoices);
 
       // Update all necessary stores
       $invoices = mappedInvoices;
@@ -324,9 +362,18 @@
 
   // Handle status selection
   function handleStatusSelect(event: CustomEvent) {
+    console.log('Status select event:', event);
     const values = event.detail?.value || [];
-    console.log('Selected status values:', values);
-    selectedStatus.set(values);
+    console.log('Raw selected status values:', values);
+    
+    // Map the values to the correct format
+    const formattedValues = values.map((value: StatusOption) => ({
+      value: value.value,
+      label: value.label
+    }));
+    
+    console.log('Formatted status values:', formattedValues);
+    selectedStatus.set(formattedValues);
     validateFilters();
   }
 </script>
@@ -386,11 +433,17 @@
           placeholder="Select status"
           clearable={true}
           multiple={true}
+          value={$selectedStatus}
           on:clear={() => {
+            console.log('Clearing status selection');
             selectedStatus.set([]);
             validateFilters();
           }}
           on:select={handleStatusSelect}
+          on:change={(e) => {
+            console.log('Status change event:', e.detail);
+            handleStatusSelect(e);
+          }}
         />
         {#if $statusError}
           <p class="mt-1 text-sm text-red-600">{$statusError}</p>

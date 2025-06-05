@@ -235,6 +235,62 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
           </tfoot>
         </table>
         </div>
+        <div style="margin-top: 30px; padding: 20px; border-top: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: flex-start; gap: 40px;">
+          <div style="flex: 1; min-width: 220px;">
+            <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #1a1a1a;">Banking Details:</h3>
+            <p style="margin: 5px 0; font-size: 14px; color: #1a1a1a;">IMB Shellharbour City</p>
+            <p style="margin: 5px 0; font-size: 14px; color: #1a1a1a;">BSB: 641-800</p>
+            <p style="margin: 5px 0; font-size: 14px; color: #1a1a1a;">A/C: 200839104</p>
+            <p style="margin: 5px 0; font-size: 14px; color: #1a1a1a;">Name: Rapid Illawarra Pty Ltd</p>
+            <p style="margin: 5px 0; font-size: 14px; color: #1a1a1a;">Swiftcode: ASLLAU2C</p>
+          </div>
+          <div style="flex: 1; min-width: 220px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
+            <img src='https://www.rapidsupplies.com.au/assets/images/stripe_qr.png' alt='Stripe Payment QR' style='width: 140px; height: 140px; margin-bottom: 10px; border: 1px solid #eee; padding: 4px; background: #fff;' />
+            <a href='https://buy.stripe.com/dRm9AUexncD0fQacewaZi00' target='_blank' style='display: inline-block; margin-top: 8px; padding: 8px 18px; background: #635bff; color: #fff; border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: 500;'>Pay via Stripe</a>
+            <div style='margin-top: 6px; font-size: 12px; color: #888; text-align: center;'>Scan to pay online</div>
+          </div>
+        </div>
+        <div style="margin-top: 40px;">
+          <div style="border-top: 3px dashed #000; position: relative; margin-bottom: 20px;">
+            <span style="position: absolute; left: -18px; top: -16px; font-size: 22px; background: #fff;">✂️</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+            <div style="flex: 1; min-width: 220px;">
+              <div style="font-size: 32px; font-weight: 500; letter-spacing: 2px; margin-bottom: 10px;">PAYMENT ADVICE</div>
+              <div style="font-size: 12px; margin-bottom: 10px;">To: Rapid Illawarra Pty Ltd<br>112a Industrial Road<br>OAK FLATS NSW 2529<br>AUSTRALIA</div>
+            </div>
+            <div style="flex: 1.2; margin-left: 40px;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 18px;">
+                <tr>
+                  <td style="font-weight: bold; border-bottom: 1px solid #aaa; padding-bottom: 4px;">Customer</td>
+                  <td style="border-bottom: 1px solid #aaa; padding-bottom: 4px;">[Customer Name]</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: bold; padding-top: 10px;">Overdue</td>
+                  <td style="padding-top: 10px;">[Overdue Amount]</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: bold;">Current</td>
+                  <td>[Current Amount]</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: bold;">Total AUD Due</td>
+                  <td>[Total Due]</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: bold; padding-top: 18px;">Amount Enclosed</td>
+                  <td style="padding-top: 18px; border-bottom: 2px solid #222;">
+                    <span style="display: block; height: 24px;"></span>
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td style="color: #888; font-size: 14px;">Enter the amount you are paying above</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
       </body>
     </html>
   `;

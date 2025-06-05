@@ -363,17 +363,28 @@
   // Handle status selection
   function handleStatusSelect(event: CustomEvent) {
     console.log('Status select event:', event);
-    const values = event.detail?.value || [];
-    console.log('Raw selected status values:', values);
+    const detail = event.detail;
     
-    // Map the values to the correct format
-    const formattedValues = values.map((value: StatusOption) => ({
-      value: value.value,
-      label: value.label
-    }));
+    // Get the current selected values
+    let currentValues = [...$selectedStatus];
     
-    console.log('Formatted status values:', formattedValues);
-    selectedStatus.set(formattedValues);
+    // If we have a new value, add it to the array
+    if (detail?.value) {
+      const newValue = {
+        value: detail.value,
+        label: detail.label
+      };
+      
+      // Check if the value is already selected
+      const exists = currentValues.some(v => v.value === newValue.value);
+      
+      if (!exists) {
+        currentValues.push(newValue);
+      }
+    }
+    
+    console.log('Updated status values:', currentValues);
+    selectedStatus.set(currentValues);
     validateFilters();
   }
 </script>
@@ -435,14 +446,39 @@
           multiple={true}
           value={$selectedStatus}
           on:clear={() => {
-            console.log('Clearing status selection');
+            console.log('Status filter cleared');
+            console.log('Previous selected status:', $selectedStatus);
             selectedStatus.set([]);
+            console.log('New selected status:', $selectedStatus);
             validateFilters();
           }}
-          on:select={handleStatusSelect}
-          on:change={(e) => {
-            console.log('Status change event:', e.detail);
-            handleStatusSelect(e);
+          on:select={(e) => {
+            console.log('Status select event triggered');
+            console.log('Event detail:', e.detail);
+            const detail = e.detail;
+            if (detail?.value) {
+              console.log('New value to add:', detail.value);
+              // Use the value directly from the event detail
+              const newValue = {
+                value: detail.value,
+                label: detail.label
+              };
+              console.log('Formatted new value:', newValue);
+              console.log('Current selected status:', $selectedStatus);
+              selectedStatus.update(values => {
+                const exists = values.some(v => v.value === newValue.value);
+                console.log('Value exists in current selection:', exists);
+                if (!exists) {
+                  const newValues = [...values, newValue];
+                  console.log('Updated values:', newValues);
+                  return newValues;
+                }
+                console.log('No change to values');
+                return values;
+              });
+              console.log('Final selected status:', $selectedStatus);
+              validateFilters();
+            }
           }}
         />
         {#if $statusError}

@@ -169,6 +169,9 @@
       const usernames = customer_group_customers.Customer.map((customer: { Username: string }) => customer.Username);
       console.log('Extracted Usernames:', usernames);
 
+      // Update loading message for status condition
+      currentLoadingStep.set('Applying status filter: Pending, PartialPaid, FullyPaid...');
+
       // Update loading message for second API call
       currentLoadingStep.set('Fetching orders data...');
 
@@ -205,6 +208,9 @@
       const orders_data = await ordersResponse.json();
       console.log('Get Orders API Response:', orders_data);
 
+      // Update loading message for mapping process
+      currentLoadingStep.set('Processing and mapping invoice data...');
+
       // Calculate payment status for each order
       const mappedInvoices = orders_data.Order.map((order: any) => {
         // Calculate total payments
@@ -212,13 +218,14 @@
           sum + (parseFloat(payment.Amount) || 0), 0) || 0;
         
         const grandTotal = parseFloat(order.GrandTotal) || 0;
+        const balance = grandTotal - totalPayments;
         
         // Determine payment status
         let status = 'Unpaid';
         let statusColor = 'bg-red-100 text-red-800';
         
         if (totalPayments > 0) {
-          if (Math.abs(totalPayments - grandTotal) < 0.01) { // Using small epsilon for float comparison
+          if (totalPayments >= grandTotal) {
             status = 'Fully Paid';
             statusColor = 'bg-green-100 text-green-800';
           } else {
@@ -232,6 +239,8 @@
           dateIssued: order.DatePlaced,
           dueDate: order.DatePaymentDue,
           totalAmount: grandTotal,
+          amountPaid: totalPayments,
+          balance: balance,
           username: order.Username,
           company: customerGroupMap.get(order.Username) || order.UserGroup,
           status,
@@ -334,13 +343,40 @@
   }
 
   // Function to handle sorting
-  function handleSortClick(field: string) {
+  function handleSortClick(field: keyof CustomerGroupInvoice) {
     if ($sortField === field) {
       sortDirection.update(dir => dir === 'asc' ? 'desc' : 'asc');
     } else {
       sortField.set(field);
       sortDirection.set('asc');
     }
+
+    // Apply sorting to invoices
+    $invoices = [...$invoices].sort((a, b) => {
+      const valueA = a[field] ?? '';
+      const valueB = b[field] ?? '';
+
+      // Handle date fields
+      if (field === 'dateIssued' || field === 'dueDate') {
+        const dateA = new Date(valueA as string).getTime();
+        const dateB = new Date(valueB as string).getTime();
+        return $sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+
+      // Handle numeric fields
+      if (field === 'totalAmount') {
+        const numA = parseFloat(valueA as string) || 0;
+        const numB = parseFloat(valueB as string) || 0;
+        return $sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+
+      // Handle string fields
+      const strA = String(valueA).toLowerCase();
+      const strB = String(valueB).toLowerCase();
+      return $sortDirection === 'asc' 
+        ? strA.localeCompare(strB)
+        : strB.localeCompare(strA);
+    });
   }
 
   // Handle date input changes with proper type checking and validation
@@ -576,6 +612,18 @@
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('amountPaid')}
+              >
+                Payments {getSortIcon('amountPaid')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                on:click={() => handleSortClick('balance')}
+              >
+                Balance AUD {getSortIcon('balance')}
+              </th>
+              <th 
+                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('username')}
               >
                 Username {getSortIcon('username')}
@@ -615,13 +663,19 @@
                 </td>
                 <td class="px-2 py-1 text-sm">{invoice.invoiceNumber}</td>
                 <td class="px-2 py-1 text-sm">
-                  {new Date(invoice.dateIssued).toLocaleDateString()}
+                  {new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </td>
                 <td class="px-2 py-1 text-sm">
-                  {new Date(invoice.dueDate).toLocaleDateString()}
+                  {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </td>
                 <td class="px-2 py-1 text-sm">
                   {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.balance)}
                 </td>
                 <td class="px-2 py-1 text-sm">{invoice.username}</td>
                 <td class="px-2 py-1 text-sm">{invoice.company}</td>

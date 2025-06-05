@@ -3,6 +3,8 @@ export interface CustomerGroupInvoice {
   dateIssued: string;
   dueDate: string;
   totalAmount: number;
+  amountPaid: number;
+  balance: number;
   username: string;
   company: string;
   customerGroupName: string;

@@ -37,22 +37,24 @@ export function calculateInvoiceAmounts(invoices: CustomerGroupInvoice[]): Calcu
     const gracePeriodEnd = new Date(dueDate);
     gracePeriodEnd.setDate(dueDate.getDate() + 10); // Add 10 days for grace period
 
-    const isWithinCurrentMonth = 
-      dueDate.getMonth() === currentMonth && 
-      dueDate.getFullYear() === currentYear;
+    // Check if invoice is from current month or earlier
+    const isFromCurrentMonthOrEarlier = 
+      (dueDate.getFullYear() < currentYear) || 
+      (dueDate.getFullYear() === currentYear && dueDate.getMonth() <= currentMonth);
 
     let category: 'overdue' | 'current' | 'excluded' = 'excluded';
     let amount = 0;
 
-    if (now > gracePeriodEnd) {
+    if (!isFromCurrentMonthOrEarlier) {
+      // Skip invoices from future months
+      category = 'excluded';
+    } else if (now > gracePeriodEnd) {
+      // Overdue: Past grace period
       category = 'overdue';
       amount = Number(invoice.balance);
       overdueAmount += amount;
-    } else if (isWithinCurrentMonth) {
-      category = 'current';
-      amount = Number(invoice.balance);
-      currentAmount += amount;
-    } else if (now <= gracePeriodEnd) {
+    } else {
+      // Current: Within grace period
       category = 'current';
       amount = Number(invoice.balance);
       currentAmount += amount;
@@ -64,7 +66,7 @@ export function calculateInvoiceAmounts(invoices: CustomerGroupInvoice[]): Calcu
       gracePeriodEnd,
       balance: Number(invoice.balance),
       isOverdue: now > gracePeriodEnd,
-      isWithinCurrentMonth,
+      isWithinCurrentMonth: isFromCurrentMonthOrEarlier,
       category
     });
   });

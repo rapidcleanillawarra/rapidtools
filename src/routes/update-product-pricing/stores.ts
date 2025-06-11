@@ -309,13 +309,6 @@ export async function handleSubmitChecked() {
           prod.category = prod.category.filter((catId: string | null | undefined) => catId);
         }
         
-        // Log the current category state for debugging
-        console.log(`Category state for ${prod.sku}:`, {
-          current: prod.category,
-          original: prod.original_category,
-          names: prod.category_name
-        });
-        
         return prod;
       });
     };
@@ -391,7 +384,6 @@ export async function handleSubmitChecked() {
     });
 
     console.log('Submit Checked: Response status:', response.status);
-    console.log('Submit Checked: Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -403,95 +395,27 @@ export async function handleSubmitChecked() {
     console.log('Response Data:', data);
 
     // Check if data.Item exists and has SKUs
-    if (data.Item) {
-      // Convert Item to array regardless of whether it's a single object or already an array
-      const itemArray = Array.isArray(data.Item) ? data.Item : [data.Item];
+    if (data.Item && data.Ack === "Success") {
+      // Get array of successfully updated SKUs
+      const updatedSkus = new Set(
+        (Array.isArray(data.Item) ? data.Item : [data.Item])
+          .map((item: any) => item.SKU)
+          .filter(Boolean)
+      );
       
-      // Make sure the response contains at least one valid item with SKU
-      if (itemArray.length > 0 && itemArray.some((item: any) => item.SKU)) {
-        // Transform the response items to our product format
-        const updatedProducts = transformApiResponse(data);
-        const updatedProductMap = new Map<string, any>();
-        
-        console.log('DEBUG - API Response transformed to products:', updatedProducts.length);
-        
-        // Create a map of SKU to updated product
-        updatedProducts.forEach(prod => {
-          updatedProductMap.set(prod.sku, prod);
-        });
-        
-        console.log('DEBUG - Products that should be marked as updated:', Array.from(currentSelectedRows));
-        
-        // Update the products store with the updated data
-        products.update(prods => {
-          console.log('DEBUG - Updating products store, current products:', prods.length);
-          
-          const updatedProds = prods.map(prod => {
-            if (currentSelectedRows.has(prod.sku) && updatedProductMap.has(prod.sku)) {
-              // Merge existing product with updated data and mark as updated
-              const updatedProd = updatedProductMap.get(prod.sku);
-              
-              console.log(`DEBUG - Updating product ${prod.sku} with API data`);
-              console.log('DEBUG - Before update:', {
-                purchase_price: prod.purchase_price,
-                client_price: prod.client_price,
-                rrp: prod.rrp,
-                client_mup: prod.client_mup,
-                retail_mup: prod.retail_mup,
-                updated: prod.updated
-              });
-              
-              console.log('DEBUG - API data:', {
-                purchase_price: updatedProd.purchase_price,
-                client_price: updatedProd.client_price,
-                rrp: updatedProd.rrp,
-                client_mup: updatedProd.client_mup,
-                retail_mup: updatedProd.retail_mup
-              });
-              
-              const mergedProduct = { 
-                ...prod, 
-                ...updatedProd,
-                // Update original_category to match the new category after update
-                original_category: updatedProd.category ? [...updatedProd.category] : [],
-                updated: true 
-              };
-              
-              console.log('DEBUG - After merge:', {
-                purchase_price: mergedProduct.purchase_price,
-                client_price: mergedProduct.client_price,
-                rrp: mergedProduct.rrp,
-                client_mup: mergedProduct.client_mup,
-                retail_mup: mergedProduct.retail_mup,
-                updated: mergedProduct.updated
-              });
-              
-              return mergedProduct;
-            }
-            return prod;
-          });
-          
-          const updatedCount = updatedProds.filter(p => p.updated).length;
-          console.log(`DEBUG - Updated products count after API response: ${updatedCount}`);
-          
-          if (updatedCount > 0) {
-            const firstUpdated = updatedProds.find(p => p.updated);
-            console.log('DEBUG - Sample updated product in store:', {
-              sku: firstUpdated?.sku,
-              updated: firstUpdated?.updated,
-              client_price: firstUpdated?.client_price,
-              rrp: firstUpdated?.rrp
-            });
-          }
-          
-          return updatedProds;
-        });
-        
-        // Reset loading state
-        submitLoading.set(false);
-        // Don't clear the selectedRows after successful submission so users can see what was updated
-        return { success: true, message: 'Products updated successfully' };
-      }
+      console.log('Successfully updated SKUs:', Array.from(updatedSkus));
+      
+      // Simply mark products as updated if their SKU is in the response
+      products.update(prods => 
+        prods.map(prod => 
+          updatedSkus.has(prod.sku) ? { ...prod, updated: true } : prod
+        )
+      );
+      
+      // Reset loading state
+      submitLoading.set(false);
+      // Don't clear the selectedRows after successful submission so users can see what was updated
+      return { success: true, message: 'Products updated successfully' };
     }
     
     // If we get here, the response didn't contain the expected data
@@ -509,93 +433,6 @@ export async function handleSubmitChecked() {
     submitLoading.set(false);
     return { success: false, message: error.message || 'Failed to update products' };
   }
-}
-
-// Function to transform API response to our product format
-function transformApiResponse(apiResponse: any): Product[] {
-  // Handle case where Item is not an array
-  const items = Array.isArray(apiResponse.Item) ? apiResponse.Item : [apiResponse.Item];
-
-  return items.map((item: any) => {
-    // Handle PriceGroups structure
-    const priceGroups = Array.isArray(item.PriceGroups) ? item.PriceGroups[0] : item.PriceGroups;
-    const priceGroupArray = Array.isArray(priceGroups?.PriceGroup) ? priceGroups.PriceGroup : [priceGroups?.PriceGroup];
-    
-    // Find the client price from PriceGroups
-    const clientPrice = priceGroupArray?.find(
-      (pg: any) => pg?.Group === "Default Client Group"
-    )?.Price || item.RRP || '0';
-
-    // Find the RRP from PriceGroups
-    const rrp = priceGroupArray?.find(
-      (pg: any) => pg?.Group === "Default RRP (Dont Assign to clients)"
-    )?.Price || item.RRP || '0';
-
-    // Extract category information - handle multiple categories
-    let categoryIds: string[] = [];
-    let categoryNames: string[] = [];
-
-    if (item.Categories) {
-      // Handle different Categories structures
-      if (Array.isArray(item.Categories)) {
-        // Process each category entry in the array
-        item.Categories.forEach((categoryEntry: any) => {
-          if (categoryEntry.Category) {
-            // If Category is an array, process each item
-            if (Array.isArray(categoryEntry.Category)) {
-              categoryEntry.Category.forEach((category: any) => {
-                if (category.CategoryID) {
-                  categoryIds.push(category.CategoryID);
-                  categoryNames.push(category.CategoryName || '');
-                }
-              });
-            } else {
-              // If Category is a single object
-              if (categoryEntry.Category.CategoryID) {
-                categoryIds.push(categoryEntry.Category.CategoryID);
-                categoryNames.push(categoryEntry.Category.CategoryName || '');
-              }
-            }
-          }
-        });
-      } else if (item.Categories.Category) {
-        // Direct Category property in Categories
-        if (Array.isArray(item.Categories.Category)) {
-          // Multiple categories
-          item.Categories.Category.forEach((category: any) => {
-            if (category.CategoryID) {
-              categoryIds.push(category.CategoryID);
-              categoryNames.push(category.CategoryName || '');
-            }
-          });
-        } else {
-          // Single category
-          if (item.Categories.Category.CategoryID) {
-            categoryIds.push(item.Categories.Category.CategoryID);
-            categoryNames.push(item.Categories.Category.CategoryName || '');
-          }
-        }
-      }
-    }
-
-    const transformedProduct = {
-      sku: item.SKU || '',  // Using SKU instead of InventoryID
-      inventory_id: item.InventoryID || '',  // Include InventoryID
-      product_name: item.Model || '',
-      brand: item.Brand || '',
-      primary_supplier: item.PrimarySupplier || '',
-      category: categoryIds,
-      category_name: categoryNames,
-      original_category: [...categoryIds],
-      purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
-      client_price: parseFloat(clientPrice),
-      rrp: parseFloat(rrp),
-      client_mup: parseFloat(item.Misc02 || '0'),
-      retail_mup: parseFloat(item.Misc09 || '0')
-    };
-
-    return transformedProduct;
-  });
 }
 
 // Function to handle filter submit
@@ -687,7 +524,6 @@ export async function handleFilterSubmit(filters: {
     });
 
     console.log('API Response status:', response.status);
-    console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -698,47 +534,69 @@ export async function handleFilterSubmit(filters: {
     const data = await response.json();
     console.log('API Response data:', JSON.stringify(data, null, 2));
 
-    if (data.Ack !== "Success") {
-      console.error('API returned non-success Ack:', data);
-      throw new Error('Failed to fetch products: Invalid response format');
+    // Process the filtered products
+    if (data.Item && data.Ack === "Success") {
+      const filteredItems = Array.isArray(data.Item) ? data.Item : [data.Item];
+      const filteredProds = filteredItems.map((item: { 
+        SKU?: string;
+        InventoryID?: string;
+        Model?: string;
+        Brand?: string;
+        PrimarySupplier?: string;
+        DefaultPurchasePrice?: string;
+        RRP?: string;
+        Misc02?: string;
+        Misc09?: string;
+        Categories?: Array<{
+          Category: {
+            CategoryID: string;
+            CategoryName: string;
+          }
+        }>
+      }) => {
+        // Extract category information
+        const categoryIds: string[] = [];
+        const categoryNames: string[] = [];
+        
+        if (item.Categories) {
+          item.Categories.forEach(catEntry => {
+            if (catEntry.Category) {
+              categoryIds.push(catEntry.Category.CategoryID);
+              categoryNames.push(catEntry.Category.CategoryName);
+            }
+          });
+        }
+
+        return {
+          sku: item.SKU || '',
+          inventory_id: item.InventoryID || '',
+          product_name: item.Model || '',
+          brand: item.Brand || '',
+          primary_supplier: item.PrimarySupplier || '',
+          category: categoryIds,
+          category_name: categoryNames,
+          original_category: [...categoryIds],
+          purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
+          client_price: 0,
+          rrp: parseFloat(item.RRP || '0'),
+          client_mup: parseFloat(item.Misc02 || '0'),
+          retail_mup: parseFloat(item.Misc09 || '0')
+        };
+      });
+
+      products.set(filteredProds);
+      filteredProducts.set(filteredProds);
+      loading.set(false);
+      return { success: true, message: 'Products filtered successfully' };
     }
 
-    // Transform API response to our product format
-    let filteredProds = transformApiResponse(data);
-
-    // Apply additional client-side filters for supplier and category
-    if (payload.supplier) {
-      filteredProds = filteredProds.filter((prod: Product) => 
-        prod.primary_supplier === payload.supplier
-      );
-    }
-
-    if (payload.category && payload.category.length > 0) {
-      filteredProds = filteredProds.filter((prod: Product) => 
-        prod.category.some((cat: string) => payload.category.includes(cat))
-      );
-    }
-
-    // Update stores with a fresh array to trigger reactivity
-    products.set([...filteredProds]);
-    filteredProducts.set([...filteredProds]);
-
-    return { 
-      success: true, 
-      message: `Found ${filteredProds.length} products matching the filters` 
-    };
+    loading.set(false);
+    throw new Error('Failed to filter products: Invalid response format');
   } catch (err: unknown) {
     const error = err as Error;
-    console.error('Error in handleFilterSubmit:', error);
-    // Clear products on error
-    products.set([]);
-    filteredProducts.set([]);
-    return { 
-      success: false, 
-      message: error.message || 'Failed to apply filters' 
-    };
-  } finally {
+    console.error('Filter Error:', error);
     loading.set(false);
+    return { success: false, message: error.message || 'Failed to filter products' };
   }
 }
 

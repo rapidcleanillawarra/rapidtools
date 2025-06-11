@@ -378,26 +378,11 @@
           // Now submit the data with verified categories
           const result = await handleSubmitChecked();
           if (result.success) {
-            // Log detailed information about the updated rows
             console.log('DEBUG - Submission successful');
             
             // Log the first updated product in detail
-            const updatedProducts = $products.filter(p => p.updated);
+            const updatedProducts = $products.filter(p => $selectedRows.has(p.sku));
             console.log('DEBUG - Number of products with updated flag:', updatedProducts.length);
-            
-            if (updatedProducts.length > 0) {
-              const firstUpdated = updatedProducts[0];
-              console.log('DEBUG - First updated product detail:', {
-                sku: firstUpdated.sku,
-                product_name: firstUpdated.product_name,
-                purchase_price: firstUpdated.purchase_price,
-                client_price: firstUpdated.client_price,
-                rrp: firstUpdated.rrp,
-                client_mup: firstUpdated.client_mup,
-                retail_mup: firstUpdated.retail_mup,
-                updated: firstUpdated.updated
-              });
-            }
             
             console.log('DEBUG - Selected rows after update:', Array.from($selectedRows));
             

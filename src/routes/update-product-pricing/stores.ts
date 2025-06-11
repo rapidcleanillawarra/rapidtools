@@ -416,15 +416,10 @@ export async function handleSubmitChecked() {
 
 // Function to transform API response to our product format
 function transformApiResponse(apiResponse: any): Product[] {
-  console.log('Starting API response transformation');
-  
   // Handle case where Item is not an array
   const items = Array.isArray(apiResponse.Item) ? apiResponse.Item : [apiResponse.Item];
-  console.log('Items to process:', items);
 
   return items.map((item: any) => {
-    console.log('Processing item:', item);
-    
     // Handle PriceGroups structure
     const priceGroups = Array.isArray(item.PriceGroups) ? item.PriceGroups[0] : item.PriceGroups;
     const priceGroupArray = Array.isArray(priceGroups?.PriceGroup) ? priceGroups.PriceGroup : [priceGroups?.PriceGroup];
@@ -486,9 +481,6 @@ function transformApiResponse(apiResponse: any): Product[] {
       }
     }
 
-    // Log the extracted categories
-    console.log('Extracted categories:', { categoryIds, categoryNames });
-
     const transformedProduct = {
       sku: item.SKU || '',  // Using SKU instead of InventoryID
       inventory_id: item.InventoryID || '',  // Include InventoryID
@@ -505,7 +497,6 @@ function transformApiResponse(apiResponse: any): Product[] {
       retail_mup: parseFloat(item.Misc09 || '0')
     };
 
-    console.log('Transformed product:', transformedProduct);
     return transformedProduct;
   });
 }
@@ -617,31 +608,23 @@ export async function handleFilterSubmit(filters: {
 
     // Transform API response to our product format
     let filteredProds = transformApiResponse(data);
-    console.log('Transformed products:', filteredProds);
 
     // Apply additional client-side filters for supplier and category
     if (payload.supplier) {
       filteredProds = filteredProds.filter((prod: Product) => 
         prod.primary_supplier === payload.supplier
       );
-      console.log('After supplier filter:', filteredProds.length, 'products');
     }
 
     if (payload.category && payload.category.length > 0) {
       filteredProds = filteredProds.filter((prod: Product) => 
         prod.category.some((cat: string) => payload.category.includes(cat))
       );
-      console.log('After category filter:', filteredProds.length, 'products');
     }
 
     // Update stores with a fresh array to trigger reactivity
-    console.log('Setting products store with:', filteredProds);
     products.set([...filteredProds]);
     filteredProducts.set([...filteredProds]);
-    console.log('Stores updated. Current state:', {
-      productsLength: get(products).length,
-      filteredLength: get(filteredProducts).length
-    });
 
     return { 
       success: true, 
@@ -664,14 +647,6 @@ export async function handleFilterSubmit(filters: {
 
 // Get paginated and sorted products
 export function getPaginatedProducts(allProducts: any[]): any[] {
-  console.log('Getting paginated products:', {
-    totalProducts: allProducts.length,
-    currentPage: get(currentPage),
-    itemsPerPage: get(itemsPerPage),
-    sortField: get(sortField),
-    sortDirection: get(sortDirection)
-  });
-
   let sorted = [...allProducts];
   
   // Apply sorting if a sort field is selected
@@ -679,7 +654,6 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
   const currentSortDirection = get(sortDirection);
   
   if (currentSortField) {
-    console.log('Sorting by:', { field: currentSortField, direction: currentSortDirection });
     sorted.sort((a, b) => {
       let aValue = a[currentSortField];
       let bValue = b[currentSortField];
@@ -721,15 +695,6 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
   const start = (page - 1) * perPage;
   const end = Math.min(start + perPage, sorted.length);
   
-  console.log('Pagination calculation:', {
-    page,
-    perPage,
-    totalPages,
-    start,
-    end,
-    resultLength: end - start
-  });
-
   // Return the paginated slice
   return sorted.slice(start, end);
 }
@@ -738,13 +703,11 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
 export function getTotalPages(totalItems: number): number {
   const perPage = get(itemsPerPage);
   const pages = Math.max(1, Math.ceil(totalItems / perPage));
-  console.log('Calculating total pages:', { totalItems, perPage, pages });
   return pages;
 }
 
 // Reset pagination
 export function resetPagination() {
-  console.log('Resetting pagination');
   currentPage.set(1);
 }
 

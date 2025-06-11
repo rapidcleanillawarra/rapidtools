@@ -120,14 +120,6 @@
     }
   });
 
-  // Add reactive statement to log products store changes
-  $: {
-    console.log('Products store changed:', {
-      productsLength: $products.length,
-      sampleProduct: $products[0],
-      allProducts: $products
-    });
-  }
 
   // Add logging to filter submit
   async function handleFilterClick() {
@@ -139,7 +131,6 @@
       supplierFilter: $supplierFilter,
       categoryFilter: $categoryFilter
     });
-    console.log('Filter result:', result);
     if (result.success) {
       toastSuccess(result.message);
     } else {
@@ -173,14 +164,6 @@
 
   // Add reactive statements for pagination and sorting
   $: {
-    console.log('Products or sort changed:', {
-      totalProducts: $products.length,
-      currentPage: $currentPage,
-      itemsPerPage: $itemsPerPage,
-      sortField: $sortField,
-      sortDirection: $sortDirection
-    });
-    
     // Recalculate pagination and sorting
     paginatedProducts = getPaginatedProducts($products);
     totalPages = getTotalPages($products.length);
@@ -191,30 +174,20 @@
       end: Math.min($currentPage * $itemsPerPage, $products.length),
       total: $products.length
     };
-
-    console.log('Updated state:', {
-      paginatedProductsLength: paginatedProducts.length,
-      totalPages,
-      currentPageItems
-    });
   }
 
   // Watch for sort changes
   $: if ($sortField !== null || $sortDirection) {
-    console.log('Sort changed:', { field: $sortField, direction: $sortDirection });
-    // Force recalculation of paginated products
     paginatedProducts = getPaginatedProducts($products);
   }
 
   // Reset to first page when products change
   $: if ($products) {
-    console.log('Products updated, resetting to first page');
     currentPage.set(1);
   }
 
   // Function to handle page change
   function handlePageChange(newPage: number) {
-    console.log('Page change requested:', { newPage, currentPage: $currentPage, totalPages });
     if (newPage >= 1 && newPage <= totalPages) {
       currentPage.set(newPage);
       // Scroll to top of table
@@ -226,7 +199,6 @@
   function handleItemsPerPageChange(event: Event) {
     const select = event.target as HTMLSelectElement;
     const value = parseInt(select.value);
-    console.log('Items per page change:', { value, currentItemsPerPage: $itemsPerPage });
     if (!isNaN(value)) {
       itemsPerPage.set(value);
       currentPage.set(1); // Reset to first page when changing items per page
@@ -241,8 +213,6 @@
 
   // Function to handle sorting
   function handleSortClick(field: string) {
-    console.log('Sort click:', { field, currentField: $sortField, currentDirection: $sortDirection });
-    
     if ($sortField === field) {
       // If clicking the same field, toggle direction
       sortDirection.update(dir => dir === 'asc' ? 'desc' : 'asc');
@@ -379,10 +349,6 @@
               $categoryFilter = [];
               $products = [...$originalProducts];
               $filteredProducts = [...$originalProducts];
-              console.log('After reset:', {
-                productsLength: $products.length,
-                filteredLength: $filteredProducts.length
-              });
             }}
           >
             Reset Filters

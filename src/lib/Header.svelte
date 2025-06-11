@@ -195,11 +195,6 @@
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => ordersOpen = false}
                   >Customer Groups</a>
-                  <a 
-                    href="{base}/xero-auth" 
-                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
-                    on:click={() => ordersOpen = false}
-                  >Invoices Mismatch to Xero</a>
                 </div>
               </div>
             {/if}

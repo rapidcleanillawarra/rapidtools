@@ -55,32 +55,9 @@
     detail: SelectOption[] | null;
   }
 
-  interface PriceGroupDetail {
-    Multiple?: string;
-    Price: string;
-    MaximumQuantity?: string;
-    MinimumQuantity?: string;
-    MultipleStartQuantity?: string;
-    Group: string;
-    GroupID: string;
-  }
-
-  interface ApiProductItem {
-    PrimarySupplier: string;
-    Categories: string[];
-    RRP: string;
-    Model: string;
-    InventoryID: string;
-    Brand: string;
-    Misc09: string;
-    DefaultPurchasePrice: string;
-    PriceGroups: {
-      PriceGroup: PriceGroupDetail | PriceGroupDetail[];
-    };
-    SKU: string;
-    Misc02: string;
-  }
-
+  // Store previous category selections for each product
+  let previousCategorySelections = new Map<string, SelectOption[]>();
+  
   // API Endpoints
   const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
   const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
@@ -174,6 +151,12 @@
       end: Math.min($currentPage * $itemsPerPage, $products.length),
       total: $products.length
     };
+    
+    // Debug log to track updated products when products change
+    const updatedCount = $products.filter(p => p.updated).length;
+    if (updatedCount > 0) {
+      console.log('DEBUG - Products with updated flag during reactive update:', updatedCount);
+    }
   }
 
   // Watch for sort changes
@@ -368,8 +351,71 @@
       <button
         class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
         on:click={async () => {
+          console.log('Submit button clicked, checking category data...');
+          
+          // Ensure all category data is synchronized before submission
+          $products = $products.map(product => {
+            // Make sure category arrays are initialized properly
+            if (!product.category) {
+              product.category = [];
+            }
+            if (!product.category_name) {
+              product.category_name = [];
+            }
+            if (!product.original_category) {
+              product.original_category = product.category ? [...product.category] : [];
+            }
+            
+            // Make sure the categories are properly formatted as arrays
+            if (product.category && !Array.isArray(product.category)) {
+              console.warn(`Converting non-array category to array for product ${product.sku}`);
+              product.category = [product.category];
+            }
+            
+            return product;
+          });
+          
+          // Now submit the data with verified categories
           const result = await handleSubmitChecked();
           if (result.success) {
+            // Log detailed information about the updated rows
+            console.log('DEBUG - Submission successful');
+            
+            // Log the first updated product in detail
+            const updatedProducts = $products.filter(p => p.updated);
+            console.log('DEBUG - Number of products with updated flag:', updatedProducts.length);
+            
+            if (updatedProducts.length > 0) {
+              const firstUpdated = updatedProducts[0];
+              console.log('DEBUG - First updated product detail:', {
+                sku: firstUpdated.sku,
+                product_name: firstUpdated.product_name,
+                purchase_price: firstUpdated.purchase_price,
+                client_price: firstUpdated.client_price,
+                rrp: firstUpdated.rrp,
+                client_mup: firstUpdated.client_mup,
+                retail_mup: firstUpdated.retail_mup,
+                updated: firstUpdated.updated
+              });
+            }
+            
+            console.log('DEBUG - Selected rows after update:', Array.from($selectedRows));
+            
+            // Ensure all updated products stay marked as updated
+            $products = $products.map(product => {
+              if ($selectedRows.has(product.sku)) {
+                const updatedProduct = { ...product, updated: true };
+                console.log(`DEBUG - Setting updated=true for ${product.sku}`);
+                return updatedProduct;
+              }
+              return product;
+            });
+            
+            // Log the products again after ensuring they're marked as updated
+            console.log('DEBUG - Products with updated flag after reassignment:', 
+              $products.filter(p => p.updated).length
+            );
+            
             toastSuccess(result.message);
           } else {
             toastError(result.message);
@@ -485,7 +531,7 @@
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
             {#each paginatedProducts as product (product.sku)}
-              <tr class={product.updated ? 'bg-green-50' : ''}>
+              <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
                 <td class="px-2 py-1 whitespace-nowrap">
                   <input
                     type="checkbox"
@@ -495,9 +541,11 @@
                       if (target.checked) {
                         $selectedRows = new Set([...$selectedRows, product.sku]);
                       } else {
-                        $selectedRows.delete(product.sku);
-                        $selectedRows = $selectedRows;
+                        const newSet = new Set($selectedRows);
+                        newSet.delete(product.sku);
+                        $selectedRows = newSet;
                       }
+                      console.log('Selected rows count after change:', $selectedRows.size);
                     }}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -562,7 +610,55 @@
                         containerStyles="position: static;"
                         searchable={true}
                         multiple={true}
-                        on:change={(e: MultiSelectChangeEvent) => {
+                        on:select={() => {
+                          console.log('select event for', product.sku);
+                        }}
+                        on:input={(e: MultiSelectChangeEvent) => {
+                          // Get current selection
+                          const currentSelection = e.detail || [];
+                          
+                          // Get previous selection for this product
+                          const prevSelection = previousCategorySelections.get(product.sku) || [];
+                          
+                          // Add more detailed logging
+                          console.log('Category change detected:', {
+                            sku: product.sku,
+                            productName: product.product_name,
+                            previousSelection: prevSelection.map(item => `${item.label} (${item.value})`),
+                            currentSelection: currentSelection.map(item => `${item.label} (${item.value})`),
+                            changeType: prevSelection.length > currentSelection.length ? 'Item removed' : 
+                                       prevSelection.length < currentSelection.length ? 'Item added' : 'Items reordered'
+                          });
+                          
+                          // Find removed items by comparing previous with current
+                          const removedItems = prevSelection.filter(
+                            (prev: SelectOption) => !currentSelection.some((curr: SelectOption) => curr.value === prev.value)
+                          );
+                          
+                          // If exactly one item was removed, log which one it was
+                          if (removedItems.length === 1) {
+                            const removedItem = removedItems[0];
+                            console.log('Item removed:', {
+                              item: removedItem.label,
+                              value: removedItem.value,
+                              method: 'User clicked X button or used backspace/delete key'
+                            });
+                            // You can add specific logic here for when an item is removed
+                          }
+                          
+                          // Find added items
+                          const addedItems = currentSelection.filter(
+                            (curr: SelectOption) => !prevSelection.some((prev: SelectOption) => prev.value === curr.value)
+                          );
+                          
+                          // If items were added, log them
+                          if (addedItems.length > 0) {
+                            console.log('Items added:', addedItems.map(item => ({
+                              item: item.label,
+                              value: item.value
+                            })));
+                          }
+                          
                           // Ensure original_category is initialized if it doesn't exist
                           if (!product.original_category) {
                             product.original_category = product.category ? [...product.category] : [];
@@ -577,6 +673,9 @@
                           } else {
                             product.category_name = [];
                           }
+                          
+                          // Store current selection as previous for next change
+                          previousCategorySelections.set(product.sku, [...currentSelection]);
                           
                           $products = $products;
                         }}

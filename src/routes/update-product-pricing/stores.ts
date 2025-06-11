@@ -278,8 +278,53 @@ export async function handleSubmitChecked() {
 
     console.log('Submit Checked: Selected products:', selectedProducts);
 
+    // Verify and update category information before constructing the payload
+    const verifyAndUpdateCategoryInfo = (products: any[]) => {
+      console.log('Verifying category information before submission...');
+      return products.map(prod => {
+        // Ensure category arrays are properly initialized
+        if (!prod.category) {
+          prod.category = [];
+        }
+        if (!prod.category_name) {
+          prod.category_name = [];
+        }
+        if (!prod.original_category) {
+          prod.original_category = prod.category ? [...prod.category] : [];
+        }
+        
+        // Verify categories are properly formatted
+        if (prod.category && !Array.isArray(prod.category)) {
+          console.warn(`Converting non-array category to array for product ${prod.sku}`);
+          prod.category = [prod.category];
+        }
+        
+        if (prod.original_category && !Array.isArray(prod.original_category)) {
+          console.warn(`Converting non-array original_category to array for product ${prod.sku}`);
+          prod.original_category = [prod.original_category];
+        }
+        
+        // Filter out any invalid category values (null, undefined, empty strings)
+        if (Array.isArray(prod.category)) {
+          prod.category = prod.category.filter((catId: string | null | undefined) => catId);
+        }
+        
+        // Log the current category state for debugging
+        console.log(`Category state for ${prod.sku}:`, {
+          current: prod.category,
+          original: prod.original_category,
+          names: prod.category_name
+        });
+        
+        return prod;
+      });
+    };
+    
+    // Apply the verification and update to selected products
+    const verifiedProducts = verifyAndUpdateCategoryInfo(selectedProducts);
+
     const payload = {
-      "Item": selectedProducts.map(prod => {
+      "Item": verifiedProducts.map(prod => {
         // Create the base product object
         const productObject: any = {
           "SKU": prod.sku,
@@ -305,7 +350,7 @@ export async function handleSubmitChecked() {
           
           // Add current categories (without Delete flag)
           if (prod.category && Array.isArray(prod.category)) {
-            prod.category.forEach(catId => {
+            prod.category.forEach((catId: string) => {
               if (catId) {
                 categoryPayload.push({ CategoryID: catId });
               }
@@ -314,7 +359,7 @@ export async function handleSubmitChecked() {
           
           // Add categories to delete (with Delete flag set to true)
           if (prod.original_category && Array.isArray(prod.original_category)) {
-            prod.original_category.forEach(catId => {
+            prod.original_category.forEach((catId: string) => {
               // Only include for deletion if it's in original but not in current categories
               if (catId && (!prod.category || !prod.category.includes(catId))) {
                 categoryPayload.push({ CategoryID: catId, Delete: true });
@@ -368,31 +413,83 @@ export async function handleSubmitChecked() {
         const updatedProducts = transformApiResponse(data);
         const updatedProductMap = new Map<string, any>();
         
+        console.log('DEBUG - API Response transformed to products:', updatedProducts.length);
+        
         // Create a map of SKU to updated product
         updatedProducts.forEach(prod => {
           updatedProductMap.set(prod.sku, prod);
         });
         
+        console.log('DEBUG - Products that should be marked as updated:', Array.from(currentSelectedRows));
+        
         // Update the products store with the updated data
         products.update(prods => {
-          return prods.map(prod => {
+          console.log('DEBUG - Updating products store, current products:', prods.length);
+          
+          const updatedProds = prods.map(prod => {
             if (currentSelectedRows.has(prod.sku) && updatedProductMap.has(prod.sku)) {
               // Merge existing product with updated data and mark as updated
               const updatedProd = updatedProductMap.get(prod.sku);
-              return { 
+              
+              console.log(`DEBUG - Updating product ${prod.sku} with API data`);
+              console.log('DEBUG - Before update:', {
+                purchase_price: prod.purchase_price,
+                client_price: prod.client_price,
+                rrp: prod.rrp,
+                client_mup: prod.client_mup,
+                retail_mup: prod.retail_mup,
+                updated: prod.updated
+              });
+              
+              console.log('DEBUG - API data:', {
+                purchase_price: updatedProd.purchase_price,
+                client_price: updatedProd.client_price,
+                rrp: updatedProd.rrp,
+                client_mup: updatedProd.client_mup,
+                retail_mup: updatedProd.retail_mup
+              });
+              
+              const mergedProduct = { 
                 ...prod, 
                 ...updatedProd,
                 // Update original_category to match the new category after update
                 original_category: updatedProd.category ? [...updatedProd.category] : [],
                 updated: true 
               };
+              
+              console.log('DEBUG - After merge:', {
+                purchase_price: mergedProduct.purchase_price,
+                client_price: mergedProduct.client_price,
+                rrp: mergedProduct.rrp,
+                client_mup: mergedProduct.client_mup,
+                retail_mup: mergedProduct.retail_mup,
+                updated: mergedProduct.updated
+              });
+              
+              return mergedProduct;
             }
             return prod;
           });
+          
+          const updatedCount = updatedProds.filter(p => p.updated).length;
+          console.log(`DEBUG - Updated products count after API response: ${updatedCount}`);
+          
+          if (updatedCount > 0) {
+            const firstUpdated = updatedProds.find(p => p.updated);
+            console.log('DEBUG - Sample updated product in store:', {
+              sku: firstUpdated?.sku,
+              updated: firstUpdated?.updated,
+              client_price: firstUpdated?.client_price,
+              rrp: firstUpdated?.rrp
+            });
+          }
+          
+          return updatedProds;
         });
         
         // Reset loading state
         submitLoading.set(false);
+        // Don't clear the selectedRows after successful submission so users can see what was updated
         return { success: true, message: 'Products updated successfully' };
       }
     }

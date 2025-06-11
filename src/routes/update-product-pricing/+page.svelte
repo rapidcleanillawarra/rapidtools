@@ -516,7 +516,11 @@
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </td>
-                <td class="px-2 py-1 text-sm break-words">{product.sku}</td>
+                <td class="px-2 py-1 text-sm break-words">
+                  <a href={`https://www.rapidsupplies.com.au/_cpanel/products/view?id=${product.inventory_id}`} target="_blank" class="text-blue-600 hover:underline">
+                    {product.sku}
+                  </a>
+                </td>
                 <td class="px-2 py-1 text-sm break-words">{product.product_name}</td>
                 <td class="px-2 py-1 text-sm">
                   {#if $loadingBrands}

@@ -256,10 +256,12 @@ export async function handleSubmitChecked() {
       [key: string]: any;
     }> = [];
     
-    let currentSelectedRows: Set<string>;
+    let currentSelectedRows: Set<string> = new Set<string>();
     selectedRows.subscribe(value => {
       currentSelectedRows = value;
     })();
+
+    console.log('Submit Checked: Selected rows count:', currentSelectedRows.size);
 
     products.update(prods => {
       selectedProducts.push(...prods.filter(prod => currentSelectedRows.has(prod.sku)));
@@ -267,22 +269,76 @@ export async function handleSubmitChecked() {
     });
 
     if (selectedProducts.length === 0) {
+      console.log('Submit Checked: No products selected');
+      submitLoading.set(false);
       return { success: false, message: 'No products selected' };
     }
 
+    console.log('Submit Checked: Selected products:', selectedProducts);
+
+    const payload = {
+      Item: selectedProducts.map(prod => {
+        // Create the base product object
+        const productObject: any = {
+          SKU: prod.sku,
+          Brand: prod.brand,
+          PrimarySupplier: prod.primary_supplier,
+          DefaultPurchasePrice: prod.purchase_price.toString(),
+          RRP: prod.rrp.toString(),
+          Misc02: prod.client_mup.toString(),  // client MUP
+          Misc09: prod.retail_mup.toString(),  // retail MUP
+          PriceGroups: {
+            PriceGroup: [
+              {
+                Group: "Default Client Group",
+                Price: prod.client_price.toString()
+              }
+            ]
+          }
+        };
+        
+        // Only add Categories if category is not empty
+        if (prod.category && typeof prod.category === 'string' && prod.category.trim() !== '') {
+          productObject.Categories = {
+            Category: [
+              { CategoryID: prod.category }
+            ]
+          };
+        }
+        
+        return productObject;
+      })
+    };
+
+    console.log('API Endpoint:', updatePricingUrl);
+    console.log('PAYLOAD FOR REVIEW:', JSON.stringify(payload, null, 2));
+    
+    // Stop here and don't send to API yet
+    submitLoading.set(false);
+    return { 
+      success: true, 
+      message: 'Payload logged to console for review. Check browser console.' 
+    };
+
+    /* The code below will not execute - uncomment when ready to send to API
+    
     const response = await fetch(updatePricingUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        products: selectedProducts.map(prod => ({
-          sku: prod.sku,
-          client_price: prod.client_price,
-          rrp: prod.rrp
-        }))
-      })
+      body: JSON.stringify(payload)
     });
 
+    console.log('Submit Checked: Response status:', response.status);
+    console.log('Submit Checked: Response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Submit Checked: API Error response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+    }
+
     const data = await response.json();
+    console.log('Response Data:', data);
 
     if (data.status === 200 && data.message?.Ack === "Success") {
       // Mark updated products
@@ -296,13 +352,20 @@ export async function handleSubmitChecked() {
       });
       return { success: true, message: 'Products updated successfully' };
     } else {
+      console.error('Submit Checked: API returned non-success response:', data);
       throw new Error('Failed to update products: Invalid response format');
     }
+    */
   } catch (err: unknown) {
     const error = err as Error;
-    return { success: false, message: error.message || 'Failed to update products' };
-  } finally {
+    console.error('Submit Checked: Error occurred:', error);
+    console.error('Submit Checked: Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     submitLoading.set(false);
+    return { success: false, message: error.message || 'Failed to update products' };
   }
 }
 
@@ -332,7 +395,8 @@ function transformApiResponse(apiResponse: any): Product[] {
     )?.Price || item.RRP || '0';
 
     const transformedProduct = {
-      sku: item.InventoryID || '',  // Using InventoryID as SKU
+      sku: item.SKU || '',  // Using SKU instead of InventoryID
+      inventory_id: item.InventoryID || '',  // Include InventoryID
       product_name: item.Model || '',
       brand: item.Brand || '',
       primary_supplier: item.PrimarySupplier || '',
@@ -375,7 +439,7 @@ export async function handleFilterSubmit(filters: {
     // Prepare the request payload
     const payload = {
       Filter: {
-        SKU: skus.length === 1 ? skus[0] : '',
+        SKU: skus.length > 0 ? skus : '',
         Name: filters.productNameFilter || '',
         Brand: filters.brandFilter?.value || '',
         Active: true,
@@ -389,7 +453,8 @@ export async function handleFilterSubmit(filters: {
           "DefaultPurchasePrice",
           "PriceGroups",
           "Misc02",
-          "Misc09"
+          "Misc09",
+          "InventoryID"
         ]
       }
     };

@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import type { SelectOption } from './types';
+import type { SelectOption, MultiSelectOption } from './types';
 
 // API Endpoints
 export const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
@@ -31,7 +31,7 @@ export const skuFilter = writable('');
 export const productNameFilter = writable('');
 export const brandFilter = writable<SelectOption | null>(null);
 export const supplierFilter = writable<SelectOption | null>(null);
-export const categoryFilter = writable<SelectOption | null>(null);
+export const categoryFilter = writable<MultiSelectOption[]>([]);
 
 // Pagination and sorting stores
 export const currentPage = writable(1);
@@ -44,8 +44,9 @@ interface Product {
   product_name: string;
   brand: string;
   primary_supplier: string;
-  category: string;
-  category_name: string;
+  category: string[];
+  category_name: string[];
+  original_category: string[];
   purchase_price: number;
   client_price: number;
   rrp: number;
@@ -298,13 +299,35 @@ export async function handleSubmitChecked() {
           }
         };
         
-        // Only add Categories if category is not empty
-        if (prod.category && typeof prod.category === 'string' && prod.category.trim() !== '') {
-          productObject.Categories = {
-            "Category": [
-              { "CategoryID": prod.category }
-            ]
-          };
+        // Handle category changes with deletion for removed categories
+        if (prod.category || prod.original_category) {
+          const categoryPayload: Array<{ CategoryID: string; Delete?: boolean }> = [];
+          
+          // Add current categories (without Delete flag)
+          if (prod.category && Array.isArray(prod.category)) {
+            prod.category.forEach(catId => {
+              if (catId) {
+                categoryPayload.push({ CategoryID: catId });
+              }
+            });
+          }
+          
+          // Add categories to delete (with Delete flag set to true)
+          if (prod.original_category && Array.isArray(prod.original_category)) {
+            prod.original_category.forEach(catId => {
+              // Only include for deletion if it's in original but not in current categories
+              if (catId && (!prod.category || !prod.category.includes(catId))) {
+                categoryPayload.push({ CategoryID: catId, Delete: true });
+              }
+            });
+          }
+          
+          // Only add Categories if we have category entries
+          if (categoryPayload.length > 0) {
+            productObject.Categories = {
+              "Category": categoryPayload
+            };
+          }
         }
         
         return productObject;
@@ -341,13 +364,28 @@ export async function handleSubmitChecked() {
       
       // Make sure the response contains at least one valid item with SKU
       if (itemArray.length > 0 && itemArray.some((item: any) => item.SKU)) {
-        // Mark updated products based on SKUs returned in the response
+        // Transform the response items to our product format
+        const updatedProducts = transformApiResponse(data);
+        const updatedProductMap = new Map<string, any>();
+        
+        // Create a map of SKU to updated product
+        updatedProducts.forEach(prod => {
+          updatedProductMap.set(prod.sku, prod);
+        });
+        
+        // Update the products store with the updated data
         products.update(prods => {
           return prods.map(prod => {
-            // Check if this product's SKU is in the response Item array
-            const isUpdated = itemArray.some((item: any) => item.SKU === prod.sku);
-            if (isUpdated && currentSelectedRows.has(prod.sku)) {
-              return { ...prod, updated: true };
+            if (currentSelectedRows.has(prod.sku) && updatedProductMap.has(prod.sku)) {
+              // Merge existing product with updated data and mark as updated
+              const updatedProd = updatedProductMap.get(prod.sku);
+              return { 
+                ...prod, 
+                ...updatedProd,
+                // Update original_category to match the new category after update
+                original_category: updatedProd.category ? [...updatedProd.category] : [],
+                updated: true 
+              };
             }
             return prod;
           });
@@ -401,28 +439,55 @@ function transformApiResponse(apiResponse: any): Product[] {
       (pg: any) => pg?.Group === "Default RRP (Dont Assign to clients)"
     )?.Price || item.RRP || '0';
 
-    // Extract category information
-    let categoryId = '';
-    let categoryName = '';
+    // Extract category information - handle multiple categories
+    let categoryIds: string[] = [];
+    let categoryNames: string[] = [];
 
-    if (item.Categories && Array.isArray(item.Categories)) {
-      const categoryObj = item.Categories[0];
-      if (categoryObj) {
-        // Handle both array and object formats
-        if (Array.isArray(categoryObj.Category)) {
-          // Case: Categories has multiple categories in an array
-          // Use the first category
-          if (categoryObj.Category.length > 0) {
-            categoryId = categoryObj.Category[0].CategoryID || '';
-            categoryName = categoryObj.Category[0].CategoryName || '';
+    if (item.Categories) {
+      // Handle different Categories structures
+      if (Array.isArray(item.Categories)) {
+        // Process each category entry in the array
+        item.Categories.forEach((categoryEntry: any) => {
+          if (categoryEntry.Category) {
+            // If Category is an array, process each item
+            if (Array.isArray(categoryEntry.Category)) {
+              categoryEntry.Category.forEach((category: any) => {
+                if (category.CategoryID) {
+                  categoryIds.push(category.CategoryID);
+                  categoryNames.push(category.CategoryName || '');
+                }
+              });
+            } else {
+              // If Category is a single object
+              if (categoryEntry.Category.CategoryID) {
+                categoryIds.push(categoryEntry.Category.CategoryID);
+                categoryNames.push(categoryEntry.Category.CategoryName || '');
+              }
+            }
           }
-        } else if (categoryObj.Category) {
-          // Case: Categories has a single category object
-          categoryId = categoryObj.Category.CategoryID || '';
-          categoryName = categoryObj.Category.CategoryName || '';
+        });
+      } else if (item.Categories.Category) {
+        // Direct Category property in Categories
+        if (Array.isArray(item.Categories.Category)) {
+          // Multiple categories
+          item.Categories.Category.forEach((category: any) => {
+            if (category.CategoryID) {
+              categoryIds.push(category.CategoryID);
+              categoryNames.push(category.CategoryName || '');
+            }
+          });
+        } else {
+          // Single category
+          if (item.Categories.Category.CategoryID) {
+            categoryIds.push(item.Categories.Category.CategoryID);
+            categoryNames.push(item.Categories.Category.CategoryName || '');
+          }
         }
       }
     }
+
+    // Log the extracted categories
+    console.log('Extracted categories:', { categoryIds, categoryNames });
 
     const transformedProduct = {
       sku: item.SKU || '',  // Using SKU instead of InventoryID
@@ -430,8 +495,9 @@ function transformApiResponse(apiResponse: any): Product[] {
       product_name: item.Model || '',
       brand: item.Brand || '',
       primary_supplier: item.PrimarySupplier || '',
-      category: categoryId,
-      category_name: categoryName,
+      category: categoryIds,
+      category_name: categoryNames,
+      original_category: [...categoryIds],
       purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
       client_price: parseFloat(clientPrice),
       rrp: parseFloat(rrp),
@@ -450,29 +516,62 @@ export async function handleFilterSubmit(filters: {
   productNameFilter: string;
   brandFilter: SelectOption | null;
   supplierFilter: SelectOption | null;
-  categoryFilter: SelectOption | null;
+  categoryFilter: MultiSelectOption[];
 }) {
+  loading.set(true);
   try {
-    console.log('Starting handleFilterSubmit with filters:', filters);
-    loading.set(true);
+    // Process SKU filter to get an array of SKUs
+    const skuList = filters.skuFilter
+      .split('\n')
+      .map(sku => sku.trim())
+      .filter(sku => sku.length > 0);
 
-    // Reset selection state and pagination
-    selectedRows.set(new Set<string>());
-    selectAll.set(false);
-    resetPagination();
+    // Create filter payload
+    const payload: any = {};
 
-    // Prepare SKUs for filter
-    const skus = filters.skuFilter
-      ? filters.skuFilter.split('\n').map(sku => sku.trim()).filter(Boolean)
-      : [];
-    console.log('Prepared SKUs:', skus);
+    // Add SKU filter
+    if (skuList.length > 0) {
+      payload.sku = skuList;
+    }
+
+    // Add product name filter
+    if (filters.productNameFilter) {
+      payload.productName = filters.productNameFilter;
+    }
+
+    // Add brand filter
+    if (filters.brandFilter) {
+      payload.brand = filters.brandFilter.value;
+    }
+
+    // Add supplier filter
+    if (filters.supplierFilter) {
+      payload.supplier = filters.supplierFilter.value;
+    }
+
+    // Add category filter
+    if (filters.categoryFilter && filters.categoryFilter.length > 0) {
+      payload.category = filters.categoryFilter.map(cat => cat.value);
+    }
+
+    console.log('Filter payload:', payload);
+
+    // If no filters are applied, restore the original product list
+    if (Object.keys(payload).length === 0) {
+      originalProducts.subscribe(value => {
+        products.set([...value]);
+        filteredProducts.set([...value]);
+      })();
+      loading.set(false);
+      return { success: true, message: 'All products loaded' };
+    }
 
     // Prepare the request payload
-    const payload = {
+    const payloadForAPI = {
       Filter: {
-        SKU: skus.length > 0 ? skus : '',
-        Name: filters.productNameFilter || '',
-        Brand: filters.brandFilter?.value || '',
+        SKU: payload.sku || '',
+        Name: payload.productName || '',
+        Brand: payload.brand || '',
         Active: true,
         OutputSelector: [
           "SKU",
@@ -489,14 +588,14 @@ export async function handleFilterSubmit(filters: {
         ]
       }
     };
-    console.log('Request payload:', JSON.stringify(payload, null, 2));
+    console.log('Request payload:', JSON.stringify(payloadForAPI, null, 2));
     console.log('Making API call to:', filterProductsUrl);
 
     // Make API call with filter payload
     const response = await fetch(filterProductsUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payloadForAPI)
     });
 
     console.log('API Response status:', response.status);
@@ -521,16 +620,16 @@ export async function handleFilterSubmit(filters: {
     console.log('Transformed products:', filteredProds);
 
     // Apply additional client-side filters for supplier and category
-    if (filters.supplierFilter) {
+    if (payload.supplier) {
       filteredProds = filteredProds.filter((prod: Product) => 
-        prod.primary_supplier === filters.supplierFilter?.value
+        prod.primary_supplier === payload.supplier
       );
       console.log('After supplier filter:', filteredProds.length, 'products');
     }
 
-    if (filters.categoryFilter) {
+    if (payload.category && payload.category.length > 0) {
       filteredProds = filteredProds.filter((prod: Product) => 
-        prod.category === filters.categoryFilter?.value
+        prod.category.some((cat: string) => payload.category.includes(cat))
       );
       console.log('After category filter:', filteredProds.length, 'products');
     }

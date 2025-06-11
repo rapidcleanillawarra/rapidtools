@@ -43,10 +43,16 @@
     getTotalPages,
     handleSort
   } from './stores';
+  import type { MultiSelectOption, SelectOption } from './types';
 
-  interface SelectOption {
-    value: string;
-    label: string;
+  // Interface for Select component events
+  interface SelectChangeEvent {
+    detail: SelectOption | null;
+  }
+
+  // Interface for MultiSelect component events
+  interface MultiSelectChangeEvent {
+    detail: SelectOption[] | null;
   }
 
   interface PriceGroupDetail {
@@ -96,9 +102,21 @@
     console.log('Component mounted, initializing data');
     if (data?.products && Array.isArray(data.products)) {
       console.log('Setting initial products:', data.products.length);
-      $originalProducts = [...data.products];
-      $products = [...data.products];
-      $filteredProducts = [...data.products];
+      
+      // Ensure all products have original_category initialized
+      const productsWithOriginalCategory = data.products.map(product => {
+        if (!product.original_category && product.category) {
+          return {
+            ...product,
+            original_category: [...product.category]
+          };
+        }
+        return product;
+      });
+      
+      $originalProducts = [...productsWithOriginalCategory];
+      $products = [...productsWithOriginalCategory];
+      $filteredProducts = [...productsWithOriginalCategory];
     }
   });
 
@@ -340,8 +358,10 @@
               <Select
                 items={$categories}
                 bind:value={$categoryFilter}
-                placeholder="Select Category"
+                placeholder="Select Categories"
                 containerStyles="position: relative;"
+                searchable={true}
+                multiple={true}
               />
             {/if}
           </div>
@@ -356,7 +376,7 @@
               $productNameFilter = '';
               $brandFilter = null;
               $supplierFilter = null;
-              $categoryFilter = null;
+              $categoryFilter = [];
               $products = [...$originalProducts];
               $filteredProducts = [...$originalProducts];
               console.log('After reset:', {
@@ -534,7 +554,7 @@
                         value={$brands.find(b => b.value === product.brand)}
                         placeholder="Select Brand"
                         containerStyles="position: static;"
-                        on:change={(e) => {
+                        on:change={(e: SelectChangeEvent) => {
                           product.brand = e.detail?.value || '';
                           $products = $products;
                         }}
@@ -554,7 +574,7 @@
                         value={$suppliers.find(s => s.value === product.primary_supplier)}
                         placeholder="Select Supplier"
                         containerStyles="position: static;"
-                        on:change={(e) => {
+                        on:change={(e: SelectChangeEvent) => {
                           product.primary_supplier = e.detail?.value || '';
                           $products = $products;
                         }}
@@ -571,21 +591,40 @@
                     <div class="relative">
                       <Select
                         items={$categories}
-                        value={$categories.find(c => c.value === product.category)}
-                        placeholder="Select Category"
+                        value={product.category ? $categories.filter(c => product.category.includes(c.value)) : []}
+                        placeholder="Select Categories"
                         containerStyles="position: static;"
-                        on:change={(e) => {
-                          product.category = e.detail?.value || '';
-                          // Find and set the category name when category ID changes
-                          if (e.detail?.value) {
-                            const selectedCategory = $categories.find(c => c.value === e.detail.value);
-                            product.category_name = selectedCategory ? selectedCategory.label : '';
-                          } else {
-                            product.category_name = '';
+                        searchable={true}
+                        multiple={true}
+                        on:change={(e: MultiSelectChangeEvent) => {
+                          // Ensure original_category is initialized if it doesn't exist
+                          if (!product.original_category) {
+                            product.original_category = product.category ? [...product.category] : [];
                           }
+                          
+                          // Update the current categories
+                          product.category = e.detail ? e.detail.map((item: SelectOption) => item.value) : [];
+                          
+                          // Find and set the category names when category IDs change
+                          if (e.detail && e.detail.length) {
+                            product.category_name = e.detail.map((item: SelectOption) => item.label);
+                          } else {
+                            product.category_name = [];
+                          }
+                          
                           $products = $products;
                         }}
                       />
+                      <!-- Display selected categories as badges/tags -->
+                      {#if product.category && product.category.length > 0}
+                        <div class="mt-1 flex flex-wrap gap-1">
+                          {#each product.category_name as catName, idx}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                              {catName}
+                            </span>
+                          {/each}
+                        </div>
+                      {/if}
                     </div>
                   {/if}
                 </td>

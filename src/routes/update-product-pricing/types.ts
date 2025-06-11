@@ -3,6 +3,11 @@ export interface SelectOption {
   label: string;
 }
 
+export interface MultiSelectOption {
+  value: string;
+  label: string;
+}
+
 export interface PriceGroupDetail {
   Multiple?: string;
   Price: string;

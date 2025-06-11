@@ -5,7 +5,7 @@ import type { SelectOption } from './types';
 export const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
 export const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
 export const categoriesUrl = 'https://prod-47.australiasoutheast.logic.azure.com:443/workflows/0d67bc8f1bb64e78a2495f13a7498081/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fJJzmNyuARuwEcNCoMuWwMS9kmWZQABw9kJXsUj9Wk8';
-export const updatePricingUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/a14abba8479c457bafd63fe32fd9fea4/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Evz4dRmWiP8p-hxjZxofNX1q_o_-ufQK2c_XI4Quxto';
+export const updatePricingUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 export const filterProductsUrl = 'https://prod-19.australiasoutheast.logic.azure.com:443/workflows/67422be18c5e4af0ad9291110dedb2fd/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=N_VRTyaFEkOUGjtwu8O56_L-qY6xwvHuGWEOvqKsoAk';
 
 // State stores
@@ -45,6 +45,7 @@ interface Product {
   brand: string;
   primary_supplier: string;
   category: string;
+  category_name: string;
   purchase_price: number;
   client_price: number;
   rrp: number;
@@ -277,21 +278,21 @@ export async function handleSubmitChecked() {
     console.log('Submit Checked: Selected products:', selectedProducts);
 
     const payload = {
-      Item: selectedProducts.map(prod => {
+      "Item": selectedProducts.map(prod => {
         // Create the base product object
         const productObject: any = {
-          SKU: prod.sku,
-          Brand: prod.brand,
-          PrimarySupplier: prod.primary_supplier,
-          DefaultPurchasePrice: prod.purchase_price.toString(),
-          RRP: prod.rrp.toString(),
-          Misc02: prod.client_mup.toString(),  // client MUP
-          Misc09: prod.retail_mup.toString(),  // retail MUP
-          PriceGroups: {
-            PriceGroup: [
+          "SKU": prod.sku,
+          "Brand": prod.brand,
+          "PrimarySupplier": prod.primary_supplier,
+          "DefaultPurchasePrice": prod.purchase_price.toString(),
+          "RRP": prod.rrp.toString(),
+          "Misc02": prod.client_mup.toString(),  // client MUP
+          "Misc09": prod.retail_mup.toString(),  // retail MUP
+          "PriceGroups": {
+            "PriceGroup": [
               {
-                Group: "Default Client Group",
-                Price: prod.client_price.toString()
+                "Group": "Default Client Group",
+                "Price": prod.client_price.toString()
               }
             ]
           }
@@ -300,28 +301,21 @@ export async function handleSubmitChecked() {
         // Only add Categories if category is not empty
         if (prod.category && typeof prod.category === 'string' && prod.category.trim() !== '') {
           productObject.Categories = {
-            Category: [
-              { CategoryID: prod.category }
+            "Category": [
+              { "CategoryID": prod.category }
             ]
           };
         }
         
         return productObject;
-      })
+      }),
+      "action": "UpdateItem"
     };
 
     console.log('API Endpoint:', updatePricingUrl);
     console.log('PAYLOAD FOR REVIEW:', JSON.stringify(payload, null, 2));
     
-    // Stop here and don't send to API yet
-    submitLoading.set(false);
-    return { 
-      success: true, 
-      message: 'Payload logged to console for review. Check browser console.' 
-    };
-
-    /* The code below will not execute - uncomment when ready to send to API
-    
+    // Send to API
     const response = await fetch(updatePricingUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -340,22 +334,35 @@ export async function handleSubmitChecked() {
     const data = await response.json();
     console.log('Response Data:', data);
 
-    if (data.status === 200 && data.message?.Ack === "Success") {
-      // Mark updated products
-      products.update(prods => {
-        return prods.map(prod => {
-          if (currentSelectedRows.has(prod.sku)) {
-            return { ...prod, updated: true };
-          }
-          return prod;
+    // Check if data.Item exists and has SKUs
+    if (data.Item) {
+      // Convert Item to array regardless of whether it's a single object or already an array
+      const itemArray = Array.isArray(data.Item) ? data.Item : [data.Item];
+      
+      // Make sure the response contains at least one valid item with SKU
+      if (itemArray.length > 0 && itemArray.some((item: any) => item.SKU)) {
+        // Mark updated products based on SKUs returned in the response
+        products.update(prods => {
+          return prods.map(prod => {
+            // Check if this product's SKU is in the response Item array
+            const isUpdated = itemArray.some((item: any) => item.SKU === prod.sku);
+            if (isUpdated && currentSelectedRows.has(prod.sku)) {
+              return { ...prod, updated: true };
+            }
+            return prod;
+          });
         });
-      });
-      return { success: true, message: 'Products updated successfully' };
-    } else {
-      console.error('Submit Checked: API returned non-success response:', data);
-      throw new Error('Failed to update products: Invalid response format');
+        
+        // Reset loading state
+        submitLoading.set(false);
+        return { success: true, message: 'Products updated successfully' };
+      }
     }
-    */
+    
+    // If we get here, the response didn't contain the expected data
+    submitLoading.set(false);
+    console.error('Submit Checked: API returned invalid response:', data);
+    throw new Error('Failed to update products: Invalid response format');
   } catch (err: unknown) {
     const error = err as Error;
     console.error('Submit Checked: Error occurred:', error);
@@ -394,13 +401,37 @@ function transformApiResponse(apiResponse: any): Product[] {
       (pg: any) => pg?.Group === "Default RRP (Dont Assign to clients)"
     )?.Price || item.RRP || '0';
 
+    // Extract category information
+    let categoryId = '';
+    let categoryName = '';
+
+    if (item.Categories && Array.isArray(item.Categories)) {
+      const categoryObj = item.Categories[0];
+      if (categoryObj) {
+        // Handle both array and object formats
+        if (Array.isArray(categoryObj.Category)) {
+          // Case: Categories has multiple categories in an array
+          // Use the first category
+          if (categoryObj.Category.length > 0) {
+            categoryId = categoryObj.Category[0].CategoryID || '';
+            categoryName = categoryObj.Category[0].CategoryName || '';
+          }
+        } else if (categoryObj.Category) {
+          // Case: Categories has a single category object
+          categoryId = categoryObj.Category.CategoryID || '';
+          categoryName = categoryObj.Category.CategoryName || '';
+        }
+      }
+    }
+
     const transformedProduct = {
       sku: item.SKU || '',  // Using SKU instead of InventoryID
       inventory_id: item.InventoryID || '',  // Include InventoryID
       product_name: item.Model || '',
       brand: item.Brand || '',
       primary_supplier: item.PrimarySupplier || '',
-      category: Array.isArray(item.Categories) ? (item.Categories[0] || '') : '',
+      category: categoryId,
+      category_name: categoryName,
       purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
       client_price: parseFloat(clientPrice),
       rrp: parseFloat(rrp),

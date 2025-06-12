@@ -25,7 +25,8 @@
 	// Check if we're on a protected route
 	$: isProtectedRoute = $page.url.pathname.startsWith(base + '/product-request') ||
 						 $page.url.pathname.startsWith(base + '/dashboard') ||
-						 $page.url.pathname.startsWith(base + '/edit-profile');
+						 $page.url.pathname.startsWith(base + '/edit-profile') ||
+						 $page.url.pathname.startsWith(base + '/apply-payments');
 
 	$: if (mounted && browser && !loading && !user && isProtectedRoute) {
 		goto(base + '/');

@@ -44,6 +44,7 @@
 		"@event-calendar/time-grid": "^3.12.0",
 		"@zerodevx/svelte-toast": "^0.9.6",
 		"firebase": "^11.8.0",
+		"lucide-svelte": "^0.514.0",
 		"svelte-select": "^5.8.3"
 	}
 }

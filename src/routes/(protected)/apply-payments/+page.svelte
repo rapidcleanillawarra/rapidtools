@@ -13,10 +13,7 @@
     paymentMethod: string;
   };
 
-  let items: Item[] = [
-    { invoiceNumber: '25-009131', price: '110.00', paymentMethod: 'Direct Deposit' },
-    { invoiceNumber: '25-009169', price: '495.00', paymentMethod: 'Direct Deposit' }
-  ];
+  let items: Item[] = [{ invoiceNumber: '', price: '', paymentMethod: 'Direct Deposit' }];
 
   // State for user
   let user: any;

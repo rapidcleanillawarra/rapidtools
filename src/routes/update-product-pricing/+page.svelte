@@ -164,8 +164,10 @@
     paginatedProducts = getPaginatedProducts($products);
   }
 
-  // Reset to first page when products change
-  $: if ($products) {
+  // Reset to first page when products length changes
+  let previousLength = $products.length;
+  $: if ($products && $products.length !== previousLength) {
+    previousLength = $products.length;
     currentPage.set(1);
   }
 

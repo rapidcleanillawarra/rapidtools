@@ -5,7 +5,7 @@
   import { currentUser } from '$lib/firebase';
   import { userProfile, type UserProfile } from '$lib/userProfile';
   import { db } from '$lib/firebase';
-  import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+  import { collection, addDoc, serverTimestamp, query, where, limit, getDocs } from 'firebase/firestore';
 
   const ORDER_API_ENDPOINT = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
@@ -17,11 +17,33 @@
     creditError?: string;
   }
 
+  interface PaymentSession {
+    sessionId: string;
+    dateCreated: any; // Firebase Timestamp
+    userId: string;
+    userEmail: string;
+    performedBy: {
+      firstName: string;
+      lastName: string;
+    };
+    payments: {
+      orderId: string;
+      paymentId: string;
+      paymentMode: string;
+      amount: number;
+      dateProcessed: string;
+    }[];
+  }
+
   let user: any = null;
   let profile: UserProfile | null = null;
   let payments: BatchPayment[] = [createEmptyPayment()];
   let isLoading = false;
   let notification = { show: false, message: '', type: 'info' };
+  let userSessions: PaymentSession[] = [];
+  let isModalOpen = false;
+  let isPaymentDetailsModalOpen = false;
+  let selectedSession: PaymentSession | null = null;
 
   // Subscribe to user and profile changes
   const unsubUser = currentUser.subscribe(value => {
@@ -33,10 +55,37 @@
   });
 
   onMount(() => {
-    return () => {
+    // Unsubscribe from user and profile changes when the component is destroyed
+    const cleanup = () => {
       unsubUser();
       unsubProfile();
     };
+
+    // Fetch payment sessions for the logged-in user
+    const fetchUserSessions = async () => {
+      if (user) {
+        try {
+          const q = query(
+            collection(db, 'payment_sessions'),
+            where('userId', '==', user.uid), // or use 'userEmail' if you prefer
+            limit(5) // Limit the query to 5 documents
+          );
+
+          const querySnapshot = await getDocs(q);
+          userSessions = querySnapshot.docs.map(doc => doc.data() as PaymentSession);
+
+          console.log('User Payment Sessions:', userSessions);
+
+          // You can now use `userSessions` to update your UI
+        } catch (error) {
+          console.error('Error fetching user payment sessions:', error);
+        }
+      }
+    };
+
+    fetchUserSessions();
+
+    return cleanup;
   });
 
   function createEmptyPayment(): BatchPayment {
@@ -531,19 +580,43 @@
       }));
     }
   }
+
+  function toggleModal() {
+    isModalOpen = !isModalOpen;
+    console.log('Modal toggled:', isModalOpen);
+  }
+
+  function showPaymentDetails(session: PaymentSession) {
+    selectedSession = session;
+    isPaymentDetailsModalOpen = true;
+  }
+
+  function closePaymentDetailsModal() {
+    isPaymentDetailsModalOpen = false;
+    selectedSession = null;
+  }
 </script>
 
 <div class="container mx-auto px-4 py-8" in:fade>
   <div class="flex justify-between items-center mb-6">
     <h1 class="text-2xl font-bold">Batch Payments</h1>
-    <button
-      type="button"
-      class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-      on:click={handleSubmit}
-      disabled={isLoading}
-    >
-      {isLoading ? 'Submitting...' : 'Submit All Payments'}
-    </button>
+    <div class="flex space-x-4">
+      <button
+        type="button"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        on:click={toggleModal}
+      >
+        Transaction History
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+        on:click={handleSubmit}
+        disabled={isLoading}
+      >
+        {isLoading ? 'Submitting...' : 'Submit All Payments'}
+      </button>
+    </div>
   </div>
 
   {#if notification.show}
@@ -552,6 +625,204 @@
       transition:fade
     >
       {notification.message}
+    </div>
+  {/if}
+
+  <!-- Transaction History Modal -->
+  {#if isModalOpen}
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" on:click={toggleModal}>
+      <div class="relative top-20 mx-auto p-5 border w-4/5 max-w-4xl shadow-lg rounded-md bg-white" on:click|stopPropagation>
+        <div class="mt-3">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900">Transaction History</h3>
+            <button
+              type="button"
+              class="text-gray-400 hover:text-gray-600"
+              on:click={toggleModal}
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="mt-2">
+            {#if userSessions.length > 0}
+              <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Session ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Created</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Performed By</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payments Count</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {#each userSessions as session}
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <button
+                            type="button"
+                            class="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                            on:click={() => showPaymentDetails(session)}
+                          >
+                            {session.sessionId || 'N/A'}
+                          </button>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {session.dateCreated?.toDate ? session.dateCreated.toDate().toLocaleString() : 'N/A'}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {session.performedBy?.firstName || ''} {session.performedBy?.lastName || ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {session.payments?.length || 0}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          ${session.payments?.reduce((total, payment) => total + (payment.amount || 0), 0).toFixed(2) || '0.00'}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {:else}
+              <div class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No transaction history</h3>
+                <p class="mt-1 text-sm text-gray-500">You haven't processed any payments yet.</p>
+              </div>
+            {/if}
+          </div>
+          <div class="flex justify-end mt-6">
+            <button
+              type="button"
+              class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              on:click={toggleModal}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Payment Details Modal -->
+  {#if isPaymentDetailsModalOpen && selectedSession}
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50" on:click={closePaymentDetailsModal}>
+      <div class="relative top-20 mx-auto p-5 border w-4/5 max-w-5xl shadow-lg rounded-md bg-white" on:click|stopPropagation>
+        <div class="mt-3">
+          <div class="flex justify-between items-center mb-4">
+            <div>
+              <h3 class="text-lg leading-6 font-medium text-gray-900">Payment Details</h3>
+              <p class="text-sm text-gray-500">Session: {selectedSession.sessionId}</p>
+            </div>
+            <button
+              type="button"
+              class="text-gray-400 hover:text-gray-600"
+              on:click={closePaymentDetailsModal}
+            >
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+            <div>
+              <p class="text-sm font-medium text-gray-500">Date Created</p>
+              <p class="text-sm text-gray-900">
+                {selectedSession.dateCreated?.toDate ? selectedSession.dateCreated.toDate().toLocaleString() : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-500">Performed By</p>
+              <p class="text-sm text-gray-900">
+                {selectedSession.performedBy?.firstName || ''} {selectedSession.performedBy?.lastName || ''}
+              </p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-500">Total Amount</p>
+              <p class="text-sm text-gray-900 font-semibold">
+                ${selectedSession.payments?.reduce((total: number, payment: any) => total + (payment.amount || 0), 0).toFixed(2) || '0.00'}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            {#if selectedSession.payments && selectedSession.payments.length > 0}
+              <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment ID</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Mode</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                      <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Processed</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    {#each selectedSession.payments as payment}
+                      <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <a
+                            href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={payment.orderId}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                          >
+                            {payment.orderId || 'N/A'}
+                          </a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <a
+                            href="https://www.rapidsupplies.com.au/_cpanel/orderpayment/view?id={payment.paymentId}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                          >
+                            {payment.paymentId || 'N/A'}
+                          </a>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {payment.paymentMode === 'Credit Payment' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}">
+                            {payment.paymentMode || 'N/A'}
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-semibold">
+                          ${(payment.amount || 0).toFixed(2)}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {payment.dateProcessed ? new Date(payment.dateProcessed).toLocaleString() : 'N/A'}
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+            {:else}
+              <div class="text-center py-8">
+                <p class="text-sm text-gray-500">No payment details available for this session.</p>
+              </div>
+            {/if}
+          </div>
+          
+          <div class="flex justify-end mt-6">
+            <button
+              type="button"
+              class="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              on:click={closePaymentDetailsModal}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   {/if}
 

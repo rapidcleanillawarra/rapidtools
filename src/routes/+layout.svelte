@@ -26,7 +26,11 @@
 	$: isProtectedRoute = $page.url.pathname.startsWith(base + '/product-request') ||
 						 $page.url.pathname.startsWith(base + '/dashboard') ||
 						 $page.url.pathname.startsWith(base + '/edit-profile') ||
-						 $page.url.pathname.startsWith(base + '/apply-payments');
+						 $page.url.pathname.startsWith(base + '/apply-payments') ||
+						 $page.url.pathname.startsWith(base + '/customer-group-invoices') ||
+						 $page.url.pathname.startsWith(base + '/customer-groups') ||
+						 $page.url.pathname.startsWith(base + '/batch-payments') ||
+						 $page.url.pathname.startsWith(base + '/gross-profit-calculator');
 
 	$: if (mounted && browser && !loading && !user && isProtectedRoute) {
 		goto(base + '/');

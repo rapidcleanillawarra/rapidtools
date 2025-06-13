@@ -88,7 +88,7 @@
       console.log('Order API Response:', JSON.stringify(data, null, 2));
 
       // Extract unique usernames
-      const uniqueUsernames = [...new Set(data.Order.map(order => order.Username))];
+      const uniqueUsernames = [...new Set(data.Order.map((order: any) => order.Username))];
       console.log('Unique Usernames:', uniqueUsernames);
 
       return {
@@ -170,7 +170,7 @@
     payments.forEach(payment => {
       if (payment.paymentMode === 'Credit Payment') {
         const username = invoiceToUsername.get(payment.reference);
-        if (username) {
+        if (username && typeof username === 'string') {
           const currentTotal = usernameTotalPayments.get(username) || 0;
           usernameTotalPayments.set(username, currentTotal + payment.amount);
         }
@@ -212,9 +212,13 @@
           };
         }
 
-        const { availableCredit, creditLimit, onCreditHold } = creditDetails;
+        const { availableCredit, creditLimit, onCreditHold } = creditDetails as {
+          availableCredit: number;
+          creditLimit: number;
+          onCreditHold: boolean;
+        };
         const totalCredit = availableCredit + creditLimit;
-        const totalCustomerPayments = usernameTotalPayments.get(username) || 0;
+        const totalCustomerPayments = usernameTotalPayments.get(username as string) || 0;
 
         console.log(`
           Customer: ${username}

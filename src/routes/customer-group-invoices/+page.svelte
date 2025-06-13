@@ -44,6 +44,8 @@
     getTotalPages, 
     getCurrentPageItems 
   } from './utils/table';
+  import { writable } from 'svelte/store';
+  import { DateTime } from 'luxon';
 
   export let data: { invoices: CustomerGroupInvoice[] };
 
@@ -53,6 +55,12 @@
     { value: 'PartiallyPaid', label: 'Partial Paid' },
     { value: 'FullyPaid', label: 'Fully Paid' }
   ];
+
+  // Modal visibility store
+  const isModalOpen = writable(false);
+  let modalInvoice: CustomerGroupInvoice | null = null;
+  let defaultAmount = 0;
+  let defaultPaymentDate = '';
 
   // Initialize invoices and customer groups only on mount
   onMount(async () => {
@@ -442,6 +450,23 @@
     // Reset to first page when searching
     currentPage.set(1);
   }
+
+  // Function to open modal with invoice data
+  function openModal(invoice: CustomerGroupInvoice) {
+    modalInvoice = invoice;
+    isModalOpen.set(true);
+
+    // Set default values
+    const sydneyTime = DateTime.now().setZone('Australia/Sydney');
+    defaultPaymentDate = sydneyTime.toFormat("yyyy-MM-dd'T'HH:mm");
+    defaultAmount = invoice.balance;
+  }
+
+  // Function to close modal
+  function closeModal() {
+    isModalOpen.set(false);
+    modalInvoice = null;
+  }
 </script>
 
 <SvelteToast options={{ 
@@ -719,6 +744,9 @@
                   />
                 </div>
               </th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
@@ -755,6 +783,9 @@
                     <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${invoice.statusColor}`}>
                       {invoice.status}
                     </span>
+                  </td>
+                  <td class="px-2 py-1 text-sm">
+                    <button class="bg-green-600 text-white hover:bg-green-700 py-1 px-3 rounded" on:click={() => openModal(invoice)}>Apply Payment</button>
                   </td>
                 </tr>
               {/each}
@@ -819,6 +850,57 @@
   </div>
 </div>
 
+{#if $isModalOpen && modalInvoice}
+  <div class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Apply Payment</h3>
+      <div class="space-y-2">
+        <div class="flex justify-between">
+          <span class="font-semibold text-gray-700">Order ID:</span>
+          <span class="text-gray-900">{modalInvoice.invoiceNumber}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold text-gray-700">Total Invoice:</span>
+          <span class="text-gray-900">{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(modalInvoice.totalAmount)}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold text-gray-700">Balance:</span>
+          <span class="text-gray-900">{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(modalInvoice.balance)}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold text-gray-700">Username:</span>
+          <span class="text-gray-900">{modalInvoice.username}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold text-gray-700">Company:</span>
+          <span class="text-gray-900">{modalInvoice.company}</span>
+        </div>
+      </div>
+      <div class="mt-4 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Payment Mode</label>
+          <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+            <option value="POS Card">POS Card</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Amount</label>
+          <input id="amount" type="number" step="0.01" bind:value={defaultAmount} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Payment Date</label>
+          <input id="payment-date" type="datetime-local" bind:value={defaultPaymentDate} class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Payment Notes</label>
+          <textarea class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" rows="3"></textarea>
+        </div>
+      </div>
+      <button class="mt-6 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 w-full" on:click={closeModal}>Close</button>
+    </div>
+  </div>
+{/if}
+
 <style>
   @media print {
     /* Hide elements that shouldn't be printed */
@@ -848,5 +930,9 @@
     * {
       color: black !important;
     }
+  }
+
+  tbody tr:hover {
+    background-color: #f0f0f0; /* Light gray background on hover */
   }
 </style> 

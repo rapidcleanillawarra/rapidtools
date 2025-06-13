@@ -44,10 +44,47 @@
   let isModalOpen = false;
   let isPaymentDetailsModalOpen = false;
   let selectedSession: PaymentSession | null = null;
+  let paymentDate: string = '';
+
+  // Fetch payment sessions for the logged-in user
+  const fetchUserSessions = async () => {
+    if (user) {
+      try {
+        console.log('Fetching payment sessions for user:', user.uid);
+        const q = query(
+          collection(db, 'payment_sessions'),
+          where('userId', '==', user.uid), // or use 'userEmail' if you prefer
+          limit(5) // Limit the query to 5 documents
+        );
+
+        const querySnapshot = await getDocs(q);
+        userSessions = querySnapshot.docs.map(doc => doc.data() as PaymentSession);
+
+        // Sort by most recent first (dateCreated descending)
+        userSessions = userSessions.sort((a, b) => {
+          const dateA = a.dateCreated?.toDate ? a.dateCreated.toDate() : new Date(0);
+          const dateB = b.dateCreated?.toDate ? b.dateCreated.toDate() : new Date(0);
+          return dateB.getTime() - dateA.getTime();
+        });
+
+        console.log('User Payment Sessions:', userSessions);
+
+        // You can now use `userSessions` to update your UI
+      } catch (error) {
+        console.error('Error fetching user payment sessions:', error);
+      }
+    } else {
+      console.log('User not available yet, skipping fetchUserSessions');
+    }
+  };
 
   // Subscribe to user and profile changes
   const unsubUser = currentUser.subscribe(value => {
     user = value;
+    // Fetch sessions when user becomes available
+    if (user) {
+      fetchUserSessions();
+    }
   });
 
   const unsubProfile = userProfile.subscribe(value => {
@@ -60,30 +97,6 @@
       unsubUser();
       unsubProfile();
     };
-
-    // Fetch payment sessions for the logged-in user
-    const fetchUserSessions = async () => {
-      if (user) {
-        try {
-          const q = query(
-            collection(db, 'payment_sessions'),
-            where('userId', '==', user.uid), // or use 'userEmail' if you prefer
-            limit(5) // Limit the query to 5 documents
-          );
-
-          const querySnapshot = await getDocs(q);
-          userSessions = querySnapshot.docs.map(doc => doc.data() as PaymentSession);
-
-          console.log('User Payment Sessions:', userSessions);
-
-          // You can now use `userSessions` to update your UI
-        } catch (error) {
-          console.error('Error fetching user payment sessions:', error);
-        }
-      }
-    };
-
-    fetchUserSessions();
 
     return cleanup;
   });
@@ -373,6 +386,15 @@
   async function handleSubmit() {
     console.log('=== Submit All Payments button clicked ===');
     
+    if (!paymentDate) {
+      notification = {
+        show: true,
+        message: 'Please select a payment date before submitting.',
+        type: 'error'
+      };
+      return;
+    }
+
     isLoading = true;
     let creditResult = null;
     let directDepositResult = null;
@@ -412,7 +434,7 @@
           "Payment": creditPayments.map(payment => ({
             "OrderID": payment.reference,
             "AmountPaid": parseFloat(payment.amount.toString()),
-            "DatePaid": new Date().toISOString().split('T')[0],
+            "DatePaid": paymentDate,
             "IsCreditPayment": true,
             "TransactionNotes": {
               "TransactionNote": [
@@ -458,9 +480,9 @@
           "Payment": directDepositPayments.map(payment => ({
             "OrderID": payment.reference,
             "PaymentMethodName": "Direct Deposit",
-            "CardAuthorisation": "API",
+            "CardAuthorisation": Math.floor(Math.random() * 1000000000).toString(),
             "AmountPaid": parseFloat(payment.amount.toString()),
-            "DatePaid": new Date().toISOString().split('T')[0],
+            "DatePaid": paymentDate,
             "IsCreditPayment": false,
             "TransactionNotes": {
               "TransactionNote": [
@@ -599,7 +621,16 @@
 
 <div class="container mx-auto px-4 py-8" in:fade>
   <div class="flex justify-between items-center mb-6">
-    <h1 class="text-2xl font-bold">Batch Payments</h1>
+    <div class="flex items-center space-x-4">
+      <label for="payment-date" class="text-sm font-medium text-gray-700">Payment Date:</label>
+      <input
+        type="date"
+        id="payment-date"
+        class="border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+        required
+        bind:value={paymentDate}
+      />
+    </div>
     <div class="flex space-x-4">
       <button
         type="button"

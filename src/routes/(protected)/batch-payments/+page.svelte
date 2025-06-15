@@ -7,7 +7,7 @@
   import { db } from '$lib/firebase';
   import { collection, addDoc, serverTimestamp, query, where, limit, getDocs } from 'firebase/firestore';
 
-  const ORDER_API_ENDPOINT = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+  const GENERAL_API_ENDPOINT = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
   interface BatchPayment {
     reference: string;
@@ -15,6 +15,7 @@
     paymentMode: 'Direct Deposit' | 'Credit Payment';
     isOverCredit?: boolean;
     creditError?: string;
+    balance?: number;
   }
 
   interface PaymentSession {
@@ -107,7 +108,8 @@
       amount: 0,
       paymentMode: 'Direct Deposit',
       isOverCredit: false,
-      creditError: ''
+      creditError: '',
+      balance: 0
     };
   }
 
@@ -126,6 +128,8 @@
           "OrderID": invoiceIds,
           "OutputSelector": [
             "Username",
+            "GrandTotal",
+            "OrderPayment",
             "ID"
           ]
         },
@@ -134,7 +138,7 @@
 
       console.log('Order API Payload:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(ORDER_API_ENDPOINT, {
+      const response = await fetch(GENERAL_API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -181,7 +185,7 @@
 
       console.log('Customer API Payload:', JSON.stringify(payload, null, 2));
 
-      const response = await fetch(ORDER_API_ENDPOINT, {
+      const response = await fetch(GENERAL_API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -313,6 +317,12 @@
         throw new Error('User information not available');
       }
 
+      console.log('=== savePaymentSession Debug Info ===');
+      console.log('creditResult:', creditResult);
+      console.log('directDepositResult:', directDepositResult);
+      console.log('creditPayments:', creditPayments);
+      console.log('directDepositPayments:', directDepositPayments);
+
       // Create payment records from results
       const paymentRecords = [];
 
@@ -331,19 +341,38 @@
       }
 
       // Add direct deposit payments if any
-      if (directDepositResult?.Payment && Array.isArray(directDepositResult.Payment)) {
-        directDepositResult.Payment.forEach((payment: any, index: number) => {
-          if (payment.OrderID && payment.PaymentID && directDepositPayments[index]) {
+      if (directDepositResult?.Payment && directDepositPayments.length > 0) {
+        // Handle both single object and array responses
+        if (Array.isArray(directDepositResult.Payment)) {
+          // Multiple payments (array)
+          directDepositResult.Payment.forEach((payment: any, index: number) => {
+            if (payment.OrderID && payment.PaymentID && directDepositPayments[index]) {
+              paymentRecords.push({
+                orderId: payment.OrderID,
+                paymentId: payment.PaymentID,
+                paymentMode: 'Direct Deposit',
+                amount: Number(directDepositPayments[index].amount) || 0,
+                dateProcessed: directDepositResult.CurrentTime || new Date().toISOString()
+              });
+            }
+          });
+        } else {
+          // Single payment (object)
+          const payment = directDepositResult.Payment;
+          if (payment.OrderID && payment.PaymentID && directDepositPayments[0]) {
             paymentRecords.push({
               orderId: payment.OrderID,
               paymentId: payment.PaymentID,
               paymentMode: 'Direct Deposit',
-              amount: Number(directDepositPayments[index].amount) || 0,
+              amount: Number(directDepositPayments[0].amount) || 0,
               dateProcessed: directDepositResult.CurrentTime || new Date().toISOString()
             });
           }
-        });
+        }
       }
+
+      console.log('=== Payment Records Created ===');
+      console.log('paymentRecords:', paymentRecords);
 
       // Validate that we have payment records
       if (paymentRecords.length === 0) {
@@ -457,7 +486,7 @@
 
         // Submit credit payments
         console.log('Submitting credit payments...');
-        const creditResponse = await fetch(ORDER_API_ENDPOINT, {
+        const creditResponse = await fetch(GENERAL_API_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -505,7 +534,7 @@
 
         // Submit direct deposit payments
         console.log('Submitting direct deposit payments...');
-        const directDepositResponse = await fetch(ORDER_API_ENDPOINT, {
+        const directDepositResponse = await fetch(GENERAL_API_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -526,9 +555,24 @@
       const sessionId = await savePaymentSession(creditResult, directDepositResult, creditPayments, directDepositPayments);
       console.log('Payment session saved with ID:', sessionId);
 
+      // Refresh transaction history to show the new payment session
+      await fetchUserSessions();
+      console.log('Transaction history refreshed after successful payment submission');
+
+      // Calculate total amount for the notification
+      const totalAmount = [...creditPayments, ...directDepositPayments].reduce((sum, payment) => sum + (payment.amount || 0), 0);
+      const totalPayments = creditPayments.length + directDepositPayments.length;
+
       notification = {
         show: true,
-        message: `Successfully processed ${creditPayments.length} credit payment(s) and ${directDepositPayments.length} direct deposit(s)`,
+        message: `✅ Successfully processed ${creditPayments.length} credit payment(s) and ${directDepositPayments.length} direct deposit(s)
+        
+📊 Transaction Summary:
+• Session ID: ${sessionId}
+• Total Payments: ${totalPayments}
+• Total Amount: $${totalAmount.toFixed(2)}
+• Processed by: ${profile.firstName} ${profile.lastName}
+• Date: ${new Date().toLocaleDateString()}`,
         type: 'success'
       };
     } catch (error) {
@@ -543,7 +587,7 @@
     }
   }
 
-  function handlePaste(event: ClipboardEvent, index: number, field: 'reference' | 'amount') {
+  async function handlePaste(event: ClipboardEvent, index: number, field: 'reference' | 'amount') {
     event.preventDefault();
     
     const clipboardData = event.clipboardData?.getData('text') || '';
@@ -591,6 +635,76 @@
 
     // Update the payments array to trigger reactivity
     payments = [...payments];
+
+    // Fetch order details and calculate balances after pasting
+    await fetchAndCalculateBalances();
+  }
+
+  async function fetchAndCalculateBalances() {
+    try {
+      // Get all invoice IDs that have been entered
+      const invoiceIds = payments
+        .map(payment => payment.reference)
+        .filter(ref => ref && ref.trim() !== '');
+
+      if (invoiceIds.length === 0) return;
+
+      console.log('Fetching order details for invoice IDs:', invoiceIds);
+
+      // Fetch order details
+      const orderResponse = await fetchOrderDetails(invoiceIds);
+      console.log('Order response received:', orderResponse);
+      
+      if (orderResponse?.rawResponse?.Order) {
+        // Create a map of invoice ID to balance calculation
+        const balanceMap = new Map<string, number>();
+
+        orderResponse.rawResponse.Order.forEach((order: any) => {
+          const grandTotal = parseFloat(order.GrandTotal) || 0;
+          const orderPayments = order.OrderPayment || [];
+          
+          // Calculate total payments made
+          const totalPayments = orderPayments.reduce((sum: number, payment: any) => {
+            return sum + (parseFloat(payment.Amount) || 0);
+          }, 0);
+
+          // Calculate balance (GrandTotal - TotalPayments)
+          const balance = grandTotal - totalPayments;
+          
+          balanceMap.set(order.ID, balance);
+          
+          console.log(`Order ${order.ID}: GrandTotal=${grandTotal}, TotalPayments=${totalPayments}, Balance=${balance}`);
+        });
+
+        console.log('Balance map created:', Object.fromEntries(balanceMap));
+
+        // Update payments with calculated balances
+        const updatedPayments = payments.map(payment => {
+          if (payment.reference && balanceMap.has(payment.reference)) {
+            const newBalance = balanceMap.get(payment.reference) || 0;
+            console.log(`Updating payment ${payment.reference} with balance: ${newBalance}`);
+            return {
+              ...payment,
+              balance: newBalance
+            };
+          }
+          return payment;
+        });
+
+        // Force reactivity update
+        payments = [...updatedPayments];
+        console.log('Payments array updated:', payments);
+      } else {
+        console.log('No order data found in response');
+      }
+    } catch (error) {
+      console.error('Error fetching order details and calculating balances:', error);
+      notification = {
+        show: true,
+        message: 'Failed to fetch order details and calculate balances',
+        type: 'error'
+      };
+    }
   }
 
   function applyPaymentModeToAll() {
@@ -862,7 +976,7 @@
       <tr>
         <th class="py-2 w-1/3">Invoice ID</th>
         <th class="py-2 w-1/3">Payment</th>
-        <th class="py-2 w-1/3">
+        <th class="py-2 w-1/6">
           <div class="flex items-center justify-between px-2">
             <span>Payment Mode</span>
             <button
@@ -874,6 +988,7 @@
             </button>
           </div>
         </th>
+        <th class="py-2 w-1/2">Balance</th>
         <th class="py-2 w-1/6">Action</th>
       </tr>
     </thead>
@@ -906,11 +1021,26 @@
           <td class="border px-4 py-2">
             <select
               bind:value={payment.paymentMode}
-              class="w-full border-none focus:ring-0 bg-transparent"
+              class="w-full border-none focus:ring-0 bg-transparent text-xs"
             >
               <option value="Direct Deposit">Direct Deposit</option>
               <option value="Credit Payment">Credit Payment</option>
             </select>
+          </td>
+          <td class="border px-4 py-2" class:bg-green-100={(payment.balance || 0) - (payment.amount || 0) <= 0} class:bg-red-100={(payment.balance || 0) - (payment.amount || 0) > 0}>
+            <input
+              type="number"
+              bind:value={payment.balance}
+              class="w-full border-none focus:ring-0 bg-transparent"
+              min="0"
+              step="0.01"
+              placeholder="Balance: {payment.balance || 0}"
+              readonly
+            />
+            <!-- Debug display with color coding -->
+            <div class="text-xs mt-1" class:text-green-600={(payment.balance || 0) - (payment.amount || 0) <= 0} class:text-red-600={(payment.balance || 0) - (payment.amount || 0) > 0}>
+              Balance: ${(payment.balance || 0).toFixed(2)} | Remaining: ${((payment.balance || 0) - (payment.amount || 0)).toFixed(2)}
+            </div>
           </td>
           <td class="border px-4 py-2">
             <button

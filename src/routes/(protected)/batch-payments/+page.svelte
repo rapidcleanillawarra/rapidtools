@@ -5,7 +5,7 @@
   import { currentUser } from '$lib/firebase';
   import { userProfile, type UserProfile } from '$lib/userProfile';
   import { db } from '$lib/firebase';
-  import { collection, addDoc, serverTimestamp, query, where, limit, getDocs } from 'firebase/firestore';
+  import { collection, addDoc, serverTimestamp, query, where, limit, getDocs, orderBy } from 'firebase/firestore';
 
   const GENERAL_API_ENDPOINT = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
@@ -47,28 +47,65 @@
   let selectedSession: PaymentSession | null = null;
   let paymentDate: string = '';
 
+  // Reactive totals calculations
+  $: totalBalance = payments.reduce((sum, payment) => sum + (payment.balance || 0), 0);
+  $: totalPayments = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
   // Fetch payment sessions for the logged-in user
   const fetchUserSessions = async () => {
     if (user) {
       try {
-        console.log('Fetching payment sessions for user:', user.uid);
+        console.log('=== FETCHING PAYMENT SESSIONS ===');
+        console.log('User UID:', user.uid);
+        console.log('User Email:', user.email);
+        
         const q = query(
           collection(db, 'payment_sessions'),
-          where('userId', '==', user.uid), // or use 'userEmail' if you prefer
-          limit(5) // Limit the query to 5 documents
+          where('userId', '==', user.uid),
+          orderBy('dateCreated', 'desc'), // Order by most recent first
+          limit(5) // Limit to 5 most recent sessions
         );
 
+        console.log('Executing Firestore query...');
         const querySnapshot = await getDocs(q);
-        userSessions = querySnapshot.docs.map(doc => doc.data() as PaymentSession);
+        console.log('Query completed. Documents found:', querySnapshot.docs.length);
 
-        // Sort by most recent first (dateCreated descending)
-        userSessions = userSessions.sort((a, b) => {
-          const dateA = a.dateCreated?.toDate ? a.dateCreated.toDate() : new Date(0);
-          const dateB = b.dateCreated?.toDate ? b.dateCreated.toDate() : new Date(0);
-          return dateB.getTime() - dateA.getTime();
+        const allSessions = querySnapshot.docs.map((doc, index) => {
+          const data = doc.data() as PaymentSession;
+          console.log(`=== SESSION ${index + 1} ===`);
+          console.log('Document ID:', doc.id);
+          console.log('Session ID:', data.sessionId);
+          console.log('User ID:', data.userId);
+          console.log('Date Created:', data.dateCreated);
+          console.log('Payments Count:', data.payments?.length || 0);
+          console.log('Full Data:', JSON.stringify(data, null, 2));
+          return data;
         });
 
-        console.log('User Payment Sessions:', userSessions);
+        console.log('=== FILTERING SESSIONS ===');
+        // Filter out sessions with empty or invalid payments array
+        userSessions = allSessions.filter((session, index) => {
+          const hasValidPayments = session.payments && Array.isArray(session.payments) && session.payments.length > 0;
+          console.log(`Session ${index + 1} (${session.sessionId}): Valid payments = ${hasValidPayments}`);
+          if (!hasValidPayments) {
+            console.warn('❌ Filtering out session with empty/invalid payments:', session.sessionId, session.payments);
+          } else {
+            console.log('✅ Session has valid payments:', session.sessionId, session.payments.length);
+          }
+          return hasValidPayments;
+        });
+
+        console.log('=== SESSIONS ALREADY SORTED BY FIRESTORE ===');
+        // Sessions are already sorted by Firestore using orderBy('dateCreated', 'desc')
+
+        console.log('=== FINAL RESULTS ===');
+        console.log('Total sessions found:', allSessions.length);
+        console.log('Valid sessions with payments:', userSessions.length);
+        console.log('Final sorted sessions:', userSessions.map(s => ({
+          sessionId: s.sessionId,
+          dateCreated: s.dateCreated?.toDate ? s.dateCreated.toDate().toISOString() : 'Invalid date',
+          paymentsCount: s.payments?.length || 0
+        })));
 
         // You can now use `userSessions` to update your UI
       } catch (error) {
@@ -82,10 +119,7 @@
   // Subscribe to user and profile changes
   const unsubUser = currentUser.subscribe(value => {
     user = value;
-    // Fetch sessions when user becomes available
-    if (user) {
-      fetchUserSessions();
-    }
+    // Don't fetch sessions on page load - only when modal is opened
   });
 
   const unsubProfile = userProfile.subscribe(value => {
@@ -328,15 +362,32 @@
 
       // Add credit payments if any
       if (creditResult?.Payment && creditPayments.length > 0) {
-        // Handle single credit payment
-        if (creditResult.Payment.OrderID && creditResult.Payment.PaymentID) {
-          paymentRecords.push({
-            orderId: creditResult.Payment.OrderID,
-            paymentId: creditResult.Payment.PaymentID,
-            paymentMode: 'Credit Payment',
-            amount: Number(creditPayments[0].amount) || 0,
-            dateProcessed: creditResult.CurrentTime || new Date().toISOString()
+        // Handle both single object and array responses for credit payments
+        if (Array.isArray(creditResult.Payment)) {
+          // Multiple credit payments (array)
+          creditResult.Payment.forEach((payment: any, index: number) => {
+            if (payment.OrderID && payment.PaymentID && creditPayments[index]) {
+              paymentRecords.push({
+                orderId: payment.OrderID,
+                paymentId: payment.PaymentID,
+                paymentMode: 'Credit Payment',
+                amount: Number(creditPayments[index].amount) || 0,
+                dateProcessed: creditResult.CurrentTime || new Date().toISOString()
+              });
+            }
           });
+        } else {
+          // Single credit payment (object)
+          const payment = creditResult.Payment;
+          if (payment.OrderID && payment.PaymentID && creditPayments[0]) {
+            paymentRecords.push({
+              orderId: payment.OrderID,
+              paymentId: payment.PaymentID,
+              paymentMode: 'Credit Payment',
+              amount: Number(creditPayments[0].amount) || 0,
+              dateProcessed: creditResult.CurrentTime || new Date().toISOString()
+            });
+          }
         }
       }
 
@@ -373,10 +424,27 @@
 
       console.log('=== Payment Records Created ===');
       console.log('paymentRecords:', paymentRecords);
+      console.log('creditResult:', creditResult);
+      console.log('directDepositResult:', directDepositResult);
 
       // Validate that we have payment records
       if (paymentRecords.length === 0) {
-        throw new Error('No valid payment records to save');
+        console.error('No payment records created!');
+        console.error('Credit payments attempted:', creditPayments.length);
+        console.error('Direct deposit payments attempted:', directDepositPayments.length);
+        console.error('Credit API response:', creditResult);
+        console.error('Direct deposit API response:', directDepositResult);
+        throw new Error('No valid payment records to save - check API responses');
+      }
+
+      // Additional validation: ensure all payment records have required fields
+      const invalidRecords = paymentRecords.filter(record => 
+        !record.orderId || !record.paymentId || !record.amount
+      );
+      
+      if (invalidRecords.length > 0) {
+        console.error('Invalid payment records found:', invalidRecords);
+        throw new Error(`${invalidRecords.length} payment records are missing required fields`);
       }
 
       // Create session document with validated data
@@ -717,9 +785,22 @@
     }
   }
 
-  function toggleModal() {
+  function applyBalanceToPayments() {
+    payments = payments.map(payment => ({
+      ...payment,
+      amount: payment.balance || 0
+    }));
+  }
+
+  async function toggleModal() {
     isModalOpen = !isModalOpen;
     console.log('Modal toggled:', isModalOpen);
+    
+    // Fetch fresh transaction history when opening the modal
+    if (isModalOpen && user) {
+      console.log('Fetching fresh transaction history...');
+      await fetchUserSessions();
+    }
   }
 
   function showPaymentDetails(session: PaymentSession) {
@@ -971,6 +1052,27 @@
     </div>
   {/if}
 
+  <!-- Totals Display -->
+  <div class="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+    <div class="flex justify-between items-center text-sm">
+      <div class="flex space-x-6">
+        <div>
+          <span class="font-medium text-gray-700">Total Balance:</span>
+          <span class="ml-2 font-semibold text-blue-600">${totalBalance.toFixed(2)}</span>
+        </div>
+        <div>
+          <span class="font-medium text-gray-700">Total Payments:</span>
+          <span class="ml-2 font-semibold text-green-600">${totalPayments.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500">
+        Difference: <span class="font-medium" class:text-red-600={totalBalance - totalPayments > 0} class:text-green-600={totalBalance - totalPayments <= 0}>
+          ${(totalBalance - totalPayments).toFixed(2)}
+        </span>
+      </div>
+    </div>
+  </div>
+
   <table class="min-w-full bg-white">
     <thead>
       <tr>
@@ -981,14 +1083,25 @@
             <span>Payment Mode</span>
             <button
               type="button"
-              class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded"
+              class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
               on:click={applyPaymentModeToAll}
             >
               Apply to All
             </button>
           </div>
         </th>
-        <th class="py-2 w-1/2">Balance</th>
+        <th class="py-2 w-1/2">
+          <div class="flex items-center justify-between px-2">
+            <span>Balance</span>
+            <button
+              type="button"
+              class="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded"
+              on:click={applyBalanceToPayments}
+            >
+              Apply to Payments
+            </button>
+          </div>
+        </th>
         <th class="py-2 w-1/6">Action</th>
       </tr>
     </thead>

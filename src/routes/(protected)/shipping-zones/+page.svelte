@@ -80,7 +80,7 @@
           </div>
           <div class="ml-1 space-y-1">
             <p class="text-gray-700">Free delivery over $150</p>
-            <p class="text-gray-700">Flat $20 delivery under $150</p>
+            <p class="text-gray-700">Flat $30 delivery under $150</p>
           </div>
         </div>
 
@@ -94,7 +94,7 @@
           </div>
           <div class="ml-1 space-y-1">
             <p class="text-gray-700">Free delivery over $200</p>
-            <p class="text-gray-700">Flat $30 delivery under $150</p>
+            <p class="text-gray-700">Flat $50 delivery under $200</p>
           </div>
         </div>
       </div>

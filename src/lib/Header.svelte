@@ -10,6 +10,7 @@
   let productsOpen = false;
   let ordersOpen = false;
   let userDropdownOpen = false;
+  let shippingOpen = false;
 
   // Subscribe to the currentUser store
   let user: import('firebase/auth').User | null = null;
@@ -44,6 +45,7 @@
   // For mobile dropdowns
   let mobileProductsOpen = false;
   let mobileOrdersOpen = false;
+  let mobileShippingOpen = false;
 
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -55,6 +57,9 @@
     }
     if (!target.closest('.user-dropdown') && userDropdownOpen) {
       userDropdownOpen = false;
+    }
+    if (!target.closest('.shipping-dropdown') && shippingOpen) {
+      shippingOpen = false;
     }
   }
 
@@ -75,7 +80,9 @@
       ordersOpen = false;
       mobileProductsOpen = false;
       mobileOrdersOpen = false;
+      mobileShippingOpen = false;
       userDropdownOpen = false;
+      shippingOpen = false;
     };
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
@@ -201,6 +208,45 @@
                     on:click={() => ordersOpen = false}
                     data-sveltekit-preload-data="off"
                   >Batch Payments</a>
+                </div>
+              </div>
+            {/if}
+          </div>
+          <!-- Shipping Dropdown -->
+          <div class="relative shipping-dropdown">
+            <button 
+              type="button" 
+              class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" 
+              on:click|stopPropagation={() => {
+                shippingOpen = !shippingOpen;
+                if (shippingOpen) {
+                  productsOpen = false;
+                  ordersOpen = false;
+                }
+              }}
+            >
+              Shipping
+              <svg 
+                class="w-4 h-4 ml-1 transform transition-transform duration-200" 
+                class:rotate-180={shippingOpen}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            {#if shippingOpen}
+              <div 
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                transition:fade
+              >
+                <div class="py-1.5">
+                  <a 
+                    href="{base}/shipping-zones" 
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => shippingOpen = false}
+                  >Shipping Zones</a>
                 </div>
               </div>
             {/if}
@@ -331,6 +377,20 @@
               on:click={() => mobileOrdersOpen = false}
               data-sveltekit-preload-data="off"
             >Batch Payments</a>
+          </div>
+        {/if}
+        <!-- Mobile Shipping Dropdown -->
+        <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileShippingOpen = !mobileShippingOpen}>
+          <span>Shipping</span>
+          <svg class="w-4 h-4 ml-1 transform transition-transform duration-200" class:rotate-180={mobileShippingOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        {#if mobileShippingOpen}
+          <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
+            <a 
+              href="{base}/shipping-zones" 
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileShippingOpen = false}
+            >Shipping Zones</a>
           </div>
         {/if}
         <!-- Mobile User Profile -->

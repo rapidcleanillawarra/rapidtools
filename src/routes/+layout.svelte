@@ -30,7 +30,8 @@
 						 $page.url.pathname.startsWith(base + '/customer-group-invoices') ||
 						 $page.url.pathname.startsWith(base + '/customer-groups') ||
 						 $page.url.pathname.startsWith(base + '/batch-payments') ||
-						 $page.url.pathname.startsWith(base + '/gross-profit-calculator');
+						 $page.url.pathname.startsWith(base + '/gross-profit-calculator') ||
+						 $page.url.pathname.startsWith(base + '/shipping-zones');
 
 	$: if (mounted && browser && !loading && !user && isProtectedRoute) {
 		goto(base + '/');

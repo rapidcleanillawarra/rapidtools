@@ -238,7 +238,7 @@
     }).format(amount);
   }
   
-  // Helper function to display value comparison
+    // Helper function to display value comparison
   function displayComparison(currentValue: any, previousValue: any, formatter?: (val: any) => string, skipComparison = false): string {
     if (!previousValue || skipComparison) {
       return formatter ? formatter(currentValue) : currentValue;
@@ -300,6 +300,24 @@
       minute: '2-digit',
       hour12: false
     });
+  }
+  
+  // Helper function to render order status with separate colors for comparison
+  function renderOrderStatus(currentStatus: string, previousStatus?: string): { html: string, hasComparison: boolean } {
+    const current = formatText(currentStatus);
+    
+    if (!previousStatus || currentStatus === previousStatus) {
+      return {
+        html: current,
+        hasComparison: false
+      };
+    }
+    
+    const previous = formatText(previousStatus);
+    return {
+      html: `${previous} > ${current}`,
+      hasComparison: true
+    };
   }
 </script>
 
@@ -471,9 +489,20 @@
                   </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
-                  <span class="px-2 py-1 rounded-full text-xs font-medium {getStatusColor(current.order_status)}">
-                    {displayComparison(formatText(current.order_status), previous?.order_status ? formatText(previous.order_status) : null)}
-                  </span>
+                  {#if renderOrderStatus(current.order_status, previous?.order_status).hasComparison}
+                    {@const parts = renderOrderStatus(current.order_status, previous?.order_status).html.split(' > ')}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium {getStatusColor(parts[0])}">
+                      {parts[0]}
+                    </span>
+                    <span class="mx-1">></span>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium {getStatusColor(parts[1])}">
+                      {parts[1]}
+                    </span>
+                  {:else}
+                    <span class="px-2 py-1 rounded-full text-xs font-medium {getStatusColor(current.order_status)}">
+                      {renderOrderStatus(current.order_status, previous?.order_status).html}
+                    </span>
+                  {/if}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" class:text-blue-600={hasChanged(current.notes, previous?.notes)} title={displayComparison(current.notes, previous?.notes)}>
                   {displayComparison(current.notes, previous?.notes)}
@@ -533,11 +562,11 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700">Maropost Total</label>
-              <p class="mt-1 text-sm text-gray-900">{displayComparison(modalEntry.maropost_total, modalEntry.xero_total, formatCurrency)}</p>
+              <p class="mt-1 text-sm text-gray-900">{formatCurrency(modalEntry.maropost_total)}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700">Xero Total</label>
-              <p class="mt-1 text-sm text-gray-900">{displayComparison(modalEntry.xero_total, modalEntry.maropost_total, formatCurrency)}</p>
+              <p class="mt-1 text-sm text-gray-900">{formatCurrency(modalEntry.xero_total)}</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700">Maropost Status</label>

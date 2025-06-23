@@ -110,7 +110,9 @@ export class GPPService {
       // 5. Fetch customer info if available
       const customerInfo = await this.fetchCustomerInfo(
         orderData.Order[0].Username,
-        orderData.Order[0].UserGroup
+        orderData.Order[0].UserGroup,
+        orderData.Order[0].DatePlaced,
+        orderData.Order[0].OrderStatus
       );
 
       return {
@@ -139,7 +141,12 @@ export class GPPService {
     return response.json();
   }
 
-  private async fetchCustomerInfo(username?: string, userGroup?: string): Promise<OrderInfo> {
+  private async fetchCustomerInfo(
+    username?: string,
+    userGroup?: string,
+    datePlaced?: string,
+    orderStatus?: string
+  ): Promise<OrderInfo> {
     if (!username) {
       return this.getDefaultOrderInfo();
     }
@@ -191,13 +198,26 @@ export class GPPService {
       const customerMapping = mappings.find(item => item.Group === customerUserGroup);
       const customerGroupName = customerMapping ? customerMapping.Group : customerUserGroup;
 
+      // Format the date in Sydney timezone with the desired format
+      const dateToFormat = datePlaced ? new Date(datePlaced) : new Date();
+      const sydneyDate = dateToFormat.toLocaleString('en-AU', {
+        timeZone: 'Australia/Sydney',
+        weekday: 'long',
+        month: 'long',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }).replace(/,/g, ''); // Remove commas for the desired format
+
       return {
         customerName: customerName || "N/A",
         customerId: customer.Username || "N/A",
         customerGroup: customerGroupName,
         orderUserGroup: orderGroupName,
-        orderDate: new Date().toISOString(),
-        orderStatus: "N/A",
+        orderDate: sydneyDate,
+        orderStatus: orderStatus || "N/A",
         isGroupMismatch: customerMapping?.GroupID !== userGroup
       };
     } catch (error) {

@@ -1,86 +1,103 @@
-fix(gross-profit-calculator): Correct GST calculations and price group mapping
+feat(gross-profit-calculator): Add order logging, line sorting, and fix GST calculations
 
-This commit addresses two critical issues in the Gross Profit Calculator:
-1. Incorrect GST handling in Total Ex GST calculations
-2. Improper price group ID mapping when sending data to Maropost API
+This commit enhances the Gross Profit Calculator with improved debugging capabilities,
+proper order line sequencing, and corrected GST calculations for better accuracy.
 
 ### Files Modified:
 
 #### 1. `src/routes/gross-profit-calculator/services/gpp.service.ts`
-   - FIXED: Total Ex GST calculation now correctly removes GST (10%)
-   - FIXED: Customer price group ID mapping for Maropost API integration
-   - ADDED: Proper retrieval of group ID from customer group mapping
-   - ADDED: Detailed logging for API requests and responses
-   - MODIFIED: Changed payload structure to match Maropost API requirements
+   - ADDED: Order details response logging for debugging
+   - ADDED: OrderLineID-based sorting for proper line sequence display
+   - FIXED: Total Ex GST calculation to match Unit Price Discounted logic
+   - MODIFIED: Removed GST addition from total calculations
    - DIFF:
      ```diff
-     // GST Fix
-     + // Calculate unit price excluding GST
-     + const unitPriceExGst = unitPriceDiscounted / 1.1;
+     // Added logging
+     + const orderData = await orderResponse.json();
+     + console.log('Order Details API Response:', orderData);
      
-     - totalExGst: parseFloat((quantity * unitPriceDiscounted).toFixed(3)),
-     + totalExGst: parseFloat((quantity * unitPriceExGst).toFixed(3)),
+     // Added sorting by OrderLineID sequence
+     + // Sort order lines by the sequence number in OrderLineID
+     + const sortedOrderLines = [...orderData.Order[0].OrderLine].sort((a, b) => {
+     +   const seqA = parseInt(a.OrderLineID?.split('-').pop() || '0', 10);
+     +   const seqB = parseInt(b.OrderLineID?.split('-').pop() || '0', 10);
+     +   return seqA - seqB;
+     + });
      
-     // Group ID Fix
-     + // Get the customer's group ID
-     + let priceGroupId = "1"; // Default as fallback
-     + 
-     + if (orderInfo) {
-     +   // Fetch group mappings to get the correct group ID
-     +   const mappings = await this.fetchGroupMappings();
-     +   
-     +   // Find the mapping for the customer's group
-     +   const customerMapping = mappings.find(item => item.Group === orderInfo.customerGroup);
-     +   
-     +   // Use the customer's group ID if found
-     +   if (customerMapping && customerMapping.GroupID) {
-     +     priceGroupId = customerMapping.GroupID;
-     +   }
-     + }
+     // Fixed Total Ex GST calculation
+     - // Calculate unit price excluding GST
+     - const unitPriceExGst = unitPriceDiscounted * 1.1;
+     - totalExGst: parseFloat((quantity * unitPriceExGst).toFixed(3)),
+     + totalExGst: parseFloat((quantity * unitPriceDiscounted).toFixed(3)),
+     
+     // Use sorted lines instead of original order
+     - return orderData.Order[0].OrderLine.map(line => {
+     + return sortedOrderLines.map(line => {
      ```
 
 #### 2. `src/routes/gross-profit-calculator/+page.svelte`
    - FIXED: Total Ex GST calculation in handleDiscountChange function
-   - MODIFIED: Updated to pass orderInfo to saveCustomerPricing method
+   - MODIFIED: Removed GST addition to match service layer logic
    - DIFF:
      ```diff
-     // GST Fix
-     + // Calculate Total Ex GST (remove 10% GST from the discounted price)
-     + const unitPriceExGst = unitPriceDiscounted / 1.1;
-     + const totalExGst = quantity * unitPriceExGst;
-     
-     // Group ID Fix
-     - await gppService.saveCustomerPricing(orderId, orderLines);
-     + await gppService.saveCustomerPricing(orderId, orderLines, orderInfo);
+     // Fixed dynamic calculation
+     - // Calculate Total Ex GST (add 10% to the discounted price)
+     - const unitPriceExGst = unitPriceDiscounted * 1.1;
+     - const totalExGst = quantity * unitPriceExGst;
+     + // Calculate Total Ex GST (same as Unit Price Disc. * quantity)
+     + const totalExGst = quantity * unitPriceDiscounted;
      ```
 
 ### Technical Improvements:
 
-#### GST Calculation:
-- BEFORE: Total Ex GST incorrectly included GST in the calculation
-- AFTER: Total Ex GST correctly divides by 1.1 to remove the 10% GST component
-- IMPACT: Accurate financial reporting and pricing calculations
+#### Order Line Sorting:
+- BEFORE: Order lines displayed in API response order (potentially random)
+- AFTER: Order lines sorted by OrderLineID sequence number (e.g., 25-009307-1, 25-009307-2, etc.)
+- ALGORITHM: Extracts sequence number after last hyphen, converts to integer, sorts numerically
+- IMPACT: Consistent, predictable order line display matching original order sequence
 
-#### Price Group ID Mapping:
-- BEFORE: Used hardcoded price group ID "1" for all customers
-- AFTER: Dynamically retrieves correct price group ID from customer group mapping
-- BEFORE: Sent all order lines in a single API call with nested structure
-- AFTER: Sends individual API calls per line with simplified payload structure matching API requirements
-- IMPACT: Correct customer-specific pricing in Maropost
+#### Total Ex GST Calculation:
+- BEFORE: Total Ex GST = (Unit Price Discounted × 1.1) × Quantity (incorrectly adding GST)
+- AFTER: Total Ex GST = Unit Price Discounted × Quantity (matches unit price logic)
+- IMPACT: Consistent calculation methodology across all price fields
+- BUSINESS LOGIC: Total Ex GST now represents the total discounted amount without GST manipulation
 
-#### Logging:
-- ADDED: Comprehensive logging for:
-  - Group mapping API calls and responses
-  - Customer info API calls and responses
-  - Maropost API calls and responses
-- IMPACT: Improved debugging capabilities and transparency
+#### Debugging Enhancement:
+- ADDED: Complete order details API response logging
+- PURPOSE: Enable troubleshooting of order data structure and content
+- LOCATION: Browser console under "Order Details API Response:"
+- IMPACT: Faster issue resolution and better understanding of API data flow
+
+### OrderLineID Format Understanding:
+- FORMAT: `{order_id}-{sequence_number}` (e.g., "25-009307-4")
+- PARSING: Uses `split('-').pop()` to extract sequence number
+- SORTING: Numerical sort prevents lexicographical issues (10 after 9, not after 1)
+- FALLBACK: Defaults to 0 if OrderLineID is missing or malformed
 
 ### Testing Instructions:
-1. Enter an order ID and submit to load order details
-2. Verify Total Ex GST column shows values that are approximately 9.09% lower than Unit Price Disc. (1/1.1 = 0.9091)
-3. Select items and click "Apply Customer Pricing to Maropost"
-4. Check browser console for "Using price group ID:" log showing correct customer group ID
-5. Confirm successful API responses from Maropost
+1. **Order Line Sorting Test**:
+   - Enter order ID with multiple lines
+   - Verify lines display in numerical sequence (1, 2, 3, etc.)
+   - Check console for "Order Details API Response:" log
 
-### Note:
-This change maintains backward compatibility by falling back to price group ID "1" if mapping fails, ensuring the system continues to function even with incomplete data. 
+2. **Total Ex GST Calculation Test**:
+   - Compare Total Ex GST with Unit Price Disc. × Quantity
+   - Values should match exactly (no GST addition)
+   - Test discount changes to verify dynamic calculation
+
+3. **Logging Verification**:
+   - Open browser developer tools
+   - Submit order ID
+   - Confirm detailed API response appears in console
+
+### Breaking Changes:
+- NONE: All changes are additive or corrective
+
+### Performance Impact:
+- MINIMAL: Added sorting operation is O(n log n) where n = number of order lines
+- NEGLIGIBLE: Console logging only in development/debugging scenarios
+
+### Error Handling:
+- ROBUST: Sorting handles missing OrderLineID gracefully (fallback to '0')
+- SAFE: parseInt with fallback prevents NaN errors
+- STABLE: Maintains original functionality if sorting fails

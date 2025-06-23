@@ -92,6 +92,7 @@ export class GPPService {
       }
 
       const orderData = await orderResponse.json();
+      console.log('Order Details API Response:', orderData);
       
       if (!orderData?.Order?.length) {
         throw new Error('No order data found');
@@ -222,6 +223,13 @@ export class GPPService {
       return [];
     }
 
+    // Sort order lines by the sequence number in OrderLineID
+    const sortedOrderLines = [...orderData.Order[0].OrderLine].sort((a, b) => {
+      const seqA = parseInt(a.OrderLineID?.split('-').pop() || '0', 10);
+      const seqB = parseInt(b.OrderLineID?.split('-').pop() || '0', 10);
+      return seqA - seqB;
+    });
+
     const pricingMap = new Map(
       pricingData.Item?.map(item => [item.SKU, {
         costPrice: parseFloat(item.DefaultPurchasePrice),
@@ -229,7 +237,7 @@ export class GPPService {
       }]) || []
     );
 
-    return orderData.Order[0].OrderLine.map(line => {
+    return sortedOrderLines.map(line => {
       const pricing = pricingMap.get(line.SKU || "") || { costPrice: 0, rrp: 0 };
       const unitPrice = parseFloat(line.UnitPrice || '0');
       const quantity = parseFloat(line.Quantity || '0');
@@ -246,9 +254,6 @@ export class GPPService {
         ? ((pricing.rrp - unitPriceDiscounted) / pricing.rrp) * 100
         : 0;
         
-      // Calculate unit price excluding GST
-      const unitPriceExGst = unitPriceDiscounted / 1.1;
-
       return {
         productName: line.ProductName || "N/A",
         sku: line.SKU || "N/A",
@@ -260,7 +265,7 @@ export class GPPService {
         accumulatedDiscount: parseFloat(accumulatedDiscount.toFixed(2)),
         unitPriceDiscounted: parseFloat(unitPriceDiscounted.toFixed(3)),
         gppExGst: parseFloat(gppExGst.toFixed(3)),
-        totalExGst: parseFloat((quantity * unitPriceExGst).toFixed(3)),
+        totalExGst: parseFloat((quantity * unitPriceDiscounted).toFixed(3)),
         saveDiscount: false,
         highlight: this.calculateHighlight(unitPrice, pricing.rrp / 1.1, gppExGst)
       };

@@ -82,9 +82,8 @@
       ? ((unitPriceDiscounted - costPrice) / unitPriceDiscounted) * 100
       : 0;
       
-    // Calculate Total Ex GST (remove 10% GST from the discounted price)
-    const unitPriceExGst = unitPriceDiscounted / 1.1;
-    const totalExGst = quantity * unitPriceExGst;
+    // Calculate Total Ex GST (same as Unit Price Disc. * quantity)
+    const totalExGst = quantity * unitPriceDiscounted;
     
     // Calculate accumulated discount if RRP is available
     const accumulatedDiscount = line.rrp > 0

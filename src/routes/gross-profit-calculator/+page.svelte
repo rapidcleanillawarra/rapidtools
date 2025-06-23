@@ -4,7 +4,7 @@
   import { GPPService } from './services/gpp.service';
   
   let orderId = '';
-  let orderInfo: OrderInfo | null = null;
+  let orderInfo: OrderInfo | undefined = undefined;
   let orderLines: OrderLine[] = [];
   let saveAllDiscounts = false;
   let loading = false;
@@ -81,11 +81,14 @@
     const gppExGst = unitPriceDiscounted > 0 
       ? ((unitPriceDiscounted - costPrice) / unitPriceDiscounted) * 100
       : 0;
-    const totalExGst = quantity * unitPriceDiscounted;
+      
+    // Calculate Total Ex GST (remove 10% GST from the discounted price)
+    const unitPriceExGst = unitPriceDiscounted / 1.1;
+    const totalExGst = quantity * unitPriceExGst;
     
     // Calculate accumulated discount if RRP is available
     const accumulatedDiscount = line.rrp > 0
-      ? ((line.rrp - (unitPriceDiscounted * 1.1)) / line.rrp) * 100
+      ? ((line.rrp - unitPriceDiscounted) / line.rrp) * 100
       : 0;
 
     // Update the line

@@ -243,8 +243,11 @@ export class GPPService {
 
       // Calculate accumulated discount based on RRP
       const accumulatedDiscount = pricing.rrp > 0
-        ? ((pricing.rrp - (unitPriceDiscounted * 1.1)) / pricing.rrp) * 100
+        ? ((pricing.rrp - unitPriceDiscounted) / pricing.rrp) * 100
         : 0;
+        
+      // Calculate unit price excluding GST
+      const unitPriceExGst = unitPriceDiscounted / 1.1;
 
       return {
         productName: line.ProductName || "N/A",
@@ -257,7 +260,7 @@ export class GPPService {
         accumulatedDiscount: parseFloat(accumulatedDiscount.toFixed(2)),
         unitPriceDiscounted: parseFloat(unitPriceDiscounted.toFixed(3)),
         gppExGst: parseFloat(gppExGst.toFixed(3)),
-        totalExGst: parseFloat((quantity * unitPriceDiscounted).toFixed(3)),
+        totalExGst: parseFloat((quantity * unitPriceExGst).toFixed(3)),
         saveDiscount: false,
         highlight: this.calculateHighlight(unitPrice, pricing.rrp / 1.1, gppExGst)
       };

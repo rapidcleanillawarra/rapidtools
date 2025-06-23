@@ -53,7 +53,7 @@
     success = null;
 
     try {
-      await gppService.saveCustomerPricing(orderId, orderLines);
+      await gppService.saveCustomerPricing(orderId, orderLines, orderInfo);
       success = 'Customer pricing applied successfully';
     } catch (e) {
       error = e instanceof Error ? e.message : 'An error occurred while applying customer pricing';

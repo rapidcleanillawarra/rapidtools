@@ -40,6 +40,11 @@ export class GPPService {
     }
 
     try {
+      console.log('Calling Group Mapping API:', {
+        endpoint: ENDPOINTS.GROUP_MAPPING,
+        payload: {}
+      });
+
       const response = await fetch(ENDPOINTS.GROUP_MAPPING, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -51,6 +56,12 @@ export class GPPService {
       }
 
       this.groupMappings = await response.json();
+      
+      console.log('Group Mapping API Response:', {
+        status: response.status,
+        data: this.groupMappings
+      });
+      
       return this.groupMappings;
     } catch (error) {
       console.error('Error fetching group mappings:', error);
@@ -133,14 +144,21 @@ export class GPPService {
     }
 
     try {
+      const payload = { 
+        username: [username],
+        userGroup: userGroup || "N/A"
+      };
+      
+      console.log('Calling Customer Info API:', {
+        endpoint: ENDPOINTS.CUSTOMER_INFO,
+        payload: payload
+      });
+      
       const [customerResponse, mappings] = await Promise.all([
         fetch(ENDPOINTS.CUSTOMER_INFO, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            username: [username],
-            userGroup: userGroup || "N/A"
-          })
+          body: JSON.stringify(payload)
         }),
         this.fetchGroupMappings()
       ]);
@@ -150,6 +168,11 @@ export class GPPService {
       }
 
       const data = await customerResponse.json();
+      
+      console.log('Customer Info API Response:', {
+        status: customerResponse.status,
+        data: data
+      });
       
       if (!data?.Customer?.length) {
         return this.getDefaultOrderInfo();
@@ -260,24 +283,59 @@ export class GPPService {
     return '';
   }
 
-  async saveCustomerPricing(orderId: string, orderLines: OrderLine[]): Promise<void> {
+  async saveCustomerPricing(orderId: string, orderLines: OrderLine[], orderInfo?: OrderInfo): Promise<void> {
     try {
-      const response = await fetch(ENDPOINTS.SAVE_MAROPOST, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          order_id: orderId,
-          lines: orderLines
-            .filter(line => line.saveDiscount)
-            .map(line => ({
-              sku: line.sku,
-              discount: line.percentDiscount
-            }))
-        })
-      });
+      // Get only the selected lines
+      const selectedLines = orderLines.filter(line => line.saveDiscount);
+      
+      // Get the customer's group ID
+      let priceGroupId = "1"; // Default as fallback
+      
+      if (orderInfo) {
+        // Fetch group mappings to get the correct group ID
+        const mappings = await this.fetchGroupMappings();
+        
+        // Find the mapping for the customer's group
+        const customerMapping = mappings.find(item => item.Group === orderInfo.customerGroup);
+        
+        // Use the customer's group ID if found
+        if (customerMapping && customerMapping.GroupID) {
+          priceGroupId = customerMapping.GroupID;
+        }
+      }
+      
+      console.log('Using price group ID:', priceGroupId);
+      
+      // For each selected line, make a separate API call
+      for (const line of selectedLines) {
+        const payload = {
+          sku: line.sku,
+          price_group_id: priceGroupId,
+          price: line.unitPriceDiscounted
+        };
+        
+        const response = await fetch(ENDPOINTS.SAVE_MAROPOST, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        
+        console.log('Submitted to Maropost:', {
+          endpoint: ENDPOINTS.SAVE_MAROPOST,
+          payload: payload
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to save customer pricing');
+        // Log the API response
+        const responseData = await response.clone().json().catch(() => 'No JSON response');
+        console.log('Maropost API Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: responseData
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to save customer pricing for SKU: ${line.sku}`);
+        }
       }
     } catch (error) {
       console.error('Error saving customer pricing:', error);

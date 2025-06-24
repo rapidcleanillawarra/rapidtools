@@ -285,7 +285,7 @@ export class GPPService {
         accumulatedDiscount: parseFloat(accumulatedDiscount.toFixed(2)),
         unitPriceDiscounted: parseFloat(unitPriceDiscounted.toFixed(3)),
         gppExGst: parseFloat(gppExGst.toFixed(3)),
-        totalExGst: parseFloat((quantity * unitPriceDiscounted).toFixed(3)),
+        totalExGst: parseFloat(((quantity * unitPriceDiscounted) / 1.10).toFixed(2)),
         saveDiscount: false,
         highlight: this.calculateHighlight(unitPrice, pricing.rrp / 1.1, gppExGst)
       };

@@ -28,3 +28,49 @@ This commit improves the user interface and error handling for the shipping zone
 - Related issues: None
 - Dependencies: None
 - Deployment requirements: None
+
+fix(calculator): Update GST calculation consistency across components
+
+This commit fixes the GST calculation in the Gross Profit Calculator to ensure consistent handling of GST exclusion both during initial load and user interactions.
+
+### Files Modified:
+
+#### 1. `src/routes/gross-profit-calculator/services/gpp.service.ts`
+- FIXED: GST calculation in totalExGst to properly exclude 10% GST
+- UPDATED: Decimal precision to match display requirements
+- DIFF:
+  ```diff
+  - totalExGst: parseFloat((quantity * unitPriceDiscounted).toFixed(3)),
+  + totalExGst: parseFloat(((quantity * unitPriceDiscounted) / 1.10).toFixed(2)),
+  ```
+
+#### 2. `src/routes/gross-profit-calculator/+page.svelte`
+- FIXED: GST calculation in handleDiscountChange event handler
+- UPDATED: Comment clarity for GST exclusion
+- DIFF:
+  ```diff
+  - // Calculate Total Ex GST (same as Unit Price Disc. * quantity)
+  - const totalExGst = quantity * unitPriceDiscounted;
+  + // Calculate Total Ex GST (excluding 10% GST)
+  + const totalExGst = (quantity * unitPriceDiscounted) / 1.10;
+  ```
+
+### Technical Improvements:
+- BEFORE: Inconsistent GST handling between initial load and user interactions
+- AFTER: Consistent GST exclusion across all calculations
+- PRECISION: Standardized to 2 decimal places for monetary values
+
+### Testing Instructions:
+1. Load the Gross Profit Calculator with an order
+2. Verify initial totalExGst values exclude GST
+3. Modify discount percentages and confirm:
+   - totalExGst updates correctly
+   - Values match between initial load and after changes
+   - All monetary values show 2 decimal places
+
+### Impact:
+- Ensures accurate GST-exclusive pricing throughout the application
+- Maintains consistency between static and dynamic calculations
+- Improves clarity of GST handling in the codebase
+
+### No Breaking Changes

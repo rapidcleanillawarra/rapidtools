@@ -19,6 +19,7 @@
     supplier: SelectOption | null;
     purchasePrice: string;
     rrp: string;
+    taxIncluded: boolean;
     exists: boolean;
   }
 
@@ -55,6 +56,9 @@
     profile = p;
   });
 
+  let showTaxConfirmation = false;
+  let taxFreeProducts: ProductRow[] = [];
+
   function createEmptyRow(): ProductRow {
     return {
       sku: '',
@@ -63,6 +67,7 @@
       supplier: null,
       purchasePrice: '',
       rrp: '',
+      taxIncluded: true,
       exists: false
     };
   }
@@ -75,7 +80,7 @@
     rows = rows.filter((_, i) => i !== index);
   }
 
-  function applyToAll(field: 'brand' | 'supplier', value: SelectOption | null) {
+  function applyToAll<K extends keyof ProductRow>(field: K, value: ProductRow[K]) {
     rows = rows.map(row => ({
       ...row,
       [field]: value
@@ -178,6 +183,7 @@
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Supplier</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Purchase Price</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">RRP</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Tax</th>
     </tr>
   </thead>
   <tbody>
@@ -190,6 +196,7 @@
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.supplier?.label || '-'}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.purchasePrice).toFixed(2)}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.rrp).toFixed(2)}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">${product.taxIncluded ? 'Yes' : 'No'}</td>
     </tr>
     `).join('')}
   </tbody>
@@ -197,7 +204,7 @@
 
       // For Teams, create a simplified ASCII table
       const teamsTable = products.map((product, index) => `
-${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(product.purchasePrice).toFixed(2)} | $${parseFloat(product.rrp).toFixed(2)}`).join('\n');
+${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(product.purchasePrice).toFixed(2)} | $${parseFloat(product.rrp).toFixed(2)} | ${product.taxIncluded ? 'Yes' : 'No'}`).join('\n');
 
       // Create email body with HTML formatting
       const emailBody = `
@@ -266,6 +273,20 @@ For any questions or concerns, please contact the system administrator.`;
   }
 
   async function handleProductRequestSubmit() {
+    // Check if all products are tax included
+    const allTaxIncluded = rows.every(row => row.taxIncluded);
+    
+    if (allTaxIncluded) {
+      showTaxConfirmation = true;
+      return;
+    }
+    
+    // Proceed with submission if not all are tax included
+    await submitProductRequest();
+  }
+
+  async function submitProductRequest() {
+    showTaxConfirmation = false;
     isLoading = true;
     console.log('=== Starting Product Request Submission ===');
     console.log('Current user:', user);
@@ -329,6 +350,7 @@ For any questions or concerns, please contact the system administrator.`;
             primary_supplier: row.supplier?.value || '',
             purchase_price: parseFloat(row.purchasePrice) || 0,
             rrp: parseFloat(row.rrp) || 0,
+            tax_included: row.taxIncluded,
             status: 'request',
             date_created: serverTimestamp(),
             requestor_uid: user?.uid || '',
@@ -477,7 +499,7 @@ For any questions or concerns, please contact the system administrator.`;
       <!-- Product Rows -->
       <div class="overflow-visible">
         <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>SKU</div>
           <div>Product Name</div>
           <div>
@@ -500,6 +522,15 @@ For any questions or concerns, please contact the system administrator.`;
           </div>
           <div>Purchase Price</div>
           <div>RRP</div>
+          <div>
+            Tax
+            <button
+              on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
+              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
+            >
+              Apply to All
+            </button>
+          </div>
           <div></div>
         </div>
 
@@ -507,7 +538,7 @@ For any questions or concerns, please contact the system administrator.`;
         <div class="divide-y divide-gray-200">
           {#each rows as row, i}
             <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- SKU -->
                 <div class="mb-4 md:mb-0">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">SKU</label>
@@ -594,6 +625,16 @@ For any questions or concerns, please contact the system administrator.`;
                   />
                 </div>
 
+                <!-- Tax Column -->
+                <label class="mb-4 md:mb-0 flex items-center cursor-pointer">
+                  <span class="block md:hidden text-sm font-medium text-gray-700 mb-1 mr-2">Tax</span>
+                  <input
+                    type="checkbox"
+                    bind:checked={row.taxIncluded}
+                    class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                </label>
+
                 <!-- Action -->
                 <div class="text-right md:text-center">
                   <button
@@ -642,6 +683,33 @@ For any questions or concerns, please contact the system administrator.`;
       <div class="bg-white p-6 rounded-lg shadow-xl">
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
         <p class="mt-4 text-gray-700">Processing...</p>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Tax Confirmation Modal -->
+  {#if showTaxConfirmation}
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+        <h3 class="text-lg font-bold mb-4">Tax Confirmation</h3>
+        <p class="mb-4">
+          All products are marked as tax included. Are you sure you want to proceed?
+        </p>
+        
+        <div class="mt-4 flex justify-end space-x-3">
+          <button
+            on:click={() => showTaxConfirmation = false}
+            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            on:click={submitProductRequest}
+            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            Proceed
+          </button>
+        </div>
       </div>
     </div>
   {/if}

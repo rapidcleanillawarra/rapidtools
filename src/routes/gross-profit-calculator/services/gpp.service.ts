@@ -339,7 +339,7 @@ export class GPPService {
         const payload = {
           sku: line.sku,
           price_group_id: priceGroupId,
-          price: line.unitPriceDiscounted
+          price: line.totalExGst
         };
         
         const response = await fetch(ENDPOINTS.SAVE_MAROPOST, {

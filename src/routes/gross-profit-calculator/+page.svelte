@@ -215,7 +215,16 @@
                       >
                     </td>
                     <td>{line.productName}</td>
-                    <td>{line.sku}</td>
+                    <td>
+                      <a 
+                        href={`https://www.rapidsupplies.com.au/_cpanel/products/view?sku=${line.sku}`} 
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="sku-link"
+                      >
+                        {line.sku}
+                      </a>
+                    </td>
                     <td style="text-align: left;">{line.quantity}</td>
                     <td style="text-align: left;">{line.costPrice}</td>
                     <td style="text-align: left;">{line.rrp}</td>
@@ -519,5 +528,21 @@
     color: #e65100;
     border-radius: 4px;
     font-size: 14px;
+  }
+
+  /* Add SKU link styles */
+  .sku-link {
+    color: rgb(0, 120, 215);
+    text-decoration: none;
+  }
+  
+  .sku-link:hover {
+    text-decoration: underline;
+  }
+  
+  /* Add this to ensure links open in new tab */
+  a[target="_blank"]::after {
+    content: " ↗";
+    font-size: 0.8em;
   }
 </style> 

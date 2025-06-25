@@ -275,7 +275,7 @@
           }
         }
 
-        return {
+        const mappedInvoice = {
           invoiceNumber: order.ID,
           dateIssued: order.DatePlaced,
           dueDate: order.DatePaymentDue,
@@ -287,11 +287,45 @@
           status,
           statusColor,
           customerGroupName: order.UserGroup,
-          isZeroInvoice
+          isZeroInvoice,
+          userGroupMismatch: false // Will be set during filtering
         };
+
+        return mappedInvoice;
       })
       .filter((invoice: CustomerGroupInvoice) => {
-        // First apply status filter
+        // Filter by username - show all invoices for users in the extracted usernames list
+        if ($filterType === 'group' && usernames && usernames.length > 0) {
+          const matchesUsername = usernames.includes(invoice.username);
+          console.log('🔍 Username check:', invoice.invoiceNumber, {
+            username: invoice.username,
+            extractedUsernames: usernames,
+            matchesUsername
+          });
+          if (!matchesUsername) {
+            return false;
+          }
+          // Check if UserGroup matches the selected customer group for highlighting
+          const userGroupMatches = invoice.customerGroupName === $selectedCustomerGroup;
+          if (!userGroupMatches) {
+            console.log('⚠️ UserGroup mismatch:', invoice.invoiceNumber, {
+              invoiceUserGroup: invoice.customerGroupName,
+              selectedGroup: $selectedCustomerGroup
+            });
+            invoice.userGroupMismatch = true;
+          } else {
+            invoice.userGroupMismatch = false;
+          }
+        }
+
+        // For customer filter type, use the existing customer logic
+        if ($filterType === 'customer' && $selectedCustomer) {
+          if (invoice.username !== $selectedCustomer) {
+            return false;
+          }
+        }
+
+        // Apply status filter
         if ($selectedStatus && $selectedStatus.length > 0) {
           const matchesStatus = $selectedStatus.some(selected => {
             const statusValue = selected.value;
@@ -304,10 +338,12 @@
             const mappedStatus = statusMap[statusValue];
             return invoice.status === mappedStatus;
           });
-          if (!matchesStatus) return false;
+          if (!matchesStatus) {
+            return false;
+          }
         }
 
-        // Then apply date filter if both dates are selected
+        // Apply date filter if both dates are selected
         if ($dateFrom && $dateTo) {
           const dueDate = new Date(invoice.dueDate);
           const fromDate = new Date($dateFrom);
@@ -330,12 +366,17 @@
       $filteredInvoices = mappedInvoices;
       $currentPage = 1; // Reset to first page
 
+      console.log('✅ Final results:', {
+        totalInvoices: mappedInvoices.length,
+        invoiceNumbers: mappedInvoices.map((inv: CustomerGroupInvoice) => inv.invoiceNumber),
+        selectedGroup: $selectedCustomerGroup,
+        extractedUsernames: usernames
+      });
+
       // Calculate pagination
       paginatedInvoices = getPaginatedInvoices($invoices, $currentPage, $itemsPerPage);
       totalPages = getTotalPages($invoices.length, $itemsPerPage);
 
-      // Apply local filters after getting the response
-      applyFilters();
       toastSuccess('Filters applied successfully');
     } catch (error) {
       console.error('Error applying filters:', error);
@@ -480,6 +521,27 @@
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
     <h2 class="text-2xl font-bold mb-6 text-gray-900">Customer Group Invoices</h2>
 
+    <!-- Legend for row highlighting -->
+    {#if $filterType === 'group' && $selectedCustomerGroup}
+      <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+        <h3 class="text-sm font-medium text-blue-800 mb-2">Filtering & Color Legend:</h3>
+        <div class="space-y-1 text-xs text-blue-700">
+          <div class="flex items-center">
+            <div class="w-4 h-4 bg-green-100 border border-green-400 rounded mr-2"></div>
+            <span>Showing all invoices for users who belong to the selected customer group (filtered by username)</span>
+          </div>
+          <div class="flex items-center">
+            <div class="w-4 h-4 bg-orange-100 border border-orange-400 rounded mr-2"></div>
+            <span>Orange rows: Invoices where the UserGroup doesn't match the selected filter (user moved between groups)</span>
+          </div>
+          <div class="flex items-center">
+            <div class="w-4 h-4 bg-white border border-gray-300 rounded mr-2"></div>
+            <span>White rows: Invoices where the UserGroup matches the selected filter</span>
+          </div>
+        </div>
+      </div>
+    {/if}
+
     <!-- Filter Section -->
     <div class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
       <div>
@@ -556,10 +618,7 @@
           multiple={true}
           value={$selectedStatus}
           on:clear={() => {
-            console.log('Status filter cleared');
-            console.log('Previous selected status:', $selectedStatus);
             selectedStatus.set([]);
-            console.log('New selected status:', $selectedStatus);
             validateFilters();
           }}
           on:select={handleStatusSelect}
@@ -579,6 +638,35 @@
 
     <!-- Apply Filter Button -->
     <div class="mb-6 flex justify-end gap-4">
+      <button
+        class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 flex items-center justify-center min-w-[160px]"
+        on:click={() => {
+          // Clear all filters
+          selectedCustomerGroup.set(null);
+          selectedCustomer.set(null);
+          dateFrom.set(null);
+          dateTo.set(null);
+          selectedStatus.set([
+            { value: 'Unpaid', label: 'Unpaid' },
+            { value: 'PartiallyPaid', label: 'Partial Paid' },
+            { value: 'FullyPaid', label: 'Fully Paid' }
+          ]);
+          searchFilters.set({
+            invoiceNumber: '',
+            dateIssued: '',
+            dueDate: '',
+            totalAmount: '',
+            amountPaid: '',
+            balance: '',
+            username: '',
+            company: '',
+            status: ''
+          });
+          
+        }}
+      >
+        Clear All Filters
+      </button>
       {#if $invoices && $invoices.length > 0}
         <button
           class="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
@@ -758,8 +846,13 @@
               </tr>
             {:else}
               {#each paginatedInvoices as invoice (invoice.invoiceNumber)}
-                <tr class={invoice.updated ? 'bg-green-50' : ''}>
-                  <td class="px-2 py-1 text-sm">{invoice.invoiceNumber}</td>
+                <tr class={`${invoice.updated ? 'bg-green-50' : ''} ${invoice.userGroupMismatch ? 'bg-orange-100 border-l-4 border-orange-400' : ''}`}>
+                  <td class="px-2 py-1 text-sm">
+                    {invoice.invoiceNumber}
+                    {#if invoice.userGroupMismatch}
+                      <span class="ml-1 text-xs text-orange-600 font-medium" title="UserGroup mismatch - this invoice was placed when user was in a different group">⚠️</span>
+                    {/if}
+                  </td>
                   <td class="px-2 py-1 text-sm">
                     {new Date(invoice.dateIssued).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </td>

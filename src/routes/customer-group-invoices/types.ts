@@ -12,6 +12,7 @@ export interface CustomerGroupInvoice {
   statusColor: string;
   updated?: boolean;
   isZeroInvoice?: boolean;
+  userGroupMismatch?: boolean;
 }
 
 export type InvoiceFetchResult = {

@@ -5,6 +5,7 @@
   import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import type { ProductRequest, Brand, Supplier, Category, Markup } from '$lib/types';
+  import { userProfile, type UserProfile } from '$lib/userProfile';
   import Select from 'svelte-select';
   import { SvelteToast } from '@zerodevx/svelte-toast';
 
@@ -16,6 +17,7 @@
   // API Endpoints
   const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
   const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
+  const teamsNotificationUrl = 'https://prod-41.australiasoutheast.logic.azure.com:443/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Fgu75prN-vWpPg5JKVcWpt3zcOL4V76TI_ssXhgPk8I';
 
   let productRequests: ProductRequest[] = [];
   let brands: SelectOption[] = [];
@@ -31,6 +33,7 @@
   let selectAll = false;
   let deleteLoading = false;
   let submitLoading = false;
+  let profile: UserProfile | null = null;
 
   interface SkuToRequestMap {
     [key: string]: ProductRequest[];
@@ -41,10 +44,16 @@
     [key: string]: any;
   }
 
+  interface ApiResponseItem {
+    InventoryID: string;
+    SKU: string;
+  }
+
   interface ApiResponse {
+    Item: ApiResponseItem[];
+    CurrentTime: string;
     Ack: string;
-    Item: ApiItem[];
-    [key: string]: any;
+    message?: string;
   }
 
   interface ProductRequestPayload {
@@ -61,6 +70,7 @@
     requestor_email: string;
     requestor_firstname: string;
     requestor_lastname: string;
+    TaxIncluded: boolean;
   }
 
   // Function to calculate client price and RRP
@@ -164,11 +174,9 @@
 
   // Function to fetch brands
   async function fetchBrands() {
-    console.log('Starting fetchBrands...');
     loadingBrands = true;
     brandError = '';
     try {
-      console.log('Making API call to fetch brands...');
       const response = await fetch(brandsUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -179,9 +187,7 @@
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      console.log('API Response status:', response.status);
       const data = await response.json();
-      console.log('API Response data:', data);
 
       if (data.status === 200 && data.message?.Ack === "Success" && Array.isArray(data.message.Content)) {
         brands = data.message.Content
@@ -191,37 +197,30 @@
             label: brand.ContentName
           }))
           .sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
-        console.log('Processed brands:', brands);
       } else {
         throw new Error('Failed to load brands: Invalid response format');
       }
     } catch (err: unknown) {
       const error = err as Error;
-      console.error('Error in fetchBrands:', error);
       brandError = error.message || 'Failed to load brands';
       brands = [];
     } finally {
       loadingBrands = false;
-      console.log('fetchBrands completed. Brands:', brands, 'Error:', brandError);
     }
   }
 
   // Function to fetch suppliers
   async function fetchSuppliers() {
-    console.log('Starting fetchSuppliers...');
     loadingSuppliers = true;
     supplierError = '';
     try {
-      console.log('Making API call to fetch suppliers...');
       const response = await fetch(suppliersUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
       });
       
-      console.log('API Response status:', response.status);
       const data = await response.json();
-      console.log('API Response data:', data);
 
       if (data.status === 200 && data.message.Ack === "Success") {
         suppliers = data.message.Supplier
@@ -231,17 +230,14 @@
             label: supplier.SupplierID
           }))
           .sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
-        console.log('Processed suppliers:', suppliers);
       } else {
         throw new Error('Failed to load suppliers: Invalid response format');
       }
     } catch (err: unknown) {
       const error = err as Error;
-      console.error('Error in fetchSuppliers:', error);
       supplierError = error.message || 'Failed to load suppliers';
     } finally {
       loadingSuppliers = false;
-      console.log('fetchSuppliers completed. Suppliers:', suppliers, 'Error:', supplierError);
     }
   }
 
@@ -255,82 +251,62 @@
       });
 
       const data = await response.json();
-      console.log('Categories API Response:', data);
 
       if (data.status === 200 && data.message?.Ack === "Success" && Array.isArray(data.message.Category)) {
         categoriesList = data.message.Category.map((category: { CategoryID: string; CategoryName: string }) => ({
           value: category.CategoryID,
           label: category.CategoryName
         })).sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
-        console.log('Processed categories:', categoriesList);
       } else {
         throw new Error('Failed to load categories: Invalid response format');
       }
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error('Error loading categories:', error);
       toastError('Failed to load reference data');
     }
   }
 
   // Load product requests from Firestore
   async function loadProductRequests() {
-    console.log('Starting to load product requests...');
     try {
       const q = query(
         collection(db, 'product_requests'),
         where('status', '==', 'request')
       );
-      console.log('Executing Firestore query:', {
-        collection: 'product_requests',
-        status: 'request'
-      });
 
       const querySnapshot = await getDocs(q);
-      console.log('Query response received. Total documents:', querySnapshot.size);
-
       productRequests = querySnapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('Processing document:', {
-          id: doc.id,
-          data: {
-            requestor: `${data.requestor_firstName} ${data.requestor_lastName}`,
-            sku: data.sku,
-            product_name: data.product_name,
-            brand: data.brand,
-            primary_supplier: data.primary_supplier,
-            category: data.category,
-            purchase_price: data.purchase_price,
-            client_mup: data.client_mup,
-            retail_mup: data.retail_mup,
-            client_price: data.client_price,
-            rrp: data.rrp,
-            status: data.status
-          }
-        });
         return {
           id: doc.id,
           ...data
         };
       }) as ProductRequest[];
-
-      console.log('Final processed product requests:', {
-        count: productRequests.length,
-        requests: productRequests.map(req => ({
-          id: req.id,
-          sku: req.sku,
-          brand: req.brand,
-          supplier: req.primary_supplier
-        }))
+      
+      // Enhanced logging of fetched data
+      console.log('=== Fetched Product Requests from Firebase ===');
+      console.log('Total requests found:', productRequests.length);
+      productRequests.forEach((request, index) => {
+        console.log(`Request #${index + 1}:`, {
+          id: request.id,
+          sku: request.sku,
+          product_name: request.product_name,
+          brand: request.brand,
+          primary_supplier: request.primary_supplier,
+          category: request.category,
+          purchase_price: request.purchase_price,
+          client_mup: request.client_mup,
+          retail_mup: request.retail_mup,
+          client_price: request.client_price,
+          rrp: request.rrp,
+          tax_included: request.tax_included,
+          requestor_email: request.requestor_email,
+          requestor_firstName: request.requestor_firstName,
+          requestor_lastName: request.requestor_lastName,
+          status: request.status
+        });
       });
+      console.log('=======================================');
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error('Error loading product requests:', error);
-      console.error('Error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
       toastError('Failed to load product requests');
     }
   }
@@ -356,8 +332,6 @@
         );
       });
     } catch (err: unknown) {
-      const error = err as Error;
-      console.error('Error searching markups:', error);
       toastError('Failed to search markups');
     }
   }
@@ -383,54 +357,73 @@
 
     try {
       const selectedRequests = productRequests.filter(req => selectedRows.has(req.id));
-      console.log('Selected requests to process:', selectedRequests);
 
-      const createProductUrl = 'https://prod-52.australiasoutheast.logic.azure.com:443/workflows/fa1aaf833393486a82d6edb76ad0ff33/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=FLveH751-xsf6plOm8Fm3awsXw2oFBHAfogkn0IwnGY';
+      const createProductUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
-      for (const request of selectedRequests) {
-        try {
-          // Validate required fields
-          if (!request.sku || !request.product_name || !request.brand || 
-              !request.primary_supplier || !request.category || 
-              !request.purchase_price || !request.client_mup || 
-              !request.retail_mup || !request.rrp) {
-            console.log('Validation failed for request:', request);
-            failedSubmits.push(`${request.sku || 'Unknown SKU'} (missing required fields)`);
-            continue;
-          }
+      // Validate all requests first
+      const invalidRequests = selectedRequests.filter(request => 
+        !request.sku || !request.product_name || !request.brand || 
+        !request.primary_supplier || !request.category || 
+        !request.purchase_price || !request.client_mup || 
+        !request.retail_mup || !request.rrp
+      );
 
-          const priceGroup = request.purchase_price * request.client_mup * 1.1;
+      if (invalidRequests.length > 0) {
+        invalidRequests.forEach(request => {
+          failedSubmits.push(`${request.sku || 'Unknown SKU'} (missing required fields)`);
+        });
+      } else {
+        // Create a single payload for all valid requests
+        const payload = {
+          Item: selectedRequests.map(request => {
+            const priceGroup = request.purchase_price * request.client_mup * 1.1;
+            return {
+              SKU: request.sku,
+              Model: request.product_name,
+              Brand: request.brand,
+              PrimarySupplier: request.primary_supplier,
+              DefaultPurchasePrice: parseFloat(request.purchase_price.toString()),
+              Category: parseInt(request.category, 10),
+              RRP: parseFloat(request.rrp.toString()),
+              Misc02: parseFloat(request.client_mup.toString()),
+              Misc09: parseFloat(request.retail_mup.toString()),
+              PriceGroup: parseFloat(priceGroup.toFixed(2)),
+              TaxInclusive: request.tax_included || false
+            };
+          }),
+          action: "AddItem"
+        };
+
+        console.log('Submitted payload:', payload);
+        console.log('Target endpoint:', createProductUrl);
+        // Enable API call
+        const response = await fetch(createProductUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        // Temporarily bypassing API response check
+        if (response.ok) {
+          // Store selected requests data for Teams notification before removing them
+          const requestsForNotification = [...selectedRequests];
           
-          const payload: ProductRequestPayload = {
-            SKU: request.sku,
-            Model: request.product_name,
-            Brand: request.brand,
-            PrimarySupplier: request.primary_supplier,
-            DefaultPurchasePrice: parseFloat(request.purchase_price.toString()),
-            Category: parseInt(request.category, 10),
-            RRP: parseFloat(request.rrp.toString()),
-            ClientMUP: parseFloat(request.client_mup.toString()),
-            RetailMUP: parseFloat(request.retail_mup.toString()),
-            PriceGroup: parseFloat(priceGroup.toFixed(2)),
-            requestor_email: request.requestor_email || '',
-            requestor_firstname: request.requestor_firstName || '',
-            requestor_lastname: request.requestor_lastName || ''
-          };
-
-          console.log('Sending product creation request for SKU:', request.sku);
-          console.log('Request payload:', payload);
-
-          const response = await fetch(createProductUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-
-          const responseData = await response.json();
-          console.log('Product creation response for SKU', request.sku, ':', responseData);
-
-          if (response.ok) {
-            // Update Firestore status using v9 syntax
+          for (const request of selectedRequests) {
+            console.log('Would save to Firebase for request ID:', request.id, {
+              status: 'product_created',
+              product_creation_date: new Date().toISOString(),
+              category: request.category,
+              client_mup: request.client_mup,
+              retail_mup: request.retail_mup,
+              client_price: request.client_price,
+              rrp: request.rrp,
+              tax_included: request.tax_included || false,
+              approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
+              approved_by_email: profile?.email || 'Unknown Email',
+              inventory_id: 'temporary-bypass'
+            });
+            
+            // Enable Firestore update
             const docRef = doc(db, 'product_requests', request.id);
             await updateDoc(docRef, {
               status: 'product_created',
@@ -439,20 +432,66 @@
               client_mup: request.client_mup,
               retail_mup: request.retail_mup,
               client_price: request.client_price,
-              rrp: request.rrp
+              rrp: request.rrp,
+              tax_included: request.tax_included || false,
+              approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
+              approved_by_email: profile?.email || 'Unknown Email',
+              inventory_id: 'temporary-bypass'
             });
 
-            // Remove from local list and track success
+            successfulSubmits.push(request.sku);
+          }
+
+          // Remove from local list and clear selections after processing all requests
+          selectedRequests.forEach(request => {
             productRequests = productRequests.filter(req => req.id !== request.id);
             selectedRows.delete(request.id);
-            successfulSubmits.push(request.sku);
-          } else {
-            console.error('Failed to create product:', responseData);
-            failedSubmits.push(`${request.sku} (${responseData.message || 'API error'})`);
+          });
+
+          // Force reactivity updates
+          productRequests = productRequests;
+          selectedRows = selectedRows;
+          selectAll = false;
+
+          // Prepare and send Teams notification using stored data
+          const tableRows = requestsForNotification.map(request => `<tr><td>${request.sku}</td><td>${request.product_name}</td><td>${request.brand}</td><td>${request.primary_supplier}</td><td>${request.client_price?.toFixed(2)}</td><td>${request.rrp?.toFixed(2)}</td><td>${request.tax_included || false}</td></tr>`).join('');
+          
+          const notificationPayload = {
+            action: "product",
+            body: `<h1 class=\"editor-heading-h3\"><b><strong class=\"editor-text-bold\">🔔 </strong></b><b><strong class=\"editor-text-bold\" style=\"color: rgb(65, 117, 5);\">Product Request Approved!</strong></b>✅</h1>
+<p class=\"editor-paragraph\">✅The following product(s) have been successfully created, and approved by <b><strong class=\"editor-text-bold\">${profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User'}</strong></b>👤</p>
+<p class=\"editor-paragraph\">👤<b><strong class=\"editor-text-bold\" style=\"color: rgb(139, 87, 42);\">Requestor Information:</strong></b></p>
+<p class=\"editor-paragraph\">Name: <b><strong class=\"editor-text-bold\">${requestsForNotification[0].requestor_firstName} ${requestsForNotification[0].requestor_lastName}</strong></b></p>
+<p class=\"editor-paragraph\">Email: <b><strong class=\"editor-text-bold\">${requestsForNotification[0].requestor_email}</strong></b></p>
+<p class=\"editor-paragraph\">📦<b><strong class=\"editor-text-bold\" style=\"color: rgb(139, 87, 42);\">Approved Products: ✅</strong></b></p>
+<table><thead><tr><th><strong>SKU</strong></th><th><strong>Product Name</strong></th><th><strong>Brand</strong></th><th><strong>Primary Supplier</strong></th><th><strong>Client Price</strong></th><th><strong>RRP</strong></th><th><strong>Tax Inclusive</strong></th></tr></thead><tbody>${tableRows}</tbody></table>`
+          };
+
+          console.log('Would send Teams notification:', notificationPayload);
+
+          // Enable Teams notification API call
+          try {
+            const teamsResponse = await fetch(teamsNotificationUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(notificationPayload)
+            });
+            
+            if (!teamsResponse.ok) {
+              console.error('Failed to send Teams notification:', await teamsResponse.text());
+              toastError('Product created but failed to send Teams notification');
+            } else {
+              console.log('Teams notification sent successfully');
+            }
+          } catch (error) {
+            console.error('Error sending Teams notification:', error);
+            toastError('Product created but failed to send Teams notification');
           }
-        } catch (error) {
-          console.error('Error processing request:', error);
-          failedSubmits.push(request.sku);
+        } else {
+          // If the HTTP response itself failed
+          selectedRequests.forEach(request => {
+            failedSubmits.push(`${request.sku} (HTTP Error: ${(response as Response).status})`);
+          });
         }
       }
 
@@ -474,12 +513,11 @@
         }
       }
     } catch (error) {
-      console.error('Error during submission:', error);
       toastError('Error during submission. Please try again later.');
     } finally {
       submitLoading = false;
-      selectedRows = selectedRows; // Trigger reactivity
-      productRequests = productRequests; // Trigger reactivity
+      selectedRows = selectedRows;
+      productRequests = productRequests;
     }
   }
 
@@ -509,7 +547,6 @@
           selectedRows.delete(request.id);
           successfulDeletes.push(request.sku || request.id);
         } catch (error) {
-          console.error(`Error deleting request ${request.sku}:`, error);
           failedDeletes.push(request.sku || request.id);
         }
       }
@@ -532,32 +569,39 @@
         }
       }
     } catch (error) {
-      console.error('Error in delete operation:', error);
       toastError('An unexpected error occurred during deletion. Please try again.');
     } finally {
       deleteLoading = false;
-      selectedRows = selectedRows; // Trigger reactivity
-      productRequests = productRequests; // Trigger reactivity
+      selectedRows = selectedRows;
+      productRequests = productRequests;
     }
   }
 
-  onMount(async () => {
-    await Promise.all([
+  onMount(() => {
+    const unsubProfile = userProfile.subscribe(value => {
+      profile = value;
+    });
+
+    Promise.all([
       fetchBrands(),
       fetchSuppliers(),
       loadData(),
       loadProductRequests(),
       searchMarkups()
-    ]);
+    ]).then(() => {
+      // Calculate retail MUP for any requests that have RRP but no retail MUP
+      productRequests.forEach(request => {
+        if (request.rrp && (!request.retail_mup || request.retail_mup === 0)) {
+          calculatePrices(request, 'price');
+        }
+      });
 
-    // Calculate retail MUP for any requests that have RRP but no retail MUP
-    productRequests.forEach(request => {
-      if (request.rrp && (!request.retail_mup || request.retail_mup === 0)) {
-        calculatePrices(request, 'price');
-      }
+      loading = false;
     });
 
-    loading = false;
+    return () => {
+      unsubProfile();
+    };
   });
 </script>
 
@@ -755,7 +799,7 @@
       <!-- Product Requests Table -->
       <div class="overflow-visible">
         <!-- Desktop Headers -->
-        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>
             <input
               type="checkbox"
@@ -793,6 +837,7 @@
           </div>
           <div class="table-cell price-cell">Client Price</div>
           <div class="table-cell price-cell">RRP</div>
+          <div class="table-cell">Tax Included</div>
         </div>
 
         <!-- Rows -->
@@ -800,7 +845,7 @@
           {#each productRequests as request}
             <!-- Desktop View -->
             <div class="bg-white md:hover:bg-gray-50 transition-colors hidden md:block">
-              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px_80px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Checkbox -->
                 <div class="mb-4 md:mb-0">
                   <input
@@ -950,6 +995,16 @@
                     on:input={() => calculatePrices(request, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     step="0.01"
+                  />
+                </div>
+
+                <!-- Tax Included -->
+                <div class="mb-4 md:mb-0 table-cell">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Tax Included</label>
+                  <input
+                    type="checkbox"
+                    bind:checked={request.tax_included}
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
               </div>
@@ -1111,6 +1166,17 @@
                     on:input={() => calculatePrices(request, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">Tax Included</span>
+                <div class="mobile-value">
+                  <input
+                    type="checkbox"
+                    bind:checked={request.tax_included}
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
               </div>

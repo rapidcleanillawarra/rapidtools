@@ -13,7 +13,9 @@ export interface ProductRequest {
   retail_mup: number;
   client_price: number;
   rrp: number;
-  status: 'request' | 'approved' | 'rejected';
+  status: 'request' | 'approved' | 'rejected' | 'delete' | 'product_created';
+  tax_included?: boolean;
+  product_creation_date?: string;
 }
 
 export interface Brand {

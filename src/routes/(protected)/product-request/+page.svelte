@@ -480,7 +480,7 @@ For any questions or concerns, please contact the system administrator.`;
     
     <!-- Product Request Form -->
     <div class="space-y-6">
-      <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm">
+      <div class="flex justify-between items-center sticky top-[64px] bg-white/95 backdrop-blur-sm py-4 z-30">
         <button
           on:click={addRow}
           class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"

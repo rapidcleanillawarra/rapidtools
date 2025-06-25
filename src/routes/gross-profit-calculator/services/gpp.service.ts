@@ -62,7 +62,7 @@ export class GPPService {
         data: this.groupMappings
       });
       
-      return this.groupMappings;
+      return this.groupMappings!;
     } catch (error) {
       console.error('Error fetching group mappings:', error);
       return [];

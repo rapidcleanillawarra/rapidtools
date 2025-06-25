@@ -769,7 +769,7 @@
     
     <!-- Product Request Form -->
     <div class="space-y-6">
-      <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm mobile-buttons">
+      <div class="flex justify-between items-center sticky top-[64px] bg-white/95 backdrop-blur-sm py-4 z-30 mobile-buttons">
         <button
           class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
           on:click={handleDeleteChecked}

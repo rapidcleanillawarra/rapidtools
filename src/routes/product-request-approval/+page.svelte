@@ -76,22 +76,24 @@
   // Function to calculate client price and RRP
   function calculatePrices(request: ProductRequest, source: 'mup' | 'price' = 'mup') {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
+    // Tax multiplier will be 1.0 if tax is included, otherwise 1.1
+    const taxMultiplier = request.tax_included ? 1.0 : 1.1;
 
     if (source === 'mup') {
       // Calculate prices from MUPs
       const clientMup = parseFloat(request.client_mup?.toString() || '0');
       const retailMup = parseFloat(request.retail_mup?.toString() || '0');
 
-      // Calculate client price: purchase price * client MUP * 1.1 (GST)
+      // Calculate client price: purchase price * client MUP * tax multiplier
       if (purchasePrice && clientMup) {
-        request.client_price = parseFloat((purchasePrice * clientMup * 1.1).toFixed(2));
+        request.client_price = parseFloat((purchasePrice * clientMup * taxMultiplier).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
 
-      // Calculate RRP: purchase price * retail MUP * 1.1 (GST)
+      // Calculate RRP: purchase price * retail MUP * tax multiplier
       if (purchasePrice && retailMup) {
-        request.rrp = parseFloat((purchasePrice * retailMup * 1.1).toFixed(2));
+        request.rrp = parseFloat((purchasePrice * retailMup * taxMultiplier).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
@@ -100,16 +102,16 @@
       const clientPrice = parseFloat(request.client_price?.toString() || '0');
       const rrp = parseFloat(request.rrp?.toString() || '0');
 
-      // Calculate client MUP: client price / (purchase price * 1.1)
+      // Calculate client MUP: client price / (purchase price * tax multiplier)
       if (purchasePrice && clientPrice) {
-        request.client_mup = parseFloat((clientPrice / (purchasePrice * 1.1)).toFixed(2));
+        request.client_mup = parseFloat((clientPrice / (purchasePrice * taxMultiplier)).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
 
-      // Calculate retail MUP: RRP / (purchase price * 1.1)
+      // Calculate retail MUP: RRP / (purchase price * tax multiplier)
       if (purchasePrice && rrp) {
-        request.retail_mup = parseFloat((rrp / (purchasePrice * 1.1)).toFixed(2));
+        request.retail_mup = parseFloat((rrp / (purchasePrice * taxMultiplier)).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
@@ -1046,6 +1048,7 @@
                   <input
                     type="checkbox"
                     bind:checked={request.tax_included}
+                    on:change={() => calculatePrices(request, 'mup')}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
@@ -1218,6 +1221,7 @@
                   <input
                     type="checkbox"
                     bind:checked={request.tax_included}
+                    on:change={() => calculatePrices(request, 'mup')}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>

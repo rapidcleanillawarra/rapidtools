@@ -376,7 +376,6 @@
         // Create a single payload for all valid requests
         const payload = {
           Item: selectedRequests.map(request => {
-            const priceGroup = request.purchase_price * request.client_mup * 1.1;
             return {
               SKU: request.sku,
               Model: request.product_name,
@@ -387,7 +386,19 @@
               RRP: parseFloat(request.rrp.toString()),
               Misc02: parseFloat(request.client_mup.toString()),
               Misc09: parseFloat(request.retail_mup.toString()),
-              PriceGroup: parseFloat(priceGroup.toFixed(2)),
+              Active: true,
+              PriceGroups: {
+                PriceGroup: [
+                  {
+                    Group: "Default Client Group",
+                    Price: parseFloat(request.client_price.toString())
+                  },
+                  {
+                    Group: "Default RRP (Dont Assign to clients)",
+                    Price: parseFloat(request.client_price.toString())
+                  }
+                ]
+              },
               TaxInclusive: request.tax_included || false
             };
           }),
@@ -403,12 +414,43 @@
           body: JSON.stringify(payload)
         });
 
-        // Temporarily bypassing API response check
-        if (response.ok) {
+        const responseData = await response.json();
+        
+        // Log the full response structure
+        console.log('API Response Structure:', JSON.stringify(responseData, null, 2));
+        
+        interface MaropostItem {
+          SKU: string;
+          InventoryID: string;
+        }
+        
+        interface MaropostResponse {
+          status: number;
+          message: {
+            Ack: string;
+            Item: MaropostItem[];
+          };
+        }
+        
+        if (response.ok && responseData.message?.Ack === "Success") {
           // Store selected requests data for Teams notification before removing them
           const requestsForNotification = [...selectedRequests];
           
+          // Map SKUs to their inventory IDs from the response
+          const skuToInventoryId: Record<string, string> = {};
+          if (responseData.message?.Item && Array.isArray(responseData.message.Item)) {
+            (responseData.message.Item as MaropostItem[]).forEach(item => {
+              if (item.SKU && item.InventoryID) {
+                skuToInventoryId[item.SKU] = item.InventoryID;
+              }
+            });
+          }
+          
+          // Log the mapped inventory IDs
+          console.log('Mapped SKU to Inventory IDs:', skuToInventoryId);
+          
           for (const request of selectedRequests) {
+            const inventoryId = skuToInventoryId[request.sku] || 'not-found';
             console.log('Would save to Firebase for request ID:', request.id, {
               status: 'product_created',
               product_creation_date: new Date().toISOString(),
@@ -420,7 +462,7 @@
               tax_included: request.tax_included || false,
               approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
               approved_by_email: profile?.email || 'Unknown Email',
-              inventory_id: 'temporary-bypass'
+              inventory_id: inventoryId
             });
             
             // Enable Firestore update
@@ -436,7 +478,7 @@
               tax_included: request.tax_included || false,
               approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
               approved_by_email: profile?.email || 'Unknown Email',
-              inventory_id: 'temporary-bypass'
+              inventory_id: inventoryId
             });
 
             successfulSubmits.push(request.sku);
@@ -454,7 +496,7 @@
           selectAll = false;
 
           // Prepare and send Teams notification using stored data
-          const tableRows = requestsForNotification.map(request => `<tr><td>${request.sku}</td><td>${request.product_name}</td><td>${request.brand}</td><td>${request.primary_supplier}</td><td>${request.client_price?.toFixed(2)}</td><td>${request.rrp?.toFixed(2)}</td><td>${request.tax_included || false}</td></tr>`).join('');
+          const tableRows = requestsForNotification.map(request => `<tr><td><a href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku=${request.sku}">${request.sku}</a></td><td>${request.product_name}</td><td>${request.brand}</td><td>${request.primary_supplier}</td><td>${request.client_price?.toFixed(2)}</td><td>${request.rrp?.toFixed(2)}</td><td>${request.tax_included || false}</td></tr>`).join('');
           
           const notificationPayload = {
             action: "product",

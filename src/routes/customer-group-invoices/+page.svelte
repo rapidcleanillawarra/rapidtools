@@ -211,7 +211,7 @@
       // Prepare payload for Get Orders API
       const ordersPayload = {
         Filter: {
-          OrderStatus: "Dispatched",
+          OrderStatus: ["Dispatched","Backorder Approved"],
           Username: usernames,
           PaymentStatus: ["Pending", "PartialPaid", "FullyPaid"],
           OutputSelector: [
@@ -445,28 +445,9 @@
   }
 
   // Handle status selection
-  function handleStatusSelect(event: CustomEvent) {
+  function handleStatusChange(event: CustomEvent) {
     const detail = event.detail;
-    
-    // Get the current selected values
-    let currentValues = [...$selectedStatus];
-    
-    // If we have a new value, add it to the array
-    if (detail?.value) {
-      const newValue = {
-        value: detail.value,
-        label: detail.label
-      };
-      
-      // Check if the value is already selected
-      const exists = currentValues.some(v => v.value === newValue.value);
-      
-      if (!exists) {
-        currentValues.push(newValue);
-      }
-    }
-    
-    selectedStatus.set(currentValues);
+    selectedStatus.set(detail || []);
     validateFilters();
   }
 
@@ -617,11 +598,11 @@
           clearable={true}
           multiple={true}
           value={$selectedStatus}
-          on:clear={() => {
+          on:change={() => {
             selectedStatus.set([]);
             validateFilters();
           }}
-          on:select={handleStatusSelect}
+          on:change={handleStatusChange}
         />
         {#if $statusError}
           <p class="mt-1 text-sm text-red-600">{$statusError}</p>

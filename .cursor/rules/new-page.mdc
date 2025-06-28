@@ -1,0 +1,122 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Guide: Creating a New Authenticated Page
+
+This document provides a general template and overview of how to create a new page that requires user authentication. It covers structure, authentication, data fetching, and interaction with services like Firestore and external APIs.
+
+## 1. File Location & Routing
+
+To create a new authenticated page, create a new directory inside `src/routes/(protected)/`. For example: `src/routes/(protected)/your-new-page/`.
+
+Inside this new directory, create a `+page.svelte` file. This file will contain the UI and logic for your new page.
+
+The URL for this new page will be `/your-new-page`.
+
+## 2. Authentication Flow
+
+Authentication is automatically handled for any page placed within the `(protected)` directory group.
+
+- **Layout-Based Guard**: The `src/routes/(protected)/+layout.ts` file acts as a guard for all pages within this group.
+  - It performs a client-side check (`ssr = false`).
+  - It checks the `currentUser` store from `$lib/firebase.ts`.
+  - If a user is not logged in (`!user`), it automatically redirects them to the homepage (`/`).
+
+- **Accessing User Data**:
+  - To access the logged-in user's data on your page, import and subscribe to the `currentUser` and `userProfile` stores:
+    ```svelte
+    <script lang="ts">
+      import { currentUser } from '$lib/firebase';
+      import { userProfile } from '$lib/userProfile';
+
+      let user;
+      currentUser.subscribe(value => user = value);
+
+      let profile;
+      userProfile.subscribe(value => profile = value);
+    </script>
+    ```
+  - This user information (`user.uid`, `user.email`, `profile.firstName`, etc.) can then be used in your page logic, for example, to associate submitted data with the user who created it.
+
+## 3. General Page Structure & Logic
+
+Here is a breakdown of the common structure for a `+page.svelte` component.
+
+### Component Structure
+
+Follow the standard Svelte component structure:
+1.  A `<script lang="ts">` block for component logic, state management, and data fetching.
+2.  HTML-like markup for the component's structure and UI.
+3.  A `<style>` block for component-specific styles.
+
+### Initial Data Loading (`onMount`)
+
+- Use the `onMount` lifecycle function to fetch any data your page needs when it first loads.
+- This is the ideal place to call functions that make `fetch` requests to your APIs to populate forms, tables, or other UI elements.
+- Always use loading state variables (e.g., `let isLoadingData = true;`) to provide visual feedback to the user while data is being fetched.
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte';
+
+  let myData = [];
+  let isLoadingData = true;
+
+  async function fetchData() {
+    try {
+      const response = await fetch('your-api-endpoint');
+      myData = await response.json();
+    } catch (error) {
+      console.error("Failed to fetch data:", error);
+      // Show an error message to the user
+    } finally {
+      isLoadingData = false;
+    }
+  }
+
+  onMount(() => {
+    fetchData();
+  });
+</script>
+
+{#if isLoadingData}
+  <p>Loading...</p>
+{:else}
+  <!-- Render your data -->
+{/if}
+```
+
+### State Management
+
+- Use Svelte's reactivity to manage your page's state.
+- For forms, it's common to have an object or an array of objects representing the form's state.
+- Use boolean flags like `isLoading` for submission processes and a `notification` object for displaying toast messages to provide clear user feedback.
+
+### Interacting with External APIs
+
+- Use the browser's `fetch` API to communicate with external services (e.g., Azure Logic Apps, custom backend).
+- Structure your API calls within `async` functions.
+- Always include `try...catch...finally` blocks to handle potential network errors and update loading states correctly.
+- You can define the API URLs as constants at the top of your script for easy management.
+
+### Data Submission & Firestore
+
+Here's a general pattern for submitting form data to Firestore and notifying users.
+
+1.  **Validation (Client-Side)**: Before submitting, validate the user's input. Check for required fields, correct formats, and other business rules.
+2.  **Validation (Server-Side - Optional but Recommended)**: For critical validation (like checking for uniqueness of a SKU or email), make a `fetch` call to a dedicated API endpoint before writing to the database.
+3.  **Writing to Firestore**:
+    - Import the necessary Firestore functions: `import { collection, addDoc, serverTimestamp } from 'firebase/firestore';` and the database instance `import { db } from '$lib/firebase';`.
+    - Structure the data object you want to save.
+    - Use `await addDoc(collection(db, 'your-collection-name'), yourDataObject);` to save the document.
+    - Include user details (e.g., `requestor_uid`, `requestor_email`) in the data object to link it to the current user.
+    - Use `serverTimestamp()` for reliable, server-generated timestamps.
+4.  **User Feedback**:
+    - After a successful submission, provide clear feedback (e.g., a "Success!" toast notification).
+    - If an error occurs at any stage, `catch` the error and show a descriptive error message.
+    - Reset the form to allow for another submission.
+
+
+This comprehensive approach ensures data integrity, provides a good user experience, and keeps relevant parties informed. 

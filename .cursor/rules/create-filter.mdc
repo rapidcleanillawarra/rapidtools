@@ -1,0 +1,271 @@
+---
+description: This rule provides a template for creating a validated, responsive filtering system for data tables. It details a standard file structure (+page.svelte, stores.ts, types.ts), a state management pattern using Svelte stores for filter values and validation errors, and includes code examples for the Svelte component. The guide covers handling user input, making API calls with filter parameters, and creating a responsive CSS grid layout for the filter UI.
+globs: 
+alwaysApply: false
+---
+# Guide: Building a General-Purpose Filtering System
+
+This document provides a general template for building a powerful, validated filtering system for your data tables. It covers managing filter state, handling user input, and making API calls to fetch filtered data.
+
+## 1. File Structure
+
+For a clean and reusable implementation, it's best to organize your filtering logic into the following files within your page's directory (e.g., `src/routes/your-page/`):
+
+-   `+page.svelte`: Contains the filter UI and the handler function to trigger the API call.
+-   `stores.ts`: Manages the state for each filter input, loading indicators, and validation errors.
+-   `types.ts`: Defines the necessary data structures.
+
+## 2. State Management for Filters (`stores.ts`)
+
+Centralizing state in a `stores.ts` file is the key to a reactive and maintainable filtering system.
+
+### Template for Filter Stores
+
+The following is a template. You should copy and adapt it, adding, removing, or renaming stores to match the specific filters your page needs.
+
+```typescript
+import { writable, get } from 'svelte/store';
+
+// --- Filter Input Stores ---
+// EXAMPLE: A store for a single-choice dropdown (e.g., a category selector)
+export const selectedOption = writable<string | null>(null);
+// Stores for a date range
+export const dateFrom = writable<Date | null>(null);
+export const dateTo = writable<Date | null>(null);
+// EXAMPLE: A store for a multi-choice dropdown (e.g., a status selector)
+export const selectedOptions = writable<{ value: string; label: string }[]>([]);
+
+// --- UI State Stores ---
+export const isLoadingFilters = writable<boolean>(false);
+
+// --- Validation Error Stores ---
+// Match these to your filter input stores
+export const optionError = writable<string | null>(null);
+export const dateError = writable<string | null>(null);
+export const optionsError = writable<string | null>(null);
+
+/**
+ * Validates the current state of all filter inputs.
+ * This function should be called before making an API request.
+ * @returns {boolean} - True if all inputs are valid, otherwise false.
+ */
+export function validateFilters(): boolean {
+  // Reset all previous errors
+  optionError.set(null);
+  dateError.set(null);
+  optionsError.set(null);
+
+  let isValid = true;
+
+  // CUSTOMIZE: Add validation logic for your specific filters.
+  
+  // Example: Validate the single-choice dropdown
+  if (!get(selectedOption)) {
+    optionError.set('Please make a selection.');
+    isValid = false;
+  }
+
+  // Example: Validate the multi-choice dropdown
+  if (get(selectedOptions).length === 0) {
+    optionsError.set('Please select at least one option.');
+    isValid = false;
+  }
+
+  // Example: Validate the date range
+  const from = get(dateFrom);
+  const to = get(dateTo);
+  if (from && to && to < from) {
+    dateError.set('The end date cannot be before the start date.');
+    isValid = false;
+  }
+
+  return isValid;
+}
+```
+
+## 3. Component Implementation (`+page.svelte`)
+
+This is where you build the UI for your filters and connect them to the stores and handler functions.
+
+### Script Section
+
+The script block orchestrates the state and actions.
+
+```svelte
+<script lang="ts">
+  import Select from 'svelte-select'; // Assuming use of svelte-select
+  import {
+    // Import your data stores (these would be from your table's stores.ts)
+    originalDataStore,
+    displayDataStore,
+    // Import filter stores
+    selectedOption,
+    dateFrom,
+    dateTo,
+    selectedOptions,
+    isLoadingFilters,
+    // Import error stores
+    optionError,
+    dateError,
+    optionsError,
+    // Import validation function
+    validateFilters
+  } from './stores';
+  import { toast } from '$lib/utils/toast'; // Or your preferred notification method
+
+  // --- CUSTOMIZE: Provide options for your select inputs ---
+  const singleSelectOptions = [{ value: 'opt1', label: 'Option 1' }];
+  const multiSelectOptions = [
+    { value: 'status_A', label: 'Status A' },
+    { value: 'status_B', label: 'Status B' }
+  ];
+
+  // This function is called when the user clicks "Apply"
+  async function handleApplyFilters() {
+    // First, validate the inputs
+    if (!validateFilters()) {
+      toast.error('Please fix the errors before applying filters.');
+      return;
+    }
+
+    isLoadingFilters.set(true);
+
+    try {
+      // --- CUSTOMIZE: Prepare a payload with the filter values for your API ---
+      const payload = {
+        Filter: {
+          SingleChoice: get(selectedOption),
+          DateFrom: get(dateFrom)?.toISOString(),
+          DateTo: get(dateTo)?.toISOString(),
+          MultiChoice: get(selectedOptions).map(s => s.value)
+        },
+        action: "GetFilteredData" // Example action name
+      };
+
+      // Make the API call
+      const response = await fetch('your-api-endpoint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch data from the server.');
+      }
+      
+      const results = await response.json();
+
+      // Update your table's data stores with the new, filtered data
+      originalDataStore.set(results.data);
+      displayDataStore.set(results.data);
+
+    } catch (error) {
+      console.error('Error applying filters:', error);
+      toast.error(error.message || 'An unknown error occurred.');
+    } finally {
+      isLoadingFilters.set(false);
+    }
+  }
+</script>
+```
+
+### Markup (HTML) Section
+
+The markup consists of the form elements for your filters. Each input is bound to its corresponding store.
+
+```svelte
+<!-- Filter Section -->
+<div class="filter-controls">
+  <!-- Single Select Dropdown -->
+  <div>
+    <label>Single-Choice Select</label>
+    <Select
+      items={singleSelectOptions}
+      on:select={(e) => selectedOption.set(e.detail?.value)}
+    />
+    {#if $optionError}
+      <p class="error-message">{$optionError}</p>
+    {/if}
+  </div>
+
+  <!-- Date Inputs -->
+  <div>
+    <label>Date From</label>
+    <input type="date" on:change={(e) => dateFrom.set(e.currentTarget.valueAsDate)} />
+  </div>
+  <div>
+    <label>Date To</label>
+    <input type="date" on:change={(e) => dateTo.set(e.currentTarget.valueAsDate)} />
+    {#if $dateError}
+      <p class="error-message">{$dateError}</p>
+    {/if}
+  </div>
+
+  <!-- Multi-Select Dropdown -->
+  <div>
+    <label>Multi-Choice Select</label>
+    <Select
+      items={multiSelectOptions}
+      multiple={true}
+      value={$selectedOptions}
+      on:change={(e) => selectedOptions.set(e.detail || [])}
+    />
+    {#if $optionsError}
+      <p class="error-message">{$optionsError}</p>
+    {/if}
+  </div>
+</div>
+
+<!-- Apply Filter Button -->
+<div class="apply-button-container">
+  <button
+    on:click={handleApplyFilters}
+    disabled={$isLoadingFilters || $optionError || $dateError || $optionsError}
+  >
+    {#if $isLoadingFilters}
+      <span>Loading...</span>
+    {:else}
+      <span>Apply Filters</span>
+    {/if}
+  </button>
+</div>
+
+<!-- Optional: A loading overlay for better UX -->
+{#if $isLoadingFilters}
+  <div class="loading-overlay">
+    <p>Fetching data, please wait...</p>
+  </div>
+{/if}
+
+<style>
+  .error-message {
+    color: red;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+</style>
+```
+
+## 4. Responsive Filter Layout
+
+To ensure your filters look good on any device, use a responsive grid layout. This allows the filter inputs to automatically arrange themselves into columns based on the available screen width.
+
+### CSS Grid for Layout
+
+Apply the following CSS to the container that holds your filter inputs.
+
+```css
+.filter-controls {
+  display: grid;
+  /* This creates columns that are at least 250px wide, 
+     but will grow to fill available space. They will wrap
+     onto new lines on smaller screens. */
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem; /* Adjust the space between filters */
+}
+```
+
+This approach is flexible and robust, ensuring a great user experience on both desktop and mobile without needing complex media queries.
+
+
+This setup provides a robust filtering experience by separating state management from the UI, validating user input, and giving clear feedback during data fetching operations. You can adapt and extend this pattern for any number of filters. 

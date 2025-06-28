@@ -1,0 +1,65 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Create a detailed Git commit message in a markdown format for my changes following these guidelines:
+
+1. **Structure**:
+   - Title: Short (under 50 chars) starting with type (fix/feat/chore) and scope
+   - Body: Bullet points organized by file/folder
+   - Footer: Testing instructions and notes (optional)
+
+2. **Content Requirements**:
+   - For each modified file:
+     * Path: `netlify/functions/filename.js`
+     * Changes: Specific modifications made
+     * Why: Reason for each change
+     * Impact: How it affects functionality
+   - For new files:
+     * Purpose: What problem it solves
+     * Key features: List functionality
+     * Usage: Example requests/responses
+   - Technical improvements:
+     * Before/after comparisons
+     * Security considerations
+     * Performance impacts
+
+3. **Special Instructions**:
+   - Include code diffs for key changes (```diff``` format)
+   - List exact endpoints added/modified
+   - Note breaking changes if any
+   - Add testing commands/URLs
+   - Mention error handling improvements
+
+4. **Example Output Format**:
+   ```
+   fix(xero-integration): Improve error handling and add token debugging
+
+   This commit addresses API integration issues by adding robust error handling
+   and debugging capabilities.
+
+   ### Files Modified:
+
+   #### 1. `netlify/functions/example.js`
+      - FIXED: JSON parsing error when API returns non-JSON responses
+      - ADDED: Content-Type validation before parsing
+      - DIFF:
+        ```diff
+        + // Check if response is JSON
+        + const contentType = response.headers.get('content-type');
+        ```
+
+   ### Technical Improvements:
+   - BEFORE: Failed silently on HTML errors
+   - AFTER: Explicit error logging
+   ```
+
+5. **Current Changes Summary**:
+   [Insert your brief description of changes here]
+
+6. **Additional Context**:
+   - Related issues: [List any]
+   - Dependencies: [List any]
+
+   - Deployment requirements: [If any]

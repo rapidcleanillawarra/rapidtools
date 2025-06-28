@@ -1,0 +1,238 @@
+---
+description: This rule provides a comprehensive template for creating an interactive, client-side data table in Svelte. It outlines a standard file structure (+page.svelte, stores.ts, utils.ts, types.ts) and a state management pattern using Svelte stores. The guide includes code examples for implementing key features such as per-column sorting, per-column searching, and pagination.
+globs: 
+alwaysApply: false
+---
+# Guide: Creating an Interactive Data Table
+
+This guide provides a standardized approach for creating feature-rich, client-side data tables in Svelte. It covers state management, sorting, searching, and pagination.
+
+## 1. File Structure
+
+For a new page with a data table, it's helpful to organize your code into these files:
+
+-   `+page.svelte`: The main component file containing the table markup and UI logic.
+-   `stores.ts`: For managing all state related to the table.
+-   `utils.ts` (or `utils/table.ts`): For reusable helper functions (sorting, pagination).
+-   `types.ts`: To define the data structure for your table items.
+
+## 2. State Management (`stores.ts`)
+
+A clean state management setup is key. Using Svelte stores allows for easy, reactive updates across your component.
+
+### Essential Stores
+
+Here's a template for the stores you'll likely need.
+
+```typescript
+// src/routes/your-page/stores.ts
+import { writable, derived } from 'svelte/store';
+import type { YourDataType } from './types'; // Import your data type
+
+// --- Core Data Stores ---
+// Holds the original, unmodified data from your API
+export const originalData = writable<YourDataType[]>([]);
+// Holds the data currently being displayed (after search/filters are applied)
+export const tableData = writable<YourDataType[]>([]);
+
+// --- UI State Stores ---
+export const isLoading = writable<boolean>(true);
+export const error = writable<string | null>(null);
+
+// --- Pagination Stores ---
+export const currentPage = writable<number>(1);
+export const itemsPerPage = writable<number>(10);
+
+// --- Sorting Stores ---
+export const sortField = writable<keyof YourDataType | ''>('');
+export const sortDirection = writable<'asc' | 'desc'>('asc');
+
+// --- Search Stores ---
+// An object where keys match column names for targeted search
+export const searchFilters = writable<Partial<Record<keyof YourDataType, string>>>({});
+
+// --- Derived Store for Paginated Data ---
+// This automatically calculates the data for the current page
+export const paginatedData = derived(
+  [tableData, currentPage, itemsPerPage],
+  ([$tableData, $currentPage, $itemsPerPage]) => {
+    const startIndex = ($currentPage - 1) * $itemsPerPage;
+    const endIndex = startIndex + $itemsPerPage;
+    return $tableData.slice(startIndex, endIndex);
+  }
+);
+```
+
+## 3. Utility Functions (`utils.ts`)
+
+Abstracting logic into pure functions makes your code cleaner and easier to test.
+
+```typescript
+// src/routes/your-page/utils.ts
+import type { YourDataType } from './types';
+
+/**
+ * Gets a visual indicator for the current sort status of a column.
+ */
+export function getSortIcon(field: keyof YourDataType, currentSortField: string, direction: 'asc' | 'desc'): string {
+  if (currentSortField !== field) return '↕️';
+  return direction === 'asc' ? '↑' : '↓';
+}
+
+/**
+ * Sorts an array of data based on a specified field and direction.
+ */
+export function sortData(
+  data: YourDataType[],
+  field: keyof YourDataType,
+  direction: 'asc' | 'desc'
+): YourDataType[] {
+  return [...data].sort((a, b) => {
+    const valueA = a[field];
+    const valueB = b[field];
+
+    // Add logic for different data types (string, number, date)
+    if (typeof valueA === 'number' && typeof valueB === 'number') {
+      return direction === 'asc' ? valueA - valueB : valueB - valueA;
+    }
+
+    if (valueA instanceof Date && valueB instanceof Date) {
+        return direction === 'asc' ? valueA.getTime() - valueB.getTime() : valueB.getTime() - valueA.getTime();
+    }
+    
+    // Default to string comparison
+    const strA = String(valueA).toLowerCase();
+    const strB = String(valueB).toLowerCase();
+    return direction === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
+  });
+}
+```
+
+## 4. Component Implementation (`+page.svelte`)
+
+This is where you bring the stores and utilities together to build the UI.
+
+### Script Section
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import {
+    originalData,
+    tableData,
+    isLoading,
+    currentPage,
+    itemsPerPage,
+    sortField,
+    sortDirection,
+    searchFilters,
+    paginatedData // Import the derived store
+  } from './stores';
+  import { getSortIcon, sortData } from './utils';
+  import type { YourDataType } from './types';
+
+  onMount(async () => {
+    // Fetch initial data and populate stores
+    isLoading.set(true);
+    // const fetchedData = await yourApiCall();
+    const fetchedData: YourDataType[] = []; // Replace with actual API call
+    originalData.set(fetchedData);
+    tableData.set(fetchedData);
+    isLoading.set(false);
+  });
+
+  // Handler for clicking a table header to sort
+  function handleSortClick(field: keyof YourDataType) {
+    const currentField = $sortField;
+    const currentDirection = $sortDirection;
+
+    let newDirection: 'asc' | 'desc' = 'asc';
+    if (currentField === field && currentDirection === 'asc') {
+      newDirection = 'desc';
+    }
+
+    sortField.set(field);
+    sortDirection.set(newDirection);
+
+    // Update table data by sorting it
+    $tableData = sortData($tableData, field, newDirection);
+  }
+
+  // Reactive statement to handle searching
+  $: {
+    // Start with the original, unfiltered data
+    let filtered = $originalData;
+    
+    // Apply each search filter
+    for (const [key, value] of Object.entries($searchFilters)) {
+      if (value) {
+        filtered = filtered.filter(item =>
+          String(item[key as keyof YourDataType]).toLowerCase().includes(value.toLowerCase())
+        );
+      }
+    }
+    
+    // Update the table data, which will trigger the paginatedData store to update
+    tableData.set(filtered);
+    
+    // When a search happens, always return to the first page
+    currentPage.set(1);
+  }
+</script>
+```
+
+### Markup Section
+
+```svelte
+<!-- Table Headers with Sorting and Searching -->
+<table>
+  <thead>
+    <tr>
+      <th>
+        <div on:click={() => handleSortClick('column1')}>
+          Column 1 {getSortIcon('column1', $sortField, $sortDirection)}
+        </div>
+        <input
+          type="text"
+          placeholder="Search Column 1..."
+          bind:value={$searchFilters.column1}
+        />
+      </th>
+      <!-- ... other headers ... -->
+    </tr>
+  </thead>
+  <tbody>
+    {#if $isLoading}
+      <tr><td colspan="100%">Loading...</td></tr>
+    {:else if $paginatedData.length === 0}
+      <tr><td colspan="100%">No results found.</td></tr>
+    {:else}
+      {#each $paginatedData as item (item.id)}
+        <tr>
+          <td>{item.column1}</td>
+          <!-- ... other cells ... -->
+        </tr>
+      {/each}
+    {/if}
+  </tbody>
+</table>
+
+<!-- Pagination Controls -->
+<div class="pagination-controls">
+  <button on:click={() => currentPage.update(p => Math.max(1, p - 1))} disabled={$currentPage === 1}>
+    Previous
+  </button>
+  <span>Page {$currentPage}</span>
+  <button on:click={() => currentPage.update(p => p + 1)} disabled={$paginatedData.length < $itemsPerPage}>
+    Next
+  </button>
+
+  <select bind:value={$itemsPerPage}>
+    <option value={10}>10</option>
+    <option value={20}>20</option>
+    <option value={50}>50</option>
+  </select>
+</div>
+```
+
+This structure provides a robust and scalable foundation for building any data table in your application. 

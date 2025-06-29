@@ -27,8 +27,9 @@ export interface PriceGroupProduct {
 	inventory_id: number;
 	sku: string;
 	price_group_id: number;
-	group_name: string;
 	price: number;
+	default_client_group: number | null;
+	price_match: boolean;
 	promotion_price: number | null;
 	multiple: string | null;
 	minimum_quantity: number | null;

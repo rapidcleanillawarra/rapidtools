@@ -52,9 +52,11 @@ export async function fetchProductsForGroup(
 	const to = from + itemsPerPage - 1;
 
 	let query = supabase
-		.from('pricegroups_summary')
+		.from('pricegroups_list')
 		.select('*', { count: 'exact' })
-		.eq('price_group_id', groupId);
+		.eq('price_group_id', groupId)
+		.eq('price_match', false)
+		.neq('price', 0);
 
 	// Apply filters
 	for (const key in filters) {

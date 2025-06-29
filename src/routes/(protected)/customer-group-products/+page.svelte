@@ -277,6 +277,12 @@
 											</th>
 											<th
 												class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+												on:click={() => handleSortClick('default_client_group')}
+											>
+												Default Group {getSortIcon('default_client_group', $sortField, $sortDirection)}
+											</th>
+											<th
+												class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
 												on:click={() => handleSortClick('promotion_price')}
 											>
 												Promo Price {getSortIcon('promotion_price', $sortField, $sortDirection)}
@@ -321,6 +327,14 @@
 													class="text-xs w-full"
 													placeholder="Search Price..."
 													bind:value={$searchFilters.price}
+												/>
+											</th>
+											<th class="px-2 py-1">
+												<input
+													type="text"
+													class="text-xs w-full"
+													placeholder="Search Group..."
+													bind:value={$searchFilters.default_client_group}
 												/>
 											</th>
 											<th class="px-2 py-1">
@@ -375,6 +389,9 @@
 												</td>
 												<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
 													>$ {formatPrice(product.price)}</td
+												>
+												<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+													>$ {formatPrice(product.default_client_group)}</td
 												>
 												<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
 													>$ {formatPrice(product.promotion_price)}</td

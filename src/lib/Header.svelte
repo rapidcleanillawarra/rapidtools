@@ -11,6 +11,7 @@
   let ordersOpen = false;
   let userDropdownOpen = false;
   let shippingOpen = false;
+  let customerGroupProductsOpen = false;
 
   // Subscribe to the currentUser store
   let user: import('firebase/auth').User | null = null;
@@ -46,6 +47,7 @@
   let mobileProductsOpen = false;
   let mobileOrdersOpen = false;
   let mobileShippingOpen = false;
+  let mobileCustomerGroupProductsOpen = false;
 
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -60,6 +62,9 @@
     }
     if (!target.closest('.shipping-dropdown') && shippingOpen) {
       shippingOpen = false;
+    }
+    if (!target.closest('.customer-group-products-dropdown') && customerGroupProductsOpen) {
+      customerGroupProductsOpen = false;
     }
   }
 
@@ -83,6 +88,7 @@
       mobileShippingOpen = false;
       userDropdownOpen = false;
       shippingOpen = false;
+      customerGroupProductsOpen = false;
     };
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
@@ -156,6 +162,11 @@
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Compare SKU</a>
+                  <a
+                    href="{base}/customer-group-products"
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => productsOpen = false}
+                  >Customer Group Products</a>
                 </div>
               </div>
             {/if}
@@ -348,11 +359,10 @@
               on:click={() => mobileProductsOpen = false}
             >Compare SKU</a>
             <a 
-              href="{base}/apply-payments" 
+              href="{base}/customer-group-products" 
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProductsOpen = false}
-              data-sveltekit-preload-data="off"
-            >Apply Payments</a>
+            >Customer Group Products</a>
           </div>
         {/if}
         <!-- Mobile Orders Dropdown -->

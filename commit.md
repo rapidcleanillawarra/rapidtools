@@ -86,3 +86,30 @@ function createEmptyRow(): ProductRow {
 - Mobile view shows "Tax" label above checkbox
 - Email notifications now include tax status in product table
 - No breaking changes introduced
+
+feat(deploy): Add Supabase environment variables to GitHub workflow
+
+This commit adds Supabase authentication environment variables to the GitHub Pages deployment workflow, enabling proper integration with the Supabase backend.
+
+### Files Modified:
+
+#### 1. `.github/workflows/deploy.yml`
+- ADDED: Supabase URL environment variable for API endpoint configuration
+- ADDED: Supabase anonymous key environment variable for client authentication
+- DIFF:
+```diff
+   VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+   VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+   VITE_FIREBASE_MEASUREMENT_ID: ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
++  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
++  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+```
+
+### Technical Improvements:
+- BEFORE: Deployment workflow only included Firebase environment variables
+- AFTER: Workflow now includes both Firebase and Supabase environment variables
+- IMPACT: Enables proper authentication and data fetching from Supabase in the deployed application
+
+### Testing Instructions:
+- Ensure GitHub repository has the Supabase secrets properly configured
+- Verify that the Customer Group Products page loads data correctly after deployment

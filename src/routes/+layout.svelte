@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { currentUser, isLoadingAuth } from '$lib/firebase';
 	import Header from '$lib/Header.svelte';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import { browser } from '$app/environment';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
@@ -49,4 +50,5 @@
 {#if mounted || !browser}
 	<Header />
 	<slot />
+	<ToastContainer />
 {/if}

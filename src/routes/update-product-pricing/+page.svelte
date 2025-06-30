@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import Select from 'svelte-select';
-  import { SvelteToast } from '@zerodevx/svelte-toast';
+
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import {
     products,
@@ -55,6 +55,39 @@
     detail: SelectOption[] | null;
   }
 
+  // Interfaces for API response
+  interface PriceGroupDetail {
+    Multiple: string;
+    Price: string;
+    MaximumQuantity: string;
+    MinimumQuantity: string;
+    MultipleStartQuantity: string;
+    Group: string;
+    GroupID: string;
+  }
+
+  interface ProductItem {
+    PrimarySupplier: string;
+    Categories: string[];
+    RRP: string;
+    Model: string;
+    InventoryID: string;
+    Brand: string;
+    Misc09: string;
+    DefaultPurchasePrice: string;
+    PriceGroups: Array<{
+      PriceGroup: PriceGroupDetail[];
+    }>;
+    SKU: string;
+    Misc02: string;
+  }
+
+  interface ApiResponse {
+    Item: ProductItem[];
+    CurrentTime: string;
+    Ack: string;
+  }
+
   // Store previous category selections for each product
   let previousCategorySelections = new Map<string, SelectOption[]>();
   
@@ -63,39 +96,124 @@
   const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
   const categoriesUrl = 'https://prod-47.australiasoutheast.logic.azure.com:443/workflows/0d67bc8f1bb64e78a2495f13a7498081/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fJJzmNyuARuwEcNCoMuWwMS9kmWZQABw9kJXsUj9Wk8';
   const updatePricingUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+  const productsApiUrl = 'https://prod-19.australiasoutheast.logic.azure.com:443/workflows/67422be18c5e4af0ad9291110dedb2fd/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=N_VRTyaFEkOUGjtwu8O56_L-qY6xwvHuGWEOvqKsoAk';
 
-  export let data: { products: any[] };
+  // Remove server-side data dependency
+  // export let data: { products: any[] };
 
-  // Add logging for when data changes
-  $: {
-    console.log('Data changed:', {
-      hasData: !!data,
-      productsLength: data?.products?.length || 0
-    });
-  }
-
-  // Initialize products only on mount, not on every data change
-  onMount(() => {
-    console.log('Component mounted, initializing data');
-    if (data?.products && Array.isArray(data.products)) {
-      console.log('Setting initial products:', data.products.length);
+  // Client-side data fetching function
+  async function loadProducts() {
+    console.log('\n========== CLIENT LOAD START ==========');
+    console.log('🕒 Client-side load function called at:', new Date().toISOString());
+    
+    try {
+      loading.set(true);
       
-      // Ensure all products have original_category initialized
-      const productsWithOriginalCategory = data.products.map(product => {
-        if (!product.original_category && product.category) {
-          return {
-            ...product,
-            original_category: [...product.category]
-          };
+      const requestBody = {
+        Filter: {
+          SKU: "",
+          Active: true,
+          OutputSelector: [
+            "SKU",
+            "Model",
+            "Categories",
+            "Brand",
+            "PrimarySupplier",
+            "RRP",
+            "DefaultPurchasePrice",
+            "PriceGroups",
+            "Misc02",
+            "Misc09",
+            "InventoryID"
+          ]
         }
-        return product;
-      });
+      };
       
-      $originalProducts = [...productsWithOriginalCategory];
-      $products = [...productsWithOriginalCategory];
-      $filteredProducts = [...productsWithOriginalCategory];
+      console.log('📤 Request Body:', JSON.stringify(requestBody, null, 2));
+      console.log('⏳ Making API request...');
+      
+      const response = await fetch(productsApiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('📥 Response received');
+      console.log('Status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Response not OK. Error text:', errorText);
+        throw new Error(`Failed to load products: ${response.status} ${response.statusText}. Error: ${errorText}`);
+      }
+
+      const responseText = await response.text();
+      console.log('📄 Raw response text length:', responseText.length);
+      
+      const data = JSON.parse(responseText) as ApiResponse;
+      console.log('✅ Parsed API response:', {
+        status: response.status,
+        dataReceived: !!data,
+        itemCount: data.Item?.length || 0,
+        ack: data.Ack,
+        currentTime: data.CurrentTime
+      });
+
+      if (!data.Item) {
+        console.warn('⚠️ No Item array in response');
+        return [];
+      }
+
+      console.log('🔄 Transforming data...');
+      const transformedProducts = (data.Item || []).map((item: ProductItem) => {
+        const clientPrice = item.PriceGroups?.[0]?.PriceGroup?.find(
+          pg => pg.Group === "Default Client Group" || pg.GroupID === "2"
+        )?.Price || '0';
+
+        const category = Array.isArray(item.Categories) ? item.Categories[0] || '' : '';
+        const transformed = {
+          sku: item.SKU || '',
+          product_name: item.Model || '',
+          brand: item.Brand || '',
+          primary_supplier: item.PrimarySupplier || '',
+          category: category,
+          original_category: category,
+          purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
+          client_mup: parseFloat(item.Misc02 || '0'),
+          retail_mup: parseFloat(item.Misc09 || '0'),
+          client_price: parseFloat(clientPrice),
+          rrp: parseFloat(item.RRP || '0'),
+          inventory_id: item.InventoryID || ''
+        };
+        return transformed;
+      });
+
+      console.log('✨ Final products array length:', transformedProducts.length);
+      if (transformedProducts.length > 0) {
+        console.log('📝 Sample product:', JSON.stringify(transformedProducts[0], null, 2));
+      }
+      console.log('========== CLIENT LOAD END ==========\n');
+      
+      return transformedProducts;
+    } catch (err: unknown) {
+      const error = err as Error;
+      console.error('❌ ========== CLIENT LOAD ERROR ==========');
+      console.error('Error loading products:', error);
+      console.error('Full error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      console.error('========== CLIENT LOAD ERROR END ==========\n');
+      toastError('Failed to load products. Please try again.');
+      return [];
+    } finally {
+      loading.set(false);
     }
-  });
+  }
 
 
   // Add logging to filter submit
@@ -117,17 +235,39 @@
 
   onMount(async () => {
     console.log('Component mounted');
-    console.log('Current data state:', {
-      originalProducts: $originalProducts.length,
-      products: $products.length,
-      filteredProducts: $filteredProducts.length
-    });
     
-    await Promise.all([
+    // Load products and reference data in parallel
+    const [loadedProducts] = await Promise.all([
+      loadProducts(),
       fetchBrands(),
       fetchSuppliers(),
       fetchCategories()
     ]);
+    
+    if (loadedProducts && Array.isArray(loadedProducts)) {
+      console.log('Setting initial products:', loadedProducts.length);
+      
+      // Ensure all products have original_category initialized
+      const productsWithOriginalCategory = loadedProducts.map(product => {
+        if (!product.original_category && product.category) {
+          return {
+            ...product,
+            original_category: [...(Array.isArray(product.category) ? product.category : [product.category])]
+          };
+        }
+        return product;
+      });
+      
+      $originalProducts = [...productsWithOriginalCategory];
+      $products = [...productsWithOriginalCategory];
+      $filteredProducts = [...productsWithOriginalCategory];
+      
+      console.log('Current data state after load:', {
+        originalProducts: $originalProducts.length,
+        products: $products.length,
+        filteredProducts: $filteredProducts.length
+      });
+    }
   });
 
   // Declare reactive variables
@@ -234,13 +374,6 @@
   }
 </script>
 
-<SvelteToast options={{ 
-  duration: 4000,
-  pausable: true,
-  reversed: false,
-  intro: { y: -200 }
-}} />
-
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
     <h2 class="text-2xl font-bold mb-6 text-gray-900">Update Product Pricing</h2>
@@ -282,7 +415,7 @@
                 items={$brands}
                 bind:value={$brandFilter}
                 placeholder="Select Brand"
-                containerStyles="position: relative;"
+                clearable={false}
               />
             {/if}
           </div>
@@ -298,7 +431,7 @@
                 items={$suppliers}
                 bind:value={$supplierFilter}
                 placeholder="Select Supplier"
-                containerStyles="position: relative;"
+                clearable={false}
               />
             {/if}
           </div>
@@ -314,7 +447,7 @@
                 items={$categories}
                 bind:value={$categoryFilter}
                 placeholder="Select Categories"
-                containerStyles="position: relative;"
+                clearable={false}
                 searchable={true}
                 multiple={true}
               />
@@ -554,7 +687,7 @@
                         items={$brands}
                         value={$brands.find(b => b.value === product.brand)}
                         placeholder="Select Brand"
-                        containerStyles="position: static;"
+                        clearable={false}
                         on:change={(e: SelectChangeEvent) => {
                           product.brand = e.detail?.value || '';
                           $products = $products;
@@ -574,7 +707,7 @@
                         items={$suppliers}
                         value={$suppliers.find(s => s.value === product.primary_supplier)}
                         placeholder="Select Supplier"
-                        containerStyles="position: static;"
+                        clearable={false}
                         on:change={(e: SelectChangeEvent) => {
                           product.primary_supplier = e.detail?.value || '';
                           $products = $products;
@@ -594,7 +727,7 @@
                         items={$categories}
                         value={product.category ? $categories.filter(c => product.category.includes(c.value)) : []}
                         placeholder="Select Categories"
-                        containerStyles="position: static;"
+                        clearable={false}
                         searchable={true}
                         multiple={true}
                         on:select={() => {

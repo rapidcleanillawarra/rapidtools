@@ -7,7 +7,7 @@
   import type { ProductRequest, Brand, Supplier, Category, Markup } from '$lib/types';
   import { userProfile, type UserProfile } from '$lib/userProfile';
   import Select from 'svelte-select';
-  import { SvelteToast } from '@zerodevx/svelte-toast';
+
 
   interface SelectOption {
     value: string;
@@ -421,6 +421,18 @@
         // Log the full response structure
         console.log('API Response Structure:', JSON.stringify(responseData, null, 2));
         
+        // Debug the response structure
+        console.log('Response analysis:', {
+          directAck: responseData.Ack,
+          nestedAck: responseData.message?.Ack,
+          directMessages: responseData.Messages,
+          nestedMessages: responseData.message?.Messages,
+          directItem: responseData.Item,
+          nestedItem: responseData.message?.Item,
+          responseOk: response.ok,
+          responseStatus: response.status
+        });
+        
         interface MaropostItem {
           SKU: string;
           InventoryID: string;
@@ -434,25 +446,58 @@
           };
         }
         
-        if (response.ok && responseData.message?.Ack === "Success") {
+        // Handle both direct response and nested message response structures
+        const ackStatus = responseData.Ack || responseData.message?.Ack;
+        const messagesData = responseData.Messages || responseData.message?.Messages;
+        const itemData = responseData.Item || responseData.message?.Item;
+
+        if (response.ok && (ackStatus === "Success" || ackStatus === "Warning")) {
           // Store selected requests data for Teams notification before removing them
           const requestsForNotification = [...selectedRequests];
           
-          // Map SKUs to their inventory IDs from the response
-          const skuToInventoryId: Record<string, string> = {};
-          if (responseData.message?.Item && Array.isArray(responseData.message.Item)) {
-            (responseData.message.Item as MaropostItem[]).forEach(item => {
-              if (item.SKU && item.InventoryID) {
-                skuToInventoryId[item.SKU] = item.InventoryID;
+          // Handle existing products (Warning case)
+          const existingSkus: string[] = [];
+          if (ackStatus === "Warning" && messagesData?.Warning) {
+            messagesData.Warning.forEach((warning: any) => {
+              if (warning.Message && warning.Message.includes("SKU already exists")) {
+                const skuMatch = warning.Message.match(/SKU already exists - use UpdateItem (.+)/);
+                if (skuMatch && skuMatch[1] && typeof skuMatch[1] === 'string') {
+                  existingSkus.push(skuMatch[1].trim());
+                }
               }
             });
           }
           
-          // Log the mapped inventory IDs
+          console.log('Extracted existing SKUs:', existingSkus);
+          
+          // Map SKUs to their inventory IDs from the response
+          const skuToInventoryId: Record<string, string> = {};
+          
+          // Handle the Item field - it could be an array, empty string, or null
+          if (itemData && Array.isArray(itemData) && itemData.length > 0) {
+            console.log('Processing Item array from response:', itemData);
+            (itemData as MaropostItem[]).forEach(item => {
+              if (item.SKU && item.InventoryID) {
+                skuToInventoryId[item.SKU] = item.InventoryID;
+              }
+            });
+          } else {
+            console.log('No Item array in response, Item field:', itemData);
+          }
+          
+          // For existing SKUs, we'll mark them as processed but note they already existed
+          existingSkus.forEach(sku => {
+            skuToInventoryId[sku] = 'existing-product';
+          });
+          
+          // Log the mapping process
           console.log('Mapped SKU to Inventory IDs:', skuToInventoryId);
+          console.log('Response type:', ackStatus === 'Warning' ? 'Warning (some products exist)' : 'Success (new products created)');
           
           for (const request of selectedRequests) {
             const inventoryId = skuToInventoryId[request.sku] || 'not-found';
+            const isExistingProduct = existingSkus.includes(request.sku);
+            
             console.log('Would save to Firebase for request ID:', request.id, {
               status: 'product_created',
               product_creation_date: new Date().toISOString(),
@@ -464,7 +509,8 @@
               tax_included: request.tax_included || false,
               approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
               approved_by_email: profile?.email || 'Unknown Email',
-              inventory_id: inventoryId
+              inventory_id: inventoryId,
+              product_already_existed: isExistingProduct
             });
             
             // Enable Firestore update
@@ -480,10 +526,11 @@
               tax_included: request.tax_included || false,
               approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
               approved_by_email: profile?.email || 'Unknown Email',
-              inventory_id: inventoryId
+              inventory_id: inventoryId,
+              product_already_existed: isExistingProduct
             });
 
-            successfulSubmits.push(request.sku);
+            successfulSubmits.push(isExistingProduct ? `${request.sku} (already existed)` : request.sku);
           }
 
           // Remove from local list and clear selections after processing all requests
@@ -498,16 +545,45 @@
           selectAll = false;
 
           // Prepare and send Teams notification using stored data
-          const tableRows = requestsForNotification.map(request => `<tr><td><a href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku=${request.sku}">${request.sku}</a></td><td>${request.product_name}</td><td>${request.brand}</td><td>${request.primary_supplier}</td><td>${request.client_price?.toFixed(2)}</td><td>${request.rrp?.toFixed(2)}</td><td>${request.tax_included || false}</td></tr>`).join('');
+          const tableRows = requestsForNotification.map(request => {
+            const isExisting = existingSkus.includes(request.sku || '');
+            const statusIcon = isExisting ? '⚠️' : '✅';
+            const sku = request.sku || 'Unknown SKU';
+            const productName = request.product_name || 'Unknown Product';
+            const brand = request.brand || 'Unknown Brand';
+            const supplier = request.primary_supplier || 'Unknown Supplier';
+            const clientPrice = request.client_price ? request.client_price.toFixed(2) : '0.00';
+            const rrp = request.rrp ? request.rrp.toFixed(2) : '0.00';
+            const taxInclusive = request.tax_included || false;
+            
+            return `<tr><td><a href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku=${sku}">${sku}</a> ${statusIcon}</td><td>${productName}</td><td>${brand}</td><td>${supplier}</td><td>${clientPrice}</td><td>${rrp}</td><td>${taxInclusive}</td></tr>`;
+          }).join('');
+          
+          const newProductCount = requestsForNotification.filter(r => r.sku && !existingSkus.includes(r.sku)).length;
+          const existingProductCount = existingSkus.length;
+          
+          let statusMessage = '';
+          if (newProductCount > 0 && existingProductCount > 0) {
+            statusMessage = `✅${newProductCount} product(s) have been successfully created and ⚠️${existingProductCount} product(s) already existed in the system.`;
+          } else if (newProductCount > 0) {
+            statusMessage = `✅The following ${newProductCount} product(s) have been successfully created.`;
+          } else {
+            statusMessage = `⚠️All ${existingProductCount} product(s) already existed in the system.`;
+          }
+          
+          const firstRequest = requestsForNotification[0];
+          const requestorName = firstRequest ? `${firstRequest.requestor_firstName || 'Unknown'} ${firstRequest.requestor_lastName || 'Name'}` : 'Unknown User';
+          const requestorEmail = firstRequest?.requestor_email || 'Unknown Email';
           
           const notificationPayload = {
             action: "product",
-            body: `<h1 class=\"editor-heading-h3\"><b><strong class=\"editor-text-bold\">🔔 </strong></b><b><strong class=\"editor-text-bold\" style=\"color: rgb(65, 117, 5);\">Product Request Approved!</strong></b>✅</h1>
-<p class=\"editor-paragraph\">✅The following product(s) have been successfully created, and approved by <b><strong class=\"editor-text-bold\">${profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User'}</strong></b>👤</p>
+            body: `<h1 class=\"editor-heading-h3\"><b><strong class=\"editor-text-bold\">🔔 </strong></b><b><strong class=\"editor-text-bold\" style=\"color: rgb(65, 117, 5);\">Product Request Processed!</strong></b>✅</h1>
+<p class=\"editor-paragraph\">${statusMessage} Approved by <b><strong class=\"editor-text-bold\">${profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User'}</strong></b>👤</p>
 <p class=\"editor-paragraph\">👤<b><strong class=\"editor-text-bold\" style=\"color: rgb(139, 87, 42);\">Requestor Information:</strong></b></p>
-<p class=\"editor-paragraph\">Name: <b><strong class=\"editor-text-bold\">${requestsForNotification[0].requestor_firstName} ${requestsForNotification[0].requestor_lastName}</strong></b></p>
-<p class=\"editor-paragraph\">Email: <b><strong class=\"editor-text-bold\">${requestsForNotification[0].requestor_email}</strong></b></p>
-<p class=\"editor-paragraph\">📦<b><strong class=\"editor-text-bold\" style=\"color: rgb(139, 87, 42);\">Approved Products: ✅</strong></b></p>
+<p class=\"editor-paragraph\">Name: <b><strong class=\"editor-text-bold\">${requestorName}</strong></b></p>
+<p class=\"editor-paragraph\">Email: <b><strong class=\"editor-text-bold\">${requestorEmail}</strong></b></p>
+<p class=\"editor-paragraph\">📦<b><strong class=\"editor-text-bold\" style=\"color: rgb(139, 87, 42);\">Processed Products:</strong></b></p>
+<p class=\"editor-paragraph\"><small>✅ = Newly Created | ⚠️ = Already Existed</small></p>
 <table><thead><tr><th><strong>SKU</strong></th><th><strong>Product Name</strong></th><th><strong>Brand</strong></th><th><strong>Primary Supplier</strong></th><th><strong>Client Price</strong></th><th><strong>RRP</strong></th><th><strong>Tax Inclusive</strong></th></tr></thead><tbody>${tableRows}</tbody></table>`
           };
 
@@ -523,41 +599,93 @@
             
             if (!teamsResponse.ok) {
               console.error('Failed to send Teams notification:', await teamsResponse.text());
-              toastError('Product created but failed to send Teams notification');
+              try {
+                toastError('Products processed but failed to send Teams notification');
+              } catch (toastErr) {
+                console.error('Error showing toast notification:', toastErr);
+              }
             } else {
               console.log('Teams notification sent successfully');
             }
           } catch (error) {
             console.error('Error sending Teams notification:', error);
-            toastError('Product created but failed to send Teams notification');
+            try {
+              toastError('Products processed but failed to send Teams notification');
+            } catch (toastErr) {
+              console.error('Error showing toast notification:', toastErr);
+            }
           }
         } else {
-          // If the HTTP response itself failed
-          selectedRequests.forEach(request => {
-            failedSubmits.push(`${request.sku} (HTTP Error: ${(response as Response).status})`);
-          });
+          // Handle other response scenarios (Error, etc.)
+          console.error('API Response Error:', responseData);
+          
+          if (ackStatus === "Error" && messagesData?.Error) {
+            // Handle specific API errors
+            messagesData.Error.forEach((error: any) => {
+              console.error('API Error:', error.Message);
+            });
+            selectedRequests.forEach(request => {
+              failedSubmits.push(`${request.sku} (API Error: ${messagesData.Error[0]?.Message || 'Unknown error'})`);
+            });
+          } else if (!response.ok) {
+            // HTTP response failed
+            selectedRequests.forEach(request => {
+              failedSubmits.push(`${request.sku} (HTTP Error: ${response.status})`);
+            });
+          } else {
+            // Unknown response format
+            selectedRequests.forEach(request => {
+              failedSubmits.push(`${request.sku} (Unknown response format)`);
+            });
+          }
         }
       }
 
       // Show success message for successful submits
       if (successfulSubmits.length > 0) {
-        if (successfulSubmits.length === 1) {
-          toastSuccess(`Successfully created product: ${successfulSubmits[0]}`);
-        } else {
-          toastSuccess(`Successfully created ${successfulSubmits.length} products: ${successfulSubmits.join(', ')}`);
+        try {
+          const newProducts = successfulSubmits.filter(sku => !sku.includes('(already existed)'));
+          const existingProducts = successfulSubmits.filter(sku => sku.includes('(already existed)'));
+          
+          let message = '';
+          if (newProducts.length > 0 && existingProducts.length > 0) {
+            message = `Successfully processed ${successfulSubmits.length} products: ${newProducts.length} newly created, ${existingProducts.length} already existed`;
+          } else if (newProducts.length > 0) {
+            message = `Successfully created ${newProducts.length} products: ${newProducts.join(', ')}`;
+          } else {
+            message = `Processed ${existingProducts.length} products (all already existed in system): ${existingProducts.map(s => s.replace(' (already existed)', '')).join(', ')}`;
+          }
+          
+          toastSuccess(message);
+        } catch (error) {
+          console.error('Error showing success toast:', error);
+          // Fallback message without toast
+          console.log(`Successfully processed ${successfulSubmits.length} products`);
         }
       }
 
       // Show error message for failed submits
       if (failedSubmits.length > 0) {
-        if (failedSubmits.length === 1) {
-          toastError(`Failed to create product: ${failedSubmits[0]}`);
-        } else {
-          toastError(`Failed to create ${failedSubmits.length} products: ${failedSubmits.join(', ')}`);
+        try {
+          if (failedSubmits.length === 1) {
+            toastError(`Failed to process product: ${failedSubmits[0]}`);
+          } else {
+            toastError(`Failed to process ${failedSubmits.length} products: ${failedSubmits.join(', ')}`);
+          }
+        } catch (error) {
+          console.error('Error showing error toast:', error);
+          // Fallback message without toast
+          console.error(`Failed to process ${failedSubmits.length} products`);
         }
       }
     } catch (error) {
-      toastError('Error during submission. Please try again later.');
+      console.error('Unexpected error during submission:', error);
+      try {
+        toastError('Error during submission. Please try again later.');
+      } catch (toastErr) {
+        console.error('Error showing error toast:', toastErr);
+        console.error('Submission failed due to unexpected error');
+      }
     } finally {
       submitLoading = false;
       selectedRows = selectedRows;
@@ -648,13 +776,6 @@
     };
   });
 </script>
-
-<SvelteToast options={{ 
-  duration: 4000,
-  pausable: true,
-  reversed: false,
-  intro: { y: -200 }
-}} />
 
 <style>
   :global(.svelte-select) {
@@ -793,18 +914,7 @@
     }
   }
 
-  :global(.svelte-toast) {
-    top: 2rem !important;
-    right: 2rem !important;
-  }
-  
-  :global(.svelte-toast-item) {
-    padding: 1rem !important;
-    font-size: 1rem !important;
-    font-weight: 500 !important;
-    border-radius: 0.5rem !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
-  }
+
 </style>
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
@@ -938,7 +1048,7 @@
                       items={brands}
                       value={brands.find(b => b.value === request.brand) || null}
                       placeholder="Select Brand"
-                      containerStyles="position: relative;"
+                      clearable={false}
                       on:change={(e) => {
                         request.brand = e.detail?.value || '';
                         // Trigger search for markups when brand changes
@@ -960,7 +1070,7 @@
                       items={suppliers}
                       value={suppliers.find(s => s.value === request.primary_supplier)}
                       placeholder="Select Supplier"
-                      containerStyles="position: relative;"
+                      clearable={false}
                       on:change={(e) => {
                         request.primary_supplier = e.detail?.value || '';
                       }}
@@ -975,7 +1085,7 @@
                     items={categoriesList}
                     value={categoriesList.find(c => c.value === request.category) || null}
                     placeholder="Select Category"
-                    containerStyles="position: relative;"
+                    clearable={false}
                     on:change={(e) => {
                       request.category = e.detail?.value || '';
                     }}
@@ -987,10 +1097,10 @@
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
                   <input
                     type="number"
-                    value={request.purchase_price}
+                    bind:value={request.purchase_price}
+                    on:input={() => calculatePrices(request, 'mup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     step="0.01"
-                    readonly
                   />
                 </div>
 
@@ -1104,7 +1214,7 @@
                       items={brands}
                       value={brands.find(b => b.value === request.brand) || null}
                       placeholder="Select Brand"
-                      containerStyles="position: relative;"
+                      clearable={false}
                       on:change={(e) => {
                         request.brand = e.detail?.value || '';
                         searchMarkups();
@@ -1126,7 +1236,7 @@
                       items={suppliers}
                       value={suppliers.find(s => s.value === request.primary_supplier)}
                       placeholder="Select Supplier"
-                      containerStyles="position: relative;"
+                      clearable={false}
                       on:change={(e) => {
                         request.primary_supplier = e.detail?.value || '';
                       }}
@@ -1142,7 +1252,7 @@
                     items={categoriesList}
                     value={categoriesList.find(c => c.value === request.category) || null}
                     placeholder="Select Category"
-                    containerStyles="position: relative;"
+                    clearable={false}
                     on:change={(e) => {
                       request.category = e.detail?.value || '';
                     }}
@@ -1155,10 +1265,10 @@
                 <div class="mobile-value">
                   <input
                     type="number"
-                    value={request.purchase_price}
+                    bind:value={request.purchase_price}
+                    on:input={() => calculatePrices(request, 'mup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     step="0.01"
-                    readonly
                   />
                 </div>
               </div>
@@ -1278,6 +1388,3 @@
     </div>
   </div>
 </div>
-
-<!-- Add portal container at the end of the body -->
-<div id="select-portal" /> 

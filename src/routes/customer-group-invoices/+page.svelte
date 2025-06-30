@@ -2,7 +2,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { SvelteToast } from '@zerodevx/svelte-toast';
+
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import Select from 'svelte-select';
   import {
@@ -490,13 +490,6 @@
     modalInvoice = null;
   }
 </script>
-
-<SvelteToast options={{ 
-  duration: 4000,
-  pausable: true,
-  reversed: false,
-  intro: { y: -200 }
-}} />
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>

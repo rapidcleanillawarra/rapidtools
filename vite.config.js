@@ -7,6 +7,6 @@ export default defineConfig({
 		postcss: './postcss.config.js'
 	},
 	optimizeDeps: {
-		include: ['@zerodevx/svelte-toast']
+		
 	}
 }); 

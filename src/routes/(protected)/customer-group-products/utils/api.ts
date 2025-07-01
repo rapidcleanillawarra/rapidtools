@@ -6,24 +6,17 @@ import type { CustomerGroup, PriceGroupProduct } from '../types';
  */
 export async function fetchCustomerGroups(): Promise<CustomerGroup[]> {
 	console.log('Fetching customer groups...');
-	// Get unique price groups from the summary table
-	const { data, error } = await supabase.from('pricegroups_summary').select('price_group_id, group_name');
+	// Get price groups from the price_groups table
+	const { data, error } = await supabase.from('price_groups').select('price_group_id, group_name');
 
 	if (error) {
 		console.error('Error fetching customer groups:', error);
 		throw new Error('Failed to fetch customer groups');
 	}
 
-	// Get unique groups by using a Map to ensure uniqueness by id
-	const uniqueGroupsMap = new Map();
-	data.forEach((group) => {
-		if (!uniqueGroupsMap.has(group.price_group_id)) {
-			uniqueGroupsMap.set(group.price_group_id, { id: group.price_group_id, name: group.group_name });
-		}
-	});
+	const groups = data ? data.map((g) => ({ id: g.price_group_id, name: g.group_name })) : [];
 
-	const groups = Array.from(uniqueGroupsMap.values());
-	console.log(`Successfully fetched ${groups.length} unique customer groups.`);
+	console.log(`Successfully fetched ${groups.length} customer groups.`);
 	return groups;
 }
 
@@ -61,13 +54,22 @@ export async function fetchProductsForGroup(
 	// Apply filters
 	for (const key in filters) {
 		const value = filters[key as keyof PriceGroupProduct];
-		if (value) {
+		if (value && value.trim() !== '') {
 			// Using ilike for case-insensitive search on text fields
 			if (key === 'sku' || key === 'multiple') {
 				query = query.ilike(key, `%${value}%`);
 			} else {
-				// Using textSearch for numeric fields after casting them to text, not ideal but works for basic search
-				query = query.textSearch(key, `'${value}'`);
+				// Using textSearch for numeric fields. This assumes FTS is enabled on these columns.
+				// We construct a query that does prefix matching on each term entered by the user.
+				const queryText = value
+					.split(' ')
+					.filter((v) => v)
+					.map((v) => `${v}:*`)
+					.join(' & ');
+
+				if (queryText) {
+					query = query.textSearch(key, queryText);
+				}
 			}
 		}
 	}

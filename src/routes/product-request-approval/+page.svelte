@@ -76,8 +76,8 @@
   // Function to calculate client price and RRP
   function calculatePrices(request: ProductRequest, source: 'mup' | 'price' = 'mup') {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
-    // Tax multiplier will be 1.0 if tax is included, otherwise 1.1
-    const taxMultiplier = request.tax_included ? 1.0 : 1.1;
+    // Tax multiplier will be 1.1 if tax is included, otherwise 1.0
+    const taxMultiplier = request.tax_included ? 1.1 : 1.0;
 
     if (source === 'mup') {
       // Calculate prices from MUPs
@@ -401,7 +401,8 @@
                   }
                 ]
               },
-              TaxInclusive: request.tax_included || false
+              TaxInclusive: request.tax_included || false,
+              TaxFreeItem: !request.tax_included || false
             };
           }),
           action: "AddItem"

@@ -12,6 +12,7 @@
   let userDropdownOpen = false;
   let shippingOpen = false;
   let customerGroupProductsOpen = false;
+  let proMaxOpen = false; // Add this line
 
   // Subscribe to the currentUser store
   let user: import('firebase/auth').User | null = null;
@@ -48,6 +49,7 @@
   let mobileOrdersOpen = false;
   let mobileShippingOpen = false;
   let mobileCustomerGroupProductsOpen = false;
+  let mobileProMaxOpen = false; // Add this line
 
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -65,6 +67,9 @@
     }
     if (!target.closest('.customer-group-products-dropdown') && customerGroupProductsOpen) {
       customerGroupProductsOpen = false;
+    }
+    if (!target.closest('.promax-dropdown') && proMaxOpen) { // Add this block
+      proMaxOpen = false;
     }
   }
 
@@ -89,6 +94,8 @@
       userDropdownOpen = false;
       shippingOpen = false;
       customerGroupProductsOpen = false;
+      proMaxOpen = false; // Add this line
+      mobileProMaxOpen = false; // Add this line
     };
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
@@ -268,6 +275,51 @@
               </div>
             {/if}
           </div>
+          <!-- Pro Max Dropdown -->
+          <div class="relative promax-dropdown">
+            <button 
+              type="button" 
+              class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" 
+              on:click|stopPropagation={() => {
+                proMaxOpen = !proMaxOpen;
+                if (proMaxOpen) {
+                  productsOpen = false;
+                  ordersOpen = false;
+                  shippingOpen = false;
+                }
+              }}
+            >
+              Pro Max
+              <svg 
+                class="w-4 h-4 ml-1 transform transition-transform duration-200" 
+                class:rotate-180={proMaxOpen}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            {#if proMaxOpen}
+              <div 
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                transition:fade
+              >
+                <div class="py-1.5">
+                  <a 
+                    href="{base}/promax-template" 
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => proMaxOpen = false}
+                  >Create Template</a>
+                  <a 
+                    href="{base}/promax-settings" 
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => proMaxOpen = false}
+                  >Pro Max Settings</a>
+                </div>
+              </div>
+            {/if}
+          </div>
           <!-- User Profile Dropdown -->
           {#if user}
             <div class="relative user-dropdown ml-6">
@@ -413,6 +465,25 @@
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileShippingOpen = false}
             >Shipping Zones</a>
+          </div>
+        {/if}
+        <!-- Mobile Pro Max Dropdown -->
+        <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileProMaxOpen = !mobileProMaxOpen}>
+          <span>Pro Max</span>
+          <svg class="w-4 h-4 ml-1 transform transition-transform duration-200" class:rotate-180={mobileProMaxOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        {#if mobileProMaxOpen}
+          <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
+            <a 
+              href="{base}/promax-template" 
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileProMaxOpen = false}
+            >Create Template</a>
+            <a 
+              href="{base}/promax-settings" 
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileProMaxOpen = false}
+            >Pro Max Settings</a>
           </div>
         {/if}
         <!-- Mobile User Profile -->

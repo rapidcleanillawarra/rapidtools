@@ -58,10 +58,10 @@
       </div>
       <!-- Company Details -->
       <div class="company-details">
-        <div class="company-details-box">
-          <div>☎ 4227 2833</div>
-          <div>🌐 rapidsupplies.com.au</div>
-        </div>
+              <div class="company-details-box">
+        <div>📞 4227 2833</div>
+        <div>🌐 rapidsupplies.com.au</div>
+      </div>
       </div>
     </div>
     <!-- Instruction -->
@@ -166,7 +166,7 @@
 
   .template-box {
     width: 255pt;
-    height: 582pt;
+    height: 596pt; /* Increased from 582pt to add 14pt (0.5cm) at top */
     position: relative;
     margin: 0 auto; /* Center the template within the page */
     overflow: hidden; /* Hide content that goes outside the box */
@@ -177,7 +177,7 @@
     width: 255pt;
     height: 153pt;
     position: relative;
-    top: 0pt; /* Move up by 1cm to cut off top */
+    top: 14pt; /* Moved down by 14pt to add space at top */
     background-color: #000000 !important;
     border-top-left-radius: 7%;
     border-top-right-radius: 7%;
@@ -189,7 +189,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: 22pt;
+    top: 20pt; /* Increased from 22pt (22 + 14) */
     z-index: 10;
   }
 
@@ -211,7 +211,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: 82pt;
+    top: 80pt; /* Increased from 82pt (82 + 14) */
     font-weight: 600;
     color: #ffffff !important;
     z-index: 10;
@@ -228,7 +228,7 @@
 
   .instruction {
     position: absolute;
-    top: 202pt;
+    top: 216pt; /* Increased from 202pt (202 + 14) */
     left: 50%;
     height: 20pt;
     transform: translateX(-50%);
@@ -242,7 +242,7 @@
 
   .green-arc-top {
     position: absolute;
-    top: 6pt;
+    top: 20pt; /* Increased from 6pt (6 + 14) */
     left: 0;
     width: 255pt;
     height: 180pt;
@@ -258,7 +258,7 @@
 
   .green-arc-bottom {
     position: absolute;
-    top: 184pt;
+    top: 198pt; /* Increased from 184pt (184 + 14) */
     left: 0;
     width: 255pt;
     height: auto;
@@ -273,7 +273,7 @@
 
   .product-dial {
     position: absolute;
-    top: 322pt;
+    top: 336pt; /* Increased from 322pt (322 + 14) */
     left: 0;
     width: 255pt;
     height: 260pt;

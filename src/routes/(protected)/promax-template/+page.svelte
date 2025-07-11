@@ -18,32 +18,32 @@
 
   const defaultTemplateData = {
     topLeft: {
-      title: "R.F.S. Concentrate",
-      code: "K11",
+      title: "FLORAL",
+      code: "K2",
       logo: `${base}/images/bottle.svg`,
-      description: "Hard Surface Cleaner",
-      color: "#fee000" // rgb(254, 230, 0) - yellow
+      description: "Air Freshener",
+      color: "#EC4899" // Magenta/Pink color
     },
     topRight: {
-      title: "Floor Cleaner Pro",
-      code: "K12",
-      logo: `${base}/images/scrubber.svg`,
-      description: "Floor Cleaner",
-      color: "#00a2ff" // rgb(0, 162, 255) - blue
+      title: "Lime Fresh",
+      code: "844",
+      logo: `${base}/images/bottle.svg`,
+      description: "Disinfectant Cleaner",
+      color: "#FEF08A" // Yellow color
     },
     bottomLeft: {
-      title: "Crystal Clean",
-      code: "K14",
-      logo: `${base}/images/sink_fill.svg`,
-      description: "Glass Cleaner",
-      color: "#a855f7" // rgb(168, 85, 247) - purple
+      title: "HI GENIC",
+      code: "H4",
+      logo: `${base}/images/bottle.svg`,
+      description: "Bathroom Cleaner",
+      color: "#5EEAD4" // Teal color
     },
     bottomRight: {
-      title: "Multi-Clean Plus",
-      code: "K13",
-      logo: `${base}/images/bucket.svg`,
-      description: "Multi-Purpose Cleaner",
-      color: "#22c55e" // rgb(34, 197, 94) - green
+      title: "REFLECTION",
+      code: "H3",
+      logo: `${base}/images/bottle.svg`,
+      description: "Glass Cleaner",
+      color: "#60A5FA" // Blue color
     },
     instruction: "Turn off tap when not in use"
   };

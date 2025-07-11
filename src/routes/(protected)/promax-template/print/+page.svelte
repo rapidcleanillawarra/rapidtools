@@ -3,7 +3,14 @@
   import type { PageData } from './$types';
 
   export let data: PageData;
-  const { templateData } = data;
+  const defaultTemplateData = {
+    topLeft: "R.F.S. Concentrate",
+    topRight: "",
+    bottomLeft: "",
+    bottomRight: "",
+    instruction: ""
+  };
+  const templateData = { ...defaultTemplateData, ...data.templateData };
 
   // Remove auto-print for now so we can see the template
   // onMount(() => {
@@ -44,11 +51,18 @@
       />
     </div>
     <!-- Product Dial Container -->
-    <div class="product-dial">
-      <div class="product-dial-grid">
-        <div class="product-section">
-          <div>{templateData.topLeft}</div>
+      <div class="product-dial">
+    <div class="center-circle"></div>
+    <div class="product-dial-grid">
+      <div class="product-section">
+        <div class="product-content">
+          <div class="product-title">{templateData.topLeft}</div>
+          <div class="product-code-logo">
+            <div class="product-code">K11</div>
+            <div class="product-logo-placeholder">Image</div>
+          </div>
         </div>
+      </div>
         <div class="product-section">
           <div>{templateData.topRight}</div>
         </div>
@@ -100,7 +114,7 @@
     height: 610pt;
     position: relative;
     margin: 0 auto; /* Center the template within the page */
-    border: 1px solid #e0e0e0; /* Add subtle border for visibility */
+    /* border: 1px solid #e0e0e0; Add subtle border for visibility */
   }
 
   .branding-background {
@@ -157,8 +171,9 @@
 
   .instruction {
     position: absolute;
-    top: 285pt;
+    top: 230pt;
     left: 50%;
+    height: 20pt;
     transform: translateX(-50%);
     width: 255pt;
     font-size: 12pt;
@@ -186,7 +201,7 @@
 
   .green-arc-bottom {
     position: absolute;
-    top: 217.5pt;
+    top: 212pt;
     left: 0;
     width: 255pt;
     height: auto;
@@ -207,12 +222,24 @@
     height: 260pt;
     background-color: #ffffff !important;
     border: 1px solid #000000;
-    border-bottom-left-radius: 12%;
-    border-bottom-right-radius: 12%;
+    border-bottom-left-radius: 7%;
+    border-bottom-right-radius: 7%;
     padding: 0;
     z-index: 2;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  .center-circle {
+    position: absolute;
+    width: 139.9pt;
+    height: 141.3pt;
+    border: 1px solid #000000;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
   }
 
   .product-dial-grid {
@@ -225,12 +252,17 @@
 
   .product-section {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 0.75rem;
     font-size: 12pt;
     color: #000000 !important;
     font-weight: 500;
+    position: relative;
+  }
+
+  .product-section:nth-child(1) {
+    padding: 0;
   }
 
   .product-section:nth-child(1),
@@ -241,6 +273,58 @@
   .product-section:nth-child(1),
   .product-section:nth-child(2) {
     border-bottom: 1px solid #000000;
+  }
+
+  .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .product-title {
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    margin-top: 5pt;
+    width: 117pt;
+    font-size: 10pt;
+    text-align: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-code-logo {
+    display: flex;
+    background-color: rgb(30, 30, 30) !important;
+    margin-top: 5pt;
+    width: 117pt;
+    font-size: 15pt;
+    height: 25pt;
+    border-radius: 5%;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-code {
+    flex: 1;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+  }
+
+  .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   /* Print styles */

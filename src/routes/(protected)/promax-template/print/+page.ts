@@ -7,10 +7,10 @@ export const load: PageLoad = async ({ url }) => {
       return {
         templateData: {
           instruction: "Turn off tap when not in use",
-          topLeft: "Top Left",
-          topRight: "Top Right",
-          bottomLeft: "Bottom Left",
-          bottomRight: "Bottom Right"
+          topLeft: "R.F.S. Concentrate",
+          topRight: "R.F.S. Concentrate",
+          bottomLeft: "R.F.S. Concentrate",
+          bottomRight: "R.F.S. Concentrate"
         }
       };
     }

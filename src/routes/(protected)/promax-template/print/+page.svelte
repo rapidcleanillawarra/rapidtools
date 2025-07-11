@@ -166,16 +166,18 @@
 
   .template-box {
     width: 255pt;
-    height: 610pt;
+    height: 582pt;
     position: relative;
     margin: 0 auto; /* Center the template within the page */
+    overflow: hidden; /* Hide content that goes outside the box */
     /* border: 1px solid #e0e0e0; Add subtle border for visibility */
   }
 
   .branding-background {
     width: 255pt;
-    height: 180pt;
+    height: 153pt;
     position: relative;
+    top: 0pt; /* Move up by 1cm to cut off top */
     background-color: #000000 !important;
     border-top-left-radius: 7%;
     border-top-right-radius: 7%;
@@ -187,7 +189,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: 50pt;
+    top: 22pt;
     z-index: 10;
   }
 
@@ -209,7 +211,7 @@
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    top: 110pt;
+    top: 82pt;
     font-weight: 600;
     color: #ffffff !important;
     z-index: 10;
@@ -226,7 +228,7 @@
 
   .instruction {
     position: absolute;
-    top: 230pt;
+    top: 202pt;
     left: 50%;
     height: 20pt;
     transform: translateX(-50%);
@@ -240,7 +242,7 @@
 
   .green-arc-top {
     position: absolute;
-    top: 34pt;
+    top: 6pt;
     left: 0;
     width: 255pt;
     height: 180pt;
@@ -256,7 +258,7 @@
 
   .green-arc-bottom {
     position: absolute;
-    top: 212pt;
+    top: 184pt;
     left: 0;
     width: 255pt;
     height: auto;
@@ -271,7 +273,7 @@
 
   .product-dial {
     position: absolute;
-    top: 350pt;
+    top: 322pt;
     left: 0;
     width: 255pt;
     height: 260pt;
@@ -401,7 +403,7 @@
   }
 
   .product-section.top-left .product-logo-placeholder img {
-    width: 30pt;
+    width: 25pt;
     height: 22pt;
   }
 
@@ -483,7 +485,7 @@
   }
 
   .product-section.top-right .product-logo-placeholder img {
-    width: 30pt;
+    width: 25pt;
     height: 22pt;
   }
 
@@ -574,7 +576,7 @@
   }
 
   .product-section.bottom-right .product-logo-placeholder img {
-    width: 30pt;
+    width: 25pt;
     height: 22pt;
   }
 
@@ -649,7 +651,7 @@
   }
 
   .product-section.bottom-left .product-logo-placeholder img {
-    width: 30pt;
+    width: 25pt;
     height: 22pt;
   }
 

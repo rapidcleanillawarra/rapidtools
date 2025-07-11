@@ -50,37 +50,54 @@
 
   const templateData = { ...defaultTemplateData };
 
-  function selectElement(elementId: string) {
-    if (selectedElement === elementId) {
-      selectedElement = null;
-      currentSelection = {
-        section: null,
-        elementType: null,
-        value: null,
-        position: null
-      };
-    } else {
-      selectedElement = elementId;
-      
-      // Parse the elementId to update currentSelection
-      const [position, type] = elementId.split('-');
-      
-      // Get the current value based on position and type
-      let value = null;
-      if (position && type && (position as SectionKey) in templateData && type in templateData[position as SectionKey]) {
-        value = templateData[position as SectionKey][type as ElementType];
-      } else if (elementId === 'instruction') {
-        value = templateData.instruction;
-      }
-      
-      currentSelection = {
-        section: position,
-        elementType: type,
-        value: value,
-        position: position === 'instruction' ? 'center' : 
-                 position.includes('top') ? 'top' : 'bottom'
-      };
+  // Modal state management
+  let showModal = false;
+  
+  function openModal() {
+    showModal = true;
+  }
+  
+  function closeModal() {
+    showModal = false;
+    selectedElement = null;
+    currentSelection = {
+      section: null,
+      elementType: null,
+      value: null,
+      position: null
+    };
+  }
+  
+  function handleModalBackdropClick(event: MouseEvent) {
+    if (event.target === event.currentTarget) {
+      closeModal();
     }
+  }
+
+  function selectElement(elementId: string) {
+    selectedElement = elementId;
+    
+    // Parse the elementId to update currentSelection
+    const [position, type] = elementId.split('-');
+    
+    // Get the current value based on position and type
+    let value = null;
+    if (position && type && (position as SectionKey) in templateData && type in templateData[position as SectionKey]) {
+      value = templateData[position as SectionKey][type as ElementType];
+    } else if (elementId === 'instruction') {
+      value = templateData.instruction;
+    }
+    
+    currentSelection = {
+      section: position,
+      elementType: type,
+      value: value,
+      position: position === 'instruction' ? 'center' : 
+               position.includes('top') ? 'top' : 'bottom'
+    };
+    
+    // Open the modal
+    openModal();
     
     // Log the current selection state
     console.log('Current Selection:', JSON.stringify(currentSelection, null, 2));
@@ -141,13 +158,13 @@
 
     <div class="p-6">
       <div class="grid grid-cols-12 gap-6">
-        <!-- Preview Area (8 columns) -->
-        <div class="col-span-12 lg:col-span-8">
+        <!-- Preview Area (Full Width) -->
+        <div class="col-span-12">
           <div class="bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-lg font-medium">Template Preview</h2>
               <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-600">Dimensions: 255pt × 610pt</span>
+                <span class="text-sm text-gray-600">Click any element in the product dial to edit</span>
                 <button 
                   class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                   on:click={() => window.location.reload()}
@@ -359,112 +376,127 @@
             </div>
           </div>
         </div>
-
-        <!-- Configuration Area (4 columns) -->
-        <div class="col-span-12 lg:col-span-4">
-          <div class="bg-gray-50 rounded-lg p-6 sticky-config">
-            <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-medium">Configuration</h2>
-              <button class="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
-                Save
-              </button>
-            </div>
-            <div class="space-y-4">
-              {#if currentSelection.section === null}
-                <div class="text-sm text-gray-500">
-                  Click on any element in the template to configure it.
-                </div>
-              {:else if currentSelection.section === 'instruction'}
-                <div class="space-y-4">
-                  <div class="text-sm font-medium text-gray-700">Instruction Text</div>
-                  <div class="border rounded-lg p-4 bg-white">
-                    <input 
-                      type="text" 
-                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      bind:value={templateData.instruction}
-                      placeholder="Enter instruction text"
-                    />
-                  </div>
-                </div>
-              {:else if currentSelection.elementType === 'logo'}
-                <div class="space-y-4">
-                  <div class="text-sm font-medium text-gray-700">Select Logo</div>
-                  <div class="border rounded-lg p-4 bg-white">
-                    <select 
-                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      bind:value={templateData[currentSelection.section as SectionKey].logo}
-                    >
-                      <option value="{base}/images/bottle.svg">Bottle</option>
-                      <option value="{base}/images/bucket.svg">Bucket</option>
-                      <option value="{base}/images/scrubber.svg">Scrubber</option>
-                      <option value="{base}/images/sink_fill.svg">Sink</option>
-                    </select>
-                  </div>
-                  <div class="mt-2 flex justify-center">
-                    <img 
-                      src={templateData[currentSelection.section as SectionKey].logo} 
-                      alt="Selected Logo" 
-                      class="w-12 h-12"
-                    />
-                  </div>
-                </div>
-              {:else if currentSelection.elementType === 'description'}
-                <div class="space-y-4">
-                  <div class="text-sm font-medium text-gray-700">Description Text</div>
-                  <div class="border rounded-lg p-4 bg-white">
-                    <input 
-                      type="text" 
-                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      bind:value={templateData[currentSelection.section as SectionKey].description}
-                      placeholder="Enter description text"
-                    />
-                  </div>
-                </div>
-              {:else if currentSelection.elementType === 'title' || currentSelection.elementType === 'code'}
-                <div class="space-y-4">
-                  <div class="text-sm font-medium text-gray-700">
-                    {currentSelection.elementType === 'title' ? 'Product Title' : 'Product Code'}
-                  </div>
-                  <div class="border rounded-lg p-4 bg-white">
-                    <input 
-                      type="text" 
-                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      bind:value={templateData[currentSelection.section as SectionKey][currentSelection.elementType as ElementType]}
-                      placeholder={currentSelection.elementType === 'title' ? 'Enter product title' : 'Enter product code'}
-                    />
-                  </div>
-                  <div class="text-sm font-medium text-gray-700">Section Color</div>
-                  <div class="border rounded-lg p-4 bg-white">
-                    <input 
-                      type="color" 
-                      class="w-full h-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      bind:value={templateData[currentSelection.section as SectionKey].color}
-                    />
-                  </div>
-                </div>
-              {:else if currentSelection.section && currentSelection.section !== 'instruction'}
-                <div class="space-y-4">
-                  <div class="text-sm font-medium text-gray-700">Section Color</div>
-                  <div class="border rounded-lg p-4 bg-white">
-                    <input 
-                      type="color" 
-                      class="w-full h-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      bind:value={templateData[currentSelection.section as SectionKey].color}
-                    />
-                  </div>
-                </div>
-              {:else}
-                <div class="text-sm text-gray-500">
-                  Selected: {currentSelection.section} - {currentSelection.elementType}
-                </div>
-              {/if}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Configuration Modal -->
+{#if showModal}
+  <div 
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    on:click={handleModalBackdropClick}
+    transition:fade={{ duration: 200 }}
+  >
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">
+          {#if currentSelection.section === 'instruction'}
+            Edit Instruction
+          {:else if currentSelection.elementType === 'logo'}
+            Select Logo
+          {:else if currentSelection.elementType === 'title'}
+            Edit Product Title
+          {:else if currentSelection.elementType === 'code'}
+            Edit Product Code
+          {:else if currentSelection.elementType === 'description'}
+            Edit Description
+          {:else}
+            Edit Element
+          {/if}
+        </h2>
+        <button 
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+          on:click={closeModal}
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Content -->
+      <div class="p-6 space-y-4">
+        {#if currentSelection.section === 'instruction'}
+          <div class="space-y-4">
+            <div class="text-sm font-medium text-gray-700">Instruction Text</div>
+            <input 
+              type="text" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              bind:value={templateData.instruction}
+              placeholder="Enter instruction text"
+            />
+          </div>
+        {:else if currentSelection.elementType === 'logo'}
+          <div class="space-y-4">
+            <div class="text-sm font-medium text-gray-700">Select Logo</div>
+            <select 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              bind:value={templateData[currentSelection.section as SectionKey].logo}
+            >
+              <option value="{base}/images/bottle.svg">Bottle</option>
+              <option value="{base}/images/bucket.svg">Bucket</option>
+              <option value="{base}/images/scrubber.svg">Scrubber</option>
+              <option value="{base}/images/sink_fill.svg">Sink</option>
+            </select>
+            <div class="flex justify-center">
+              <img 
+                src={templateData[currentSelection.section as SectionKey].logo} 
+                alt="Selected Logo" 
+                class="w-16 h-16 object-contain"
+              />
+            </div>
+          </div>
+        {:else if currentSelection.elementType === 'description'}
+          <div class="space-y-4">
+            <div class="text-sm font-medium text-gray-700">Description Text</div>
+            <input 
+              type="text" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              bind:value={templateData[currentSelection.section as SectionKey].description}
+              placeholder="Enter description text"
+            />
+          </div>
+        {:else if currentSelection.elementType === 'title' || currentSelection.elementType === 'code'}
+          <div class="space-y-4">
+            <div class="text-sm font-medium text-gray-700">
+              {currentSelection.elementType === 'title' ? 'Product Title' : 'Product Code'}
+            </div>
+            <input 
+              type="text" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              bind:value={templateData[currentSelection.section as SectionKey][currentSelection.elementType as ElementType]}
+              placeholder={currentSelection.elementType === 'title' ? 'Enter product title' : 'Enter product code'}
+            />
+            <div class="text-sm font-medium text-gray-700">Section Color</div>
+            <input 
+              type="color" 
+              class="w-full h-12 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              bind:value={templateData[currentSelection.section as SectionKey].color}
+            />
+          </div>
+        {/if}
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <button 
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          on:click={closeModal}
+        >
+          Cancel
+        </button>
+        <button 
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          on:click={closeModal}
+        >
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   .template-box {
@@ -934,11 +966,5 @@
     width: 156px;
     font-size: 13.33px;
     text-align: center;
-  }
-
-  .sticky-config {
-    position: sticky;
-    top: 1rem;
-    height: fit-content;
   }
 </style> 

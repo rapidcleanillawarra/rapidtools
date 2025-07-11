@@ -54,14 +54,17 @@
       <div class="product-dial">
     <div class="center-circle"></div>
     <div class="product-dial-grid">
-      <div class="product-section">
+      <div class="product-section top-left">
         <div class="product-content">
           <div class="product-title">{templateData.topLeft}</div>
           <div class="product-code-logo">
             <div class="product-code">K11</div>
-            <div class="product-logo-placeholder">Image</div>
+            <div class="product-logo-placeholder">
+              <img src="/images/bottle.svg" alt="Bottle Icon" />
+            </div>
           </div>
         </div>
+        <div class="product-description">Hard Surface Cleaner</div>
       </div>
         <div class="product-section">
           <div>{templateData.topRight}</div>
@@ -221,7 +224,6 @@
     width: 255pt;
     height: 260pt;
     background-color: #ffffff !important;
-    border: 1px solid #000000;
     border-bottom-left-radius: 7%;
     border-bottom-right-radius: 7%;
     padding: 0;
@@ -240,6 +242,7 @@
     left: 50%;
     transform: translate(-50%, -50%);
     z-index: 3;
+    background-color: #ffffff !important;
   }
 
   .product-dial-grid {
@@ -261,16 +264,15 @@
     position: relative;
   }
 
-  .product-section:nth-child(1) {
+  .product-section.top-left {
     padding: 0;
+    background-color: rgb(254, 230, 0) !important;
   }
 
-  .product-section:nth-child(1),
   .product-section:nth-child(3) {
     border-right: 1px solid #000000;
   }
 
-  .product-section:nth-child(1),
   .product-section:nth-child(2) {
     border-bottom: 1px solid #000000;
   }
@@ -295,14 +297,33 @@
     print-color-adjust: exact !important;
   }
 
+  .product-description {
+    position: absolute;
+    bottom: 5pt;
+    left: 5pt;
+    width: 50pt;
+    height: 50pt;
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    font-size: 8pt;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .product-code-logo {
     display: flex;
     background-color: rgb(30, 30, 30) !important;
     margin-top: 5pt;
     width: 117pt;
-    font-size: 15pt;
+    font-size: 20pt;
     height: 25pt;
-    border-radius: 5%;
+    border-radius: 10pt;
     overflow: hidden;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
@@ -315,7 +336,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 500;
+    font-weight: bolder;
   }
 
   .product-logo-placeholder {
@@ -325,6 +346,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .product-logo-placeholder img {
+    width: 30pt;
+    height: 22pt;
   }
 
   /* Print styles */
@@ -349,7 +375,6 @@
 
     .product-dial {
       background-color: #ffffff !important;
-      border: 1px solid #000000 !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }

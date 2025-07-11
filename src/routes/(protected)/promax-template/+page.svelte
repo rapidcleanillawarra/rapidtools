@@ -4,6 +4,45 @@
 
   let printFrame: HTMLIFrameElement;
 
+  const defaultTemplateData = {
+    topLeft: {
+      title: "R.F.S. Concentrate",
+      code: "K11",
+      logo: "/images/bottle.svg",
+      description: "Hard Surface Cleaner"
+    },
+    topRight: {
+      title: "Floor Cleaner Pro",
+      code: "K12",
+      logo: "/images/scrubber.svg",
+      description: "Floor Cleaner"
+    },
+    bottomLeft: {
+      title: "Crystal Clean",
+      code: "K14",
+      logo: "/images/sink_fill.svg",
+      description: "Glass Cleaner"
+    },
+    bottomRight: {
+      title: "Multi-Clean Plus",
+      code: "K13",
+      logo: "/images/bucket.svg",
+      description: "Multi-Purpose Cleaner"
+    },
+    instruction: "Turn off tap when not in use"
+  };
+
+  const templateData = { ...defaultTemplateData };
+  let selectedElement: string | null = null;
+
+  function selectElement(elementId: string) {
+    if (selectedElement === elementId) {
+      selectedElement = null; // deselect if clicked again
+    } else {
+      selectedElement = elementId;
+    }
+  }
+
   onMount(() => {
     // Create a hidden iframe for printing
     printFrame = document.createElement('iframe');
@@ -76,11 +115,11 @@
                 </button>
               </div>
             </div>
-            <div class="border rounded-lg p-4 bg-white overflow-auto">
+            <div class="border rounded-lg p-4 bg-white overflow-auto" style="height: 950px;">
               <div class="flex items-center justify-center">
                 <!-- Template Box with exact dimensions -->
                 <div class="relative">
-                  <div class="template-box border-2 border-dashed border-gray-300 bg-white">
+                  <div class="template-box bg-white">
                     <!-- Branding Background -->
                     <div class="branding-background">
                       <!-- Company Logo -->
@@ -96,37 +135,163 @@
                       <!-- Company Details -->
                       <div class="company-details">
                         <div class="company-details-box flex flex-col items-center justify-center text-white">
-                          <div>4227 2833</div>
-                          <div>www.rapidsupplies.com.au</div>
+                          <div>☎ 4227 2833</div>
+                          <div>🌐rapidsupplies.com.au</div>
                         </div>
                       </div>
                     </div>
                     <!-- Instruction -->
-                    <div class="instruction">
-                      <div class="text-center">Turn off tap when not in use</div>
+                    <div 
+                      class="instruction" 
+                      class:selected={selectedElement === 'instruction'}
+                      on:click={() => selectElement('instruction')}
+                      on:keypress
+                    >
+                      <div class="text-center">{templateData.instruction}</div>
                     </div>
                     <!-- Green Arc Overlay (Top) -->
                     <div class="green-arc-top">
                       <img 
                         src="/images/green_arc.png" 
                         alt="Green Arc Top"
-                        class="w-full h-full object-cover"
+                        class="w-full h-full object-cover object-top"
                       />
                     </div>
                     <!-- Product Dial Container -->
                     <div class="product-dial">
+                      <div class="center-circle"></div>
                       <div class="product-dial-grid">
-                        <div class="product-section border-r border-b border-white/20">
-                          <div class="text-white">Top Left</div>
+                        <!-- Top Left -->
+                        <div class="product-section top-left">
+                          <div class="product-content">
+                            <div 
+                              class="product-title"
+                              class:selected={selectedElement === 'topLeft-title'}
+                              on:click|stopPropagation={() => selectElement('topLeft-title')}
+                              on:keypress
+                            >{templateData.topLeft.title}</div>
+                            <div class="product-code-logo">
+                              <div 
+                                class="product-code"
+                                class:selected={selectedElement === 'topLeft-code'}
+                                on:click|stopPropagation={() => selectElement('topLeft-code')}
+                                on:keypress
+                              >{templateData.topLeft.code}</div>
+                              <div 
+                                class="product-logo-placeholder"
+                                class:selected={selectedElement === 'topLeft-logo'}
+                                on:click|stopPropagation={() => selectElement('topLeft-logo')}
+                                on:keypress
+                              >
+                                <img src={templateData.topLeft.logo} alt="Product Icon" />
+                              </div>
+                            </div>
+                          </div>
+                          <div 
+                            class="product-description"
+                            class:selected={selectedElement === 'topLeft-description'}
+                            on:click|stopPropagation={() => selectElement('topLeft-description')}
+                            on:keypress
+                          >{templateData.topLeft.description}</div>
                         </div>
-                        <div class="product-section border-b border-white/20">
-                          <div class="text-white">Top Right</div>
+                        <!-- Top Right -->
+                        <div class="product-section top-right">
+                          <div class="product-content">
+                            <div 
+                              class="product-title"
+                              class:selected={selectedElement === 'topRight-title'}
+                              on:click|stopPropagation={() => selectElement('topRight-title')}
+                              on:keypress
+                            >{templateData.topRight.title}</div>
+                            <div class="product-code-logo">
+                              <div 
+                                class="product-code"
+                                class:selected={selectedElement === 'topRight-code'}
+                                on:click|stopPropagation={() => selectElement('topRight-code')}
+                                on:keypress
+                              >{templateData.topRight.code}</div>
+                              <div 
+                                class="product-logo-placeholder"
+                                class:selected={selectedElement === 'topRight-logo'}
+                                on:click|stopPropagation={() => selectElement('topRight-logo')}
+                                on:keypress
+                              >
+                                <img src={templateData.topRight.logo} alt="Product Icon" />
+                              </div>
+                            </div>
+                          </div>
+                          <div 
+                            class="product-description"
+                            class:selected={selectedElement === 'topRight-description'}
+                            on:click|stopPropagation={() => selectElement('topRight-description')}
+                            on:keypress
+                          >{templateData.topRight.description}</div>
                         </div>
-                        <div class="product-section border-r border-white/20">
-                          <div class="text-white">Bottom Left</div>
+                        <!-- Bottom Left -->
+                        <div class="product-section bottom-left">
+                          <div class="product-content">
+                            <div 
+                              class="product-description"
+                              class:selected={selectedElement === 'bottomLeft-description'}
+                              on:click|stopPropagation={() => selectElement('bottomLeft-description')}
+                              on:keypress
+                            >{templateData.bottomLeft.description}</div>
+                            <div class="product-code-logo">
+                              <div 
+                                class="product-code"
+                                class:selected={selectedElement === 'bottomLeft-code'}
+                                on:click|stopPropagation={() => selectElement('bottomLeft-code')}
+                                on:keypress
+                              >{templateData.bottomLeft.code}</div>
+                              <div 
+                                class="product-logo-placeholder"
+                                class:selected={selectedElement === 'bottomLeft-logo'}
+                                on:click|stopPropagation={() => selectElement('bottomLeft-logo')}
+                                on:keypress
+                              >
+                                <img src={templateData.bottomLeft.logo} alt="Product Icon" />
+                              </div>
+                            </div>
+                            <div 
+                              class="product-title"
+                              class:selected={selectedElement === 'bottomLeft-title'}
+                              on:click|stopPropagation={() => selectElement('bottomLeft-title')}
+                              on:keypress
+                            >{templateData.bottomLeft.title}</div>
+                          </div>
                         </div>
-                        <div class="product-section">
-                          <div class="text-white">Bottom Right</div>
+                        <!-- Bottom Right -->
+                        <div class="product-section bottom-right">
+                          <div class="product-content">
+                            <div 
+                              class="product-description"
+                              class:selected={selectedElement === 'bottomRight-description'}
+                              on:click|stopPropagation={() => selectElement('bottomRight-description')}
+                              on:keypress
+                            >{templateData.bottomRight.description}</div>
+                            <div class="product-code-logo">
+                              <div 
+                                class="product-code"
+                                class:selected={selectedElement === 'bottomRight-code'}
+                                on:click|stopPropagation={() => selectElement('bottomRight-code')}
+                                on:keypress
+                              >{templateData.bottomRight.code}</div>
+                              <div 
+                                class="product-logo-placeholder"
+                                class:selected={selectedElement === 'bottomRight-logo'}
+                                on:click|stopPropagation={() => selectElement('bottomRight-logo')}
+                                on:keypress
+                              >
+                                <img src={templateData.bottomRight.logo} alt="Product Icon" />
+                              </div>
+                            </div>
+                            <div 
+                              class="product-title"
+                              class:selected={selectedElement === 'bottomRight-title'}
+                              on:click|stopPropagation={() => selectElement('bottomRight-title')}
+                              on:keypress
+                            >{templateData.bottomRight.title}</div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -138,17 +303,6 @@
                         class="w-full h-full object-cover"
                       />
                     </div>
-                    <!-- Template Area Label -->
-                    <div class="absolute bottom-0 left-0 w-full h-[413.33px] flex items-center justify-center text-gray-400">
-                      Template Area
-                    </div>
-                  </div>
-                  <!-- Dimension Indicators -->
-                  <div class="absolute -right-6 top-1/2 -translate-y-1/2 transform rotate-90 text-xs text-gray-500">
-                    610pt (813.33px)
-                  </div>
-                  <div class="absolute bottom-[-20px] left-1/2 -translate-x-1/2 text-xs text-gray-500">
-                    255pt (340px)
                   </div>
                 </div>
               </div>
@@ -158,7 +312,7 @@
 
         <!-- Configuration Area (4 columns) -->
         <div class="col-span-12 lg:col-span-4">
-          <div class="bg-gray-50 rounded-lg p-6">
+          <div class="bg-gray-50 rounded-lg p-6 sticky-config">
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-lg font-medium">Configuration</h2>
               <button class="px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
@@ -188,11 +342,11 @@
   }
   .branding-background {
     width: 340px; /* 255pt * 1.333333 */
-    height: 307px; /* 230pt * 1.333333 */
+    height: 240px; /* 180pt * 1.333333 */
     position: relative;
     background-color: rgb(0, 0, 0);
-    border-top-left-radius: 12%;
-    border-top-right-radius: 12%;
+    border-top-left-radius: 7%;
+    border-top-right-radius: 7%;
   }
   .company-logo {
     position: absolute;
@@ -217,17 +371,28 @@
   }
   .instruction {
     position: absolute;
-    top: 380.33px; /* (230pt + 55pt) * 1.333333 */
+    top: 320px; /* (230pt + 55pt) * 1.333333 */
     left: 50%;
     transform: translateX(-50%);
     width: 340px; /* 255pt * 1.333333 */
     font-size: 16px;
     font-weight: 500;
     z-index: 2;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    padding: 8px 0;
+    border-radius: 8px;
+  }
+  .instruction:hover {
+    background-color: #e0f2fe; /* light blue */
+  }
+  .instruction.selected {
+    background-color: #dcfce7; /* light green */
+    color: #166534; /* dark green text */
   }
   .green-arc-top {
     position: absolute;
-    top: 100px;
+    top: 56px;
     left: 0;
     width: 340px; /* 255pt * 1.333333 */
     height: auto;
@@ -235,7 +400,7 @@
   }
   .green-arc-bottom {
     position: absolute;
-    top: 290px;
+    top: 282px;
     left: 0;
     width: 340px; /* 255pt * 1.333333 */
     height: auto;
@@ -248,8 +413,8 @@
     width: 340px; /* 255pt * 1.333333 */
     height: 346.33px; /* Remaining space to bottom: 813.33px - 467px */
     background-color: rgb(0, 0, 0);
-    border-bottom-left-radius: 12%;
-    border-bottom-right-radius: 12%;
+    border-bottom-left-radius: 7%;
+    border-bottom-right-radius: 7%;
     padding: 0;
     z-index: 2; /* Higher z-index to overlay the green arc */
   }
@@ -260,11 +425,392 @@
     width: 100%;
     height: 100%;
   }
+  .center-circle {
+    position: absolute;
+    width: 186.53px; /* 139.9pt * 1.333333 */
+    height: 188.4px; /* 141.3pt * 1.333333 */
+    border: 1px solid #000000;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 3;
+    background-color: #ffffff;
+  }
+
   .product-section {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     padding: 1rem;
     font-size: 16px;
+    color: #000000;
+    font-weight: 500;
+    position: relative;
+    cursor: pointer;
+  }
+
+  .product-section .product-title,
+  .product-section .product-code,
+  .product-section .product-logo-placeholder,
+  .product-section .product-description {
+    transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  }
+
+  .product-section .product-title:hover,
+  .product-section .product-description:hover,
+  .product-section .product-code:hover,
+  .product-section .product-logo-placeholder:hover {
+    background-color: #e0f2fe !important; /* light blue */
+  }
+
+  .product-section .product-title:hover,
+  .product-section .product-description:hover,
+  .product-section .product-code:hover {
+    color: #0ea5e9 !important;
+  }
+  
+  .product-title.selected,
+  .product-code.selected,
+  .product-logo-placeholder.selected,
+  .product-description.selected {
+    background-color: #dcfce7 !important; /* light green */
+  }
+
+  .product-title.selected,
+  .product-description.selected,
+  .product-code.selected {
+    color: #22c55e !important;
+  }
+
+  /* Top-left section styling */
+  .product-section.top-left {
+    padding: 0;
+    background-color: rgb(254, 230, 0);
+  }
+
+  .product-section.top-left .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .product-section.top-left .product-title {
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px; /* 4pt 8pt * 1.333333 */
+    border-radius: 5.33px;
+    margin-top: 6.67px;
+    width: 156px; /* 117pt * 1.333333 */
+    font-size: 13.33px; /* 10pt * 1.333333 */
+    text-align: center;
+  }
+
+  .product-section.top-left .product-description {
+    position: absolute;
+    bottom: 6.67px;
+    left: 6.67px;
+    width: 66.67px; /* 50pt * 1.333333 */
+    height: 66.67px;
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    font-size: 10.67px; /* 8pt * 1.333333 */
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.top-left .product-code-logo {
+    display: flex;
+    background-color: rgb(30, 30, 30);
+    margin-top: 6.67px;
+    width: 156px; /* 117pt * 1.333333 */
+    font-size: 26.67px; /* 20pt * 1.333333 */
+    height: 33.33px; /* 25pt * 1.333333 */
+    border-radius: 13.33px;
+    overflow: hidden;
+  }
+
+  .product-section.top-left .product-code {
+    flex: 1;
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.top-left .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 26.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.top-left .product-logo-placeholder img {
+    width: 40px; /* 30pt * 1.333333 */
+    height: 29.33px; /* 22pt * 1.333333 */
+  }
+
+  /* Top-right section styling */
+  .product-section.top-right {
+    padding: 0;
+    background-color: rgb(0, 162, 255);
+    border: none;
+  }
+
+  .product-section.top-right .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .product-section.top-right .product-title {
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    margin-top: 6.67px;
+    width: 156px;
+    font-size: 13.33px;
+    text-align: center;
+  }
+
+  .product-section.top-right .product-description {
+    position: absolute;
+    bottom: 6.67px;
+    right: 6.67px;
+    width: 66.67px;
+    height: 66.67px;
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    font-size: 10.67px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.top-right .product-code-logo {
+    display: flex;
+    background-color: rgb(30, 30, 30);
+    margin-top: 6.67px;
+    width: 156px;
+    font-size: 26.67px;
+    height: 33.33px;
+    border-radius: 13.33px;
+    overflow: hidden;
+  }
+
+  .product-section.top-right .product-code {
+    flex: 1;
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.top-right .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 26.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.top-right .product-logo-placeholder img {
+    width: 40px;
+    height: 29.33px;
+  }
+
+  /* Bottom-left section styling */
+  .product-section.bottom-left {
+    padding: 0;
+    background-color: rgb(168, 85, 247);
+    border-bottom-left-radius: 7%;
+    border: none;
+  }
+
+  .product-section.bottom-left .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+    height: 100%;
+  }
+
+  .product-section.bottom-left .product-description {
+    position: absolute;
+    top: 6.67px;
+    left: 6.67px;
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    width: 66.67px;
+    height: 66.67px;
+    font-size: 10.67px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.bottom-left .product-code-logo {
+    position: absolute;
+    bottom: 46.67px; /* 35pt * 1.333333 */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    background-color: rgb(30, 30, 30);
+    width: 156px;
+    font-size: 26.67px;
+    height: 33.33px;
+    border-radius: 13.33px;
+    overflow: hidden;
+  }
+
+  .product-section.bottom-left .product-code {
+    flex: 1;
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.bottom-left .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 26.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.bottom-left .product-logo-placeholder img {
+    width: 40px;
+    height: 29.33px;
+  }
+
+  .product-section.bottom-left .product-title {
+    position: absolute;
+    bottom: 6.67px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    width: 156px;
+    font-size: 13.33px;
+    text-align: center;
+  }
+
+  /* Bottom-right section styling */
+  .product-section.bottom-right {
+    padding: 0;
+    background-color: rgb(34, 197, 94);
+    border-bottom-right-radius: 7%;
+    border: none;
+  }
+
+  .product-section.bottom-right .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+    height: 100%;
+  }
+
+  .product-section.bottom-right .product-description {
+    position: absolute;
+    top: 6.67px;
+    right: 6.67px;
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    width: 66.67px;
+    height: 66.67px;
+    font-size: 10.67px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.bottom-right .product-code-logo {
+    position: absolute;
+    bottom: 46.67px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    background-color: rgb(30, 30, 30);
+    width: 156px;
+    font-size: 26.67px;
+    height: 33.33px;
+    border-radius: 13.33px;
+    overflow: hidden;
+  }
+
+  .product-section.bottom-right .product-code {
+    flex: 1;
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.bottom-right .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 26.67px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.bottom-right .product-logo-placeholder img {
+    width: 40px;
+    height: 29.33px;
+  }
+
+  .product-section.bottom-right .product-title {
+    position: absolute;
+    bottom: 6.67px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgb(30, 30, 30);
+    color: #ffffff;
+    padding: 5.33px 10.67px;
+    border-radius: 5.33px;
+    width: 156px;
+    font-size: 13.33px;
+    text-align: center;
+  }
+
+  .sticky-config {
+    position: sticky;
+    top: 1rem;
+    height: fit-content;
   }
 </style> 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
+  import { base } from '$app/paths';
 
   let selectedElement: string | null = null;
   
@@ -19,28 +20,28 @@
     topLeft: {
       title: "R.F.S. Concentrate",
       code: "K11",
-      logo: "/images/bottle.svg",
+      logo: `${base}/images/bottle.svg`,
       description: "Hard Surface Cleaner",
       color: "#fee000" // rgb(254, 230, 0) - yellow
     },
     topRight: {
       title: "Floor Cleaner Pro",
       code: "K12",
-      logo: "/images/scrubber.svg",
+      logo: `${base}/images/scrubber.svg`,
       description: "Floor Cleaner",
       color: "#00a2ff" // rgb(0, 162, 255) - blue
     },
     bottomLeft: {
       title: "Crystal Clean",
       code: "K14",
-      logo: "/images/sink_fill.svg",
+      logo: `${base}/images/sink_fill.svg`,
       description: "Glass Cleaner",
       color: "#a855f7" // rgb(168, 85, 247) - purple
     },
     bottomRight: {
       title: "Multi-Clean Plus",
       code: "K13",
-      logo: "/images/bucket.svg",
+      logo: `${base}/images/bucket.svg`,
       description: "Multi-Purpose Cleaner",
       color: "#22c55e" // rgb(34, 197, 94) - green
     },
@@ -124,7 +125,7 @@
 
     // Encode the data and navigate to print page
     const encodedData = encodeURIComponent(JSON.stringify(printData));
-    const printUrl = `/promax-template/print?data=${encodedData}`;
+    const printUrl = `${base}/promax-template/print?data=${encodedData}`;
     
     // Open in new window for printing
     window.open(printUrl, '_blank');
@@ -201,7 +202,7 @@
                     <!-- Green Arc Overlay (Top) -->
                     <div class="green-arc-top">
                       <img 
-                        src="/images/green_arc.png" 
+                        src="{base}/images/green_arc.png" 
                         alt="Green Arc Top"
                         class="w-full h-full object-cover object-top"
                       />
@@ -347,7 +348,7 @@
                     <!-- Green Arc Overlay (Bottom) -->
                     <div class="green-arc-bottom">
                       <img 
-                        src="/images/green_arc.png" 
+                        src="{base}/images/green_arc.png" 
                         alt="Green Arc Bottom"
                         class="w-full h-full object-cover"
                       />
@@ -393,10 +394,10 @@
                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       bind:value={templateData[currentSelection.section as SectionKey].logo}
                     >
-                      <option value="/images/bottle.svg">Bottle</option>
-                      <option value="/images/bucket.svg">Bucket</option>
-                      <option value="/images/scrubber.svg">Scrubber</option>
-                      <option value="/images/sink_fill.svg">Sink</option>
+                      <option value="{base}/images/bottle.svg">Bottle</option>
+                      <option value="{base}/images/bucket.svg">Bucket</option>
+                      <option value="{base}/images/scrubber.svg">Scrubber</option>
+                      <option value="{base}/images/sink_fill.svg">Sink</option>
                     </select>
                   </div>
                   <div class="mt-2 flex justify-center">

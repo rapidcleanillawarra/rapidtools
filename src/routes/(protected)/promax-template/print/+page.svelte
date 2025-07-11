@@ -1,34 +1,35 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { PageData } from './$types';
+  import { base } from '$app/paths';
 
   export let data: PageData;
   const defaultTemplateData = {
     topLeft: {
       title: "R.F.S. Concentrate",
       code: "K11",
-      logo: "/images/bottle.svg",
+      logo: `${base}/images/bottle.svg`,
       description: "Hard Surface Cleaner",
       color: "#fee000"
     },
     topRight: {
       title: "Floor Cleaner Pro",
       code: "K12",
-      logo: "/images/scrubber.svg",
+      logo: `${base}/images/scrubber.svg`,
       description: "Floor Cleaner",
       color: "#00a2ff"
     },
     bottomLeft: {
       title: "Crystal Clean",
       code: "K14",
-      logo: "/images/sink_fill.svg",
+      logo: `${base}/images/sink_fill.svg`,
       description: "Glass Cleaner",
       color: "#a855f7"
     },
     bottomRight: {
       title: "Multi-Clean Plus",
       code: "K13",
-      logo: "/images/bucket.svg",
+      logo: `${base}/images/bucket.svg`,
       description: "Multi-Purpose Cleaner",
       color: "#22c55e"
     },
@@ -70,7 +71,7 @@
     <!-- Green Arc Overlay (Top) -->
     <div class="green-arc-top">
       <img 
-        src="/images/green_arc.png" 
+        src="{base}/images/green_arc.png" 
         alt="Green Arc Top"
       />
     </div>
@@ -131,7 +132,7 @@
     <!-- Green Arc Overlay (Bottom) -->
     <div class="green-arc-bottom">
       <img 
-        src="/images/green_arc.png" 
+        src="{base}/images/green_arc.png" 
         alt="Green Arc Bottom"
       />
     </div>

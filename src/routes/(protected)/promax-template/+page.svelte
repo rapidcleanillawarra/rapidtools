@@ -2,83 +2,132 @@
   import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
 
-  let printFrame: HTMLIFrameElement;
+  let selectedElement: string | null = null;
+  
+  type SectionKey = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  type ElementType = 'title' | 'code' | 'logo' | 'description';
+  
+  // Add currentSelection object to track detailed selection state
+  let currentSelection = {
+    section: null as string | null,
+    elementType: null as string | null,
+    value: null as string | null,
+    position: null as string | null
+  };
 
   const defaultTemplateData = {
     topLeft: {
       title: "R.F.S. Concentrate",
       code: "K11",
       logo: "/images/bottle.svg",
-      description: "Hard Surface Cleaner"
+      description: "Hard Surface Cleaner",
+      color: "#fee000" // rgb(254, 230, 0) - yellow
     },
     topRight: {
       title: "Floor Cleaner Pro",
       code: "K12",
       logo: "/images/scrubber.svg",
-      description: "Floor Cleaner"
+      description: "Floor Cleaner",
+      color: "#00a2ff" // rgb(0, 162, 255) - blue
     },
     bottomLeft: {
       title: "Crystal Clean",
       code: "K14",
       logo: "/images/sink_fill.svg",
-      description: "Glass Cleaner"
+      description: "Glass Cleaner",
+      color: "#a855f7" // rgb(168, 85, 247) - purple
     },
     bottomRight: {
       title: "Multi-Clean Plus",
       code: "K13",
       logo: "/images/bucket.svg",
-      description: "Multi-Purpose Cleaner"
+      description: "Multi-Purpose Cleaner",
+      color: "#22c55e" // rgb(34, 197, 94) - green
     },
     instruction: "Turn off tap when not in use"
   };
 
   const templateData = { ...defaultTemplateData };
-  let selectedElement: string | null = null;
 
   function selectElement(elementId: string) {
     if (selectedElement === elementId) {
-      selectedElement = null; // deselect if clicked again
+      selectedElement = null;
+      currentSelection = {
+        section: null,
+        elementType: null,
+        value: null,
+        position: null
+      };
     } else {
       selectedElement = elementId;
+      
+      // Parse the elementId to update currentSelection
+      const [position, type] = elementId.split('-');
+      
+      // Get the current value based on position and type
+      let value = null;
+      if (position && type && (position as SectionKey) in templateData && type in templateData[position as SectionKey]) {
+        value = templateData[position as SectionKey][type as ElementType];
+      } else if (elementId === 'instruction') {
+        value = templateData.instruction;
+      }
+      
+      currentSelection = {
+        section: position,
+        elementType: type,
+        value: value,
+        position: position === 'instruction' ? 'center' : 
+                 position.includes('top') ? 'top' : 'bottom'
+      };
     }
+    
+    // Log the current selection state
+    console.log('Current Selection:', JSON.stringify(currentSelection, null, 2));
   }
 
-  onMount(() => {
-    // Create a hidden iframe for printing
-    printFrame = document.createElement('iframe');
-    printFrame.style.display = 'none';
-    document.body.appendChild(printFrame);
-
-    return () => {
-      document.body.removeChild(printFrame);
-    };
-  });
-
   function handlePrint() {
-    const printContent = document.querySelector('.template-box');
-    if (!printContent || !printFrame || !printFrame.contentWindow) return;
+    // Build the JSON data from current templateData
+    const printData = {
+      topLeft: {
+        title: templateData.topLeft.title,
+        code: templateData.topLeft.code,
+        logo: templateData.topLeft.logo,
+        description: templateData.topLeft.description,
+        color: templateData.topLeft.color
+      },
+      topRight: {
+        title: templateData.topRight.title,
+        code: templateData.topRight.code,
+        logo: templateData.topRight.logo,
+        description: templateData.topRight.description,
+        color: templateData.topRight.color
+      },
+      bottomLeft: {
+        title: templateData.bottomLeft.title,
+        code: templateData.bottomLeft.code,
+        logo: templateData.bottomLeft.logo,
+        description: templateData.bottomLeft.description,
+        color: templateData.bottomLeft.color
+      },
+      bottomRight: {
+        title: templateData.bottomRight.title,
+        code: templateData.bottomRight.code,
+        logo: templateData.bottomRight.logo,
+        description: templateData.bottomRight.description,
+        color: templateData.bottomRight.color
+      },
+      instruction: templateData.instruction
+    };
 
-    const doc = printFrame.contentWindow.document;
-    doc.open();
-    doc.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <style>
-            @page { size: 255pt 610pt; margin: 0; }
-            body { margin: 0; padding: 0; }
-            .template-box { transform: scale(0.75); transform-origin: top left; }
-          </style>
-        </head>
-        <body>
-          ${printContent.outerHTML}
-        </body>
-      </html>
-    `);
-    doc.close();
+    // Log the data being sent
+    console.log('Print Data:', JSON.stringify(printData, null, 2));
 
-    printFrame.contentWindow.focus();
-    printFrame.contentWindow.print();
+    // Encode the data and navigate to print page
+    const encodedData = encodeURIComponent(JSON.stringify(printData));
+    const printUrl = `/promax-template/print?data=${encodedData}`;
+    
+    // Open in new window for printing
+    window.open(printUrl, '_blank');
   }
 </script>
 
@@ -162,7 +211,7 @@
                       <div class="center-circle"></div>
                       <div class="product-dial-grid">
                         <!-- Top Left -->
-                        <div class="product-section top-left">
+                        <div class="product-section top-left" style="background-color: {templateData.topLeft.color};">
                           <div class="product-content">
                             <div 
                               class="product-title"
@@ -195,7 +244,7 @@
                           >{templateData.topLeft.description}</div>
                         </div>
                         <!-- Top Right -->
-                        <div class="product-section top-right">
+                        <div class="product-section top-right" style="background-color: {templateData.topRight.color};">
                           <div class="product-content">
                             <div 
                               class="product-title"
@@ -228,7 +277,7 @@
                           >{templateData.topRight.description}</div>
                         </div>
                         <!-- Bottom Left -->
-                        <div class="product-section bottom-left">
+                        <div class="product-section bottom-left" style="background-color: {templateData.bottomLeft.color};">
                           <div class="product-content">
                             <div 
                               class="product-description"
@@ -261,7 +310,7 @@
                           </div>
                         </div>
                         <!-- Bottom Right -->
-                        <div class="product-section bottom-right">
+                        <div class="product-section bottom-right" style="background-color: {templateData.bottomRight.color};">
                           <div class="product-content">
                             <div 
                               class="product-description"
@@ -320,12 +369,94 @@
               </button>
             </div>
             <div class="space-y-4">
-              <div class="text-sm text-gray-500">
-                Configure your template settings here. Changes will be reflected in the preview.
-              </div>
-              <div class="border rounded-lg p-4 bg-white">
-                <p class="text-gray-500">Configuration options coming soon...</p>
-              </div>
+              {#if currentSelection.section === null}
+                <div class="text-sm text-gray-500">
+                  Click on any element in the template to configure it.
+                </div>
+              {:else if currentSelection.section === 'instruction'}
+                <div class="space-y-4">
+                  <div class="text-sm font-medium text-gray-700">Instruction Text</div>
+                  <div class="border rounded-lg p-4 bg-white">
+                    <input 
+                      type="text" 
+                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      bind:value={templateData.instruction}
+                      placeholder="Enter instruction text"
+                    />
+                  </div>
+                </div>
+              {:else if currentSelection.elementType === 'logo'}
+                <div class="space-y-4">
+                  <div class="text-sm font-medium text-gray-700">Select Logo</div>
+                  <div class="border rounded-lg p-4 bg-white">
+                    <select 
+                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      bind:value={templateData[currentSelection.section as SectionKey].logo}
+                    >
+                      <option value="/images/bottle.svg">Bottle</option>
+                      <option value="/images/bucket.svg">Bucket</option>
+                      <option value="/images/scrubber.svg">Scrubber</option>
+                      <option value="/images/sink_fill.svg">Sink</option>
+                    </select>
+                  </div>
+                  <div class="mt-2 flex justify-center">
+                    <img 
+                      src={templateData[currentSelection.section as SectionKey].logo} 
+                      alt="Selected Logo" 
+                      class="w-12 h-12"
+                    />
+                  </div>
+                </div>
+              {:else if currentSelection.elementType === 'description'}
+                <div class="space-y-4">
+                  <div class="text-sm font-medium text-gray-700">Description Text</div>
+                  <div class="border rounded-lg p-4 bg-white">
+                    <input 
+                      type="text" 
+                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      bind:value={templateData[currentSelection.section as SectionKey].description}
+                      placeholder="Enter description text"
+                    />
+                  </div>
+                </div>
+              {:else if currentSelection.elementType === 'title' || currentSelection.elementType === 'code'}
+                <div class="space-y-4">
+                  <div class="text-sm font-medium text-gray-700">
+                    {currentSelection.elementType === 'title' ? 'Product Title' : 'Product Code'}
+                  </div>
+                  <div class="border rounded-lg p-4 bg-white">
+                    <input 
+                      type="text" 
+                      class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      bind:value={templateData[currentSelection.section as SectionKey][currentSelection.elementType as ElementType]}
+                      placeholder={currentSelection.elementType === 'title' ? 'Enter product title' : 'Enter product code'}
+                    />
+                  </div>
+                  <div class="text-sm font-medium text-gray-700">Section Color</div>
+                  <div class="border rounded-lg p-4 bg-white">
+                    <input 
+                      type="color" 
+                      class="w-full h-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      bind:value={templateData[currentSelection.section as SectionKey].color}
+                    />
+                  </div>
+                </div>
+              {:else if currentSelection.section && currentSelection.section !== 'instruction'}
+                <div class="space-y-4">
+                  <div class="text-sm font-medium text-gray-700">Section Color</div>
+                  <div class="border rounded-lg p-4 bg-white">
+                    <input 
+                      type="color" 
+                      class="w-full h-10 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      bind:value={templateData[currentSelection.section as SectionKey].color}
+                    />
+                  </div>
+                </div>
+              {:else}
+                <div class="text-sm text-gray-500">
+                  Selected: {currentSelection.section} - {currentSelection.elementType}
+                </div>
+              {/if}
             </div>
           </div>
         </div>
@@ -486,7 +617,6 @@
   /* Top-left section styling */
   .product-section.top-left {
     padding: 0;
-    background-color: rgb(254, 230, 0);
   }
 
   .product-section.top-left .product-content {
@@ -562,7 +692,6 @@
   /* Top-right section styling */
   .product-section.top-right {
     padding: 0;
-    background-color: rgb(0, 162, 255);
     border: none;
   }
 
@@ -639,7 +768,6 @@
   /* Bottom-left section styling */
   .product-section.bottom-left {
     padding: 0;
-    background-color: rgb(168, 85, 247);
     border-bottom-left-radius: 7%;
     border: none;
   }
@@ -725,7 +853,6 @@
   /* Bottom-right section styling */
   .product-section.bottom-right {
     padding: 0;
-    background-color: rgb(34, 197, 94);
     border-bottom-right-radius: 7%;
     border: none;
   }

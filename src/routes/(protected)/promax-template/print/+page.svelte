@@ -8,25 +8,29 @@
       title: "R.F.S. Concentrate",
       code: "K11",
       logo: "/images/bottle.svg",
-      description: "Hard Surface Cleaner"
+      description: "Hard Surface Cleaner",
+      color: "#fee000"
     },
     topRight: {
       title: "Floor Cleaner Pro",
       code: "K12",
       logo: "/images/scrubber.svg",
-      description: "Floor Cleaner"
+      description: "Floor Cleaner",
+      color: "#00a2ff"
     },
     bottomLeft: {
       title: "Crystal Clean",
       code: "K14",
       logo: "/images/sink_fill.svg",
-      description: "Glass Cleaner"
+      description: "Glass Cleaner",
+      color: "#a855f7"
     },
     bottomRight: {
       title: "Multi-Clean Plus",
       code: "K13",
       logo: "/images/bucket.svg",
-      description: "Multi-Purpose Cleaner"
+      description: "Multi-Purpose Cleaner",
+      color: "#22c55e"
     },
     instruction: "Mix with water according to label instructions"
   };
@@ -74,7 +78,7 @@
       <div class="product-dial">
     <div class="center-circle"></div>
     <div class="product-dial-grid">
-      <div class="product-section top-left">
+      <div class="product-section top-left" style="background-color: {templateData.topLeft.color};">
         <div class="product-content">
           <div class="product-title">{templateData.topLeft.title}</div>
           <div class="product-code-logo">
@@ -86,7 +90,7 @@
         </div>
         <div class="product-description">{templateData.topLeft.description}</div>
       </div>
-        <div class="product-section top-right">
+        <div class="product-section top-right" style="background-color: {templateData.topRight.color};">
           <div class="product-content">
             <div class="product-title">{templateData.topRight.title}</div>
             <div class="product-code-logo">
@@ -98,7 +102,7 @@
           </div>
           <div class="product-description">{templateData.topRight.description}</div>
         </div>
-        <div class="product-section bottom-left">
+        <div class="product-section bottom-left" style="background-color: {templateData.bottomLeft.color};">
           <div class="product-content">
             <div class="product-description">{templateData.bottomLeft.description}</div>
             <div class="product-code-logo">
@@ -110,7 +114,7 @@
             <div class="product-title">{templateData.bottomLeft.title}</div>
           </div>
         </div>
-        <div class="product-section bottom-right">
+        <div class="product-section bottom-right" style="background-color: {templateData.bottomRight.color};">
           <div class="product-content">
             <div class="product-description">{templateData.bottomRight.description}</div>
             <div class="product-code-logo">
@@ -322,7 +326,6 @@
   /* Top-left section styling - all contained here for easier maintenance */
   .product-section.top-left {
     padding: 0;
-    background-color: rgb(254, 230, 0) !important;
   }
 
   .product-section.top-left .product-content {
@@ -404,7 +407,6 @@
   /* Top-right section styling - all contained here for easier maintenance */
   .product-section.top-right {
     padding: 0;
-    background-color: rgb(0, 162, 255) !important;
     border: none !important;
   }
 
@@ -487,7 +489,6 @@
   /* Bottom-right section styling - all contained here for easier maintenance */
   .product-section.bottom-right {
     padding: 0;
-    background-color: rgb(34, 197, 94) !important;
     border-bottom-right-radius: 7%;
     border: none !important;
   }
@@ -579,7 +580,6 @@
   /* Bottom-left section styling - all contained here for easier maintenance */
   .product-section.bottom-left {
     padding: 0;
-    background-color: rgb(168, 85, 247) !important;
     border-bottom-left-radius: 7%;
     border: none !important;
   }

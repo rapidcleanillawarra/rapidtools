@@ -4,11 +4,31 @@
 
   export let data: PageData;
   const defaultTemplateData = {
-    topLeft: "R.F.S. Concentrate",
-    topRight: "",
-    bottomLeft: "",
-    bottomRight: "",
-    instruction: ""
+    topLeft: {
+      title: "R.F.S. Concentrate",
+      code: "K11",
+      logo: "/images/bottle.svg",
+      description: "Hard Surface Cleaner"
+    },
+    topRight: {
+      title: "Floor Cleaner Pro",
+      code: "K12",
+      logo: "/images/scrubber.svg",
+      description: "Floor Cleaner"
+    },
+    bottomLeft: {
+      title: "Crystal Clean",
+      code: "K14",
+      logo: "/images/sink_fill.svg",
+      description: "Glass Cleaner"
+    },
+    bottomRight: {
+      title: "Multi-Clean Plus",
+      code: "K13",
+      logo: "/images/bucket.svg",
+      description: "Multi-Purpose Cleaner"
+    },
+    instruction: "Mix with water according to label instructions"
   };
   const templateData = { ...defaultTemplateData, ...data.templateData };
 
@@ -56,24 +76,51 @@
     <div class="product-dial-grid">
       <div class="product-section top-left">
         <div class="product-content">
-          <div class="product-title">{templateData.topLeft}</div>
+          <div class="product-title">{templateData.topLeft.title}</div>
           <div class="product-code-logo">
-            <div class="product-code">K11</div>
+            <div class="product-code">{templateData.topLeft.code}</div>
             <div class="product-logo-placeholder">
-              <img src="/images/bottle.svg" alt="Bottle Icon" />
+              <img src={templateData.topLeft.logo} alt="Product Icon" />
             </div>
           </div>
         </div>
-        <div class="product-description">Hard Surface Cleaner</div>
+        <div class="product-description">{templateData.topLeft.description}</div>
       </div>
-        <div class="product-section">
-          <div>{templateData.topRight}</div>
+        <div class="product-section top-right">
+          <div class="product-content">
+            <div class="product-title">{templateData.topRight.title}</div>
+            <div class="product-code-logo">
+              <div class="product-code">{templateData.topRight.code}</div>
+              <div class="product-logo-placeholder">
+                <img src={templateData.topRight.logo} alt="Product Icon" />
+              </div>
+            </div>
+          </div>
+          <div class="product-description">{templateData.topRight.description}</div>
         </div>
-        <div class="product-section">
-          <div>{templateData.bottomLeft}</div>
+        <div class="product-section bottom-left">
+          <div class="product-content">
+            <div class="product-description">{templateData.bottomLeft.description}</div>
+            <div class="product-code-logo">
+              <div class="product-code">{templateData.bottomLeft.code}</div>
+              <div class="product-logo-placeholder">
+                <img src={templateData.bottomLeft.logo} alt="Product Icon" />
+              </div>
+            </div>
+            <div class="product-title">{templateData.bottomLeft.title}</div>
+          </div>
         </div>
-        <div class="product-section">
-          <div>{templateData.bottomRight}</div>
+        <div class="product-section bottom-right">
+          <div class="product-content">
+            <div class="product-description">{templateData.bottomRight.description}</div>
+            <div class="product-code-logo">
+              <div class="product-code">{templateData.bottomRight.code}</div>
+              <div class="product-logo-placeholder">
+                <img src={templateData.bottomRight.logo} alt="Product Icon" />
+              </div>
+            </div>
+            <div class="product-title">{templateData.bottomRight.title}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -264,11 +311,6 @@
     position: relative;
   }
 
-  .product-section.top-left {
-    padding: 0;
-    background-color: rgb(254, 230, 0) !important;
-  }
-
   .product-section:nth-child(3) {
     border-right: 1px solid #000000;
   }
@@ -277,14 +319,20 @@
     border-bottom: 1px solid #000000;
   }
 
-  .product-content {
+  /* Top-left section styling - all contained here for easier maintenance */
+  .product-section.top-left {
+    padding: 0;
+    background-color: rgb(254, 230, 0) !important;
+  }
+
+  .product-section.top-left .product-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
   }
 
-  .product-title {
+  .product-section.top-left .product-title {
     background-color: rgb(30, 30, 30) !important;
     color: #ffffff !important;
     padding: 4pt 8pt;
@@ -297,7 +345,7 @@
     print-color-adjust: exact !important;
   }
 
-  .product-description {
+  .product-section.top-left .product-description {
     position: absolute;
     bottom: 5pt;
     left: 5pt;
@@ -316,7 +364,7 @@
     print-color-adjust: exact !important;
   }
 
-  .product-code-logo {
+  .product-section.top-left .product-code-logo {
     display: flex;
     background-color: rgb(30, 30, 30) !important;
     margin-top: 5pt;
@@ -329,7 +377,7 @@
     print-color-adjust: exact !important;
   }
 
-  .product-code {
+  .product-section.top-left .product-code {
     flex: 1;
     color: #ffffff !important;
     padding: 4pt 8pt;
@@ -339,7 +387,7 @@
     font-weight: bolder;
   }
 
-  .product-logo-placeholder {
+  .product-section.top-left .product-logo-placeholder {
     flex: 1;
     background-color: #1e1e1e;
     min-height: 20pt;
@@ -348,9 +396,276 @@
     justify-content: center;
   }
 
-  .product-logo-placeholder img {
+  .product-section.top-left .product-logo-placeholder img {
     width: 30pt;
     height: 22pt;
+  }
+
+  /* Top-right section styling - all contained here for easier maintenance */
+  .product-section.top-right {
+    padding: 0;
+    background-color: rgb(0, 162, 255) !important;
+    border: none !important;
+  }
+
+  .product-section.top-right .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .product-section.top-right .product-title {
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    margin-top: 5pt;
+    width: 117pt;
+    font-size: 10pt;
+    text-align: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.top-right .product-description {
+    position: absolute;
+    bottom: 5pt;
+    right: 5pt;
+    width: 50pt;
+    height: 50pt;
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    font-size: 8pt;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.top-right .product-code-logo {
+    display: flex;
+    background-color: rgb(30, 30, 30) !important;
+    margin-top: 5pt;
+    width: 117pt;
+    font-size: 20pt;
+    height: 25pt;
+    border-radius: 10pt;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.top-right .product-code {
+    flex: 1;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.top-right .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.top-right .product-logo-placeholder img {
+    width: 30pt;
+    height: 22pt;
+  }
+
+  /* Bottom-right section styling - all contained here for easier maintenance */
+  .product-section.bottom-right {
+    padding: 0;
+    background-color: rgb(34, 197, 94) !important;
+    border-bottom-right-radius: 7%;
+    border: none !important;
+  }
+
+  .product-section.bottom-right .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+    height: 100%;
+  }
+
+  .product-section.bottom-right .product-description {
+    position: absolute;
+    top: 5pt;
+    right: 5pt;
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    width: 50pt;
+    height: 50pt;
+    font-size: 8pt;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.bottom-right .product-title {
+    position: absolute;
+    bottom: 5pt;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    width: 117pt;
+    font-size: 10pt;
+    text-align: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.bottom-right .product-code-logo {
+    position: absolute;
+    bottom: 35pt;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    background-color: rgb(30, 30, 30) !important;
+    width: 117pt;
+    font-size: 20pt;
+    height: 25pt;
+    border-radius: 10pt;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.bottom-right .product-code {
+    flex: 1;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.bottom-right .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.bottom-right .product-logo-placeholder img {
+    width: 30pt;
+    height: 22pt;
+  }
+
+  /* Bottom-left section styling - all contained here for easier maintenance */
+  .product-section.bottom-left {
+    padding: 0;
+    background-color: rgb(168, 85, 247) !important;
+    border-bottom-left-radius: 7%;
+    border: none !important;
+  }
+
+  .product-section.bottom-left .product-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+    height: 100%;
+  }
+
+  .product-section.bottom-left .product-description {
+    position: absolute;
+    top: 5pt;
+    left: 5pt;
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    width: 50pt;
+    height: 50pt;
+    font-size: 8pt;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.bottom-left .product-code-logo {
+    position: absolute;
+    bottom: 35pt;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    background-color: rgb(30, 30, 30) !important;
+    width: 117pt;
+    font-size: 20pt;
+    height: 25pt;
+    border-radius: 10pt;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .product-section.bottom-left .product-code {
+    flex: 1;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bolder;
+  }
+
+  .product-section.bottom-left .product-logo-placeholder {
+    flex: 1;
+    background-color: #1e1e1e;
+    min-height: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .product-section.bottom-left .product-logo-placeholder img {
+    width: 30pt;
+    height: 22pt;
+  }
+
+  .product-section.bottom-left .product-title {
+    position: absolute;
+    bottom: 5pt;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgb(30, 30, 30) !important;
+    color: #ffffff !important;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    width: 117pt;
+    font-size: 10pt;
+    text-align: center;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Print styles */

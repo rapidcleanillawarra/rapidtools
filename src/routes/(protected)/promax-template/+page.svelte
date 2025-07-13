@@ -6,6 +6,13 @@
   import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
   import { userProfile } from '$lib/userProfile';
 
+  // Import SVG assets
+  import bottleSvg from '$lib/../static/images/bottle.svg';
+  import bucketSvg from '$lib/../static/images/bucket.svg';
+  import scrubberSvg from '$lib/../static/images/scrubber.svg';
+  import sinkFillSvg from '$lib/../static/images/sink_fill.svg';
+  import greenArcPng from '$lib/../static/images/green_arc.png';
+
   let selectedElement: string | null = null;
   
   type SectionKey = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
@@ -42,28 +49,28 @@
     topLeft: {
       title: "FLORAL",
       code: "K2",
-      logo: `${base}/images/bottle.svg`,
+      logo: bottleSvg,
       description: "Air Freshener",
       color: "#EC4899" // Magenta/Pink color
     },
     topRight: {
       title: "Lime Fresh",
       code: "844",
-      logo: `${base}/images/bottle.svg`,
+      logo: bottleSvg,
       description: "Disinfectant Cleaner",
       color: "#FEF08A" // Yellow color
     },
     bottomLeft: {
       title: "HI GENIC",
       code: "H4",
-      logo: `${base}/images/bottle.svg`,
+      logo: bottleSvg,
       description: "Bathroom Cleaner",
       color: "#5EEAD4" // Teal color
     },
     bottomRight: {
       title: "REFLECTION",
       code: "H3",
-      logo: `${base}/images/bottle.svg`,
+      logo: bottleSvg,
       description: "Glass Cleaner",
       color: "#60A5FA" // Blue color
     },
@@ -361,7 +368,7 @@
                     <!-- Green Arc Overlay (Top) -->
                     <div class="green-arc-top">
                       <img 
-                        src="{base}/images/green_arc.png" 
+                        src="{greenArcPng}" 
                         alt="Green Arc Top"
                         class="w-full h-full object-cover object-top"
                       />
@@ -507,7 +514,7 @@
                     <!-- Green Arc Overlay (Bottom) -->
                     <div class="green-arc-bottom">
                       <img 
-                        src="{base}/images/green_arc.png" 
+                        src="{greenArcPng}" 
                         alt="Green Arc Bottom"
                         class="w-full h-full object-cover"
                       />
@@ -658,10 +665,10 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               bind:value={templateData[currentSelection.section as SectionKey].logo}
             >
-              <option value="{base}/images/bottle.svg">Bottle</option>
-              <option value="{base}/images/bucket.svg">Bucket</option>
-              <option value="{base}/images/scrubber.svg">Scrubber</option>
-              <option value="{base}/images/sink_fill.svg">Sink</option>
+              <option value="{bottleSvg}">Bottle</option>
+              <option value="{bucketSvg}">Bucket</option>
+              <option value="{scrubberSvg}">Scrubber</option>
+              <option value="{sinkFillSvg}">Sink</option>
             </select>
             <div class="flex justify-center">
               <img 

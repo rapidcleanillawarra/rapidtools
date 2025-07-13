@@ -2,11 +2,33 @@
   import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { base } from '$app/paths';
+  import { db } from '$lib/firebase';
+  import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
+  import { userProfile } from '$lib/userProfile';
 
   let selectedElement: string | null = null;
   
   type SectionKey = 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
   type ElementType = 'title' | 'code' | 'logo' | 'description';
+  
+  // Add interface for template products
+  interface TemplateProduct {
+    brand: string;
+    code: string;
+    color: string;
+    name: string;
+    image?: string;
+    imageUrl?: string;
+  }
+
+  // Add state for template products and search
+  let templateProducts: TemplateProduct[] = [];
+  let searchQuery = '';
+  let isLoading = false;
+
+  // Add state for template history
+  let templateHistory: any[] = [];
+  let isLoadingHistory = false;
   
   // Add currentSelection object to track detailed selection state
   let currentSelection = {
@@ -49,6 +71,87 @@
   };
 
   const templateData = { ...defaultTemplateData };
+
+  // Function to fetch template products
+  async function fetchTemplateProducts() {
+    isLoading = true;
+    try {
+      const querySnapshot = await getDocs(collection(db, 'template_products'));
+      templateProducts = querySnapshot.docs.map(doc => ({
+        ...doc.data() as TemplateProduct
+      }));
+    } catch (error) {
+      console.error('Error fetching template products:', error);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Computed property for filtered products
+  $: filteredProducts = searchQuery
+    ? templateProducts.filter(product => 
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.brand.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : templateProducts;
+
+  // Function to handle product selection
+  function handleProductSelect(product: TemplateProduct) {
+    if (currentSelection.section && currentSelection.elementType) {
+      const section = currentSelection.section as SectionKey;
+      templateData[section].title = product.name;
+      templateData[section].code = product.code;
+      templateData[section].color = product.color;
+      if (product.imageUrl) {
+        templateData[section].logo = product.imageUrl;
+      }
+      searchQuery = '';
+    }
+  }
+
+  // Function to fetch template history
+  async function fetchTemplateHistory() {
+    if (!$userProfile?.uid) return;
+    
+    isLoadingHistory = true;
+    try {
+      const q = query(
+        collection(db, 'template_history'),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      );
+      const querySnapshot = await getDocs(q);
+      templateHistory = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error fetching template history:', error);
+    } finally {
+      isLoadingHistory = false;
+    }
+  }
+
+  // Function to load template from history
+  function loadTemplateFromHistory(historyItem: any) {
+    if (historyItem.template_data) {
+      const data = historyItem.template_data;
+      
+      // Update template data with history data
+      templateData.topLeft = { ...data.topLeft };
+      templateData.topRight = { ...data.topRight };
+      templateData.bottomLeft = { ...data.bottomLeft };
+      templateData.bottomRight = { ...data.bottomRight };
+      templateData.instruction = data.instruction;
+      
+      console.log('Loaded template from history:', historyItem.session_id);
+    }
+  }
+
+  // Fetch history when component mounts or user changes
+  $: if ($userProfile?.uid) {
+    fetchTemplateHistory();
+  }
 
   // Modal state management
   let showModal = false;
@@ -95,6 +198,11 @@
       position: position === 'instruction' ? 'center' : 
                position.includes('top') ? 'top' : 'bottom'
     };
+
+    // Fetch products when selecting a title or code
+    if (type === 'title' || type === 'code') {
+      fetchTemplateProducts();
+    }
     
     // Open the modal
     openModal();
@@ -103,49 +211,83 @@
     console.log('Current Selection:', JSON.stringify(currentSelection, null, 2));
   }
 
-  function handlePrint() {
-    // Build the JSON data from current templateData
-    const printData = {
-      topLeft: {
-        title: templateData.topLeft.title,
-        code: templateData.topLeft.code,
-        logo: templateData.topLeft.logo,
-        description: templateData.topLeft.description,
-        color: templateData.topLeft.color
-      },
-      topRight: {
-        title: templateData.topRight.title,
-        code: templateData.topRight.code,
-        logo: templateData.topRight.logo,
-        description: templateData.topRight.description,
-        color: templateData.topRight.color
-      },
-      bottomLeft: {
-        title: templateData.bottomLeft.title,
-        code: templateData.bottomLeft.code,
-        logo: templateData.bottomLeft.logo,
-        description: templateData.bottomLeft.description,
-        color: templateData.bottomLeft.color
-      },
-      bottomRight: {
-        title: templateData.bottomRight.title,
-        code: templateData.bottomRight.code,
-        logo: templateData.bottomRight.logo,
-        description: templateData.bottomRight.description,
-        color: templateData.bottomRight.color
-      },
-      instruction: templateData.instruction
-    };
+  async function handlePrint() {
+    try {
+      // Build the JSON data from current templateData
+      const printData = {
+        topLeft: {
+          title: templateData.topLeft.title,
+          code: templateData.topLeft.code,
+          logo: templateData.topLeft.logo,
+          description: templateData.topLeft.description,
+          color: templateData.topLeft.color
+        },
+        topRight: {
+          title: templateData.topRight.title,
+          code: templateData.topRight.code,
+          logo: templateData.topRight.logo,
+          description: templateData.topRight.description,
+          color: templateData.topRight.color
+        },
+        bottomLeft: {
+          title: templateData.bottomLeft.title,
+          code: templateData.bottomLeft.code,
+          logo: templateData.bottomLeft.logo,
+          description: templateData.bottomLeft.description,
+          color: templateData.bottomLeft.color
+        },
+        bottomRight: {
+          title: templateData.bottomRight.title,
+          code: templateData.bottomRight.code,
+          logo: templateData.bottomRight.logo,
+          description: templateData.bottomRight.description,
+          color: templateData.bottomRight.color
+        },
+        instruction: templateData.instruction
+      };
 
-    // Log the data being sent
-    console.log('Print Data:', JSON.stringify(printData, null, 2));
+      // Generate a unique session ID
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-    // Encode the data and navigate to print page
-    const encodedData = encodeURIComponent(JSON.stringify(printData));
-    const printUrl = `${base}/promax-template/print?data=${encodedData}`;
-    
-    // Open in new window for printing
-    window.open(printUrl, '_blank');
+      // Save to Firestore template_history collection
+      const historyData = {
+        session_id: sessionId,
+        template_data: printData,
+        created_by: $userProfile ? `${$userProfile.firstName} ${$userProfile.lastName}` : 'Unknown User',
+        user_id: $userProfile?.uid || 'unknown',
+        timestamp: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'template_history'), historyData);
+
+      // Refresh history after saving
+      fetchTemplateHistory();
+
+      // Log the data being sent
+      console.log('Print Data:', JSON.stringify(printData, null, 2));
+      console.log('Saved to template_history with session ID:', sessionId);
+
+      // Encode the data and navigate to print page
+      const encodedData = encodeURIComponent(JSON.stringify(printData));
+      const printUrl = `${base}/promax-template/print?data=${encodedData}`;
+      
+      // Open in new window for printing
+      window.open(printUrl, '_blank');
+    } catch (error) {
+      console.error('Error saving template history:', error);
+      // Still proceed with printing even if saving fails
+      const printData = {
+        topLeft: templateData.topLeft,
+        topRight: templateData.topRight,
+        bottomLeft: templateData.bottomLeft,
+        bottomRight: templateData.bottomRight,
+        instruction: templateData.instruction
+      };
+      
+      const encodedData = encodeURIComponent(JSON.stringify(printData));
+      const printUrl = `${base}/promax-template/print?data=${encodedData}`;
+      window.open(printUrl, '_blank');
+    }
   }
 </script>
 
@@ -158,18 +300,18 @@
 
     <div class="p-6">
       <div class="grid grid-cols-12 gap-6">
-        <!-- Preview Area (Full Width) -->
-        <div class="col-span-12">
+        <!-- Preview Area (Left Side) -->
+        <div class="col-span-8">
           <div class="bg-gray-50 rounded-lg p-6">
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-lg font-medium">Template Preview</h2>
               <div class="flex items-center gap-2">
-                <span class="text-sm text-gray-600">Click any element in the product dial to edit</span>
+                <span class="text-sm text-gray-600">Click any element to edit</span>
                 <button 
                   class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                   on:click={() => window.location.reload()}
                 >
-                  Refresh Preview
+                  Reset
                 </button>
                 <button 
                   class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1"
@@ -376,6 +518,87 @@
             </div>
           </div>
         </div>
+
+        <!-- History Area (Right Side) -->
+        <div class="col-span-4">
+          <div class="bg-gray-50 rounded-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-medium">Template History</h2>
+              <button 
+                class="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+                on:click={fetchTemplateHistory}
+                disabled={isLoadingHistory}
+              >
+                {isLoadingHistory ? 'Loading...' : 'Refresh'}
+              </button>
+            </div>
+            
+            <div class="space-y-3 max-h-[800px] overflow-y-auto">
+              {#if isLoadingHistory}
+                <div class="flex items-center justify-center py-8">
+                  <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                </div>
+              {:else if templateHistory.length === 0}
+                <div class="text-center py-8 text-gray-500">
+                  <p>No template history found</p>
+                  <p class="text-sm mt-1">Print a template to see it here</p>
+                </div>
+              {:else}
+                {#each templateHistory as historyItem (historyItem.id)}
+                  <div 
+                    class="bg-white rounded-lg p-4 border border-gray-200 hover:border-blue-300 cursor-pointer transition-colors"
+                    on:click={() => loadTemplateFromHistory(historyItem)}
+                    on:keypress={(e) => e.key === 'Enter' && loadTemplateFromHistory(historyItem)}
+                    tabindex="0"
+                  >
+                    <div class="flex items-start justify-between">
+                      <div class="flex-1">
+                        <div class="text-sm font-medium text-gray-900">
+                          {historyItem.session_id}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">
+                          Created by: {historyItem.created_by}
+                        </div>
+                        <div class="text-xs text-gray-500">
+                          {#if historyItem.timestamp}
+                            {new Date(historyItem.timestamp.toDate()).toLocaleString()}
+                          {:else}
+                            Unknown date
+                          {/if}
+                        </div>
+                      </div>
+                      <div class="ml-2">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                    
+                    <!-- Preview of template data -->
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div class="bg-gray-50 rounded p-2">
+                        <div class="font-medium">Top Left</div>
+                        <div class="text-gray-600">{historyItem.template_data?.topLeft?.title || 'N/A'}</div>
+                      </div>
+                      <div class="bg-gray-50 rounded p-2">
+                        <div class="font-medium">Top Right</div>
+                        <div class="text-gray-600">{historyItem.template_data?.topRight?.title || 'N/A'}</div>
+                      </div>
+                      <div class="bg-gray-50 rounded p-2">
+                        <div class="font-medium">Bottom Left</div>
+                        <div class="text-gray-600">{historyItem.template_data?.bottomLeft?.title || 'N/A'}</div>
+                      </div>
+                      <div class="bg-gray-50 rounded p-2">
+                        <div class="font-medium">Bottom Right</div>
+                        <div class="text-gray-600">{historyItem.template_data?.bottomRight?.title || 'N/A'}</div>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              {/if}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -460,6 +683,57 @@
           </div>
         {:else if currentSelection.elementType === 'title' || currentSelection.elementType === 'code'}
           <div class="space-y-4">
+            {#if currentSelection.elementType === 'title' || currentSelection.elementType === 'code'}
+              <!-- Search input -->
+              <div class="space-y-2">
+                <div class="text-sm font-medium text-gray-700">
+                  Search Products
+                </div>
+                <div class="relative">
+                  <input 
+                    type="text" 
+                    class="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Search by product name or brand..."
+                    bind:value={searchQuery}
+                  />
+                  {#if isLoading}
+                    <div class="absolute right-3 top-2">
+                      <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- Products dropdown -->
+              {#if searchQuery && filteredProducts.length > 0}
+                <div class="mt-1 max-h-60 overflow-auto border border-gray-200 rounded-md bg-white shadow-sm">
+                  {#each filteredProducts as product (product.code)}
+                    <button
+                      class="w-full px-4 py-2 text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50 flex items-center justify-between"
+                      on:click={() => handleProductSelect(product)}
+                    >
+                      <div>
+                        <div class="font-medium">{product.name}</div>
+                        <div class="text-sm text-gray-500">{product.brand}</div>
+                      </div>
+                      <div 
+                        class="w-6 h-6 rounded-full" 
+                        style="background-color: {product.color}"
+                      ></div>
+                    </button>
+                  {/each}
+                </div>
+              {:else if searchQuery && filteredProducts.length === 0}
+                <div class="mt-1 p-4 text-center text-gray-500 border border-gray-200 rounded-md">
+                  No products found
+                </div>
+              {/if}
+
+              <!-- Separator -->
+              <div class="border-t border-gray-200 my-4"></div>
+            {/if}
+
+            <!-- Manual input fields -->
             <div class="text-sm font-medium text-gray-700">
               {currentSelection.elementType === 'title' ? 'Product Title' : 'Product Code'}
             </div>

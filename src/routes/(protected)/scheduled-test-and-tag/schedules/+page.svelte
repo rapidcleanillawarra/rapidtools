@@ -61,38 +61,56 @@
 
 <div class="grid grid-cols-12 gap-6">
   <div class="col-span-4 bg-white rounded-lg border border-gray-200 p-6">
-    <h3 class="text-lg font-medium text-gray-900 mb-4">Drag Items</h3>
-    <div id="external-items" class="space-y-3">
+    <h3 class="text-lg font-medium text-gray-900 mb-6">Drag Items</h3>
+    <div id="external-items" class="space-y-6">
       {#each $schedulesStore as schedule, index}
-        {#each schedule.information as info}
-          <div
-            class="p-3 rounded text-white fc-draggable"
-            style="background-color: hsl({(index * 40) % 360}, 70%, 60%)"
-            data-event={JSON.stringify({
-              title: `${schedule.company} - ${info.sub_company_name}`,
-              extendedProps: {
-                location: info.location,
-                company: schedule.company
-              },
-              backgroundColor: `hsl(${(index * 40) % 360}, 70%, 60%)`
-            })}
+        <div class="company-container mb-6">
+          <div 
+            class="flex items-center justify-between bg-[rgb(30,30,30)] text-white px-3 py-2 rounded-t mb-3"
+            data-label="company-title"
           >
-            <div class="font-medium text-sm">{info.sub_company_name}</div>
-            <div class="text-xs opacity-80">{info.location}</div>
+            <h4 class="text-md font-semibold">{schedule.company}</h4>
+            <div 
+              class="w-3 h-3 rounded-full" 
+              style="background-color: hsl({(index * 40) % 360}, 70%, 60%)">
+            </div>
           </div>
-        {/each}
+          <div class="company-items space-y-4">
+            {#each schedule.information as info}
+              <div
+                class="p-3 rounded text-white fc-draggable"
+                style="background-color: hsl({(index * 40) % 360}, 70%, 60%)"
+                data-event={JSON.stringify({
+                  title: `${schedule.company} - ${info.sub_company_name}`,
+                  extendedProps: {
+                    location: info.location,
+                    company: schedule.company
+                  },
+                  backgroundColor: `hsl(${(index * 40) % 360}, 70%, 60%)`
+                })}
+              >
+                <div class="font-medium text-sm">{info.sub_company_name}</div>
+                <div class="text-xs opacity-80">{info.location}</div>
+              </div>
+            {/each}
+          </div>
+        </div>
       {/each}
     </div>
   </div>
 
   <div class="col-span-8 bg-white rounded-lg border border-gray-200 p-6">
-    <h3 class="text-lg font-medium text-gray-900 mb-4">Schedule Calendar</h3>
+    <h3 class="text-lg font-medium text-gray-900 mb-6">Schedule Calendar</h3>
     <FullCalendarWrapper events={calendarEvents} />
   </div>
 </div>
 
 <style>
   .fc .fc-event {
+    cursor: pointer;
+  }
+
+  #external-items {
     cursor: pointer;
   }
 </style>

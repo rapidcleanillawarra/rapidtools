@@ -12,6 +12,7 @@
   
   let calendarEl: HTMLElement;
   let calendar: Calendar;
+  let previousMonth: number = new Date().getMonth() + 1;
 
   onMount(() => {
     calendar = new Calendar(calendarEl, {
@@ -22,7 +23,40 @@
       events,
       datesSet: (dateInfo) => {
         if (onMonthChange) {
-          onMonthChange(dateInfo.start.getMonth() + 1);
+          console.log('DEBUG - dateInfo.start:', dateInfo.start);
+          console.log('DEBUG - dateInfo.start.getMonth():', dateInfo.start.getMonth());
+          
+          // The calendar is showing July but dateInfo.start is June 29
+          // We need to determine the actual month being displayed
+          // If we're in the last few days of June but seeing July, it's July
+          const startMonth = dateInfo.start.getMonth();
+          const startDate = dateInfo.start.getDate();
+          
+          // If we're past the 25th of a month, we're likely viewing the next month
+          let currentMonth = startMonth + 1;
+          if (startDate < 25) {
+            currentMonth = startMonth + 1;
+          } else {
+            currentMonth = startMonth + 2;
+          }
+          
+          // Handle December to January transition
+          if (currentMonth > 12) {
+            currentMonth = 1;
+          }
+          
+          console.log('DEBUG - calculated currentMonth:', currentMonth);
+          
+          let direction = 'same';
+          if (currentMonth > previousMonth) {
+            direction = 'next';
+          } else if (currentMonth < previousMonth) {
+            direction = 'previous';
+          }
+          
+          console.log('Calendar direction:', direction, 'from', previousMonth, 'to', currentMonth);
+          previousMonth = currentMonth;
+          onMonthChange(currentMonth);
         }
       },
       eventClick: (info) => {

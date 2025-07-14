@@ -76,19 +76,16 @@
     loadEventsFromFirestore();
   }
 
-  // Debug reactive statement to track loading states
-  $: {
-    console.log('Loading state changed - isLoadingSchedules:', isLoadingSchedules, 'isLoadingEvents:', isLoadingEvents, 'schedulesLoaded:', schedulesLoaded, 'filteredSchedules length:', filteredSchedules.length);
-  }
+
+
+
 
   // Load schedules from Firestore
   async function loadSchedulesFromFirestoreData() {
     try {
       isLoadingSchedules = true;
-      console.log('Loading schedules from Firestore...');
       await loadSchedulesFromFirestore();
       schedulesLoaded = true;
-      console.log('Schedules loaded from Firestore, schedulesLoaded set to:', schedulesLoaded);
     } catch (error) {
       console.error('Error loading schedules from Firestore:', error);
       toastError('Failed to load company data from database', 'Error');
@@ -173,6 +170,7 @@
   }
 
   function handleMonthChange(newMonth: number) {
+    console.log('Left side month:', currentMonth, 'displaying:', months[currentMonth - 1], 'Calendar month:', newMonth, 'displaying:', months[newMonth - 1]);
     currentMonth = newMonth;
   }
 
@@ -576,7 +574,10 @@
     await loadEventsFromFirestore(); // Then reload events
   }
 
+
+
   onMount(async () => {
+    console.log('PAGE LOAD - Left side month:', currentMonth, 'displaying:', months[currentMonth - 1], 'Calendar month:', currentMonth, 'displaying:', months[currentMonth - 1]);
     await loadSchedulesFromFirestoreData(); // Load schedules first, events will load automatically via reactive statement
   });
 </script>

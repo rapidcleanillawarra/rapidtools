@@ -16,7 +16,8 @@
     type STTEvent 
   } from '../utils/sttEvents';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
-  import { toastSuccess, toastError } from '$lib/utils/toast';
+  import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
+  import { toastSuccess, toastError, toastInfo, toastWarning } from '$lib/utils/toast';
 
   type CalendarEvent = {
     id: string;
@@ -214,7 +215,7 @@
     
     // Check if user is authenticated
     if (!user) {
-      toastError('You must be logged in to save schedules');
+      toastError('You must be logged in to save schedules', 'Authentication Required');
       return;
     }
     
@@ -244,7 +245,7 @@
           return event;
         });
         
-        toastSuccess('Schedule updated successfully');
+        toastSuccess('Schedule updated successfully', 'Updated');
         // Add success animation
         const successElement = document.createElement('div');
         successElement.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-checkmark';
@@ -286,13 +287,13 @@
         const locationInfo = schedule?.information[selectedLocation.infoIndex];
         
         if (!schedule || !locationInfo) {
-          toastError('Invalid schedule or location information');
+          toastError('Invalid schedule or location information', 'Invalid Data');
           return;
         }
         
         // Validate that the information_id exists
         if (!locationInfo.information_id) {
-          toastError('Missing location information ID');
+          toastError('Missing location information ID', 'Missing Data');
           return;
         }
 
@@ -318,13 +319,13 @@
         const itemKey = `${selectedLocation.scheduleId}-${selectedLocation.infoIndex}`;
         scheduledItems = new Set(scheduledItems).add(itemKey);
         
-        toastSuccess('Schedule added successfully');
+        toastSuccess('Schedule added successfully', 'Added');
         // Add success animation
         showSuccessAnimation();
       }
     } catch (error) {
       console.error('Error saving event:', error);
-      toastError('Failed to save schedule');
+      toastError('Failed to save schedule', 'Error');
       return;
     } finally {
       isSaving = false;
@@ -374,11 +375,11 @@
       // Remove from calendar events
       calendarEvents = calendarEvents.filter(calEvent => calEvent.id !== event.id);
       
-      toastSuccess('Schedule deleted successfully');
+      toastSuccess('Schedule deleted successfully', 'Deleted');
       showDeleteSuccessAnimation();
     } catch (error) {
       console.error('Error deleting event:', error);
-      toastError('Failed to delete schedule');
+      toastError('Failed to delete schedule', 'Error');
       return;
     } finally {
       isDeleting = false;
@@ -407,6 +408,7 @@
   async function loadEventsFromFirestore() {
     try {
       isLoading = true;
+      showLoadingProgress('Loading your schedules...');
       const sttEvents = await loadSTTEvents();
       
       // Convert STT events to calendar events and map infoIndex
@@ -435,46 +437,46 @@
       
     } catch (error) {
       console.error('Error loading events from Firestore:', error);
-      toastError('Failed to load events from database');
+      toastError('Failed to load events from database', 'Error');
     } finally {
       isLoading = false;
     }
   }
 
-  // Show success animation
+  // Show success animation with confetti effect
   function showSuccessAnimation() {
-    const successElement = document.createElement('div');
-    successElement.className = 'fixed top-4 right-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg shadow-xl z-50 animate-checkmark flex items-center';
-    successElement.innerHTML = `
-      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-      </svg>
-      Schedule Saved Successfully!
-    `;
-    document.body.appendChild(successElement);
-    setTimeout(() => {
-      if (document.body.contains(successElement)) {
-        document.body.removeChild(successElement);
-      }
-    }, 3000);
+    toastSuccess('Schedule saved successfully!', 'Success');
+    createConfettiEffect();
+    addSuccessCelebration();
   }
 
   // Show delete success animation
   function showDeleteSuccessAnimation() {
-    const successElement = document.createElement('div');
-    successElement.className = 'fixed top-4 right-4 bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg shadow-xl z-50 animate-checkmark flex items-center';
-    successElement.innerHTML = `
-      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-      </svg>
-      Schedule Deleted Successfully!
-    `;
-    document.body.appendChild(successElement);
-    setTimeout(() => {
-      if (document.body.contains(successElement)) {
-        document.body.removeChild(successElement);
-      }
-    }, 3000);
+    toastSuccess('Schedule deleted successfully!', 'Deleted');
+  }
+
+  // Create confetti effect
+  function createConfettiEffect() {
+    const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+    const confettiCount = 50;
+    
+    for (let i = 0; i < confettiCount; i++) {
+      setTimeout(() => {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = Math.random() * 3 + 's';
+        confetti.style.animationDuration = (Math.random() * 3 + 2) + 's';
+        document.body.appendChild(confetti);
+        
+        setTimeout(() => {
+          if (document.body.contains(confetti)) {
+            document.body.removeChild(confetti);
+          }
+        }, 5000);
+      }, i * 50);
+    }
   }
 
   // Add ripple effect to buttons
@@ -498,8 +500,47 @@
     }, 600);
   }
 
+  // Add floating animation to elements
+  function addFloatingAnimation(element: HTMLElement) {
+    element.classList.add('floating-animation');
+  }
+
+  // Remove floating animation
+  function removeFloatingAnimation(element: HTMLElement) {
+    element.classList.remove('floating-animation');
+  }
+
+  // Add success celebration
+  function addSuccessCelebration() {
+    // Add sparkle effect
+    const sparkles = ['✨', '🎉', '🎊', '⭐', '🌟'];
+    for (let i = 0; i < 10; i++) {
+      setTimeout(() => {
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle-effect';
+        sparkle.textContent = sparkles[Math.floor(Math.random() * sparkles.length)];
+        sparkle.style.left = Math.random() * 100 + 'vw';
+        sparkle.style.top = Math.random() * 100 + 'vh';
+        sparkle.style.animationDelay = Math.random() * 2 + 's';
+        document.body.appendChild(sparkle);
+        
+        setTimeout(() => {
+          if (document.body.contains(sparkle)) {
+            document.body.removeChild(sparkle);
+          }
+        }, 3000);
+      }, i * 200);
+    }
+  }
+
+  // Add loading progress indicator
+  function showLoadingProgress(message: string) {
+    toastInfo(message, 'Loading');
+  }
+
   // Refresh events from Firestore
   async function refreshEvents() {
+    showLoadingProgress('Refreshing schedules...');
     await loadEventsFromFirestore();
   }
 
@@ -515,22 +556,41 @@
       Company Locations for {months[currentMonth - 1]}
     </h3>
     {#if isLoading}
-      <div class="flex flex-col items-center justify-center py-12">
-        <div class="relative">
-          <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600"></div>
-          <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-400 animate-ping"></div>
-        </div>
-        <span class="mt-4 text-gray-600 font-medium">Loading events...</span>
-        <div class="mt-2 text-xs text-gray-400">Please wait while we fetch your schedules</div>
+      <div class="space-y-6">
+        <!-- Skeleton for company containers -->
+        {#each Array(3) as _, index}
+          <div class="company-skeleton animate-fade-in" style="animation-delay: {index * 100}ms;">
+            <!-- Company header skeleton -->
+            <div class="flex items-center justify-between bg-gray-200 px-4 py-3 rounded-t-lg mb-3">
+              <SkeletonLoader type="text" width="150px" height="1.25rem" />
+              <SkeletonLoader type="circle" width="1rem" height="1rem" />
+            </div>
+            <!-- Location items skeleton -->
+            <div class="space-y-3">
+              {#each Array(2) as _, itemIndex}
+                <div class="p-4 rounded-lg bg-gray-100 flex justify-between items-center">
+                  <div class="flex-1">
+                    <SkeletonLoader type="text" width="120px" height="1rem" className="mb-2" />
+                    <SkeletonLoader type="text" width="80px" height="0.75rem" />
+                  </div>
+                  <SkeletonLoader type="text" width="60px" height="0.75rem" />
+                </div>
+              {/each}
+            </div>
+          </div>
+        {/each}
       </div>
     {:else}
       <div id="company-locations" class="space-y-6">
         {#each filteredSchedules as schedule, index (schedule.id)}
-          <div class="company-container mb-6 animate-fade-in" style="animation-delay: {index * 100}ms;">
+          <div class="company-container mb-6 animate-fade-in hover:transform hover:scale-[1.02] transition-all duration-300" style="animation-delay: {index * 100}ms;">
             <div 
-              class="flex items-center justify-between bg-gradient-to-r from-gray-800 to-gray-900 text-white px-4 py-3 rounded-t-lg mb-3 shadow-md transform hover:scale-[1.02] transition-transform duration-200"
+              class="flex items-center justify-between bg-gradient-to-r from-gray-800 to-gray-900 text-white px-4 py-3 rounded-t-lg mb-3 shadow-lg transform hover:scale-[1.02] transition-all duration-300 hover:shadow-xl"
             >
-              <h4 class="text-md font-semibold">{schedule.company}</h4>
+              <h4 class="text-md font-semibold flex items-center">
+                <span class="mr-2 text-lg">🏢</span>
+                {schedule.company}
+              </h4>
               <div 
                 class="w-4 h-4 rounded-full shadow-lg animate-pulse" 
                 style="background-color: hsl({(index * 40) % 360}, 70%, 60%)">
@@ -539,25 +599,36 @@
             <div class="company-items space-y-3">
               {#each schedule.information as info, infoIndex (info.information_id)}
                 <div
-                  class="p-4 rounded-lg text-white cursor-pointer flex justify-between items-center transform hover:scale-[1.02] hover:shadow-lg transition-all duration-200 ease-out"
+                  class="location-item interactive-hover p-4 rounded-lg text-white cursor-pointer flex justify-between items-center transform hover:scale-[1.03] hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1"
                   style="background: linear-gradient(135deg, hsl({(index * 40) % 360}, 70%, 60%), hsl({(index * 40) % 360}, 70%, 50%))"
                   on:click={() => openModal(info, schedule, infoIndex, index)}
+                  on:mouseenter={(e) => addFloatingAnimation(e.currentTarget)}
+                  on:mouseleave={(e) => removeFloatingAnimation(e.currentTarget)}
                 >
                   <div class="flex-1">
-                    <div class="font-medium text-sm mb-1">{info.sub_company_name}</div>
-                    <div class="text-xs opacity-90">{info.location}</div>
+                    <div class="font-medium text-sm mb-1 flex items-center">
+                      <span class="mr-2">📍</span>
+                      {info.sub_company_name}
+                    </div>
+                    <div class="text-xs opacity-90 flex items-center">
+                      <span class="mr-1">🏢</span>
+                      {info.location}
+                    </div>
                   </div>
                   {#if scheduledItems.has(`${schedule.id}-${infoIndex}`)}
-                    <div class="flex items-center">
-                      <div class="bg-green-500 rounded-full p-1 mr-2 animate-bounce">
+                    <div class="flex items-center success-glow">
+                      <div class="bg-green-500 rounded-full p-1 mr-2 animate-bounce shadow-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                         </svg>
                       </div>
-                      <span class="text-xs font-medium text-green-200">Scheduled</span>
+                      <span class="text-xs font-medium text-green-200 animate-pulse">Scheduled</span>
                     </div>
                   {:else}
-                    <div class="text-xs opacity-60">Click to schedule</div>
+                    <div class="text-xs opacity-60 flex items-center">
+                      <span class="mr-1">⏰</span>
+                      Click to schedule
+                    </div>
                   {/if}
                 </div>
               {/each}
@@ -598,10 +669,14 @@
     </div>
     <div class="relative">
       {#if isLoading}
-        <div class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+        <div class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-lg backdrop-blur-sm">
           <div class="text-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
-            <div class="mt-4 text-gray-600">Updating calendar...</div>
+            <div class="relative">
+              <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+              <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-400 animate-ping"></div>
+            </div>
+            <div class="mt-4 text-gray-600 font-medium">Updating calendar...</div>
+            <div class="mt-2 text-sm text-gray-400">Please wait while we sync your schedules</div>
           </div>
         </div>
       {/if}
@@ -629,53 +704,94 @@
     }}
   >
     <svelte:fragment slot="header">
-      <div class="modal-enter">
-        {isEditMode ? 'Edit Schedule' : 'Add Schedule'} - {selectedLocation.sub_company_name}
+      <div class="modal-enter flex items-center">
+        <div class="mr-3 p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="text-lg font-semibold">{isEditMode ? 'Edit Schedule' : 'Add Schedule'}</div>
+          <div class="text-sm text-gray-500">{selectedLocation.sub_company_name}</div>
+        </div>
       </div>
     </svelte:fragment>
     <svelte:fragment slot="body">
       <div class="modal-enter">
       <div class="p-6">
-        <h2 class="text-xl font-bold mb-2">{selectedLocation.sub_company_name}</h2>
-        <p class="mb-4 text-gray-600">{selectedLocation.location}</p>
+        <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+          <h2 class="text-xl font-bold mb-2 flex items-center">
+            <span class="mr-2 text-2xl">📍</span>
+            {selectedLocation.sub_company_name}
+          </h2>
+          <p class="text-gray-600 flex items-center">
+            <span class="mr-2">🏢</span>
+            {selectedLocation.location}
+          </p>
+        </div>
         
         <div class="mb-6">
-          <label class="block text-sm font-medium mb-3 text-gray-700">📅 Date Range:</label>
+          <label class="block text-sm font-medium mb-3 text-gray-700 flex items-center">
+            <span class="mr-2 text-lg">📅</span>
+            Date Range
+          </label>
           <div class="flex space-x-4">
             <div class="flex-1">
-              <label class="block text-xs text-gray-600 mb-2 font-medium">Start Date</label>
-              <input 
-                type="date" 
-                bind:value={startDateStr}
-                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
-                min={new Date().toISOString().split('T')[0]}
-              />
+              <label class="block text-xs text-gray-600 mb-2 font-medium flex items-center">
+                <span class="mr-1">🎯</span>
+                Start Date
+              </label>
+              <div class="relative">
+                <input 
+                  type="date" 
+                  bind:value={startDateStr}
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
+                  min={new Date().toISOString().split('T')[0]}
+                />
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                </div>
+              </div>
             </div>
             <div class="flex-1">
-              <label class="block text-xs text-gray-600 mb-2 font-medium">End Date</label>
-              <input 
-                type="date" 
-                bind:value={endDateStr}
-                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
-                min={startDateStr || new Date().toISOString().split('T')[0]}
-              />
+              <label class="block text-xs text-gray-600 mb-2 font-medium flex items-center">
+                <span class="mr-1">🏁</span>
+                End Date
+              </label>
+              <div class="relative">
+                <input 
+                  type="date" 
+                  bind:value={endDateStr}
+                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
+                  min={startDateStr || new Date().toISOString().split('T')[0]}
+                />
+                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
           
           {#if validationErrors.length > 0}
-            <div class="mt-4 p-4 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg animate-pulse">
+            <div class="mt-4 p-4 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg animate-bounce-in">
               <div class="text-sm text-red-800">
-                <div class="font-medium mb-2 flex items-center">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
+                <div class="font-medium mb-3 flex items-center">
+                  <div class="mr-2 p-1 bg-red-500 rounded-full">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
                   Please fix the following errors:
                 </div>
-                <ul class="list-disc list-inside space-y-1">
-                  {#each validationErrors as error}
-                    <li class="flex items-center">
-                      <span class="w-1 h-1 bg-red-600 rounded-full mr-2"></span>
-                      {error}
+                <ul class="space-y-2">
+                  {#each validationErrors as error, index}
+                    <li class="flex items-center animate-slide-in" style="animation-delay: {index * 100}ms;">
+                      <span class="w-2 h-2 bg-red-500 rounded-full mr-3 animate-pulse"></span>
+                      <span class="text-red-700">{error}</span>
                     </li>
                   {/each}
                 </ul>
@@ -713,15 +829,18 @@
                 editingEventId = null;
               }}
               disabled={isSaving || isDeleting}
-              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200"
+              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 hover:shadow-md flex items-center"
             >
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
               Cancel
             </button>
             <button 
               on:click={addEvent}
               on:click={addRippleEffect}
               disabled={!startDateStr || !endDateStr || validationErrors.length > 0 || isSaving || isDeleting}
-              class="btn-primary px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg disabled:from-gray-400 disabled:to-gray-500 hover:from-blue-700 hover:to-blue-800 shadow-md flex items-center"
+              class="btn-primary px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg disabled:from-gray-400 disabled:to-gray-500 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center"
             >
               {#if isSaving}
                 <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
@@ -994,5 +1113,197 @@
   .card-hover:hover {
     transform: translateY(-5px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Confetti animation */
+  .confetti-piece {
+    position: fixed;
+    top: -10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: confetti-fall linear infinite;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  @keyframes confetti-fall {
+    0% {
+      transform: translateY(-10px) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  /* Enhanced animations */
+  .animate-bounce-in {
+    animation: bounceIn 0.6s ease-out;
+  }
+
+  @keyframes bounceIn {
+    0% {
+      transform: scale(0.3);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    70% {
+      transform: scale(0.9);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.5s ease-out forwards;
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  @keyframes slideIn {
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  .floating-animation {
+    animation: floating 3s ease-in-out infinite;
+  }
+
+  @keyframes floating {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  /* Location item hover effects */
+  .location-item {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .location-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .location-item:hover::before {
+    left: 100%;
+  }
+
+  /* Company skeleton animation */
+  .company-skeleton {
+    opacity: 0;
+    animation: skeletonFadeIn 0.6s ease-out forwards;
+  }
+
+  @keyframes skeletonFadeIn {
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* Enhanced modal animations */
+  .modal-enter {
+    animation: modalEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes modalEnter {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(-30px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Pulse animation for scheduled items */
+  .scheduled-pulse {
+    animation: scheduledPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes scheduledPulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  /* Sparkle effect */
+  .sparkle-effect {
+    position: fixed;
+    font-size: 2rem;
+    pointer-events: none;
+    z-index: 10000;
+    animation: sparkle 3s ease-out forwards;
+  }
+
+  @keyframes sparkle {
+    0% {
+      transform: scale(0) rotate(0deg);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.5) rotate(180deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(0) rotate(360deg);
+      opacity: 0;
+    }
+  }
+
+  /* Enhanced loading states */
+  .loading-shimmer {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200px 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Hover effects for interactive elements */
+  .interactive-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .interactive-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Success state animations */
+  .success-glow {
+    animation: successGlow 2s ease-out;
+  }
+
+  @keyframes successGlow {
+    0% {
+      box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+    }
+    100% {
+      box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+    }
   }
 </style>

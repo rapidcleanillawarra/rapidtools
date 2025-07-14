@@ -52,6 +52,7 @@
 		"lucide-svelte": "^0.514.0",
 		"luxon": "^3.6.1",
 		"svelte-dnd-action": "^0.9.63",
+		"svelte-hero-icons": "^5.2.0",
 		"svelte-select": "^5.8.3"
 	}
 }

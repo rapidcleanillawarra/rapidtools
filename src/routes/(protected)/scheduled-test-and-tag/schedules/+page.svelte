@@ -217,7 +217,7 @@
       company: schedule.company,
       scheduleId: schedule.id,
       infoIndex: infoIndex,
-      backgroundColor: `hsl(${(companyIndex * 40) % 360}, 70%, 60%)` // Use companyIndex here
+      backgroundColor: schedule.color || '#3b82f6' // Use schedule color from source
     };
     validationErrors = []; // Clear validation errors when opening modal
     showModal = true;
@@ -643,14 +643,14 @@
               </h4>
               <div 
                 class="w-4 h-4 rounded-full shadow-lg animate-pulse" 
-                style="background-color: hsl({(index * 40) % 360}, 70%, 60%)">
+                style="background-color: {schedule.color || '#3b82f6'}">
               </div>
             </div>
             <div class="company-items space-y-3">
               {#each schedule.information as info, infoIndex (info.information_id)}
                 <div
                   class="location-item interactive-hover p-4 rounded-lg text-white cursor-pointer flex justify-between items-center transform hover:scale-[1.03] hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1"
-                  style="background: linear-gradient(135deg, hsl({(index * 40) % 360}, 70%, 60%), hsl({(index * 40) % 360}, 70%, 50%))"
+                  style="background: linear-gradient(135deg, {schedule.color || '#3b82f6'}, {schedule.color ? schedule.color + 'cc' : '#3b82f6cc'})"
                   on:click={() => openModal(info, schedule, infoIndex, index)}
                   on:mouseenter={(e) => addFloatingAnimation(e.currentTarget)}
                   on:mouseleave={(e) => removeFloatingAnimation(e.currentTarget)}
@@ -756,6 +756,7 @@
       isEditMode = false;
       editingEventId = null;
     }}
+    size="xl"
   >
     <svelte:fragment slot="header">
       <div class="modal-enter flex items-center">
@@ -854,12 +855,67 @@
           {/if}
         </div>
         
+        <!-- Contact Information Section -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium mb-3 text-gray-700 flex items-center">
+            <span class="mr-2 text-lg">👥</span>
+            Contact Information
+          </label>
+          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            {#if selectedLocation.contacts && selectedLocation.contacts.length > 0}
+              <div class="space-y-3">
+                {#each selectedLocation.contacts as contact, contactIndex}
+                  <div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                      <h4 class="font-medium text-gray-900 flex items-center">
+                        <span class="mr-2">👤</span>
+                        {contact.name || 'Unnamed Contact'}
+                      </h4>
+                      <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        Contact {contactIndex + 1}
+                      </span>
+                    </div>
+                    <div class="space-y-1 text-sm text-gray-600">
+                      {#if contact.phone}
+                        <div class="flex items-center">
+                          <span class="mr-2">📞</span>
+                          <a href="tel:{contact.phone}" class="text-blue-600 hover:text-blue-800 hover:underline">
+                            {contact.phone}
+                          </a>
+                        </div>
+                      {/if}
+                      {#if contact.email}
+                        <div class="flex items-center">
+                          <span class="mr-2">📧</span>
+                          <a href="mailto:{contact.email}" class="text-blue-600 hover:text-blue-800 hover:underline">
+                            {contact.email}
+                          </a>
+                        </div>
+                      {/if}
+                      {#if !contact.phone && !contact.email}
+                        <div class="text-gray-400 italic">
+                          No contact details available
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="text-center py-6 text-gray-500">
+                <div class="text-4xl mb-2">👥</div>
+                <p class="text-sm">No contacts available for this location</p>
+              </div>
+            {/if}
+          </div>
+        </div>
+        
         <div class="flex justify-between items-center">
           {#if isEditMode && editingEventId}
             <button 
               on:click={removeCurrentEvent}
               disabled={isDeleting}
-              class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center"
+              class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center text-sm"
             >
               {#if isDeleting}
                 <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
@@ -868,7 +924,7 @@
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                 </svg>
-                Remove Schedule
+                Remove
               {/if}
             </button>
           {:else}
@@ -883,7 +939,7 @@
                 editingEventId = null;
               }}
               disabled={isSaving || isDeleting}
-              class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 hover:shadow-md flex items-center"
+              class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 hover:shadow-md flex items-center text-sm"
             >
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -894,7 +950,7 @@
               on:click={addEvent}
               on:click={addRippleEffect}
               disabled={!startDateStr || !endDateStr || validationErrors.length > 0 || isSaving || isDeleting}
-              class="btn-primary px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg disabled:from-gray-400 disabled:to-gray-500 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center"
+              class="btn-primary px-4 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg disabled:from-gray-400 disabled:to-gray-500 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center text-sm"
             >
               {#if isSaving}
                 <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
@@ -903,7 +959,7 @@
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                 </svg>
-                {isEditMode ? 'Update Schedule' : 'Add to Calendar'}
+                {isEditMode ? 'Update' : 'Add'}
               {/if}
             </button>
           </div>
@@ -956,14 +1012,14 @@
           <button 
             on:click={cancelDelete}
             disabled={isDeleting}
-            class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200"
+            class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 text-sm"
           >
             Cancel
           </button>
           <button 
             on:click={confirmDelete}
             disabled={isDeleting}
-            class="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center"
+            class="px-4 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center text-sm"
           >
             {#if isDeleting}
               <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>

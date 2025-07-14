@@ -4,6 +4,7 @@
 
 	export let show: boolean = false;
 	export let onClose: () => void;
+	export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
 
 	const dispatch = createEventDispatcher();
 
@@ -28,7 +29,7 @@
 		transition:fade={{ duration: 200 }}
 	>
 		<div
-			class="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg"
+			class="bg-white rounded-lg shadow-xl p-6 w-full {size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}"
 			on:click|stopPropagation
 			role="dialog"
 			aria-modal="true"

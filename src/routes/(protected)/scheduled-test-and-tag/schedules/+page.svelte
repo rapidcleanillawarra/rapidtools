@@ -15,6 +15,7 @@
     sttEventToCalendarEvent,
     type STTEvent 
   } from '../utils/sttEvents';
+  import { loadSchedulesFromFirestore } from '../companies/utils';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import { toastSuccess, toastError, toastInfo, toastWarning } from '$lib/utils/toast';
@@ -47,10 +48,14 @@
   let showConfirmModal = false;
   let eventToDelete: CalendarEvent | null = null;
   let isLoading = false;
+  let isLoadingSchedules = false;
+  let isLoadingEvents = false;
   let isSaving = false;
   let isDeleting = false;
   let user: any;
   let profile: any;
+  let schedulesLoaded = false;
+  let eventsLoaded = false;
   
   // Subscribe to user and profile stores
   currentUser.subscribe(value => user = value);
@@ -64,6 +69,33 @@
   $: filteredSchedules = $schedulesStore.filter(
     schedule => schedule.start_month === currentMonth
   );
+
+  // Reactive statement to load events when schedules are loaded
+  $: if (schedulesLoaded && !isLoadingSchedules && !isLoadingEvents && !eventsLoaded) {
+    eventsLoaded = true;
+    loadEventsFromFirestore();
+  }
+
+  // Debug reactive statement to track loading states
+  $: {
+    console.log('Loading state changed - isLoadingSchedules:', isLoadingSchedules, 'isLoadingEvents:', isLoadingEvents, 'schedulesLoaded:', schedulesLoaded, 'filteredSchedules length:', filteredSchedules.length);
+  }
+
+  // Load schedules from Firestore
+  async function loadSchedulesFromFirestoreData() {
+    try {
+      isLoadingSchedules = true;
+      console.log('Loading schedules from Firestore...');
+      await loadSchedulesFromFirestore();
+      schedulesLoaded = true;
+      console.log('Schedules loaded from Firestore, schedulesLoaded set to:', schedulesLoaded);
+    } catch (error) {
+      console.error('Error loading schedules from Firestore:', error);
+      toastError('Failed to load company data from database', 'Error');
+    } finally {
+      isLoadingSchedules = false;
+    }
+  }
 
   function validateSchedule(): boolean {
     validationErrors = [];
@@ -407,8 +439,7 @@
   // Load events from Firestore on mount
   async function loadEventsFromFirestore() {
     try {
-      isLoading = true;
-      showLoadingProgress('Loading your schedules...');
+      isLoadingEvents = true;
       const sttEvents = await loadSTTEvents();
       
       // Convert STT events to calendar events and map infoIndex
@@ -439,7 +470,7 @@
       console.error('Error loading events from Firestore:', error);
       toastError('Failed to load events from database', 'Error');
     } finally {
-      isLoading = false;
+      isLoadingEvents = false;
     }
   }
 
@@ -540,12 +571,13 @@
 
   // Refresh events from Firestore
   async function refreshEvents() {
-    showLoadingProgress('Refreshing schedules...');
-    await loadEventsFromFirestore();
+    eventsLoaded = false; // Reset events loaded flag
+    await loadSchedulesFromFirestoreData(); // Reload schedules first
+    await loadEventsFromFirestore(); // Then reload events
   }
 
-  onMount(() => {
-    loadEventsFromFirestore();
+  onMount(async () => {
+    await loadSchedulesFromFirestoreData(); // Load schedules first, events will load automatically via reactive statement
   });
 </script>
 
@@ -555,7 +587,7 @@
       <span class="mr-2">📅</span>
       Company Locations for {months[currentMonth - 1]}
     </h3>
-    {#if isLoading}
+    {#if isLoadingSchedules || !schedulesLoaded}
       <div class="space-y-6">
         <!-- Skeleton for company containers -->
         {#each Array(3) as _, index}
@@ -654,29 +686,33 @@
       <button 
         on:click={refreshEvents}
         on:click={addRippleEffect}
-        disabled={isLoading}
+        disabled={isLoadingSchedules || isLoadingEvents || !schedulesLoaded}
         class="btn-primary floating-btn px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed flex items-center shadow-md"
       >
-        {#if isLoading}
+        {#if isLoadingSchedules || isLoadingEvents}
           <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
         {:else}
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
           </svg>
         {/if}
-        {isLoading ? 'Refreshing...' : 'Refresh'}
+        {isLoadingSchedules || isLoadingEvents ? 'Refreshing...' : 'Refresh'}
       </button>
     </div>
     <div class="relative">
-      {#if isLoading}
+      {#if isLoadingSchedules || isLoadingEvents}
         <div class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-lg backdrop-blur-sm">
           <div class="text-center">
             <div class="relative">
               <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
               <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-400 animate-ping"></div>
             </div>
-            <div class="mt-4 text-gray-600 font-medium">Updating calendar...</div>
-            <div class="mt-2 text-sm text-gray-400">Please wait while we sync your schedules</div>
+            <div class="mt-4 text-gray-600 font-medium">
+              {isLoadingSchedules ? 'Loading company data...' : 'Loading calendar events...'}
+            </div>
+            <div class="mt-2 text-sm text-gray-400">
+              {isLoadingSchedules ? 'Please wait while we load your company information' : 'Please wait while we load your scheduled events'}
+            </div>
           </div>
         </div>
       {/if}

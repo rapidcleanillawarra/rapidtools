@@ -5,6 +5,11 @@
   let isLoading = true;
   let error: string | null = null;
   
+  // Drag and drop state
+  let draggedItem: any = null;
+  let draggedOverDate: number | null = null;
+  let scheduledItems: { [key: string]: any[] } = {};
+  
   function hsvToHex(h: number, s: number, v: number) {
     let r: number = 0, g: number = 0, b: number = 0;
 
@@ -86,6 +91,88 @@
   function toggleMonthDropdown() {
     showMonthDropdown = !showMonthDropdown;
   }
+
+  function getCalendarDays(year: number, month: number) {
+    const firstDayOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const days: (number | null)[] = [];
+    const startDayOfWeek = firstDayOfMonth.getDay(); // 0 for Sunday, 6 for Saturday
+
+    // Add days from previous month to fill the grid
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(null);
+    }
+
+    // Add days from the current month
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(i);
+    }
+
+    return days;
+  }
+  
+  // Simple HTML5 drag and drop functions
+  function handleDragStart(event: DragEvent, item: any) {
+    draggedItem = item;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', JSON.stringify(item));
+    }
+  }
+  
+  function handleDragOver(event: DragEvent, date: number) {
+    event.preventDefault();
+    draggedOverDate = date;
+  }
+  
+  function handleDragLeave(event: DragEvent) {
+    draggedOverDate = null;
+  }
+  
+  function handleDrop(event: DragEvent, date: number) {
+    event.preventDefault();
+    if (draggedItem && date) {
+      const dateKey = `${selectedYear}-${selectedMonth + 1}-${date}`;
+      if (!scheduledItems[dateKey]) {
+        scheduledItems[dateKey] = [];
+      }
+      scheduledItems[dateKey].push(draggedItem);
+      scheduledItems = scheduledItems; // Trigger reactivity
+    }
+    draggedItem = null;
+    draggedOverDate = null;
+  }
+  
+  function getScheduledItemsForDate(date: number) {
+    const dateKey = `${selectedYear}-${selectedMonth + 1}-${date}`;
+    return scheduledItems[dateKey] || [];
+  }
+  
+  function removeScheduledItem(date: number, itemIndex: number) {
+    const dateKey = `${selectedYear}-${selectedMonth + 1}-${date}`;
+    if (scheduledItems[dateKey]) {
+      scheduledItems[dateKey].splice(itemIndex, 1);
+      scheduledItems = scheduledItems; // Trigger reactivity
+    }
+  }
+  
+  // Generate unique ID for items
+  function generateItemId(company: string, subCompany: string, location: string, companyIndex: number) {
+    return `${companyIndex}-${company.replace(/\s+/g, '-')}-${subCompany.replace(/\s+/g, '-')}-${location.replace(/\s+/g, '-')}`.toLowerCase();
+  }
+  
+  // Process company data with IDs
+  function processCompanyData(schedule: any, companyIndex: number) {
+    if (!schedule || !schedule.information) return [];
+    return schedule.information.map((info: any) => ({
+      ...info,
+      company: schedule.company,
+      company_index: companyIndex,
+      id: generateItemId(schedule.company, info.sub_company_name, info.location, companyIndex)
+    }));
+  }
 </script>
 
 {#if isLoading}
@@ -163,14 +250,24 @@
         <div class="space-y-4">
           {#each $schedulesStore as schedule, index (schedule.id)}
             <div class="company-container border border-gray-200 rounded p-4">
-              <h4 class="text-md font-semibold text-white mb-2 bg-[rgb(30,30,30)] p-2 rounded">{schedule.company}</h4>
+              <h4 class="text-md font-semibold text-white mb-2 bg-[rgb(30,30,30)] p-2 rounded flex items-center justify-between">
+                <span>{schedule.company}</span>
+                <div class="w-3 h-3 rounded-full" style="background-color: {companyColors[index % companyColors.length]}"></div>
+              </h4>
               <div class="company-information">
-                {#each schedule.information as info, infoIndex}
-                  <div class="company-information-item text-white p-3 rounded mb-3" style="background-color: {companyColors[index % companyColors.length]}">
-                    <div class="font-medium text-sm">{info.sub_company_name}</div>
-                    <div class="text-xs opacity-80">{info.location}</div>
-                  </div>
-                {/each}
+                <div class="space-y-3">
+                  {#each processCompanyData(schedule, index) as item, itemIndex}
+                    <div 
+                      draggable="true"
+                      on:dragstart={(event) => handleDragStart(event, item)}
+                      class="company-information-item text-white p-3 rounded cursor-move hover:opacity-80 transition-opacity" 
+                      style="background-color: {companyColors[item.company_index % companyColors.length]}"
+                    >
+                      <div class="font-medium text-sm">{item.sub_company_name}</div>
+                      <div class="text-xs opacity-80">{item.location}</div>
+                    </div>
+                  {/each}
+                </div>
               </div>
             </div>
           {/each}
@@ -178,12 +275,58 @@
       </div>
       
       <div class="col-span-8 bg-white rounded-lg border border-gray-200 p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Right Column</h3>
-        <div class="space-y-4">
-          {#each $schedulesStore as schedule (schedule.id)}
-            <div class="border border-gray-200 rounded p-4">
-              <div class="font-medium">{schedule.company}</div>
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Calendar View</h3>
+        
+        <!-- Calendar Header -->
+        <div class="grid grid-cols-7 gap-1 mb-2">
+          {#each ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as day}
+            <div class="text-center text-sm font-medium text-gray-500 py-2">
+              {day}
             </div>
+          {/each}
+        </div>
+        
+        <!-- Calendar Grid -->
+        <div class="grid grid-cols-7 gap-1">
+          {#each getCalendarDays(selectedYear, selectedMonth) as day, index}
+            {#if day === null}
+              <!-- Empty cell for days outside the month -->
+              <div class="h-12 border border-gray-100 bg-gray-50"></div>
+            {:else}
+              <!-- Date cell -->
+              <div 
+                on:dragover={(event) => handleDragOver(event, day)}
+                on:dragleave={handleDragLeave}
+                on:drop={(event) => handleDrop(event, day)}
+                data-date={day}
+                class="h-24 border border-gray-200 bg-white p-1 relative hover:bg-gray-50 transition-colors {draggedOverDate === day ? 'bg-blue-50 border-blue-300' : ''}"
+              >
+                <div class="text-sm text-gray-900 font-medium mb-1">
+                  {day}
+                </div>
+                <!-- Scheduled items display -->
+                <div class="space-y-1 max-h-16 overflow-y-auto">
+                  {#each getScheduledItemsForDate(day) as item, itemIndex}
+                    <div 
+                      class="text-xs p-1 rounded text-white flex items-center justify-between group"
+                      style="background-color: {companyColors[item.company_index % companyColors.length]}"
+                    >
+                      <div class="truncate flex-1">
+                        <div class="font-medium">{item.sub_company_name}</div>
+                        <div class="opacity-80">{item.location}</div>
+                      </div>
+                      <button 
+                        on:click={() => removeScheduledItem(day, itemIndex)}
+                        class="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-white hover:text-red-200"
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {/if}
           {/each}
         </div>
       </div>

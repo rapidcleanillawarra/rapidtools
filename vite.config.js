@@ -8,18 +8,5 @@ export default defineConfig({
 	},
 	optimizeDeps: {
 		
-	},
-	assetsInclude: ['**/*.svg'],
-	build: {
-		rollupOptions: {
-			output: {
-				assetFileNames: (assetInfo) => {
-					if (assetInfo.name && assetInfo.name.endsWith('.svg')) {
-						return 'images/[name].[ext]';
-					}
-					return 'assets/[name]-[hash].[ext]';
-				}
-			}
-		}
 	}
 }); 

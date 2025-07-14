@@ -6,12 +6,12 @@
   import { collection, getDocs, addDoc, serverTimestamp, query, orderBy, limit } from 'firebase/firestore';
   import { userProfile } from '$lib/userProfile';
 
-  // Import SVG assets
-  import bottleSvg from '$lib/../static/images/bottle.svg';
-  import bucketSvg from '$lib/../static/images/bucket.svg';
-  import scrubberSvg from '$lib/../static/images/scrubber.svg';
-  import sinkFillSvg from '$lib/../static/images/sink_fill.svg';
-  import greenArcPng from '$lib/../static/images/green_arc.png';
+  // Asset paths using base for proper deployment
+  const bottleSvg = `${base}/images/bottle.svg`;
+  const bucketSvg = `${base}/images/bucket.svg`;
+  const scrubberSvg = `${base}/images/scrubber.svg`;
+  const sinkFillSvg = `${base}/images/sink_fill.svg`;
+  const greenArcPng = `${base}/images/green_arc.png`;
 
   let selectedElement: string | null = null;
   
@@ -32,7 +32,8 @@
   let templateProducts: TemplateProduct[] = [];
   let searchQuery = '';
   let isLoading = false;
-
+  let isPrinting = false;
+  
   // Add state for template history
   let templateHistory: any[] = [];
   let isLoadingHistory = false;
@@ -219,6 +220,7 @@
   }
 
   async function handlePrint() {
+    isPrinting = true;
     try {
       // Build the JSON data from current templateData
       const printData = {
@@ -294,6 +296,8 @@
       const encodedData = encodeURIComponent(JSON.stringify(printData));
       const printUrl = `${base}/promax-template/print?data=${encodedData}`;
       window.open(printUrl, '_blank');
+    } finally {
+      isPrinting = false;
     }
   }
 </script>
@@ -321,13 +325,19 @@
                   Reset
                 </button>
                 <button 
-                  class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1"
+                  class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                   on:click={handlePrint}
+                  disabled={isPrinting}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Print
+                  {#if isPrinting}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Saving...</span>
+                  {:else}
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span>Print</span>
+                  {/if}
                 </button>
               </div>
             </div>

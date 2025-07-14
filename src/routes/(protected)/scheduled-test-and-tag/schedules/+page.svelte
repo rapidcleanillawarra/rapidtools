@@ -66,9 +66,26 @@
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  $: filteredSchedules = $schedulesStore.filter(
-    schedule => schedule.start_month === currentMonth
-  );
+  $: filteredSchedules = $schedulesStore.filter(schedule => {
+    // Check if current month matches start_month
+    if (schedule.start_month === currentMonth) {
+      return true;
+    }
+    
+    // Check if current month matches any occurrence month
+    const occurrence = schedule.occurence || 0;
+    if (occurrence > 0) {
+      let checkMonth = schedule.start_month + occurrence;
+      while (checkMonth <= 12) {
+        if (checkMonth === currentMonth) {
+          return true;
+        }
+        checkMonth += occurrence;
+      }
+    }
+    
+    return false;
+  });
 
   // Reactive statement to load events when schedules are loaded
   $: if (schedulesLoaded && !isLoadingSchedules && !isLoadingEvents && !eventsLoaded) {

@@ -2,16 +2,13 @@
   import { onMount } from 'svelte';
   import { Calendar } from '@fullcalendar/core';
   import dayGridPlugin from '@fullcalendar/daygrid';
-  import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
+  import interactionPlugin from '@fullcalendar/interaction';
   import type { EventInput } from '@fullcalendar/core';
 
   export let events: EventInput[] = [];
-  export let editable = true;
-  export let droppable = true;
-  export let onEventRemove: ((eventInfo: any) => void) | undefined = undefined;
-  export let onEventAdd: ((eventInfo: any) => void) | undefined = undefined;
-  export let removeAfterDrop = true; // New prop with default value
-
+  export let onMonthChange: ((month: number) => void) | undefined = undefined;
+  export let onEventRemove: ((eventId: string) => void) | undefined = undefined;
+  
   let calendarEl: HTMLElement;
   let calendar: Calendar;
 
@@ -19,33 +16,20 @@
     calendar = new Calendar(calendarEl, {
       plugins: [dayGridPlugin, interactionPlugin],
       initialView: 'dayGridMonth',
-      editable,
-      droppable,
+      editable: false,
+      droppable: false,
       events,
-      drop: (dropInfo) => {
-        // Handle external item drop
-        if (onEventAdd) {
-          const eventData = dropInfo.draggedEl.getAttribute('data-event');
-          if (eventData) {
-            const parsedEvent = JSON.parse(eventData);
-            const newEvent = {
-              ...parsedEvent,
-              id: `dropped-${Date.now()}-${Math.random()}`,
-              start: dropInfo.dateStr
-            };
-            onEventAdd(newEvent);
-            // Remove the dragged element only after successfully adding the event
-            // dropInfo.draggedEl.remove(); // This line is removed as per the edit hint
-          }
+      datesSet: (dateInfo) => {
+        if (onMonthChange) {
+          onMonthChange(dateInfo.start.getMonth() + 1);
         }
       },
-      eventRemove: (eventInfo) => {
+      eventClick: (info) => {
         if (onEventRemove) {
-          onEventRemove(eventInfo);
+          onEventRemove(info.event.id);
         }
       },
       eventDidMount: (eventInfo) => {
-        // Add remove button to events
         const eventEl = eventInfo.el;
         const removeBtn = document.createElement('button');
         removeBtn.innerHTML = '×';
@@ -69,13 +53,14 @@
         
         removeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          calendar.getEventById(eventInfo.event.id)?.remove();
+          if (onEventRemove) {
+            onEventRemove(eventInfo.event.id);
+          }
         });
         
         eventEl.style.position = 'relative';
         eventEl.appendChild(removeBtn);
         
-        // Show remove button on hover
         eventEl.addEventListener('mouseenter', () => {
           removeBtn.style.display = 'block';
         });
@@ -83,34 +68,12 @@
         eventEl.addEventListener('mouseleave', () => {
           removeBtn.style.display = 'none';
         });
-      },
-      eventReceive: (info) => {
-        if (removeAfterDrop && info.draggedEl) {
-          info.draggedEl.remove();
-        }
       }
     });
 
     calendar.render();
-
-    // Initialize Draggable for external elements
-    const externalEvents = document.getElementById('external-events');
-    if (externalEvents) {
-      new Draggable(externalEvents, {
-        itemSelector: '.fc-event',
-        eventData: function(eventEl) {
-          return {
-            title: eventEl.innerText,
-            duration: '02:00'
-          };
-        }
-      });
-    } else {
-      console.warn('Element with id "external-events" not found. Draggable not initialized.');
-    }
   });
 
-  // Update events when the prop changes
   $: if (calendar && events) {
     calendar.removeAllEvents();
     calendar.addEventSource(events);

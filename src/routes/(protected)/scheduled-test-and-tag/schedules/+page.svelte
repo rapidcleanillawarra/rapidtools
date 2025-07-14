@@ -1,14 +1,15 @@
 <script lang="ts">
   import FullCalendarWrapper from './FullCalendarWrapper.svelte';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount } from 'svelte';
   import { schedulesStore } from '../stores';
   import { get } from 'svelte/store';
-  import { Draggable } from '@fullcalendar/interaction';
+  import Modal from '$lib/components/Modal.svelte'; // Import modal component
 
   type CalendarEvent = {
     id: string;
     title: string;
-    start: string;
+    start: string; // ISO string
+    end?: string;  // ISO string, optional
     extendedProps: {
       location: string;
       company: string;
@@ -20,152 +21,169 @@
   };
 
   let calendarEvents: CalendarEvent[] = [];
-  let usedItems = new Set<string>(); // Track used items by their unique identifier
-  let draggable: Draggable | null = null;
-  let removeAfterDrop = true; // New state variable for checkbox
+  let currentMonth: number = new Date().getMonth() + 1;
+  let showModal = false;
+  let startDateStr = ''; // Changed from selectedDateStr
+  let endDateStr = '';   // Added for end date
+  let selectedLocation: any = null;
+  
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
-  function prepareCalendarEvents() {
-    // Start with empty calendar - no default events
-    calendarEvents = [];
+  $: filteredSchedules = $schedulesStore.filter(
+    schedule => schedule.start_month === currentMonth
+  );
+
+  function handleMonthChange(newMonth: number) {
+    currentMonth = newMonth;
   }
 
-  function handleEventRemove(eventInfo: any) {
-    // Remove the event from our local state
-    calendarEvents = calendarEvents.filter(event => event.id !== eventInfo.event.id);
+  function openModal(location: any, schedule: any, infoIndex: number, companyIndex: number) {
+    selectedLocation = {
+      ...location,
+      company: schedule.company,
+      scheduleId: schedule.id,
+      infoIndex: infoIndex,
+      backgroundColor: `hsl(${(companyIndex * 40) % 360}, 70%, 60%)` // Use companyIndex here
+    };
+    startDateStr = '';
+    endDateStr = '';
+    showModal = true;
+  }
+
+  function addEvent() {
+    if (!selectedLocation || !startDateStr || !endDateStr) return;
     
-    // Mark the item as available again
-    const event = eventInfo.event;
-    const itemKey = `${event.extendedProps.scheduleId}-${event.extendedProps.infoIndex}`;
-    // Create a new Set to trigger reactivity
-    usedItems = new Set(usedItems);
-    usedItems.delete(itemKey);
-    usedItems = new Set(usedItems); // Reassign to trigger update
-    initDraggable(); // Reinitialize after update
-  }
-
-  function handleEventAdd(newEvent: any) {
-    // Add the new event to our local state
+    const newEvent: CalendarEvent = {
+      id: `event-${Date.now()}-${Math.random()}`,
+      title: `${selectedLocation.company} - ${selectedLocation.sub_company_name}`,
+      start: new Date(startDateStr).toISOString(),
+      end: new Date(endDateStr).toISOString(), // Add end date
+      extendedProps: {
+        location: selectedLocation.location,
+        company: selectedLocation.company,
+        scheduleId: selectedLocation.scheduleId,
+        infoIndex: selectedLocation.infoIndex,
+        occurrenceIndex: 0
+      },
+      backgroundColor: selectedLocation.backgroundColor
+    };
+    
     calendarEvents = [...calendarEvents, newEvent];
-    
-    // Mark the item as used
-    const itemKey = `${newEvent.extendedProps.scheduleId}-${newEvent.extendedProps.infoIndex}`;
-    // Create a new Set to trigger reactivity
-    usedItems = new Set(usedItems).add(itemKey);
-    initDraggable(); // Reinitialize after update
+    showModal = false;
+    startDateStr = ''; // Reset dates
+    endDateStr = '';
   }
 
-  function isItemUsed(scheduleId: number, infoIndex: number): boolean {
-    return usedItems.has(`${scheduleId}-${infoIndex}`);
-  }
-
-  function hasUnusedItems(schedule: any): boolean {
-    return schedule.information.some((info: any, infoIndex: number) => 
-      !isItemUsed(schedule.id, infoIndex)
-    );
-  }
-
-  function initDraggable() {
-    const externalItems = document.getElementById('external-items');
-    if (externalItems) {
-      if (draggable) {
-        draggable.destroy();
-      }
-      draggable = new Draggable(externalItems, {
-        itemSelector: '.fc-draggable',
-        eventData(el) {
-          const eventData = el.getAttribute('data-event');
-          return eventData ? JSON.parse(eventData) : null;
-        }
-      });
-    }
-  }
-
-onMount(() => {
-  prepareCalendarEvents();
-  initDraggable();
-});
-
-onDestroy(() => {
-  if (draggable) {
-    draggable.destroy();
-  }
-});
-
+  onMount(() => {
+    // Initialize if needed
+  });
 </script>
 
 <div class="grid grid-cols-12 gap-6">
   <div class="col-span-4 bg-white rounded-lg border border-gray-200 p-6">
-    <h3 class="text-lg font-medium text-gray-900 mb-6">Drag Items</h3>
-    <div id="external-items" class="space-y-6">
-      {#each $schedulesStore as schedule, index}
-        {#if hasUnusedItems(schedule)}
-          <div class="company-container mb-6">
+    <h3 class="text-lg font-medium text-gray-900 mb-6">
+      Company Locations for {months[currentMonth - 1]}
+    </h3>
+    <div id="company-locations" class="space-y-6">
+      {#each filteredSchedules as schedule, index}
+        <div class="company-container mb-6">
+          <div 
+            class="flex items-center justify-between bg-[rgb(30,30,30)] text-white px-3 py-2 rounded-t mb-3"
+          >
+            <h4 class="text-md font-semibold">{schedule.company}</h4>
             <div 
-              class="flex items-center justify-between bg-[rgb(30,30,30)] text-white px-3 py-2 rounded-t mb-3"
-              data-label="company-title"
-            >
-              <h4 class="text-md font-semibold">{schedule.company}</h4>
-              <div 
-                class="w-3 h-3 rounded-full" 
-                style="background-color: hsl({(index * 40) % 360}, 70%, 60%)">
-              </div>
-            </div>
-            <div class="company-items space-y-4">
-              {#each schedule.information as info, infoIndex}
-                {#if !isItemUsed(schedule.id, infoIndex)}
-                  <div
-                    class="p-3 rounded text-white fc-draggable"
-                    style="background-color: hsl({(index * 40) % 360}, 70%, 60%)"
-                    data-event={JSON.stringify({
-                      title: `${schedule.company} - ${info.sub_company_name}`,
-                      extendedProps: {
-                        location: info.location,
-                        company: schedule.company,
-                        scheduleId: schedule.id,
-                        infoIndex: infoIndex
-                      },
-                      backgroundColor: `hsl(${(index * 40) % 360}, 70%, 60%)`
-                    })}
-                  >
-                    <div class="font-medium text-sm">{info.sub_company_name}</div>
-                    <div class="text-xs opacity-80">{info.location}</div>
-                  </div>
-                {/if}
-              {/each}
+              class="w-3 h-3 rounded-full" 
+              style="background-color: hsl({(index * 40) % 360}, 70%, 60%)">
             </div>
           </div>
-        {/if}
+          <div class="company-items space-y-4">
+            {#each schedule.information as info, infoIndex}
+              <div
+                class="p-3 rounded text-white cursor-pointer"
+                style="background-color: hsl({(index * 40) % 360}, 70%, 60%)"
+                on:click={() => openModal(info, schedule, infoIndex, index)}
+              >
+                <div class="font-medium text-sm">{info.sub_company_name}</div>
+                <div class="text-xs opacity-80">{info.location}</div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        <div class="text-center py-4 text-gray-500">
+          No companies scheduled for {months[currentMonth - 1]}
+        </div>
       {/each}
     </div>
   </div>
 
   <div class="col-span-8 bg-white rounded-lg border border-gray-200 p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h3 class="text-lg font-medium text-gray-900">Schedule Calendar</h3>
-      <label class="flex items-center space-x-2 text-sm">
-        <input 
-          type="checkbox" 
-          bind:checked={removeAfterDrop}
-          class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-        />
-        <span>Remove after drop</span>
-      </label>
-    </div>
+    <h3 class="text-lg font-medium text-gray-900 mb-6">Schedule Calendar</h3>
     <FullCalendarWrapper 
       events={calendarEvents} 
-      onEventRemove={handleEventRemove}
-      onEventAdd={handleEventAdd}
-      removeAfterDrop={removeAfterDrop}
+      onMonthChange={handleMonthChange}
+      onEventRemove={(eventId) => {
+        calendarEvents = calendarEvents.filter(event => event.id !== eventId);
+      }}
     />
   </div>
 </div>
 
+{#if showModal && selectedLocation}
+  <Modal 
+    show={showModal} 
+    onClose={() => showModal = false}
+  >
+    <div class="p-6">
+      <h2 class="text-xl font-bold mb-2">{selectedLocation.sub_company_name}</h2>
+      <p class="mb-4 text-gray-600">{selectedLocation.location}</p>
+      
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Date Range:</label>
+        <div class="flex space-x-2">
+          <div class="flex-1">
+            <label class="block text-xs text-gray-500 mb-1">Start Date</label>
+            <input 
+              type="date" 
+              bind:value={startDateStr}
+              class="w-full p-2 border rounded"
+            />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs text-gray-500 mb-1">End Date</label>
+            <input 
+              type="date" 
+              bind:value={endDateStr}
+              class="w-full p-2 border rounded"
+            />
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex justify-end space-x-2">
+        <button 
+          on:click={() => showModal = false}
+          class="px-4 py-2 border rounded"
+        >
+          Cancel
+        </button>
+        <button 
+          on:click={addEvent}
+          disabled={!startDateStr || !endDateStr}
+          class="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
+        >
+          Add to Calendar
+        </button>
+      </div>
+    </div>
+  </Modal>
+{/if}
+
 <style>
   .fc .fc-event {
-    cursor: pointer;
-  }
-
-  #external-items {
     cursor: pointer;
   }
 </style>

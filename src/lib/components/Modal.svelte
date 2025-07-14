@@ -2,7 +2,8 @@
 	import { createEventDispatcher } from 'svelte';
 	import { fade } from 'svelte/transition';
 
-	export let show = false;
+	export let show: boolean = false;
+	export let onClose: () => void;
 
 	const dispatch = createEventDispatcher();
 

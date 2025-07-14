@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { Calendar } from '@fullcalendar/core';
   import dayGridPlugin from '@fullcalendar/daygrid';
-  import interactionPlugin from '@fullcalendar/interaction';
+  import interactionPlugin, { Draggable } from '@fullcalendar/interaction';
   import type { EventInput } from '@fullcalendar/core';
 
   export let events: EventInput[] = [];
@@ -10,6 +10,7 @@
   export let droppable = true;
   export let onEventRemove: ((eventInfo: any) => void) | undefined = undefined;
   export let onEventAdd: ((eventInfo: any) => void) | undefined = undefined;
+  export let removeAfterDrop = true; // New prop with default value
 
   let calendarEl: HTMLElement;
   let calendar: Calendar;
@@ -33,6 +34,8 @@
               start: dropInfo.dateStr
             };
             onEventAdd(newEvent);
+            // Remove the dragged element only after successfully adding the event
+            // dropInfo.draggedEl.remove(); // This line is removed as per the edit hint
           }
         }
       },
@@ -80,10 +83,31 @@
         eventEl.addEventListener('mouseleave', () => {
           removeBtn.style.display = 'none';
         });
+      },
+      eventReceive: (info) => {
+        if (removeAfterDrop && info.draggedEl) {
+          info.draggedEl.remove();
+        }
       }
     });
 
     calendar.render();
+
+    // Initialize Draggable for external elements
+    const externalEvents = document.getElementById('external-events');
+    if (externalEvents) {
+      new Draggable(externalEvents, {
+        itemSelector: '.fc-event',
+        eventData: function(eventEl) {
+          return {
+            title: eventEl.innerText,
+            duration: '02:00'
+          };
+        }
+      });
+    } else {
+      console.warn('Element with id "external-events" not found. Draggable not initialized.');
+    }
   });
 
   // Update events when the prop changes

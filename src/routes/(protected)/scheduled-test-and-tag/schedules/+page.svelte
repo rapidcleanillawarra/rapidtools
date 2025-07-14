@@ -1,6 +1,6 @@
 <script lang="ts">
   import FullCalendarWrapper from './FullCalendarWrapper.svelte';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { schedulesStore } from '../stores';
   import { get } from 'svelte/store';
   import { Draggable } from '@fullcalendar/interaction';
@@ -21,6 +21,8 @@
 
   let calendarEvents: CalendarEvent[] = [];
   let usedItems = new Set<string>(); // Track used items by their unique identifier
+  let draggable: Draggable | null = null;
+  let removeAfterDrop = true; // New state variable for checkbox
 
   function prepareCalendarEvents() {
     // Start with empty calendar - no default events
@@ -34,8 +36,11 @@
     // Mark the item as available again
     const event = eventInfo.event;
     const itemKey = `${event.extendedProps.scheduleId}-${event.extendedProps.infoIndex}`;
+    // Create a new Set to trigger reactivity
+    usedItems = new Set(usedItems);
     usedItems.delete(itemKey);
-    usedItems = usedItems; // Trigger reactivity
+    usedItems = new Set(usedItems); // Reassign to trigger update
+    initDraggable(); // Reinitialize after update
   }
 
   function handleEventAdd(newEvent: any) {
@@ -44,8 +49,9 @@
     
     // Mark the item as used
     const itemKey = `${newEvent.extendedProps.scheduleId}-${newEvent.extendedProps.infoIndex}`;
-    usedItems.add(itemKey);
-    usedItems = usedItems; // Trigger reactivity
+    // Create a new Set to trigger reactivity
+    usedItems = new Set(usedItems).add(itemKey);
+    initDraggable(); // Reinitialize after update
   }
 
   function isItemUsed(scheduleId: number, infoIndex: number): boolean {
@@ -58,12 +64,13 @@
     );
   }
 
-  onMount(() => {
-    prepareCalendarEvents();
-
+  function initDraggable() {
     const externalItems = document.getElementById('external-items');
     if (externalItems) {
-      new Draggable(externalItems, {
+      if (draggable) {
+        draggable.destroy();
+      }
+      draggable = new Draggable(externalItems, {
         itemSelector: '.fc-draggable',
         eventData(el) {
           const eventData = el.getAttribute('data-event');
@@ -71,7 +78,19 @@
         }
       });
     }
-  });
+  }
+
+onMount(() => {
+  prepareCalendarEvents();
+  initDraggable();
+});
+
+onDestroy(() => {
+  if (draggable) {
+    draggable.destroy();
+  }
+});
+
 </script>
 
 <div class="grid grid-cols-12 gap-6">
@@ -121,11 +140,22 @@
   </div>
 
   <div class="col-span-8 bg-white rounded-lg border border-gray-200 p-6">
-    <h3 class="text-lg font-medium text-gray-900 mb-6">Schedule Calendar</h3>
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-lg font-medium text-gray-900">Schedule Calendar</h3>
+      <label class="flex items-center space-x-2 text-sm">
+        <input 
+          type="checkbox" 
+          bind:checked={removeAfterDrop}
+          class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <span>Remove after drop</span>
+      </label>
+    </div>
     <FullCalendarWrapper 
       events={calendarEvents} 
       onEventRemove={handleEventRemove}
       onEventAdd={handleEventAdd}
+      removeAfterDrop={removeAfterDrop}
     />
   </div>
 </div>

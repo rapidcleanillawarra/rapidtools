@@ -112,6 +112,7 @@ export function setCreateMode() {
     company: '',
     start_month: 1,
     occurence: 1,
+    color: '#3b82f6', // Default blue color
     information: [],
     notes: []
   };

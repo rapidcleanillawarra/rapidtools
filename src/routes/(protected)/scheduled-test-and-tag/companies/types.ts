@@ -18,6 +18,7 @@ export type ValidationErrors = {
   company?: string;
   start_month?: string;
   occurence?: string;
+  color?: string;
   information?: {
     [key: string]: {
       sub_company_name?: string;

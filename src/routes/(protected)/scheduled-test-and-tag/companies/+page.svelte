@@ -100,9 +100,7 @@
     try {
       isLoading.set(true);
       isTableLoading = true;
-      toastInfo('Loading companies...', 'Loading');
       await loadSchedulesFromFirestore();
-      toastSuccess('Companies loaded successfully!', 'Loaded');
     } catch (error) {
       console.error('Failed to load schedules:', error);
       toastError('Failed to load companies', 'Error');
@@ -148,15 +146,12 @@
         const result = await createSchedule(scheduleData);
         console.log('Schedule created successfully:', result);
         toastSuccess('Company created successfully!', 'Created');
-        createConfettiEffect();
-        addSuccessCelebration();
       } else if ($formMode === 'edit' && scheduleData.id) {
         console.log('Updating schedule with ID:', scheduleData.id);
         toastInfo('Updating company...', 'Updating');
         const result = await updateSchedule(scheduleData.id, scheduleData);
         console.log('Schedule updated successfully:', result);
         toastSuccess('Company updated successfully!', 'Updated');
-        addSuccessCelebration();
       }
       resetForm();
     } catch (error) {
@@ -338,7 +333,6 @@
     transition: all 0.3s ease;
   }
   .btn-primary:hover {
-    transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   }
   /* Interactive hover effects */
@@ -444,9 +438,8 @@
       {#if selectedSchedules.size > 0}
         <button
           on:click={handleBulkDelete}
-          on:click={addRippleEffect}
           disabled={isDeleting}
-          class="btn-primary bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+          class="btn-primary bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
         >
           {#if isDeleting}
             <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -461,9 +454,8 @@
       {/if}
       <button
         on:click={handleCreate}
-        on:click={addRippleEffect}
         disabled={isSaving}
-        class="btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+        class="btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
       >
         {#if isSaving}
           <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
@@ -505,8 +497,7 @@
       <div class="flex items-end">
         <button
           on:click={() => searchTerm.set('')}
-          on:click={addRippleEffect}
-          class="px-4 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-300 hover:shadow-md transform hover:scale-105 flex items-center"
+          class="px-4 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-300 hover:shadow-md flex items-center"
         >
           <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -540,6 +531,7 @@
                 <SkeletonLoader type="text" width="150px" height="1.25rem" />
                 <SkeletonLoader type="text" width="100px" height="1.25rem" />
                 <SkeletonLoader type="text" width="120px" height="1.25rem" />
+                <SkeletonLoader type="circle" width="1.5rem" height="1.5rem" />
                 <SkeletonLoader type="text" width="80px" height="1.25rem" />
                 <SkeletonLoader type="text" width="80px" height="1.25rem" />
                 <SkeletonLoader type="text" width="60px" height="1.25rem" />
@@ -589,6 +581,9 @@
               </button>
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Color
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Locations
             </th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -625,6 +620,16 @@
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center gap-2">
+                  <div 
+                    class="w-6 h-6 rounded-full border-2 border-gray-300 shadow-sm"
+                    style="background-color: {schedule.color || '#3b82f6'};"
+                    title="{schedule.color || '#3b82f6'}"
+                  ></div>
+                  <span class="text-xs text-gray-500 font-mono">{schedule.color || '#3b82f6'}</span>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm text-gray-900">{schedule.information.length}</div>
                 <div class="text-xs text-gray-500">
                   {schedule.information.map(info => info.sub_company_name).join(', ')}
@@ -649,8 +654,7 @@
                 <div class="flex justify-end gap-2">
                   <button
                     on:click={() => handleView(schedule)}
-                    on:click={addRippleEffect}
-                    class="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-all duration-300 transform hover:scale-110"
+                    class="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-all duration-300"
                     title="View Details"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -660,8 +664,7 @@
                   </button>
                   <button
                     on:click={() => handleEdit(schedule)}
-                    on:click={addRippleEffect}
-                    class="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-all duration-300 transform hover:scale-110"
+                    class="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-all duration-300"
                     title="Edit"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -670,8 +673,7 @@
                   </button>
                   <button
                     on:click={() => handleDeleteDirect(schedule)}
-                    on:click={addRippleEffect}
-                    class="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-all duration-300 transform hover:scale-110"
+                    class="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-all duration-300"
                     title="Delete"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -772,16 +774,10 @@
 
 <!-- Loading Overlay -->
 {#if $isLoading}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
-    <div class="bg-white rounded-lg p-8 flex items-center gap-4 shadow-2xl">
-      <div class="relative">
-        <div class="animate-spin rounded-full h-8 w-8 border-4 border-blue-200 border-t-blue-600"></div>
-        <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-400 animate-ping"></div>
-      </div>
-      <div>
-        <span class="text-gray-700 font-medium">Loading...</span>
-        <div class="text-sm text-gray-500">Please wait while we process your request</div>
-      </div>
+  <div class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 flex items-center gap-3 shadow-lg">
+      <div class="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+      <span class="text-gray-700 font-medium">Loading...</span>
     </div>
   </div>
 {/if}

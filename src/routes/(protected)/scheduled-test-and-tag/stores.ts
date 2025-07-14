@@ -24,6 +24,7 @@ export type Schedule = {
     company: string;
     start_month: number;
     occurence: number;
+    color: string;
     information: LocationInfo[];
     notes: Note[];
     createdAt?: any; // Firestore timestamp

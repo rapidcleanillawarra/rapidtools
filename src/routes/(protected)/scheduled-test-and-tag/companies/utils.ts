@@ -134,6 +134,7 @@ export async function loadSchedulesFromFirestore(): Promise<void> {
         company: data.company,
         start_month: data.start_month,
         occurence: data.occurence,
+        color: data.color || '#3b82f6', // Default to blue if no color is set
         information: data.information || [],
         notes: data.notes || [],
         createdAt: data.createdAt,
@@ -173,6 +174,12 @@ export function validateSchedule(schedule: ScheduleFormData): ValidationErrors {
   if (schedule.occurence < 1 || schedule.occurence > 12) {
     errors.occurence = 'Occurrence must be between 1 and 12';
     console.log('Occurrence validation failed:', schedule.occurence);
+  }
+  
+  // Color validation
+  if (!schedule.color?.trim()) {
+    errors.color = 'Color is required';
+    console.log('Color validation failed');
   }
   
   // Information validation - require at least one location with at least one contact
@@ -359,4 +366,42 @@ export function formatPhoneNumber(phone: string): string {
   }
   
   return phone; // Return original if can't format
+} 
+
+// Color utilities
+function hsvToHex(h: number, s: number, v: number): string {
+  let r: number = 0, g: number = 0, b: number = 0;
+
+  let i = Math.floor(h * 6);
+  let f = h * 6 - i;
+  let p = v * (1 - s);
+  let q = v * (1 - f * s);
+  let t = v * (1 - (1 - f) * s);
+
+  switch (i % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    case 5: r = v; g = p; b = q; break;
+  }
+
+  const toHex = (x: number): string => {
+    const hex = Math.round(x * 255).toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  };
+
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+export function getDistinctColors(n = 25): string[] {
+  const colors: string[] = [];
+  for (let i = 0; i < n; i++) {
+    const h = i / n;      // hue: 0.0 to 1.0
+    const s = 0.75;       // saturation
+    const v = 0.9;        // brightness
+    colors.push(hsvToHex(h, s, v));
+  }
+  return colors;
 } 

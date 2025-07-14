@@ -8,6 +8,7 @@
   export let events: EventInput[] = [];
   export let onMonthChange: ((month: number) => void) | undefined = undefined;
   export let onEventRemove: ((eventId: string) => void) | undefined = undefined;
+  export let onEventClick: ((event: any) => void) | undefined = undefined;
   
   let calendarEl: HTMLElement;
   let calendar: Calendar;
@@ -25,8 +26,8 @@
         }
       },
       eventClick: (info) => {
-        if (onEventRemove) {
-          onEventRemove(info.event.id);
+        if (onEventClick) {
+          onEventClick(info.event);
         }
       },
       eventDidMount: (eventInfo) => {

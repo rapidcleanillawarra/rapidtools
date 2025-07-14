@@ -13,6 +13,7 @@
   let shippingOpen = false;
   let customerGroupProductsOpen = false;
   let proMaxOpen = false; // Add this line
+  let sttOpen = false; // Add STT dropdown state
 
   // Subscribe to the currentUser store
   let user: import('firebase/auth').User | null = null;
@@ -50,6 +51,7 @@
   let mobileShippingOpen = false;
   let mobileCustomerGroupProductsOpen = false;
   let mobileProMaxOpen = false; // Add this line
+  let mobileSttOpen = false; // Add mobile STT dropdown state
 
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -70,6 +72,9 @@
     }
     if (!target.closest('.promax-dropdown') && proMaxOpen) { // Add this block
       proMaxOpen = false;
+    }
+    if (!target.closest('.stt-dropdown') && sttOpen) { // Add STT dropdown handling
+      sttOpen = false;
     }
   }
 
@@ -96,6 +101,8 @@
       customerGroupProductsOpen = false;
       proMaxOpen = false; // Add this line
       mobileProMaxOpen = false; // Add this line
+      sttOpen = false; // Add STT dropdown
+      mobileSttOpen = false; // Add mobile STT dropdown
     };
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
@@ -286,6 +293,7 @@
                   productsOpen = false;
                   ordersOpen = false;
                   shippingOpen = false;
+                  sttOpen = false;
                 }
               }}
             >
@@ -316,6 +324,52 @@
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => proMaxOpen = false}
                   >Pro Max Settings</a>
+                </div>
+              </div>
+            {/if}
+          </div>
+          <!-- STT Dropdown -->
+          <div class="relative stt-dropdown">
+            <button 
+              type="button" 
+              class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none" 
+              on:click|stopPropagation={() => {
+                sttOpen = !sttOpen;
+                if (sttOpen) {
+                  productsOpen = false;
+                  ordersOpen = false;
+                  shippingOpen = false;
+                  proMaxOpen = false;
+                }
+              }}
+            >
+              STT
+              <svg 
+                class="w-4 h-4 ml-1 transform transition-transform duration-200" 
+                class:rotate-180={sttOpen}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            {#if sttOpen}
+              <div 
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                transition:fade
+              >
+                <div class="py-1.5">
+                  <a 
+                    href="{base}/scheduled-test-and-tag" 
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => sttOpen = false}
+                  >Schedules</a>
+                  <a 
+                    href="{base}/scheduled-test-and-tag" 
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => sttOpen = false}
+                  >Companies</a>
                 </div>
               </div>
             {/if}
@@ -484,6 +538,25 @@
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProMaxOpen = false}
             >Pro Max Settings</a>
+          </div>
+        {/if}
+        <!-- Mobile STT Dropdown -->
+        <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileSttOpen = !mobileSttOpen}>
+          <span>STT</span>
+          <svg class="w-4 h-4 ml-1 transform transition-transform duration-200" class:rotate-180={mobileSttOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        {#if mobileSttOpen}
+          <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
+            <a 
+              href="{base}/scheduled-test-and-tag" 
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileSttOpen = false}
+            >Schedules</a>
+            <a 
+              href="{base}/scheduled-test-and-tag" 
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileSttOpen = false}
+            >Companies</a>
           </div>
         {/if}
         <!-- Mobile User Profile -->

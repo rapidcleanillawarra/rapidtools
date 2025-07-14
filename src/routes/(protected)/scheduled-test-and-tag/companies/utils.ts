@@ -15,6 +15,9 @@ import {
 import { get } from 'svelte/store';
 import type { Schedule, ScheduleFormData, ValidationErrors } from './types';
 
+// Constants
+export const DEFAULT_COLOR = '#3b82f6';
+
 // CRUD Operations
 export async function createSchedule(scheduleData: ScheduleFormData): Promise<Schedule> {
   console.log('=== CREATING SCHEDULE IN FIREBASE ===');
@@ -134,7 +137,7 @@ export async function loadSchedulesFromFirestore(): Promise<void> {
         company: data.company,
         start_month: data.start_month,
         occurence: data.occurence,
-        color: data.color || '#3b82f6', // Default to blue if no color is set
+        color: data.color || DEFAULT_COLOR, // Default to blue if no color is set
         information: data.information || [],
         notes: data.notes || [],
         createdAt: data.createdAt,
@@ -395,13 +398,34 @@ function hsvToHex(h: number, s: number, v: number): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
-export function getDistinctColors(n = 25): string[] {
+export function getDistinctColors(n = 25, excludeColors: string[] = []): string[] {
   const colors: string[] = [];
   for (let i = 0; i < n; i++) {
     const h = i / n;      // hue: 0.0 to 1.0
     const s = 0.75;       // saturation
     const v = 0.9;        // brightness
-    colors.push(hsvToHex(h, s, v));
+    const color = hsvToHex(h, s, v);
+    
+    // Only add color if it's not in the exclude list
+    if (!excludeColors.includes(color)) {
+      colors.push(color);
+    }
   }
   return colors;
+}
+
+// Helper function to get available colors (excluding already used ones)
+export function getAvailableColors(schedules: any[], currentColor?: string, isCreateMode: boolean = false): string[] {
+  // Get all currently used colors
+  const usedColors = schedules
+    .map(schedule => schedule.color)
+    .filter(color => color && color !== currentColor); // Exclude current color if editing
+  
+  // If in create mode and there's a current color (default), also exclude it
+  if (isCreateMode && currentColor) {
+    usedColors.push(currentColor);
+  }
+  
+  // Get distinct colors excluding used ones
+  return getDistinctColors(25, usedColors);
 } 

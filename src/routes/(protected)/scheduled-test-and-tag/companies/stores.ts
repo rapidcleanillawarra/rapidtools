@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { schedulesStore } from '../stores';
+import { DEFAULT_COLOR } from './utils';
 import type { Schedule, ScheduleFormData, ValidationErrors, FormMode } from './types';
 
 // Current schedule being edited
@@ -112,7 +113,7 @@ export function setCreateMode() {
     company: '',
     start_month: 1,
     occurence: 1,
-    color: '#3b82f6', // Default blue color
+    color: DEFAULT_COLOR, // Default blue color
     information: [],
     notes: []
   };

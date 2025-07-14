@@ -1,7 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { Schedule, ScheduleFormData, Contact, LocationInfo, Note } from './types';
-  import { generateId, getMonthName, validateSchedule, getDistinctColors } from './utils';
+  import { generateId, getMonthName, validateSchedule, getAvailableColors, DEFAULT_COLOR } from './utils';
+  import { schedulesStore } from '../stores';
 
   export let schedule: ScheduleFormData | null = null;
   export let mode: 'create' | 'edit' | 'view' = 'view';
@@ -16,6 +17,9 @@
   let formData: ScheduleFormData;
   let errors: any = {};
   let showColorDropdown = false;
+
+  // Get available colors excluding currently used ones
+  $: availableColors = getAvailableColors($schedulesStore, formData?.color, mode === 'create');
 
   // Debug logging for props
   $: {
@@ -204,16 +208,20 @@
               <button
                 type="button"
                 on:click={() => showColorDropdown = !showColorDropdown}
-                disabled={mode === 'view'}
+                disabled={mode === 'view' || availableColors.length === 0}
                 class="w-full px-3 py-2 pl-10 pr-8 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 text-left flex items-center justify-between"
                 class:border-red-500={errors.color}
+                class:opacity-50={availableColors.length === 0}
               >
                 <div class="flex items-center gap-2">
                   <div 
                     class="w-4 h-4 rounded-full border border-gray-300"
-                    style="background-color: {formData.color || '#3b82f6'};"
+                    style="background-color: {formData.color || DEFAULT_COLOR};"
                   ></div>
-                  <span>{formData.color || '#3b82f6'}</span>
+                  <span>{formData.color || DEFAULT_COLOR}</span>
+                  {#if availableColors.length === 0}
+                    <span class="text-xs text-gray-500">(All colors used)</span>
+                  {/if}
                 </div>
                 <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -222,27 +230,41 @@
               
               {#if showColorDropdown && mode !== 'view'}
                 <div class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
-                  {#each getDistinctColors() as color}
-                    <button
-                      type="button"
-                      on:click={() => {
-                        formData.color = color;
-                        showColorDropdown = false;
-                      }}
-                      class="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-3"
-                    >
-                      <div 
-                        class="w-4 h-4 rounded-full border border-gray-300"
-                        style="background-color: {color};"
-                      ></div>
-                      <span class="font-mono text-sm">{color}</span>
-                    </button>
-                  {/each}
+                  {#if availableColors.length > 0}
+                    {#each availableColors as color}
+                      <button
+                        type="button"
+                        on:click={() => {
+                          formData.color = color;
+                          showColorDropdown = false;
+                        }}
+                        class="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-3"
+                      >
+                        <div 
+                          class="w-4 h-4 rounded-full border border-gray-300"
+                          style="background-color: {color};"
+                        ></div>
+                        <span class="font-mono text-sm">{color}</span>
+                      </button>
+                    {/each}
+                  {:else}
+                    <div class="px-3 py-2 text-sm text-gray-500 text-center">
+                      All colors are currently in use
+                    </div>
+                  {/if}
                 </div>
               {/if}
             </div>
             {#if errors.color}
               <p class="text-red-500 text-sm mt-1">{errors.color}</p>
+            {/if}
+            {#if availableColors.length === 0 && mode !== 'view'}
+              <p class="text-amber-600 text-sm mt-1 flex items-center">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                All colors are currently in use. You may need to delete some companies or edit existing ones to free up colors.
+              </p>
             {/if}
           </div>
         </div>

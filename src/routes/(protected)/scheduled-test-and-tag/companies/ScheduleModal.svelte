@@ -18,8 +18,8 @@
 
   // Debug logging for props
   $: {
-    if (isOpen) {
-      alert(`Modal props: isOpen=${isOpen}, mode=${mode}`);
+    if (isOpen && mode === 'create') {
+      console.log('=== MODAL OPENED IN CREATE MODE ===');
     }
   }
 
@@ -37,10 +37,17 @@
   function handleSubmit() {
     if (mode === 'view') return;
     
+    console.log('=== SUBMIT BUTTON CLICKED ===');
+    console.log('Mode:', mode);
+    console.log('Form data:', formData);
+    
     errors = validateSchedule(formData);
     
     if (Object.keys(errors).length === 0) {
+      console.log('Validation passed - dispatching save');
       dispatch('save', formData);
+    } else {
+      console.log('Validation failed:', errors);
     }
   }
 

@@ -44,7 +44,7 @@
   $: totalPages = Math.ceil($filteredSchedules.length / itemsPerPage);
 
   function handleCreate() {
-    alert('Create button clicked!');
+    console.log('=== CREATE BUTTON CLICKED ===');
     setCreateMode();
   }
 
@@ -58,14 +58,21 @@
 
   async function handleSave(event: CustomEvent<ScheduleFormData>) {
     const scheduleData = event.detail;
+    console.log('=== SAVE BUTTON CLICKED ===');
+    console.log('Form data:', scheduleData);
+    
     isLoading.set(true);
     
     try {
       if ($formMode === 'create') {
-        await createSchedule(scheduleData);
+        console.log('Creating new schedule...');
+        const result = await createSchedule(scheduleData);
+        console.log('Schedule created successfully:', result);
         alert('Company created successfully!');
       } else if ($formMode === 'edit' && scheduleData.id) {
-        await updateSchedule(scheduleData.id, scheduleData);
+        console.log('Updating schedule with ID:', scheduleData.id);
+        const result = await updateSchedule(scheduleData.id, scheduleData);
+        console.log('Schedule updated successfully:', result);
         alert('Company updated successfully!');
       }
       resetForm();

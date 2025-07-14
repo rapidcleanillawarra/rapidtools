@@ -16,13 +16,20 @@ import type { Schedule, ScheduleFormData, ValidationErrors } from './types';
 
 // CRUD Operations
 export async function createSchedule(scheduleData: ScheduleFormData): Promise<Schedule> {
+  console.log('=== CREATING SCHEDULE IN FIREBASE ===');
+  console.log('Data:', scheduleData);
+  
   try {
-    // Add to Firestore
-    const docRef = await addDoc(collection(db, 'stt'), {
+    // Prepare data for Firestore
+    const firestoreData = {
       ...scheduleData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
+    };
+    
+    // Add to Firestore
+    const docRef = await addDoc(collection(db, 'stt'), firestoreData);
+    console.log('Document created with ID:', docRef.id);
 
     // Create the new schedule with Firestore document ID
     const newSchedule: Schedule = {
@@ -33,10 +40,10 @@ export async function createSchedule(scheduleData: ScheduleFormData): Promise<Sc
     // Update local store
     schedulesStore.update(schedules => [...schedules, newSchedule]);
     
-    console.log('Schedule created successfully in Firestore with ID:', docRef.id);
+    console.log('Schedule created successfully');
     return newSchedule;
   } catch (error) {
-    console.error('Error creating schedule in Firestore:', error);
+    console.error('Error creating schedule:', error);
     throw new Error('Failed to create schedule. Please try again.');
   }
 }
@@ -155,72 +162,162 @@ export async function loadSchedulesFromFirestore(): Promise<void> {
 
 // Validation
 export function validateSchedule(schedule: ScheduleFormData): ValidationErrors {
+  console.log('=== VALIDATION START ===');
+  console.log('Input schedule:', schedule);
+  
   const errors: ValidationErrors = {};
   
   // Company validation
   if (!schedule.company?.trim()) {
     errors.company = 'Company name is required';
+    console.log('Company validation failed');
   }
   
   // Start month validation
   if (schedule.start_month < 1 || schedule.start_month > 12) {
     errors.start_month = 'Start month must be between 1 and 12';
+    console.log('Start month validation failed:', schedule.start_month);
   }
   
   // Occurrence validation
   if (schedule.occurence < 1 || schedule.occurence > 12) {
     errors.occurence = 'Occurrence must be between 1 and 12';
+    console.log('Occurrence validation failed:', schedule.occurence);
   }
   
-  // Information validation
+  // Information validation - only validate locations that have some data
   if (schedule.information && schedule.information.length > 0) {
+    console.log('Processing information array with', schedule.information.length, 'items');
     errors.information = {};
     schedule.information.forEach((info, index) => {
       const infoKey = index.toString();
       errors.information![infoKey] = {};
       
-      if (!info.sub_company_name?.trim()) {
-        errors.information![infoKey].sub_company_name = 'Sub-company name is required';
+      // Only validate if at least one field has data
+      const hasLocationData = info.sub_company_name?.trim() || info.location?.trim() || 
+                             (info.contacts && info.contacts.some(contact => 
+                               contact.name?.trim() || contact.phone?.trim() || contact.email?.trim()
+                             ));
+      
+      console.log(`Location ${index} has data:`, hasLocationData);
+      console.log(`Location ${index} data:`, info);
+      
+      if (hasLocationData) {
+        // If location has any data, validate required fields
+        if (!info.sub_company_name?.trim()) {
+          errors.information![infoKey].sub_company_name = 'Sub-company name is required';
+          console.log(`Location ${index} sub_company_name validation failed`);
+        }
+        
+        if (!info.location?.trim()) {
+          errors.information![infoKey].location = 'Location is required';
+          console.log(`Location ${index} location validation failed`);
+        }
+        
+        // Contact validation - only validate contacts that have some data
+        if (info.contacts && info.contacts.length > 0) {
+          console.log(`Processing ${info.contacts.length} contacts for location ${index}`);
+          errors.information![infoKey].contacts = {};
+          info.contacts.forEach((contact, contactIndex) => {
+            const contactKey = contactIndex.toString();
+            errors.information![infoKey].contacts![contactKey] = {};
+            
+            // Only validate if contact has any data
+            const hasContactData = contact.name?.trim() || contact.phone?.trim() || contact.email?.trim();
+            
+            console.log(`Contact ${contactIndex} has data:`, hasContactData);
+            console.log(`Contact ${contactIndex} data:`, contact);
+            
+            if (hasContactData) {
+              if (!contact.name?.trim()) {
+                errors.information![infoKey].contacts![contactKey].name = 'Contact name is required';
+                console.log(`Contact ${contactIndex} name validation failed`);
+              }
+              
+              if (contact.email && !isValidEmail(contact.email)) {
+                errors.information![infoKey].contacts![contactKey].email = 'Invalid email format';
+                console.log(`Contact ${contactIndex} email validation failed`);
+              }
+            }
+            
+            // Remove empty contact error objects immediately
+            if (Object.keys(errors.information![infoKey].contacts![contactKey]).length === 0) {
+              console.log(`Removing empty contact errors for contact ${contactIndex}`);
+              delete errors.information![infoKey].contacts![contactKey];
+            }
+          });
+          
+          // Remove empty contacts error object if no contact errors remain
+          if (Object.keys(errors.information![infoKey].contacts!).length === 0) {
+            console.log(`Removing empty contacts errors for location ${index}`);
+            delete errors.information![infoKey].contacts;
+          }
+        }
       }
       
-      if (!info.location?.trim()) {
-        errors.information![infoKey].location = 'Location is required';
-      }
-      
-      // Contact validation
-      if (info.contacts && info.contacts.length > 0) {
-        errors.information![infoKey].contacts = {};
-        info.contacts.forEach((contact, contactIndex) => {
-          const contactKey = contactIndex.toString();
-          errors.information![infoKey].contacts![contactKey] = {};
-          
-          if (!contact.name?.trim()) {
-            errors.information![infoKey].contacts![contactKey].name = 'Contact name is required';
-          }
-          
-          if (contact.email && !isValidEmail(contact.email)) {
-            errors.information![infoKey].contacts![contactKey].email = 'Invalid email format';
-          }
-        });
+      // Remove empty location error objects
+      if (Object.keys(errors.information![infoKey]).length === 0) {
+        console.log(`Removing empty location errors for location ${index}`);
+        delete errors.information![infoKey];
       }
     });
+    
+    // Remove empty information error object
+    if (Object.keys(errors.information!).length === 0) {
+      console.log('Removing empty information errors');
+      delete errors.information;
+    }
   }
   
-  // Notes validation
+  // Notes validation - only validate notes that have some data
   if (schedule.notes && schedule.notes.length > 0) {
+    console.log('Processing notes array with', schedule.notes.length, 'items');
     errors.notes = {};
     schedule.notes.forEach((note, index) => {
       const noteKey = index.toString();
       errors.notes![noteKey] = {};
       
-      if (!note.title?.trim()) {
-        errors.notes![noteKey].title = 'Note title is required';
+      // Only validate if note has any data
+      const hasNoteData = note.title?.trim() || note.content?.trim();
+      
+      console.log(`Note ${index} has data:`, hasNoteData);
+      console.log(`Note ${index} data:`, note);
+      
+      if (hasNoteData) {
+        if (!note.title?.trim()) {
+          errors.notes![noteKey].title = 'Note title is required';
+          console.log(`Note ${index} title validation failed`);
+        }
+        
+        if (!note.content?.trim()) {
+          errors.notes![noteKey].content = 'Note content is required';
+          console.log(`Note ${index} content validation failed`);
+        }
       }
       
-      if (!note.content?.trim()) {
-        errors.notes![noteKey].content = 'Note content is required';
+      // Remove empty note error objects
+      if (Object.keys(errors.notes![noteKey]).length === 0) {
+        console.log(`Removing empty note errors for note ${index}`);
+        delete errors.notes![noteKey];
       }
     });
+    
+    // Remove empty notes error object
+    if (Object.keys(errors.notes!).length === 0) {
+      console.log('Removing empty notes errors');
+      delete errors.notes;
+    }
+  }
+  
+  console.log('=== VALIDATION END ===');
+  console.log('Final errors object:', errors);
+  console.log('Final errors keys:', Object.keys(errors));
+  
+  if (Object.keys(errors).length > 0) {
+    console.log('=== VALIDATION FAILED ===');
+    console.log('Errors:', errors);
+  } else {
+    console.log('=== VALIDATION PASSED ===');
   }
   
   return errors;

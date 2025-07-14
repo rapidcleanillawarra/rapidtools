@@ -90,35 +90,38 @@ export function resetForm() {
 }
 
 export function setEditMode(schedule: Schedule) {
-  currentSchedule.set({
+  const editSchedule: ScheduleFormData = {
     ...schedule,
     information: schedule.information.map(info => ({
       ...info,
       contacts: [...info.contacts]
     })),
     notes: [...schedule.notes]
-  });
+  };
+  
+  currentSchedule.set(editSchedule);
   formMode.set('edit');
   validationErrors.set({});
   isModalOpen.set(true);
 }
 
 export function setCreateMode() {
-  alert('setCreateMode called!');
+  console.log('=== SETTING CREATE MODE ===');
   
-  currentSchedule.set({
+  const newSchedule: ScheduleFormData = {
     company: '',
     start_month: 1,
     occurence: 1,
     information: [],
     notes: []
-  });
+  };
   
+  currentSchedule.set(newSchedule);
   formMode.set('create');
   validationErrors.set({});
   isModalOpen.set(true);
   
-  alert('Modal should be open now!');
+  console.log('Create mode set successfully');
 }
 
 export function setViewMode(schedule: Schedule) {

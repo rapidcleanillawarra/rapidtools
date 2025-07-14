@@ -199,6 +199,12 @@
               </button>
             {/if}
           </div>
+          
+          {#if errors.information_required}
+            <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p class="text-red-600 text-sm">{errors.information_required}</p>
+            </div>
+          {/if}
 
           {#each formData.information as location, locationIndex}
             <div class="border border-gray-200 rounded-lg p-4 mb-4">

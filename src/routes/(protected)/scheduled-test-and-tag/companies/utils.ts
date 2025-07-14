@@ -9,6 +9,7 @@ import {
   getDocs, 
   query, 
   orderBy,
+  where,
   serverTimestamp 
 } from 'firebase/firestore';
 import { get } from 'svelte/store';
@@ -86,7 +87,21 @@ export async function deleteSchedule(id: string): Promise<void> {
     // Use the ID directly as the Firestore document ID
     const docRef = doc(db, 'stt', id);
     
-    // Delete from Firestore
+    // First, delete all associated STT events
+    const sttEventsQuery = query(
+      collection(db, 'stt_events'),
+      where('schedule_id', '==', parseInt(id))
+    );
+    
+    const sttEventsSnapshot = await getDocs(sttEventsQuery);
+    const deletePromises = sttEventsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    if (deletePromises.length > 0) {
+      await Promise.all(deletePromises);
+      console.log(`Deleted ${deletePromises.length} associated STT events`);
+    }
+    
+    // Delete the schedule from Firestore
     await deleteDoc(docRef);
     
     // Update local store
@@ -94,7 +109,7 @@ export async function deleteSchedule(id: string): Promise<void> {
       schedules.filter(schedule => schedule.id !== id)
     );
     
-    console.log('Schedule deleted successfully from Firestore');
+    console.log('Schedule and associated events deleted successfully from Firestore');
   } catch (error) {
     console.error('Error deleting schedule from Firestore:', error);
     throw new Error('Failed to delete schedule. Please try again.');
@@ -160,8 +175,11 @@ export function validateSchedule(schedule: ScheduleFormData): ValidationErrors {
     console.log('Occurrence validation failed:', schedule.occurence);
   }
   
-  // Information validation - only validate locations that have some data
-  if (schedule.information && schedule.information.length > 0) {
+  // Information validation - require at least one location with at least one contact
+  if (!schedule.information || schedule.information.length === 0) {
+    errors.information_required = 'At least one location is required';
+    console.log('No locations provided');
+  } else {
     console.log('Processing information array with', schedule.information.length, 'items');
     errors.information = {};
     schedule.information.forEach((info, index) => {
@@ -241,6 +259,17 @@ export function validateSchedule(schedule: ScheduleFormData): ValidationErrors {
     if (Object.keys(errors.information!).length === 0) {
       console.log('Removing empty information errors');
       delete errors.information;
+    }
+    
+    // Check if at least one location has at least one contact
+    const hasLocationWithContact = schedule.information.some(info => 
+      info.contacts && info.contacts.length > 0 && 
+      info.contacts.some(contact => contact.name && contact.name.trim().length > 0)
+    );
+    
+    if (!hasLocationWithContact) {
+      errors.information_required = 'At least one location must have at least one contact with a name';
+      console.log('No location has a valid contact');
     }
   }
   

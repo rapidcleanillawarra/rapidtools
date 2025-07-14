@@ -31,6 +31,7 @@ export type ValidationErrors = {
       };
     };
   };
+  information_required?: string; // For overall information validation
   notes?: {
     [key: string]: {
       title?: string;

@@ -64,9 +64,10 @@
     schedule => schedule.start_month === currentMonth
   );
 
-  function validateDates(): boolean {
+  function validateSchedule(): boolean {
     validationErrors = [];
     
+    // Date validation
     if (!startDateStr || !endDateStr) {
       validationErrors.push('Both start and end dates are required');
       return false;
@@ -95,6 +96,44 @@
     const daysDifference = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     if (daysDifference > 365) {
       validationErrors.push('Date range cannot exceed 1 year');
+    }
+
+    // Location and contact validation
+    if (selectedLocation) {
+      // Check if location has required fields
+      if (!selectedLocation.sub_company_name?.trim()) {
+        validationErrors.push('Sub-company name is required');
+      }
+      
+      if (!selectedLocation.location?.trim()) {
+        validationErrors.push('Location is required');
+      }
+      
+      // Check if location has at least one contact
+      if (!selectedLocation.contacts || selectedLocation.contacts.length === 0) {
+        validationErrors.push('At least one contact is required for this location');
+      } else {
+        // Check if at least one contact has a name
+        const hasValidContact = selectedLocation.contacts.some((contact: any) => 
+          contact.name && contact.name.trim().length > 0
+        );
+        
+        if (!hasValidContact) {
+          validationErrors.push('At least one contact must have a name');
+        }
+        
+        // Additional validation: ensure at least one contact has either phone or email
+        const hasContactInfo = selectedLocation.contacts.some((contact: any) => 
+          (contact.phone && contact.phone.trim().length > 0) || 
+          (contact.email && contact.email.trim().length > 0)
+        );
+        
+        if (!hasContactInfo) {
+          validationErrors.push('At least one contact must have a phone number or email address');
+        }
+      }
+    } else {
+      validationErrors.push('No location selected for scheduling');
     }
 
     return validationErrors.length === 0;
@@ -179,8 +218,8 @@
       return;
     }
     
-    // Validate dates before proceeding
-    if (!validateDates()) {
+    // Validate schedule before proceeding
+    if (!validateSchedule()) {
       return; // Don't proceed if validation fails
     }
     
@@ -359,9 +398,9 @@
     eventToDelete = null;
   }
 
-  // Reactive validation - validate dates whenever they change
+  // Reactive validation - validate schedule whenever dates change
   $: if (startDateStr && endDateStr) {
-    validateDates();
+    validateSchedule();
   }
 
   // Load events from Firestore on mount
@@ -376,7 +415,7 @@
       
       sttEvents.forEach(sttEvent => {
         // Find the corresponding schedule and location info to get infoIndex
-        const schedule = $schedulesStore.find(s => s.id === sttEvent.schedule_id);
+        const schedule = $schedulesStore.find(s => s.id === sttEvent.schedule_id.toString());
         if (schedule) {
           const infoIndex = schedule.information.findIndex(info => info.information_id === sttEvent.information_id);
           if (infoIndex !== -1) {
@@ -385,7 +424,7 @@
             events.push(calendarEvent);
             
             // Add to scheduled items set
-            const itemKey = `${sttEvent.schedule_id}-${infoIndex}`;
+            const itemKey = `${sttEvent.schedule_id.toString()}-${infoIndex}`;
             scheduledSet.add(itemKey);
           }
         }

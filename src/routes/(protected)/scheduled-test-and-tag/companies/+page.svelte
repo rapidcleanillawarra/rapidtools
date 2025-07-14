@@ -21,6 +21,8 @@
 
   let currentPage = 1;
   const itemsPerPage = 10;
+  let selectedSchedules = new Set<string>();
+  let showBulkDeleteConfirm = false;
 
   // Load data from Firestore on component mount
   onMount(async () => {
@@ -101,6 +103,34 @@
     }
   }
 
+  async function handleDeleteDirect(schedule: Schedule) {
+    const companyName = schedule.company;
+    const locationCount = schedule.information.length;
+    const contactCount = schedule.information.reduce((total, info) => total + info.contacts.length, 0);
+    const noteCount = schedule.notes.length;
+    
+    const confirmMessage = `Are you sure you want to delete "${companyName}"?\n\n` +
+      `This will permanently remove:\n` +
+      `• ${locationCount} location${locationCount !== 1 ? 's' : ''}\n` +
+      `• ${contactCount} contact${contactCount !== 1 ? 's' : ''}\n` +
+      `• ${noteCount} note${noteCount !== 1 ? 's' : ''}\n` +
+      `• All scheduled events for this company\n\n` +
+      `This action cannot be undone.`;
+    
+    if (confirm(confirmMessage)) {
+      isLoading.set(true);
+      try {
+        await deleteSchedule(schedule.id);
+        alert(`Company "${companyName}" and all associated data deleted successfully!`);
+      } catch (error) {
+        console.error('Error deleting schedule:', error);
+        alert(`Error: ${error instanceof Error ? error.message : 'Failed to delete company'}`);
+      } finally {
+        isLoading.set(false);
+      }
+    }
+  }
+
   function handleClose() {
     resetForm();
   }
@@ -129,6 +159,55 @@
     if ($sortBy !== column) return '↕️';
     return $sortDirection === 'asc' ? '↑' : '↓';
   }
+
+  function toggleScheduleSelection(scheduleId: string) {
+    if (selectedSchedules.has(scheduleId)) {
+      selectedSchedules.delete(scheduleId);
+    } else {
+      selectedSchedules.add(scheduleId);
+    }
+    selectedSchedules = selectedSchedules; // Trigger reactivity
+  }
+
+  function selectAllSchedules() {
+    if (selectedSchedules.size === paginatedSchedules.length) {
+      selectedSchedules.clear();
+    } else {
+      selectedSchedules = new Set(paginatedSchedules.map(s => s.id));
+    }
+    selectedSchedules = selectedSchedules; // Trigger reactivity
+  }
+
+  async function handleBulkDelete() {
+    if (selectedSchedules.size === 0) return;
+    
+    const selectedScheduleObjects = paginatedSchedules.filter(s => selectedSchedules.has(s.id));
+    const companyNames = selectedScheduleObjects.map(s => s.company).join(', ');
+    
+    const confirmMessage = `Are you sure you want to delete ${selectedSchedules.size} compan${selectedSchedules.size === 1 ? 'y' : 'ies'}?\n\n` +
+      `This will permanently remove:\n` +
+      `• ${selectedScheduleObjects.length} compan${selectedScheduleObjects.length === 1 ? 'y' : 'ies'}\n` +
+      `• All associated locations, contacts, and notes\n` +
+      `• All scheduled events for these companies\n\n` +
+      `Companies to delete: ${companyNames}\n\n` +
+      `This action cannot be undone.`;
+    
+    if (confirm(confirmMessage)) {
+      isLoading.set(true);
+      try {
+        const deletePromises = selectedScheduleObjects.map(schedule => deleteSchedule(schedule.id));
+        await Promise.all(deletePromises);
+        alert(`Successfully deleted ${selectedSchedules.size} compan${selectedSchedules.size === 1 ? 'y' : 'ies'}!`);
+        selectedSchedules.clear();
+        selectedSchedules = selectedSchedules; // Trigger reactivity
+      } catch (error) {
+        console.error('Error bulk deleting schedules:', error);
+        alert(`Error: ${error instanceof Error ? error.message : 'Failed to delete companies'}`);
+      } finally {
+        isLoading.set(false);
+      }
+    }
+  }
 </script>
 
 <div class="space-y-6">
@@ -138,15 +217,28 @@
       <h2 class="text-2xl font-bold text-gray-900">Companies</h2>
       <p class="text-gray-600 mt-1">Manage test and tag service schedules</p>
     </div>
-    <button
-      on:click={handleCreate}
-      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
-    >
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-      </svg>
-      Add New Company
-    </button>
+    <div class="flex gap-2">
+      {#if selectedSchedules.size > 0}
+        <button
+          on:click={handleBulkDelete}
+          class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Delete Selected ({selectedSchedules.size})
+        </button>
+      {/if}
+      <button
+        on:click={handleCreate}
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Add New Company
+      </button>
+    </div>
   </div>
 
   <!-- Search and Filters -->
@@ -193,6 +285,14 @@
         <thead class="bg-gray-50">
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <input
+                type="checkbox"
+                checked={selectedSchedules.size === paginatedSchedules.length && paginatedSchedules.length > 0}
+                on:change={selectAllSchedules}
+                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               <button
                 on:click={() => handleSort('company')}
                 class="flex items-center gap-1 hover:text-gray-700 transition-colors"
@@ -233,6 +333,14 @@
         <tbody class="bg-white divide-y divide-gray-200">
           {#each paginatedSchedules as schedule}
             <tr class="hover:bg-gray-50 transition-colors">
+              <td class="px-6 py-4 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={selectedSchedules.has(schedule.id)}
+                  on:change={() => toggleScheduleSelection(schedule.id)}
+                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="text-sm font-medium text-gray-900">{schedule.company}</div>
               </td>
@@ -284,6 +392,15 @@
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    on:click={() => handleDeleteDirect(schedule)}
+                    class="text-red-600 hover:text-red-900 transition-colors"
+                    title="Delete"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </div>

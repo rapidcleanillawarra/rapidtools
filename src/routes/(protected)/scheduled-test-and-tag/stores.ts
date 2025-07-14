@@ -26,6 +26,8 @@ export type Schedule = {
     occurence: number;
     information: LocationInfo[];
     notes: Note[];
+    createdAt?: any; // Firestore timestamp
+    updatedAt?: any; // Firestore timestamp
 };
 
 // Initial data

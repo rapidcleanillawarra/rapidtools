@@ -84,7 +84,7 @@
     }
   }
 
-  async function handleDelete(event: CustomEvent<number>) {
+  async function handleDelete(event: CustomEvent<string>) {
     const id = event.detail;
     if (confirm('Are you sure you want to delete this company? This action cannot be undone.')) {
       isLoading.set(true);

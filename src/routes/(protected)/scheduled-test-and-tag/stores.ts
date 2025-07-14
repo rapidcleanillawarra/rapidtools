@@ -20,7 +20,7 @@ export type Note = {
 };
 
 export type Schedule = {
-    id: number;
+    id: string;
     company: string;
     start_month: number;
     occurence: number;
@@ -33,7 +33,7 @@ export type Schedule = {
 // Initial data
 const initialSchedules: Schedule[] = [
     {
-      "id": 1,
+      "id": "1",
       "company": "Wollongong Hospital",
       "start_month": 7,
       "occurence": 6,
@@ -87,7 +87,7 @@ const initialSchedules: Schedule[] = [
       ]
     },
     {
-      "id": 2,
+      "id": "2",
       "company": "Shellharbour Private Hospital",
       "start_month": 8,
       "occurence": 4,
@@ -141,7 +141,7 @@ const initialSchedules: Schedule[] = [
       ]
     },
     {
-      "id": 3,
+      "id": "3",
       "company": "Port Kembla Hospital",
       "start_month": 6,
       "occurence": 3,
@@ -172,7 +172,7 @@ const initialSchedules: Schedule[] = [
       "notes": []
     },
     {
-      "id": 4,
+      "id": "4",
       "company": "Dapto Community Health",
       "start_month": 9,
       "occurence": 2,
@@ -193,7 +193,7 @@ const initialSchedules: Schedule[] = [
       "notes": []
     },
     {
-      "id": 5,
+      "id": "5",
       "company": "Corrimal Rehab Centre",
       "start_month": 5,
       "occurence": 5,
@@ -224,7 +224,7 @@ const initialSchedules: Schedule[] = [
       ]
     },
     {
-      "id": 6,
+      "id": "6",
       "company": "Kiama Aged Care",
       "start_month": 10,
       "occurence": 1,
@@ -245,7 +245,7 @@ const initialSchedules: Schedule[] = [
       "notes": []
     },
     {
-      "id": 7,
+      "id": "7",
       "company": "Shoalhaven District Hospital",
       "start_month": 3,
       "occurence": 2,
@@ -278,7 +278,7 @@ const initialSchedules: Schedule[] = [
       "notes": []
     },
     {
-      "id": 8,
+      "id": "8",
       "company": "Fairy Meadow Medical Centre",
       "start_month": 11,
       "occurence": 4,

@@ -9,7 +9,7 @@
 
   const dispatch = createEventDispatcher<{
     save: ScheduleFormData;
-    delete: number;
+    delete: string;
     close: void;
   }>();
 

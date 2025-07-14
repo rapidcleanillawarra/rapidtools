@@ -3,7 +3,7 @@ import type { Schedule, Contact, LocationInfo, Note } from '../stores';
 export type { Schedule, Contact, LocationInfo, Note };
 
 export type ScheduleFormData = Omit<Schedule, 'id'> & {
-  id?: number;
+  id?: string;
 };
 
 export type ContactFormData = Contact;

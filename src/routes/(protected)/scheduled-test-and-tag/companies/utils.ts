@@ -20,22 +20,22 @@ export async function createSchedule(scheduleData: ScheduleFormData): Promise<Sc
   console.log('Data:', scheduleData);
   
   try {
-    // Prepare data for Firestore
-    const firestoreData = {
+    // Add to Firestore first to get the document ID
+    const docRef = await addDoc(collection(db, 'stt'), {
       ...scheduleData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    };
-    
-    // Add to Firestore
-    const docRef = await addDoc(collection(db, 'stt'), firestoreData);
+    });
     console.log('Document created with ID:', docRef.id);
 
     // Create the new schedule with Firestore document ID
     const newSchedule: Schedule = {
       ...scheduleData,
-      id: parseInt(docRef.id) // Use Firestore document ID as numeric ID
+      id: docRef.id // Use Firestore document ID directly as string
     };
+    
+    // Update the Firestore document to include the ID
+    await updateDoc(docRef, { id: docRef.id });
     
     // Update local store
     schedulesStore.update(schedules => [...schedules, newSchedule]);
@@ -48,27 +48,15 @@ export async function createSchedule(scheduleData: ScheduleFormData): Promise<Sc
   }
 }
 
-export async function updateSchedule(id: number, scheduleData: ScheduleFormData): Promise<Schedule> {
+export async function updateSchedule(id: string, scheduleData: ScheduleFormData): Promise<Schedule> {
   try {
-    // Find the Firestore document by matching the local ID
-    const querySnapshot = await getDocs(collection(db, 'stt'));
-    let docId: string | null = null;
+    // Use the ID directly as the Firestore document ID
+    const docRef = doc(db, 'stt', id);
     
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.id === id) {
-        docId = doc.id;
-      }
-    });
-
-    if (!docId) {
-      throw new Error('Schedule not found in Firestore');
-    }
-
     // Update in Firestore
-    const docRef = doc(db, 'stt', docId);
     await updateDoc(docRef, {
       ...scheduleData,
+      id, // Keep the ID in Firestore
       updatedAt: serverTimestamp()
     });
 
@@ -93,25 +81,12 @@ export async function updateSchedule(id: number, scheduleData: ScheduleFormData)
   }
 }
 
-export async function deleteSchedule(id: number): Promise<void> {
+export async function deleteSchedule(id: string): Promise<void> {
   try {
-    // Find the Firestore document by matching the local ID
-    const querySnapshot = await getDocs(collection(db, 'stt'));
-    let docId: string | null = null;
+    // Use the ID directly as the Firestore document ID
+    const docRef = doc(db, 'stt', id);
     
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.id === id) {
-        docId = doc.id;
-      }
-    });
-
-    if (!docId) {
-      throw new Error('Schedule not found in Firestore');
-    }
-
     // Delete from Firestore
-    const docRef = doc(db, 'stt', docId);
     await deleteDoc(docRef);
     
     // Update local store
@@ -126,7 +101,7 @@ export async function deleteSchedule(id: number): Promise<void> {
   }
 }
 
-export async function getScheduleById(id: number): Promise<Schedule | undefined> {
+export async function getScheduleById(id: string): Promise<Schedule | undefined> {
   const schedules = get(schedulesStore);
   return schedules.find(schedule => schedule.id === id);
 }
@@ -140,7 +115,7 @@ export async function loadSchedulesFromFirestore(): Promise<void> {
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       schedules.push({
-        id: data.id || parseInt(doc.id),
+        id: data.id || doc.id, // Use existing ID or Firestore document ID as string
         company: data.company,
         start_month: data.start_month,
         occurence: data.occurence,

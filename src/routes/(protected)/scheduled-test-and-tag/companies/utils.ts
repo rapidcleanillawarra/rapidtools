@@ -11,6 +11,7 @@ import {
   orderBy,
   serverTimestamp 
 } from 'firebase/firestore';
+import { get } from 'svelte/store';
 import type { Schedule, ScheduleFormData, ValidationErrors } from './types';
 
 // CRUD Operations
@@ -257,7 +258,4 @@ export function formatPhoneNumber(phone: string): string {
   }
   
   return phone; // Return original if can't format
-}
-
-// Import get function for store access
-import { get } from 'svelte/store'; 
+} 

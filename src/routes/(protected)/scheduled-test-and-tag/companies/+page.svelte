@@ -44,6 +44,7 @@
   $: totalPages = Math.ceil($filteredSchedules.length / itemsPerPage);
 
   function handleCreate() {
+    alert('Create button clicked!');
     setCreateMode();
   }
 

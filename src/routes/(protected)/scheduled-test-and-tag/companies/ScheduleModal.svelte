@@ -16,6 +16,13 @@
   let formData: ScheduleFormData;
   let errors: any = {};
 
+  // Debug logging for props
+  $: {
+    if (isOpen) {
+      alert(`Modal props: isOpen=${isOpen}, mode=${mode}`);
+    }
+  }
+
   $: if (schedule) {
     formData = {
       ...schedule,

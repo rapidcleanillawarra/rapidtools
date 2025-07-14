@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { schedulesStore } from '../stores';
 import type { Schedule, ScheduleFormData, ValidationErrors, FormMode } from './types';
 
@@ -22,12 +22,15 @@ export const sortDirection = writable<'asc' | 'desc'>('asc');
 export const filteredSchedules = derived(
   [schedulesStore, searchTerm, sortBy, sortDirection],
   ([schedules, search, sort, direction]) => {
-    let filtered = schedules;
+    // Ensure schedules is always an array
+    const schedulesArray = schedules || [];
+    
+    let filtered = schedulesArray;
     
     // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase();
-      filtered = schedules.filter(schedule => 
+      filtered = schedulesArray.filter(schedule => 
         schedule.company.toLowerCase().includes(searchLower) ||
         schedule.information.some(info => 
           info.sub_company_name.toLowerCase().includes(searchLower) ||
@@ -101,6 +104,8 @@ export function setEditMode(schedule: Schedule) {
 }
 
 export function setCreateMode() {
+  alert('setCreateMode called!');
+  
   currentSchedule.set({
     company: '',
     start_month: 1,
@@ -108,9 +113,12 @@ export function setCreateMode() {
     information: [],
     notes: []
   });
+  
   formMode.set('create');
   validationErrors.set({});
   isModalOpen.set(true);
+  
+  alert('Modal should be open now!');
 }
 
 export function setViewMode(schedule: Schedule) {

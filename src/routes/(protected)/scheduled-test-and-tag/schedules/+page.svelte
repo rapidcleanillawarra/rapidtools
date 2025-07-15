@@ -36,7 +36,7 @@
   };
 
   let calendarEvents: CalendarEvent[] = [];
-  let currentMonth: number = new Date().getMonth() + 1;
+  let currentMonth: number = 0; // Will be set by calendar
   let showModal = false;
   let startDateStr = new Date().toISOString().split('T')[0]; // Default to today
   let endDateStr = new Date().toISOString().split('T')[0];   // Default to today
@@ -66,7 +66,7 @@
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  $: filteredSchedules = $schedulesStore.filter(schedule => {
+  $: filteredSchedules = currentMonth > 0 ? $schedulesStore.filter(schedule => {
     // Check if current month matches start_month
     if (schedule.start_month === currentMonth) {
       return true;
@@ -85,10 +85,10 @@
     }
     
     return false;
-  });
+  }) : [];
 
-  // Reactive statement to load events when schedules are loaded
-  $: if (schedulesLoaded && !isLoadingSchedules && !isLoadingEvents && !eventsLoaded) {
+  // Reactive statement to load events when schedules are loaded and we have a valid month
+  $: if (schedulesLoaded && !isLoadingSchedules && !isLoadingEvents && !eventsLoaded && currentMonth > 0) {
     eventsLoaded = true;
     loadEventsFromFirestore();
   }
@@ -187,8 +187,9 @@
   }
 
   function handleMonthChange(newMonth: number) {
-    console.log('Left side month:', currentMonth, 'displaying:', months[currentMonth - 1], 'Calendar month:', newMonth, 'displaying:', months[newMonth - 1]);
+    console.log('Calendar month changed to:', newMonth, 'displaying:', months[newMonth - 1]);
     currentMonth = newMonth;
+    console.log('Left side month updated to:', currentMonth, 'displaying:', months[currentMonth - 1]);
     // Load events for the new month
     loadEventsForMonth(newMonth);
   }
@@ -612,8 +613,8 @@
 
 
   onMount(async () => {
-    console.log('PAGE LOAD - Left side month:', currentMonth, 'displaying:', months[currentMonth - 1], 'Calendar month:', currentMonth, 'displaying:', months[currentMonth - 1]);
-    await loadSchedulesFromFirestoreData(); // Load schedules first, events will load automatically via reactive statement
+    console.log('PAGE LOAD - Waiting for calendar to set initial month');
+    await loadSchedulesFromFirestoreData(); // Load schedules first, events will load automatically via reactive statement when calendar sets the month
   });
 </script>
 
@@ -621,7 +622,7 @@
   <div class="col-span-4 bg-white rounded-lg border border-gray-200 p-6 shadow-lg">
     <h3 class="text-lg font-medium text-gray-900 mb-6 flex items-center">
       <span class="mr-2">📅</span>
-      Company Locations for {months[currentMonth - 1]}
+      Company Locations for {currentMonth > 0 ? months[currentMonth - 1] : 'Loading...'}
     </h3>
     {#if isLoadingSchedules || !schedulesLoaded}
       <div class="space-y-6">
@@ -705,7 +706,7 @@
         {:else}
           <div class="text-center py-12">
             <div class="text-6xl mb-4">📋</div>
-            <div class="text-gray-500 font-medium">No companies scheduled for {months[currentMonth - 1]}</div>
+            <div class="text-gray-500 font-medium">No companies scheduled for {currentMonth > 0 ? months[currentMonth - 1] : 'this month'}</div>
             <div class="text-sm text-gray-400 mt-2">Select a different month to view schedules</div>
           </div>
         {/each}

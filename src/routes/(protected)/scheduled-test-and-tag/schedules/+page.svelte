@@ -56,6 +56,7 @@
   let profile: any;
   let schedulesLoaded = false;
   let eventsLoaded = false;
+  let searchQuery = '';
   
   // Subscribe to user and profile stores
   currentUser.subscribe(value => user = value);
@@ -67,9 +68,12 @@
   ];
 
   $: filteredSchedules = currentMonth > 0 ? $schedulesStore.filter(schedule => {
+    // First filter by month
+    let monthMatches = false;
+    
     // Check if current month matches start_month
     if (schedule.start_month === currentMonth) {
-      return true;
+      monthMatches = true;
     }
     
     // Check if current month matches any occurrence month
@@ -78,14 +82,36 @@
       let checkMonth = schedule.start_month + occurrence;
       while (checkMonth <= 12) {
         if (checkMonth === currentMonth) {
-          return true;
+          monthMatches = true;
+          break;
         }
         checkMonth += occurrence;
       }
     }
     
-    return false;
-  }) : [];
+    if (!monthMatches) return false;
+    
+    // Then filter by search query
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    // Search in company name
+    if (schedule.company.toLowerCase().includes(query)) {
+      return true;
+    }
+    
+    // Search in location information
+    return schedule.information.some(info => 
+      info.sub_company_name?.toLowerCase().includes(query) ||
+      info.location?.toLowerCase().includes(query) ||
+      info.contacts?.some((contact: any) => 
+        contact.name?.toLowerCase().includes(query) ||
+        contact.email?.toLowerCase().includes(query) ||
+        contact.phone?.toLowerCase().includes(query)
+      )
+    );
+  }).sort((a, b) => a.company.localeCompare(b.company)) : [];
 
   // Reactive statement to load events when schedules are loaded and we have a valid month
   $: if (schedulesLoaded && !isLoadingSchedules && !isLoadingEvents && !eventsLoaded && currentMonth > 0) {
@@ -624,6 +650,53 @@
       <span class="mr-2">📅</span>
       Company Locations for {currentMonth > 0 ? months[currentMonth - 1] : 'Loading...'}
     </h3>
+    
+    <!-- Search Filter -->
+    <div class="mb-6">
+      <div class="relative">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          bind:value={searchQuery}
+          placeholder="Search companies, locations, or contacts..."
+          class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
+        />
+        {#if searchQuery}
+          <button
+            on:click={() => searchQuery = ''}
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        {/if}
+      </div>
+      {#if searchQuery && filteredSchedules.length === 0}
+        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div class="flex items-center text-blue-800">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-sm">No results found for "{searchQuery}"</span>
+          </div>
+        </div>
+      {/if}
+      {#if searchQuery && filteredSchedules.length > 0}
+        <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div class="flex items-center text-green-800">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="text-sm">Found {filteredSchedules.length} result{filteredSchedules.length === 1 ? '' : 's'} for "{searchQuery}"</span>
+          </div>
+        </div>
+      {/if}
+    </div>
     {#if isLoadingSchedules || !schedulesLoaded}
       <div class="space-y-6">
         <!-- Skeleton for company containers -->
@@ -726,29 +799,36 @@
         disabled={isLoadingSchedules || isLoadingEvents || !schedulesLoaded}
         class="btn-primary floating-btn px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed flex items-center shadow-md"
       >
-        {#if isLoadingSchedules || isLoadingEvents}
-          <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-        {:else}
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-          </svg>
-        {/if}
-        {isLoadingSchedules || isLoadingEvents ? 'Refreshing...' : 'Refresh'}
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Refresh
       </button>
     </div>
     <div class="relative">
       {#if isLoadingSchedules || isLoadingEvents}
         <div class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-lg backdrop-blur-sm">
-          <div class="text-center">
-            <div class="relative">
-              <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
-              <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-400 animate-ping"></div>
-            </div>
-            <div class="mt-4 text-gray-600 font-medium">
-              {isLoadingSchedules ? 'Loading company data...' : 'Loading calendar events...'}
-            </div>
-            <div class="mt-2 text-sm text-gray-400">
-              {isLoadingSchedules ? 'Please wait while we load your company information' : 'Please wait while we load your scheduled events'}
+          <div class="text-center w-full max-w-md">
+            <div class="space-y-4">
+              <!-- Calendar skeleton -->
+              <div class="bg-gray-200 rounded-lg p-6">
+                <div class="space-y-3">
+                  <!-- Header skeleton -->
+                  <div class="flex justify-between items-center">
+                    <SkeletonLoader type="text" width="120px" height="1.5rem" />
+                    <SkeletonLoader type="text" width="80px" height="1.5rem" />
+                  </div>
+                  <!-- Calendar grid skeleton -->
+                  <div class="grid grid-cols-7 gap-1">
+                    {#each Array(35) as _}
+                      <SkeletonLoader type="card" width="100%" height="60px" />
+                    {/each}
+                  </div>
+                </div>
+              </div>
+              <div class="text-gray-600 font-medium">
+                {isLoadingSchedules ? 'Loading company data...' : 'Loading calendar events...'}
+              </div>
             </div>
           </div>
         </div>
@@ -936,15 +1016,10 @@
               disabled={isDeleting}
               class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center text-sm"
             >
-              {#if isDeleting}
-                <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                Removing...
-              {:else}
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-                Remove
-              {/if}
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              Remove
             </button>
           {:else}
             <div></div>
@@ -971,15 +1046,10 @@
               disabled={!startDateStr || !endDateStr || validationErrors.length > 0 || isSaving || isDeleting}
               class="btn-primary px-4 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg disabled:from-gray-400 disabled:to-gray-500 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center text-sm"
             >
-              {#if isSaving}
-                <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-                {isEditMode ? 'Updating...' : 'Saving...'}
-              {:else}
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                {isEditMode ? 'Update' : 'Add'}
-              {/if}
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+              {isEditMode ? 'Update' : 'Add'}
             </button>
           </div>
         </div>
@@ -1040,15 +1110,10 @@
             disabled={isDeleting}
             class="px-4 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center text-sm"
           >
-            {#if isDeleting}
-              <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-              Deleting...
-            {:else}
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-              </svg>
-              Delete Schedule
-            {/if}
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            Delete Schedule
           </button>
         </div>
       </div>

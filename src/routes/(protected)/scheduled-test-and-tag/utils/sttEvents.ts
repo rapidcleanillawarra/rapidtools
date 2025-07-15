@@ -32,9 +32,22 @@ export interface STTEvent {
 const COLLECTION_NAME = 'stt_events';
 
 // Load all STT events from Firestore
-export async function loadSTTEvents(): Promise<STTEvent[]> {
+export async function loadSTTEvents(startDate?: string, endDate?: string): Promise<STTEvent[]> {
   try {
-    const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+    let q;
+    
+    // If date range is provided, add date filters
+    if (startDate && endDate) {
+      q = query(
+        collection(db, COLLECTION_NAME),
+        where('start_date', '>=', startDate),
+        where('start_date', '<=', endDate)
+      );
+    } else {
+      q = query(collection(db, COLLECTION_NAME));
+    }
+    
+    const querySnapshot = await getDocs(q);
     const events: STTEvent[] = [];
     
     querySnapshot.forEach((doc) => {

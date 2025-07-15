@@ -189,6 +189,8 @@
   function handleMonthChange(newMonth: number) {
     console.log('Left side month:', currentMonth, 'displaying:', months[currentMonth - 1], 'Calendar month:', newMonth, 'displaying:', months[newMonth - 1]);
     currentMonth = newMonth;
+    // Load events for the new month
+    loadEventsForMonth(newMonth);
   }
 
   function openModal(location: any, schedule: any, infoIndex: number, companyIndex: number) {
@@ -456,11 +458,17 @@
     validateSchedule();
   }
 
-  // Load events from Firestore on mount
-  async function loadEventsFromFirestore() {
+  // Load events for a specific month
+  async function loadEventsForMonth(month: number) {
     try {
       isLoadingEvents = true;
-      const sttEvents = await loadSTTEvents();
+      
+      // Calculate date range for the month
+      const year = new Date().getFullYear();
+      const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+      const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+      
+      const sttEvents = await loadSTTEvents(startDate, endDate);
       
       // Convert STT events to calendar events and map infoIndex
       const events: CalendarEvent[] = [];
@@ -492,6 +500,11 @@
     } finally {
       isLoadingEvents = false;
     }
+  }
+
+  // Load events from Firestore on mount (loads all events for backward compatibility)
+  async function loadEventsFromFirestore() {
+    await loadEventsForMonth(currentMonth);
   }
 
   // Show success animation with confetti effect
@@ -593,7 +606,7 @@
   async function refreshEvents() {
     eventsLoaded = false; // Reset events loaded flag
     await loadSchedulesFromFirestoreData(); // Reload schedules first
-    await loadEventsFromFirestore(); // Then reload events
+    await loadEventsForMonth(currentMonth); // Then reload events for current month
   }
 
 

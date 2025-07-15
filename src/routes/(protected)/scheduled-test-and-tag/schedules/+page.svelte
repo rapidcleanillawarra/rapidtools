@@ -243,8 +243,13 @@
     // Open modal in edit mode
     isEditMode = true;
     editingEventId = event.id;
-    startDateStr = event.start.split('T')[0];
-    endDateStr = event.end ? event.end.split('T')[0] : event.start.split('T')[0];
+    
+    // Handle Date objects properly - convert to ISO string and extract date part
+    const startDate = event.start instanceof Date ? event.start : new Date(event.start);
+    const endDate = event.end ? (event.end instanceof Date ? event.end : new Date(event.end)) : startDate;
+    
+    startDateStr = startDate.toISOString().split('T')[0];
+    endDateStr = endDate.toISOString().split('T')[0];
 
     selectedLocation = {
       ...locationInfo,
@@ -667,7 +672,7 @@
                   </div>
                   {#if scheduledItems.has(`${schedule.id}-${infoIndex}`)}
                     <div class="flex items-center success-glow">
-                      <div class="bg-green-500 rounded-full p-1 mr-2 animate-bounce shadow-lg">
+                      <div class="bg-green-500 rounded-full p-1 mr-2 shadow-lg">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                         </svg>

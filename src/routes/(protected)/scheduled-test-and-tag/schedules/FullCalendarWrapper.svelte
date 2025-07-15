@@ -125,4 +125,34 @@
   .event-remove-btn:hover {
     background: #dc2626 !important;
   }
+
+  /* Make calendar events show pointer cursor on hover */
+  .fc-event {
+    cursor: pointer !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+  }
+
+  .fc-event:hover {
+    cursor: pointer !important;
+  }
+
+  /* Prevent text selection on event content */
+  .fc-event-main {
+    cursor: pointer !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+  }
+
+  .fc-event-title {
+    cursor: pointer !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+  }
 </style>

@@ -415,56 +415,90 @@ For any questions or concerns, please contact the system administrator.`;
     console.log('=== Starting Paste Operation ===');
     console.log('Paste target:', { field, rowIndex });
     
+    // Prevent default paste behavior
     event.preventDefault();
-    const clipboardData = event.clipboardData?.getData('text') || '';
-    console.log('Raw clipboard data:', clipboardData);
+    event.stopPropagation();
     
-    // Split the clipboard data into rows
-    const pastedRows = clipboardData.split('\n')
-      .map(row => row.split('\t'))
-      .filter(row => row.some(cell => cell.trim() !== '')); // Filter out empty rows
-
-    console.log('Processed rows:', pastedRows);
-
-    if (pastedRows.length === 0) {
-      console.log('No valid data to paste');
-      return;
-    }
-
-    // For single cell paste
-    if (pastedRows.length === 1 && pastedRows[0].length === 1) {
-      const value = pastedRows[0][0].trim();
-      console.log('Single cell paste:', { value, field, rowIndex });
+    try {
+      // Try to get clipboard data from the event first
+      let clipboardData = event.clipboardData?.getData('text') || '';
       
-      if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
-        rows[rowIndex][field] = value;
+      // If that's empty, try using the clipboard API
+      if (!clipboardData && navigator.clipboard) {
+        try {
+          clipboardData = await navigator.clipboard.readText();
+        } catch (clipError) {
+          console.log('Clipboard API failed, trying alternative method');
+        }
       }
-      return;
-    }
-
-    // For multi-cell paste in a single column
-    const values = pastedRows.map(row => row[0]?.trim() || '');
-    console.log('Multi-cell paste values:', values);
-    
-    // Create new rows if needed
-    const initialRowCount = rows.length;
-    while (rowIndex + values.length > rows.length) {
-      rows = [...rows, createEmptyRow()];
-    }
-    console.log(`Added ${rows.length - initialRowCount} new rows`);
-
-    // Update the specific column for each row
-    values.forEach((value, index) => {
-      if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
-        rows[rowIndex + index][field] = value;
+      
+      console.log('Raw clipboard data:', clipboardData);
+      
+      if (!clipboardData) {
+        console.log('No clipboard data available');
+        return;
       }
-    });
+      
+      // Split the clipboard data into rows and clean up
+      const pastedRows = clipboardData
+        .split('\n')
+        .map(row => row.split('\t').map(cell => cell.trim()))
+        .filter(row => row.some(cell => cell !== '')); // Filter out completely empty rows
 
-    // Show notification
-    const notificationMessage = `Pasted ${values.length} values into ${field} column`;
-    showNotification(notificationMessage, 'success');
-    console.log(notificationMessage);
-    console.log('=== Paste Operation Completed ===');
+      console.log('Processed rows:', pastedRows);
+
+      if (pastedRows.length === 0) {
+        console.log('No valid data to paste');
+        return;
+      }
+
+      // For single cell paste
+      if (pastedRows.length === 1 && pastedRows[0].length === 1) {
+        const value = pastedRows[0][0];
+        console.log('Single cell paste:', { value, field, rowIndex });
+        
+        if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
+          // Use reactive assignment to ensure UI updates
+          rows = rows.map((row, index) => 
+            index === rowIndex 
+              ? { ...row, [field]: value }
+              : row
+          );
+        }
+        return;
+      }
+
+      // For multi-cell paste in a single column
+      const values = pastedRows.map(row => row[0] || '');
+      console.log('Multi-cell paste values:', values);
+      
+      // Create new rows if needed - use reactive assignment
+      const newRows = [...rows];
+      while (rowIndex + values.length > newRows.length) {
+        newRows.push(createEmptyRow());
+      }
+      
+      // Update the specific column for each row
+      values.forEach((value, index) => {
+        if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'rrp') {
+          newRows[rowIndex + index] = { ...newRows[rowIndex + index], [field]: value };
+        }
+      });
+      
+      // Update rows reactively
+      rows = newRows;
+      
+      console.log('Updated rows:', rows);
+      console.log(`Updated ${values.length} rows starting from index ${rowIndex}`);
+
+      // Show notification
+      const notificationMessage = `Pasted ${values.length} values into ${field} column`;
+      showNotification(notificationMessage, 'success');
+      console.log(notificationMessage);
+      console.log('=== Paste Operation Completed ===');
+    } catch (error) {
+      console.error('Error in handlePaste:', error);
+    }
   }
 
   onMount(() => {
@@ -499,7 +533,8 @@ For any questions or concerns, please contact the system administrator.`;
       <!-- Product Rows -->
       <div class="overflow-visible">
         <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+          <div>#</div>
           <div>SKU</div>
           <div>Product Name</div>
           <div>
@@ -538,7 +573,12 @@ For any questions or concerns, please contact the system administrator.`;
         <div class="divide-y divide-gray-200">
           {#each rows as row, i}
             <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+                <!-- Row Number -->
+                <div class="mb-4 md:mb-0 flex items-center justify-center">
+                  <span class="text-sm font-medium text-gray-500">{i + 1}</span>
+                </div>
+                
                 <!-- SKU -->
                 <div class="mb-4 md:mb-0">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">SKU</label>
@@ -576,7 +616,6 @@ For any questions or concerns, please contact the system administrator.`;
                       bind:value={row.brand}
                       placeholder="Select Brand"
                       containerStyles="position: relative;"
-                      portal={null}
                     />
                   {/if}
                 </div>
@@ -594,7 +633,6 @@ For any questions or concerns, please contact the system administrator.`;
                       bind:value={row.supplier}
                       placeholder="Select Supplier"
                       containerStyles="position: relative;"
-                      portal={null}
                     />
                   {/if}
                 </div>

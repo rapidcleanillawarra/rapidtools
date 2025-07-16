@@ -42,6 +42,10 @@
   let isLoading = false;
   let notification = { show: false, message: '', type: 'info' };
 
+  // Local Storage Keys
+  const STORAGE_KEY = 'product_request_draft';
+  const STORAGE_TIMESTAMP_KEY = 'product_request_timestamp';
+
   // State for user
   let user: any;
   let profile: UserProfile | null = null;
@@ -70,6 +74,84 @@
       taxIncluded: true,
       exists: false
     };
+  }
+
+  // Local Storage Functions
+  function saveToLocalStorage() {
+    try {
+      const dataToSave = {
+        rows: rows.map(row => ({
+          sku: row.sku,
+          productName: row.productName,
+          brand: row.brand,
+          supplier: row.supplier,
+          purchasePrice: row.purchasePrice,
+          rrp: row.rrp,
+          taxIncluded: row.taxIncluded
+        })),
+        timestamp: Date.now()
+      };
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+      localStorage.setItem(STORAGE_TIMESTAMP_KEY, Date.now().toString());
+      console.log('Data saved to local storage');
+    } catch (error) {
+      console.error('Error saving to local storage:', error);
+    }
+  }
+
+  function loadFromLocalStorage(): boolean {
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      const timestamp = localStorage.getItem(STORAGE_TIMESTAMP_KEY);
+      
+      if (!savedData || !timestamp) {
+        return false;
+      }
+
+      // Check if data is older than 24 hours
+      const dataAge = Date.now() - parseInt(timestamp);
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+      
+      if (dataAge > maxAge) {
+        console.log('Saved data is too old, clearing...');
+        clearLocalStorage();
+        return false;
+      }
+
+      const parsedData = JSON.parse(savedData);
+      
+      if (parsedData.rows && Array.isArray(parsedData.rows)) {
+        // Filter out completely empty rows
+        const validRows = parsedData.rows.filter((row: any) => 
+          row.sku || row.productName || row.brand || row.supplier || row.purchasePrice || row.rrp
+        );
+        
+        if (validRows.length > 0) {
+          rows = validRows.map((row: any) => ({
+            ...row,
+            exists: false // Reset exists flag
+          }));
+          console.log('Loaded data from local storage:', validRows.length, 'rows');
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error loading from local storage:', error);
+      return false;
+    }
+  }
+
+  function clearLocalStorage() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_TIMESTAMP_KEY);
+      console.log('Local storage cleared');
+    } catch (error) {
+      console.error('Error clearing local storage:', error);
+    }
   }
 
   function addRow() {
@@ -381,6 +463,9 @@ For any questions or concerns, please contact the system administrator.`;
 
         showNotification('Product request submitted successfully', 'success');
         
+        // Clear local storage after successful submission
+        clearLocalStorage();
+        
         // Clear form and add new row
         rows = [createEmptyRow()];
         console.log('Form cleared and reset');
@@ -501,8 +586,27 @@ For any questions or concerns, please contact the system administrator.`;
     }
   }
 
+  // Reactive statement to save data whenever rows change
+  let saveTimeout: ReturnType<typeof setTimeout>;
+  $: if (rows.length > 0) {
+    // Clear previous timeout
+    if (saveTimeout) clearTimeout(saveTimeout);
+    
+    // Debounce the save to avoid excessive localStorage writes
+    saveTimeout = setTimeout(() => {
+      saveToLocalStorage();
+    }, 1000);
+  }
+
   onMount(() => {
     console.log('Component mounted, fetching brands and suppliers...');
+    
+    // Try to load saved data first
+    const hasLoadedData = loadFromLocalStorage();
+    if (hasLoadedData) {
+      showNotification('Draft data loaded from previous session', 'info');
+    }
+    
     fetchBrands();
     fetchSuppliers();
   });
@@ -510,17 +614,41 @@ For any questions or concerns, please contact the system administrator.`;
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
-    <h2 class="text-2xl font-bold mb-6 text-gray-900">Product Request</h2>
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">Product Request</h2>
+      {#if profile}
+        <div class="text-sm text-gray-600">
+          <span class="font-medium">User:</span> {profile.firstName} {profile.lastName}
+        </div>
+      {/if}
+    </div>
     
     <!-- Product Request Form -->
     <div class="space-y-6">
       <div class="flex justify-between items-center sticky top-[64px] bg-white/95 backdrop-blur-sm py-4 z-30">
-        <button
-          on:click={addRow}
-          class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-        >
-          Add Row
-        </button>
+        <div class="flex gap-2">
+          <button
+            on:click={addRow}
+            class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+          >
+            Add Row
+          </button>
+          <button
+            on:click={() => {
+              clearLocalStorage();
+              rows = [createEmptyRow()];
+              showNotification('Draft cleared', 'info');
+            }}
+            class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
+          >
+            Clear Draft
+          </button>
+          {#if user?.email === 'orders@rapidcleanillawarra.com.au' || user?.email === 'marketing@rapidcleanillawarra.com.au'}
+            <span class="text-sm text-blue-600 font-medium italic">
+              Wag mashadong balibag Zsa ha! Gentle lang
+            </span>
+          {/if}
+        </div>
         <button
           on:click={handleProductRequestSubmit}
           class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"

@@ -11,7 +11,6 @@ export interface CustomerGroupInvoice {
   status: string;
   statusColor: string;
   updated?: boolean;
-  isZeroInvoice?: boolean;
   userGroupMismatch?: boolean;
 }
 

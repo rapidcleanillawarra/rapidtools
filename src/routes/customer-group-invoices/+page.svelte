@@ -244,7 +244,8 @@
       // Update loading message for mapping process
       currentLoadingStep.set('Processing and mapping invoice data...');
 
-      // Calculate payment status for each order
+      // Calculate payment status for each order and exclude zero invoices
+      let zeroInvoiceCount = 0;
       const mappedInvoices = orders_data.Order.map((order: any) => {
         // Calculate total payments
         const totalPayments = order.OrderPayment?.reduce((sum: number, payment: any) => 
@@ -260,6 +261,13 @@
         // Check for zero invoice with no payments
         const hasNoPayments = !order.OrderPayment || order.OrderPayment.length === 0;
         const isZeroInvoice = roundedGrandTotal === 0 && roundedTotalPayments === 0 && hasNoPayments;
+        
+        // Skip zero invoices entirely
+        if (isZeroInvoice) {
+          zeroInvoiceCount++;
+          console.log(`🚫 Excluding zero invoice: ${order.ID} (${order.Username}) - GrandTotal: ${order.GrandTotal}, Payments: ${order.OrderPayment?.length || 0}`);
+          return null;
+        }
         
         // Determine payment status
         let status = 'Unpaid';
@@ -287,12 +295,12 @@
           status,
           statusColor,
           customerGroupName: order.UserGroup,
-          isZeroInvoice,
           userGroupMismatch: false // Will be set during filtering
         };
 
         return mappedInvoice;
       })
+      .filter((invoice: CustomerGroupInvoice | null) => invoice !== null) // Remove null entries (zero invoices)
       .filter((invoice: CustomerGroupInvoice) => {
         // Filter by username - show all invoices for users in the extracted usernames list
         if ($filterType === 'group' && usernames && usernames.length > 0) {
@@ -359,6 +367,11 @@
 
         return true;
       });
+
+      // Log summary of excluded zero invoices
+      if (zeroInvoiceCount > 0) {
+        console.log(`📊 Excluded ${zeroInvoiceCount} zero-dollar invoices from results`);
+      }
 
       // Update all necessary stores
       $invoices = mappedInvoices;
@@ -834,9 +847,7 @@
                     {new Date(invoice.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                   </td>
                   <td class="px-2 py-1 text-sm">
-                    <span class={invoice.isZeroInvoice ? 'text-red-600 font-semibold' : ''}>
-                      {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
-                    </span>
+                    {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.totalAmount)}
                   </td>
                   <td class="px-2 py-1 text-sm">
                     {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(invoice.amountPaid)}

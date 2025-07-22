@@ -71,7 +71,7 @@
       supplier: null,
       purchasePrice: '',
       rrp: '',
-      taxIncluded: true,
+      taxIncluded: false,
       exists: false
     };
   }
@@ -667,32 +667,38 @@ For any questions or concerns, please contact the system administrator.`;
           <div>Product Name</div>
           <div>
             Brand
-            <button
-              on:click={() => applyToAll('brand', rows[0]?.brand)}
-              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
-            >
-              Apply to All
-            </button>
+            <div class="mt-1">
+              <button
+                on:click={() => applyToAll('brand', rows[0]?.brand)}
+                class="text-blue-600 hover:text-blue-800 text-xs"
+              >
+                Apply to All
+              </button>
+            </div>
           </div>
           <div>
             Supplier
-            <button
-              on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
-            >
-              Apply to All
-            </button>
+            <div class="mt-1">
+              <button
+                on:click={() => applyToAll('supplier', rows[0]?.supplier)}
+                class="text-blue-600 hover:text-blue-800 text-xs"
+              >
+                Apply to All
+              </button>
+            </div>
           </div>
           <div>Purchase Price</div>
           <div>RRP</div>
           <div>
-            Tax
-            <button
-              on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
-              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
-            >
-              Apply to All
-            </button>
+            Tax Free
+            <div class="mt-1">
+              <button
+                on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
+                class="text-blue-600 hover:text-blue-800 text-xs"
+              >
+                Apply to All
+              </button>
+            </div>
           </div>
           <div></div>
         </div>
@@ -793,7 +799,7 @@ For any questions or concerns, please contact the system administrator.`;
 
                 <!-- Tax Column -->
                 <label class="mb-4 md:mb-0 flex items-center cursor-pointer">
-                  <span class="block md:hidden text-sm font-medium text-gray-700 mb-1 mr-2">Tax</span>
+                  <span class="block md:hidden text-sm font-medium text-gray-700 mb-1 mr-2">Tax Free</span>
                   <input
                     type="checkbox"
                     bind:checked={row.taxIncluded}

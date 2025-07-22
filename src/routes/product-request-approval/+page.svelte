@@ -128,13 +128,12 @@
       toastError('No data rows available');
       return;
     }
-    const firstRequest = productRequests[0];
-    const clientMupVal = firstRequest.client_mup;
     
-    productRequests = productRequests.map((req, idx) => {
-      if (idx === 0) return req;
-      req.client_mup = clientMupVal;
-      calculatePrices(req);
+    productRequests = productRequests.map((req) => {
+      if (req.retail_mup && req.retail_mup > 0) {
+        req.client_mup = parseFloat((req.retail_mup - 0.05).toFixed(2));
+        calculatePrices(req);
+      }
       return req;
     });
   }
@@ -399,8 +398,8 @@
                   }
                 ]
               },
-              TaxInclusive: request.tax_included || false,
-              TaxFreeItem: !request.tax_included || false
+              TaxInclusive: false,
+              TaxFreeItem: request.tax_included || false
             };
           }),
           action: "AddItem"
@@ -938,7 +937,7 @@
     
     <!-- Product Request Form -->
     <div class="space-y-6">
-      <div class="flex justify-between items-center sticky top-[64px] bg-white/95 backdrop-blur-sm py-4 z-30 mobile-buttons">
+      <div class="flex justify-between items-center sticky top-[64px] bg-white/95 backdrop-blur-sm py-4 z-5 mobile-buttons">
         <button
           class="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
           on:click={handleDeleteChecked}
@@ -968,7 +967,7 @@
       <!-- Product Requests Table -->
       <div class="overflow-visible">
         <!-- Desktop Headers -->
-        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg" style="font-size: 0.7rem;">
+        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg" style="font-size: 0.7rem;">
           <div>
             <input
               type="checkbox"
@@ -981,21 +980,21 @@
           <div class="table-cell sku-cell">SKU</div>
           <div class="table-cell product-name-cell">Product Name</div>
           <div class="table-cell brand-cell">Brand</div>
-          <div class="table-cell supplier-cell">Primary Supplier</div>
+          <div class="table-cell supplier-cell">Supplier</div>
           <div class="table-cell category-cell">
-            Category
+            <div>Category</div>
             <button 
-              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
+              class="text-blue-600 hover:text-blue-800 text-xs"
               on:click={applyCategoryToAll}
             >Apply All</button>
           </div>
-          <div class="table-cell price-cell">Purchase Price</div>
+          <div class="table-cell price-cell">Price</div>
           <div class="table-cell price-cell">
             Client MUP
             <button 
               class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
               on:click={applyClientMupToAll}
-            >Apply All</button>
+            >Adjust</button>
           </div>
           <div class="table-cell price-cell">
             Retail MUP
@@ -1006,7 +1005,7 @@
           </div>
           <div class="table-cell price-cell">Client Price</div>
           <div class="table-cell price-cell">RRP</div>
-          <div class="table-cell">Tax Included</div>
+          <div class="table-cell">Tax Free</div>
         </div>
 
         <!-- Rows -->
@@ -1014,7 +1013,7 @@
           {#each productRequests as request}
             <!-- Desktop View -->
             <div class="bg-white md:hover:bg-gray-50 transition-colors hidden md:block">
-              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px_80px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_100px_80px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Checkbox -->
                 <div class="mb-4 md:mb-0">
                   <input
@@ -1174,7 +1173,7 @@
 
                 <!-- Tax Included -->
                 <div class="mb-4 md:mb-0 table-cell">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Tax Included</label>
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Tax Free</label>
                   <input
                     type="checkbox"
                     bind:checked={request.tax_included}
@@ -1351,7 +1350,7 @@
               </div>
 
               <div class="mobile-field">
-                <span class="mobile-label">Tax Included</span>
+                <span class="mobile-label">Tax Free</span>
                 <div class="mobile-value">
                   <input
                     type="checkbox"

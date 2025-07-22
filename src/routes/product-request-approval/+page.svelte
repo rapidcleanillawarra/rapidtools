@@ -18,17 +18,21 @@
   const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
   const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
   const teamsNotificationUrl = 'https://prod-41.australiasoutheast.logic.azure.com:443/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Fgu75prN-vWpPg5JKVcWpt3zcOL4V76TI_ssXhgPk8I';
+  const customerGroupsUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
   let productRequests: ProductRequest[] = [];
   let brands: SelectOption[] = [];
   let suppliers: SelectOption[] = [];
   let categoriesList: Category[] = [];
   let markupResults: Record<string, Markup[]> = {};
+  let customerGroups: CustomerGroup[] = [];
   let loading = false;
   let loadingBrands = false;
   let loadingSuppliers = false;
+  let loadingCustomerGroups = false;
   let brandError = '';
   let supplierError = '';
+  let customerGroupsError = '';
   let selectedRows: Set<string> = new Set();
   let selectAll = false;
   let deleteLoading = false;
@@ -71,6 +75,28 @@
     requestor_firstname: string;
     requestor_lastname: string;
     TaxIncluded: boolean;
+  }
+
+  interface CustomerGroup {
+    Group: string;
+    GroupID: string;
+    Price: string;
+    Multiple: string;
+    MaximumQuantity: string;
+    MinimumQuantity: string;
+    MultipleStartQuantity: string;
+  }
+
+  interface CustomerGroupsResponse {
+    Item: Array<{
+      InventoryID: string;
+      SKU: string;
+      PriceGroups: Array<{
+        PriceGroup: CustomerGroup[];
+      }>;
+    }>;
+    CurrentTime: string;
+    Ack: string;
   }
 
   // Function to calculate client price and RRP
@@ -240,6 +266,54 @@
     }
   }
 
+  // Function to fetch customer groups
+  async function fetchCustomerGroups() {
+    loadingCustomerGroups = true;
+    customerGroupsError = '';
+    try {
+      const payload = {
+        "Filter": {
+          "SKU": "customer_groups",
+          "OutputSelector": [
+            "PriceGroups"
+          ]
+        },
+        "action": "GetItem"
+      };
+
+      const response = await fetch(customerGroupsUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: CustomerGroupsResponse = await response.json();
+
+      if (data.Ack === "Success" && data.Item && data.Item.length > 0) {
+        const priceGroups = data.Item[0].PriceGroups;
+        if (priceGroups && priceGroups.length > 0) {
+          customerGroups = priceGroups[0].PriceGroup;
+          console.log('Fetched customer groups:', customerGroups);
+        } else {
+          throw new Error('No price groups found in response');
+        }
+      } else {
+        throw new Error('Failed to load customer groups: Invalid response format');
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      customerGroupsError = error.message || 'Failed to load customer groups';
+      customerGroups = [];
+      console.error('Error fetching customer groups:', error);
+    } finally {
+      loadingCustomerGroups = false;
+    }
+  }
+
   // Fetch data from APIs
   async function loadData() {
     try {
@@ -375,6 +449,29 @@
         // Create a single payload for all valid requests
         const payload = {
           Item: selectedRequests.map(request => {
+            // Generate PriceGroups dynamically from customer groups data
+            const priceGroups = customerGroups.map(group => {
+              if (group.GroupID === "2") {
+                // New Customers group - use client_price
+                return {
+                  Group: group.GroupID,
+                  Price: parseFloat(request.client_price.toString())
+                };
+              } else if (group.GroupID === "1") {
+                // List Price group - use rrp
+                return {
+                  Group: group.GroupID,
+                  Price: parseFloat(request.rrp.toString())
+                };
+              } else {
+                // All other groups - use client_price
+                return {
+                  Group: group.GroupID,
+                  Price: parseFloat(request.client_price.toString())
+                };
+              }
+            });
+
             return {
               SKU: request.sku,
               Model: request.product_name,
@@ -387,16 +484,7 @@
               Misc09: parseFloat(request.retail_mup.toString()),
               Active: true,
               PriceGroups: {
-                PriceGroup: [
-                  {
-                    Group: "Default Client Group",
-                    Price: parseFloat(request.client_price.toString())
-                  },
-                  {
-                    Group: "Default RRP (Dont Assign to clients)",
-                    Price: parseFloat(request.client_price.toString())
-                  }
-                ]
+                PriceGroup: priceGroups
               },
               TaxInclusive: false,
               TaxFreeItem: request.tax_included || false
@@ -755,6 +843,7 @@
     Promise.all([
       fetchBrands(),
       fetchSuppliers(),
+      fetchCustomerGroups(),
       loadData(),
       loadProductRequests(),
       searchMarkups()
@@ -1004,7 +1093,7 @@
             >Apply All</button>
           </div>
           <div class="table-cell price-cell">Client Price</div>
-          <div class="table-cell price-cell">RRP</div>
+          <div class="table-cell price-cell">List Price</div>
           <div class="table-cell">Tax Free</div>
         </div>
 
@@ -1160,7 +1249,7 @@
 
                 <!-- RRP -->
                 <div class="mb-4 md:mb-0 table-cell price-cell">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">RRP</label>
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">List Price</label>
                   <input
                     type="number"
                     bind:value={request.rrp}
@@ -1336,7 +1425,7 @@
               </div>
 
               <div class="mobile-field">
-                <span class="mobile-label">RRP</span>
+                <span class="mobile-label">List Price</span>
                 <div class="mobile-value">
                   <input
                     type="number"
@@ -1409,6 +1498,8 @@
           </div>
         </div>
       </div>
+
+
     </div>
   </div>
 </div>

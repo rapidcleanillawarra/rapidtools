@@ -76,24 +76,22 @@
   // Function to calculate client price and RRP
   function calculatePrices(request: ProductRequest, source: 'mup' | 'price' = 'mup') {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
-    // Tax multiplier will be 1.1 if tax is included, otherwise 1.0
-    const taxMultiplier = request.tax_included ? 1.1 : 1.0;
 
     if (source === 'mup') {
       // Calculate prices from MUPs
       const clientMup = parseFloat(request.client_mup?.toString() || '0');
       const retailMup = parseFloat(request.retail_mup?.toString() || '0');
 
-      // Calculate client price: purchase price * client MUP * tax multiplier
+      // Calculate client price: purchase price * client MUP
       if (purchasePrice && clientMup) {
-        request.client_price = parseFloat((purchasePrice * clientMup * taxMultiplier).toFixed(2));
+        request.client_price = parseFloat((purchasePrice * clientMup).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
 
-      // Calculate RRP: purchase price * retail MUP * tax multiplier
+      // Calculate RRP: purchase price * retail MUP
       if (purchasePrice && retailMup) {
-        request.rrp = parseFloat((purchasePrice * retailMup * taxMultiplier).toFixed(2));
+        request.rrp = parseFloat((purchasePrice * retailMup).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
@@ -102,16 +100,16 @@
       const clientPrice = parseFloat(request.client_price?.toString() || '0');
       const rrp = parseFloat(request.rrp?.toString() || '0');
 
-      // Calculate client MUP: client price / (purchase price * tax multiplier)
+      // Calculate client MUP: client price / purchase price
       if (purchasePrice && clientPrice) {
-        request.client_mup = parseFloat((clientPrice / (purchasePrice * taxMultiplier)).toFixed(2));
+        request.client_mup = parseFloat((clientPrice / purchasePrice).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
 
-      // Calculate retail MUP: RRP / (purchase price * tax multiplier)
+      // Calculate retail MUP: RRP / purchase price
       if (purchasePrice && rrp) {
-        request.retail_mup = parseFloat((rrp / (purchasePrice * taxMultiplier)).toFixed(2));
+        request.retail_mup = parseFloat((rrp / purchasePrice).toFixed(2));
         // Force Svelte reactivity
         productRequests = productRequests;
       }
@@ -507,7 +505,7 @@
               retail_mup: request.retail_mup,
               client_price: request.client_price,
               rrp: request.rrp,
-              tax_included: request.tax_included || false,
+              tax_included: false,
               approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
               approved_by_email: profile?.email || 'Unknown Email',
               inventory_id: inventoryId,
@@ -780,13 +778,13 @@
 
 <style>
   :global(.svelte-select) {
-    --height: 38px;
+    --height: 32px;
     --border: 1px solid #d1d5db;
     --border-hover: 1px solid #3b82f6;
     --border-radius: 0.375rem;
     --background: white;
-    --font-size: 0.875rem;
-    --padding: 0 0.75rem;
+    --font-size: 0.7rem;
+    --padding: 0 0.5rem;
     --placeholder-color: #9ca3af;
     width: 100%;
     position: relative;
@@ -862,8 +860,8 @@
   }
 
   :global(.svelte-select .item) {
-    padding: 0.5rem 0.75rem;
-    font-size: var(--font-size);
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
     cursor: pointer;
   }
 
@@ -877,6 +875,22 @@
 
   :global(.svelte-select input) {
     width: calc(100% - 24px); /* Adjust input width to account for smaller clear button */
+    font-size: 0.7rem !important;
+  }
+
+  :global(.svelte-select .selected-item) {
+    font-size: 0.7rem !important;
+  }
+
+  :global(.svelte-select .selected-item span) {
+    font-size: 0.7rem !important;
+  }
+
+  /* Reduce input field padding and height */
+  :global(input[type="number"]) {
+    padding: 0.25rem 0.5rem !important;
+    height: 32px !important;
+    min-height: 32px !important;
   }
 
   /* Mobile styles */
@@ -954,7 +968,7 @@
       <!-- Product Requests Table -->
       <div class="overflow-visible">
         <!-- Desktop Headers -->
-        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_150px_150px_150px_100px_100px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg" style="font-size: 0.7rem;">
           <div>
             <input
               type="checkbox"
@@ -1022,19 +1036,19 @@
                 <!-- Requestor Name -->
                 <div class="mb-4 md:mb-0 table-cell requestor-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Requestor Name</label>
-                  <span class="text-gray-900">{request.requestor_firstName} {request.requestor_lastName}</span>
+                  <span class="text-gray-900 text-xs" style="font-size: 0.7rem;">{request.requestor_firstName} {request.requestor_lastName}</span>
                 </div>
 
                 <!-- SKU -->
                 <div class="mb-4 md:mb-0 table-cell sku-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">SKU</label>
-                  <span class="text-gray-900">{request.sku}</span>
+                  <span class="text-gray-900 text-xs" style="font-size: 0.7rem;">{request.sku}</span>
                 </div>
 
                 <!-- Product Name -->
                 <div class="mb-4 md:mb-0 table-cell product-name-cell">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                  <span class="text-gray-900">{request.product_name}</span>
+                  <span class="text-gray-900 text-xs" style="font-size: 0.7rem;">{request.product_name}</span>
                 </div>
 
                 <!-- Brand -->
@@ -1100,7 +1114,8 @@
                     type="number"
                     bind:value={request.purchase_price}
                     on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1112,7 +1127,8 @@
                     type="number"
                     bind:value={request.client_mup}
                     on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1124,7 +1140,8 @@
                     type="number"
                     bind:value={request.retail_mup}
                     on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1136,7 +1153,8 @@
                     type="number"
                     bind:value={request.client_price}
                     on:input={() => calculatePrices(request, 'price')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1148,7 +1166,8 @@
                     type="number"
                     bind:value={request.rrp}
                     on:input={() => calculatePrices(request, 'price')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1268,7 +1287,8 @@
                     type="number"
                     bind:value={request.purchase_price}
                     on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1281,7 +1301,8 @@
                     type="number"
                     bind:value={request.client_mup}
                     on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1294,7 +1315,8 @@
                     type="number"
                     bind:value={request.retail_mup}
                     on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1307,7 +1329,8 @@
                     type="number"
                     bind:value={request.client_price}
                     on:input={() => calculatePrices(request, 'price')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1320,7 +1343,8 @@
                     type="number"
                     bind:value={request.rrp}
                     on:input={() => calculatePrices(request, 'price')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
@@ -1346,7 +1370,7 @@
       <div class="mt-8">
         <h3 class="text-xl font-bold mb-4 text-gray-900">Search Results from Markups</h3>
         <div class="overflow-x-auto">
-          <div class="hidden md:grid md:grid-cols-[1fr_1fr_1fr_2fr_1fr] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+          <div class="hidden md:grid md:grid-cols-[1fr_1fr_1fr_2fr_1fr] md:gap-4 md:px-6 md:py-3 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg" style="font-size: 0.7rem;">
             <div>Brand</div>
             <div>Main Category</div>
             <div>Sub Category</div>

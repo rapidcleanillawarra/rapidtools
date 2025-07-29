@@ -80,6 +80,7 @@
     }>;
     SKU: string;
     Misc02: string;
+    TaxFreeItem: string;
   }
 
   interface ApiResponse {
@@ -124,7 +125,8 @@
             "PriceGroups",
             "Misc02",
             "Misc09",
-            "InventoryID"
+            "InventoryID",
+            "TaxFreeItem"
           ]
         }
       };
@@ -174,6 +176,15 @@
         )?.Price || '0';
 
         const category = Array.isArray(item.Categories) ? item.Categories[0] || '' : '';
+        
+        // Debug TaxFreeItem transformation
+        console.log(`🔍 TaxFreeItem debug for ${item.SKU}:`, {
+          rawValue: item.TaxFreeItem,
+          type: typeof item.TaxFreeItem,
+          comparison: item.TaxFreeItem === 'True',
+          result: item.TaxFreeItem === 'True'
+        });
+        
         const transformed = {
           sku: item.SKU || '',
           product_name: item.Model || '',
@@ -186,7 +197,8 @@
           retail_mup: parseFloat(item.Misc09 || '0'),
           client_price: parseFloat(clientPrice),
           rrp: parseFloat(item.RRP || '0'),
-          inventory_id: item.InventoryID || ''
+          inventory_id: item.InventoryID || '',
+          tax_free: item.TaxFreeItem === 'True'
         };
         return transformed;
       });
@@ -639,7 +651,10 @@
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('rrp')}
               >
-                RRP {getSortIcon('rrp')}
+                List Price {getSortIcon('rrp')}
+              </th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[80px]">
+                Tax Free
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
@@ -856,6 +871,13 @@
                     on:input={() => calculatePrices(product, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
                     step="0.01"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm">
+                  <input
+                    type="checkbox"
+                    bind:checked={product.tax_free}
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </td>
                 <td class="px-2 py-1 text-sm flex gap-2">

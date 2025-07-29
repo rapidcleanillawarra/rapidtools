@@ -327,10 +327,15 @@ export async function handleSubmitChecked() {
           "RRP": prod.rrp.toString(),
           "Misc02": prod.client_mup.toString(),  // client MUP
           "Misc09": prod.retail_mup.toString(),  // retail MUP
+          "TaxFreeItem": prod.tax_free || false,
           "PriceGroups": {
             "PriceGroup": [
               {
-                "Group": "Default Client Group",
+                "Group": "1",
+                "Price": prod.rrp.toString()
+              },
+              {
+                "Group": "2",
                 "Price": prod.client_price.toString()
               }
             ]
@@ -509,7 +514,8 @@ export async function handleFilterSubmit(filters: {
           "PriceGroups",
           "Misc02",
           "Misc09",
-          "InventoryID"
+          "InventoryID",
+          "TaxFreeItem"
         ]
       }
     };
@@ -547,6 +553,7 @@ export async function handleFilterSubmit(filters: {
         RRP?: string;
         Misc02?: string;
         Misc09?: string;
+        TaxFreeItem?: string;
         Categories?: Array<{
           Category: {
             CategoryID: string;
@@ -580,7 +587,8 @@ export async function handleFilterSubmit(filters: {
           client_price: 0,
           rrp: parseFloat(item.RRP || '0'),
           client_mup: parseFloat(item.Misc02 || '0'),
-          retail_mup: parseFloat(item.Misc09 || '0')
+          retail_mup: parseFloat(item.Misc09 || '0'),
+          tax_free: item.TaxFreeItem === 'True'
         };
       });
 

@@ -63,22 +63,22 @@ export function calculatePrices(product: any, source: 'mup' | 'price' = 'mup') {
     const retailMup = parseFloat(product.retail_mup?.toString() || '0');
 
     if (purchasePrice && clientMup) {
-      product.client_price = parseFloat((purchasePrice * clientMup * 1.1).toFixed(2));
+      product.client_price = parseFloat((purchasePrice * clientMup).toFixed(2));
     }
 
     if (purchasePrice && retailMup) {
-      product.rrp = parseFloat((purchasePrice * retailMup * 1.1).toFixed(2));
+      product.rrp = parseFloat((purchasePrice * retailMup).toFixed(2));
     }
   } else {
     const clientPrice = parseFloat(product.client_price?.toString() || '0');
     const rrp = parseFloat(product.rrp?.toString() || '0');
 
     if (purchasePrice && clientPrice) {
-      product.client_mup = parseFloat((clientPrice / (purchasePrice * 1.1)).toFixed(2));
+      product.client_mup = parseFloat((clientPrice / purchasePrice).toFixed(2));
     }
 
     if (purchasePrice && rrp) {
-      product.retail_mup = parseFloat((rrp / (purchasePrice * 1.1)).toFixed(2));
+      product.retail_mup = parseFloat((rrp / purchasePrice).toFixed(2));
     }
   }
 

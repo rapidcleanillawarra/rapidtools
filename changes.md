@@ -1,117 +1,106 @@
-# feat(product-pricing): Add tax-free item support and restructure price groups
+# fix(pricing): Remove 10% GST inclusion from price calculations
 
-This commit enhances the product pricing update functionality by adding tax-free item
-support and restructuring price groups for better organization.
+This commit removes the automatic 10% GST inclusion from client price and list price calculations, making all displayed prices GST-exclusive.
 
 ## Files Modified:
 
-### 1. `src/routes/update-product-pricing/+page.svelte`
-   - **ADDED**: TaxFreeItem field to Product interface
-   - **ADDED**: TaxFreeItem to API request fields array
-   - **ADDED**: Debug logging for TaxFreeItem transformation with detailed console output
-   - **ADDED**: Tax-free checkbox column in data table with proper styling
-   - **CHANGED**: "RRP" column header to "List Price" for better clarity
-   - **ADDED**: Tax-free property to transformed product object
-   - **DIFF**:
-     ```diff
-     + TaxFreeItem: string;
-     ```
-     ```diff
-     + "TaxFreeItem"
-     ```
-     ```diff
-     + // Debug TaxFreeItem transformation
-     + console.log(`🔍 TaxFreeItem debug for ${item.SKU}:`, {
-     +   rawValue: item.TaxFreeItem,
-     +   type: typeof item.TaxFreeItem,
-     +   comparison: item.TaxFreeItem === 'True',
-     +   result: item.TaxFreeItem === 'True'
-     + });
-     ```
-     ```diff
-     + tax_free: item.TaxFreeItem === 'True'
-     ```
-     ```diff
-     - RRP {getSortIcon('rrp')}
-     + List Price {getSortIcon('rrp')}
-     ```
-     ```diff
-     + <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[80px]">
-     +   Tax Free
-     + </th>
-     ```
-     ```diff
-     + <td class="px-2 py-1 text-sm">
-     +   <input
-     +     type="checkbox"
-     +     bind:checked={product.tax_free}
-     +     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-     +   />
-     + </td>
-     ```
+### 1. `src/routes/update-product-pricing/stores.ts`
+- **FIXED**: Removed 10% GST multiplier from price calculations
+- **CHANGED**: Client price calculation from `purchasePrice * clientMup * 1.1` to `purchasePrice * clientMup`
+- **CHANGED**: RRP/List price calculation from `purchasePrice * retailMup * 1.1` to `purchasePrice * retailMup`
+- **CHANGED**: Client MUP calculation from `clientPrice / (purchasePrice * 1.1)` to `clientPrice / purchasePrice`
+- **CHANGED**: Retail MUP calculation from `rrp / (purchasePrice * 1.1)` to `rrp / purchasePrice`
 
-### 2. `src/routes/update-product-pricing/stores.ts`
-   - **ADDED**: TaxFreeItem field to API submission payload
-   - **RESTRUCTURED**: Price groups from single "Default Client Group" to dual groups (Group 1: RRP, Group 2: Client Price)
-   - **ADDED**: TaxFreeItem to filter request fields array
-   - **ADDED**: TaxFreeItem to product transformation logic with boolean conversion
-   - **DIFF**:
-     ```diff
-     + "TaxFreeItem": prod.tax_free || false,
-     ```
-     ```diff
-     - "Group": "Default Client Group",
-     + "Group": "1",
-     + "Price": prod.rrp.toString()
-     + },
-     + {
-     + "Group": "2",
-     ```
-     ```diff
-     + "TaxFreeItem"
-     ```
-     ```diff
-     + TaxFreeItem?: string;
-     ```
-     ```diff
-     + tax_free: item.TaxFreeItem === 'True'
-     ```
+**Why**: The previous implementation automatically included 10% GST in all price calculations, which was incorrect for pricing management where GST-exclusive amounts are required.
+
+**Impact**: All displayed prices will now be GST-exclusive, resulting in approximately 10% lower displayed values but correct pre-GST pricing for business calculations.
+
+**DIFF**:
+```diff
+@@ -63,22 +63,22 @@ export function calculatePrices(product: any, source: 'mup' | 'price' = 'mup') {
+     const retailMup = parseFloat(product.retail_mup?.toString() || '0');
+
+     if (purchasePrice && clientMup) {
+-      product.client_price = parseFloat((purchasePrice * clientMup * 1.1).toFixed(2));      
++      product.client_price = parseFloat((purchasePrice * clientMup).toFixed(2));
+     }
+
+     if (purchasePrice && retailMup) {
+-      product.rrp = parseFloat((purchasePrice * retailMup * 1.1).toFixed(2));
++      product.rrp = parseFloat((purchasePrice * retailMup).toFixed(2));
+     }
+   } else {
+     const clientPrice = parseFloat(product.client_price?.toString() || '0');
+     const rrp = parseFloat(product.rrp?.toString() || '0');
+
+     if (purchasePrice && clientPrice) {
+-      product.client_mup = parseFloat((clientPrice / (purchasePrice * 1.1)).toFixed(2));    
++      product.client_mup = parseFloat((clientPrice / purchasePrice).toFixed(2));
+     }
+
+     if (purchasePrice && rrp) {
+-      product.retail_mup = parseFloat((rrp / (purchasePrice * 1.1)).toFixed(2));
++      product.retail_mup = parseFloat((rrp / purchasePrice).toFixed(2));
+     }
+   }
+```
 
 ## Technical Improvements:
-- **BEFORE**: Single price group with client price only
-- **AFTER**: Dual price groups (Group 1: RRP, Group 2: Client Price) for better price organization
-- **BEFORE**: No tax-free item support
-- **AFTER**: Full tax-free item integration with UI controls and API persistence
-- **ADDED**: Comprehensive debug logging for tax-free item transformation troubleshooting
 
-## API Changes:
-- **MODIFIED**: Product update endpoint now accepts TaxFreeItem field in submission payload
-- **MODIFIED**: Product filter endpoint now requests TaxFreeItem field in filter criteria
-- **RESTRUCTURED**: PriceGroups structure from single group to dual groups for better price management
+### Before/After Comparisons:
+- **BEFORE**: Prices included 10% GST automatically (e.g., $100 purchase price × 2.0 MUP × 1.1 = $220)
+- **AFTER**: Prices are GST-exclusive (e.g., $100 purchase price × 2.0 MUP = $200)
 
-## UI/UX Improvements:
-- **ADDED**: Tax-free checkbox column with proper Tailwind styling for easy item categorization
-- **CHANGED**: "RRP" label to "List Price" for better user understanding
-- **ADDED**: Visual feedback for tax-free status with interactive checkbox controls
+### Calculation Changes:
+1. **Client Price**: Now calculated as `Purchase Price × Client MUP` (GST-exclusive)
+2. **List Price (RRP)**: Now calculated as `Purchase Price × Retail MUP` (GST-exclusive)
+3. **Client MUP**: Now calculated as `Client Price ÷ Purchase Price` (without GST factor)
+4. **Retail MUP**: Now calculated as `RRP ÷ Purchase Price` (without GST factor)
 
-## Error Handling:
-- **ADDED**: Detailed debug logging for TaxFreeItem transformation to identify data type issues
-- **IMPROVED**: Type safety with proper boolean conversion from string values
-- **ADDED**: Fallback handling for undefined tax-free values
+### Security Considerations:
+- No security implications - this is a business logic change only
+- All existing data validation and error handling remains intact
 
-## Testing Instructions:
-1. Navigate to `/update-product-pricing`
-2. Verify tax-free checkbox column appears in product table
-3. Test filtering products with tax-free items
-4. Update product pricing and verify tax-free status persists in API calls
-5. Check browser console for TaxFreeItem debug logs showing transformation details
-6. Verify price groups are properly structured in API submissions
+### Performance Impacts:
+- **POSITIVE**: Slightly improved performance due to removal of multiplication operations
+- **NEUTRAL**: No impact on API calls or data processing
 
 ## Breaking Changes:
-- None - all changes are additive and backward compatible
+- **YES**: All displayed prices will be approximately 10% lower than before
+- **MIGRATION**: Existing MUP values may need adjustment if they were calculated with GST inclusion
+- **NOTIFICATION**: Users should be informed that displayed prices are now GST-exclusive
 
-## Additional Context:
-- **Related issues**: Product pricing management enhancement for tax-free items
-- **Dependencies**: No new dependencies required
-- **Deployment requirements**: No special deployment steps needed
-- **Performance impact**: Minimal - only adds one additional field to API requests
+## Testing Instructions:
+
+### Manual Testing:
+1. Navigate to `/update-product-pricing`
+2. Enter a purchase price and MUP values
+3. Verify that calculated prices are GST-exclusive
+4. Test both MUP-to-price and price-to-MUP calculations
+
+### Test Cases:
+- **Test Case 1**: Purchase Price $100, Client MUP 2.0 → Expected Client Price $200 (not $220)
+- **Test Case 2**: Purchase Price $50, Retail MUP 3.0 → Expected RRP $150 (not $165)
+- **Test Case 3**: Client Price $200, Purchase Price $100 → Expected Client MUP 2.0 (not 1.82)
+
+### URLs for Testing:
+- **Production**: `https://rapidtools.netlify.app/update-product-pricing`
+- **Development**: `http://localhost:5173/update-product-pricing`
+
+## Error Handling:
+- All existing error handling for invalid numbers and edge cases remains unchanged
+- Price calculations will still handle null/undefined values gracefully
+- MUP calculations will still prevent division by zero
+
+## Related Issues:
+- Addresses pricing accuracy requirements for GST-exclusive calculations
+- Ensures consistency with Australian tax requirements
+
+## Dependencies:
+- No new dependencies added
+- No changes to existing package.json requirements
+
+## Deployment Requirements:
+- No special deployment requirements
+- Changes are purely client-side business logic
+- Can be deployed immediately without database migrations

@@ -14,6 +14,7 @@
   let rebateStats = { totalSKUs: 0, skusWithRebates: 0 };
   let grandTotalRebate = 0;
   let ordersWithRebates: string[] = [];
+  let processedItems: Set<string> = new Set(); // Track processed order_id+sku combinations
   
   // Company filter state
   let selectedCompany = '';
@@ -103,6 +104,117 @@
       ordersWithRebates = [];
     }
   }
+
+  // Function to check which order+sku combinations are already processed
+  async function checkProcessedItems(orderData: any) {
+    try {
+      // Extract all order_id+sku combinations from the data
+      const allItems: Array<{order_id: string, sku: string}> = [];
+      orderData.Order?.forEach((order: any) => {
+        if (order.OrderID && order.OrderLine) {
+          order.OrderLine.forEach((line: any) => {
+            if (line.SKU) {
+              allItems.push({
+                order_id: order.OrderID,
+                sku: line.SKU
+              });
+            }
+          });
+        }
+      });
+      
+      if (allItems.length === 0) {
+        processedItems = new Set();
+        return;
+      }
+
+      // Extract unique order IDs to query efficiently (as text)
+      const orderIds = [...new Set(allItems.map(item => item.order_id))];
+      
+      console.log('Checking processed items for order IDs:', orderIds);
+
+      // Query Supabase for claimed rebates with these order IDs (as text)
+      const { data: claimedRebates, error: claimedError } = await supabase
+        .from('claimed_rebates')
+        .select('order_id, sku')
+        .in('order_id', orderIds);
+
+      if (claimedError) {
+        console.error('Error fetching claimed rebates:', claimedError);
+        processedItems = new Set();
+        return;
+      }
+
+      // Create a set of processed order_id+sku combinations for quick lookup
+      const processedItemKeys = new Set<string>();
+      claimedRebates?.forEach((claim) => {
+        const key = `${claim.order_id}-${claim.sku}`;
+        processedItemKeys.add(key);
+        console.log(`Found processed item: Order ID "${claim.order_id}", SKU "${claim.sku}"`);
+      });
+
+      processedItems = processedItemKeys;
+      console.log(`Processed items check: ${processedItemKeys.size}/${allItems.length} order+sku combinations are already processed`);
+      
+    } catch (err) {
+      console.error('Error checking processed items:', err);
+      processedItems = new Set();
+    }
+  }
+
+  // Function to mark an order+sku combination as processed
+  async function markAsProcessed(orderId: string, sku: string, quantity: number) {
+    try {
+      console.log(`Attempting to mark as processed - Order ID: "${orderId}", SKU: "${sku}", Quantity: ${quantity}`);
+      
+      // Check if this combination already exists in the database
+      const { data: existingRecord, error: checkError } = await supabase
+        .from('claimed_rebates')
+        .select('id')
+        .eq('order_id', orderId)
+        .eq('sku', sku)
+        .single();
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing record:', checkError);
+        error = `Failed to check existing record: ${checkError.message}`;
+        return false;
+      }
+
+      if (existingRecord) {
+        error = `Order ${orderId} with SKU ${sku} is already marked as processed`;
+        return false;
+      }
+
+      // Insert new record with OrderID as text
+      const { error: insertError } = await supabase
+        .from('claimed_rebates')
+        .insert({
+          order_id: orderId,
+          sku: sku,
+          quantity: quantity
+        });
+
+      if (insertError) {
+        console.error('Error marking as processed:', insertError);
+        error = `Failed to mark order ${orderId} SKU ${sku} as processed: ${insertError.message}`;
+        return false;
+      }
+
+      // Update local state with the combined key
+      const itemKey = `${orderId}-${sku}`;
+      processedItems = new Set([...processedItems, itemKey]);
+      console.log(`Successfully marked order ${orderId} SKU ${sku} as processed`);
+      
+      // Clear any previous error messages
+      error = '';
+      return true;
+    } catch (err) {
+      console.error('Error marking item as processed:', err);
+      error = `Failed to mark order ${orderId} SKU ${sku} as processed`;
+      return false;
+    }
+  }
   
   // Function to handle date filtering
   async function handleDateFilter() {
@@ -149,8 +261,18 @@
       
       if (data.Ack === 'Success') {
         apiData = data;
+        console.log('API Data loaded successfully. Sample order structure:');
+        if (data.Order && data.Order.length > 0) {
+          console.log('First order object:', data.Order[0]);
+          console.log('First order OrderID:', data.Order[0].OrderID);
+          if (data.Order[0].OrderLine && data.Order[0].OrderLine.length > 0) {
+            console.log('First order line:', data.Order[0].OrderLine[0]);
+          }
+        }
         // Check rebates for all SKUs in the order data
         await checkRebates(data);
+        // Check which order+sku combinations are already processed
+        await checkProcessedItems(data);
       } else {
         throw new Error('API returned error response');
       }
@@ -180,6 +302,62 @@
     window.open(url, '_blank');
   }
   
+  // Function to export table data to CSV
+  function exportToCSV() {
+    if (!apiData?.Order || ordersWithRebates.length === 0) {
+      return;
+    }
+    
+    // CSV Headers
+    const headers = ['Order ID', 'SKU', 'Quantity', 'Unit Rebate', 'Total Rebate', 'Company', 'Processed'];
+    const csvContent = [headers.join(',')];
+    
+    // Add data rows
+    apiData.Order.forEach((order: any) => {
+      if (order.OrderLine && order.OrderLine.length > 0) {
+        order.OrderLine.forEach((line: any) => {
+          if (rebatesData[line.SKU]) {
+            const unitRebate = parseFloat(rebatesData[line.SKU].rebate);
+            const quantity = parseInt(line.Quantity);
+            const totalRebate = (unitRebate * quantity).toFixed(2);
+            
+            const itemKey = `${order.OrderID}-${line.SKU}`;
+            const isProcessed = processedItems.has(itemKey);
+            const row = [
+              `"${order.OrderID}"`,
+              `"${line.SKU}"`,
+              quantity,
+              `"$${rebatesData[line.SKU].rebate}"`,
+              `"$${totalRebate}"`,
+              `"${rebatesData[line.SKU].company}"`,
+              `"${isProcessed ? 'Yes' : 'No'}"`
+            ];
+            csvContent.push(row.join(','));
+          }
+        });
+      }
+    });
+    
+    // Create and download CSV file
+    const csvString = csvContent.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      
+      // Generate filename with date range
+      const filename = `rebates-${startDate}-to-${endDate}.csv`;
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+  
   // Function to clear all filters
   function clearAllFilters() {
     const today = new Date();
@@ -193,6 +371,7 @@
     rebateStats = { totalSKUs: 0, skusWithRebates: 0 };
     grandTotalRebate = 0;
     ordersWithRebates = [];
+    processedItems = new Set();
   }
 </script>
 
@@ -252,6 +431,18 @@
             Filter
           {/if}
         </button>
+        {#if apiData && ordersWithRebates.length > 0}
+          <button
+            type="button"
+            on:click={exportToCSV}
+            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Export CSV
+          </button>
+        {/if}
         <button
           type="button"
           on:click={clearAllFilters}
@@ -282,11 +473,23 @@
     <div class="p-6">
       {#if error}
         <div class="mb-4 p-4 rounded-lg bg-red-100 text-red-700">
-          <div class="flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            Error: {error}
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              Error: {error}
+            </div>
+            <button
+              type="button"
+              on:click={() => error = ''}
+              class="text-red-500 hover:text-red-700"
+              aria-label="Close error message"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
           </div>
         </div>
       {/if}
@@ -334,6 +537,8 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Rebate</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Rebate</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processed</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -372,6 +577,46 @@
                                 {/if}
                               </div>
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {#if processedItems.has(`${order.OrderID}-${line.SKU}`)}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                  </svg>
+                                  Yes
+                                </span>
+                              {:else}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                  </svg>
+                                  No
+                                </span>
+                              {/if}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {#if !processedItems.has(`${order.OrderID}-${line.SKU}`)}
+                                <button
+                                  type="button"
+                                  on:click={() => {
+                                    console.log('Button clicked - Full order object:', order);
+                                    console.log('Button clicked - Order.OrderID:', order.OrderID);
+                                    console.log('Button clicked - Line object:', line);
+                                    console.log('Button clicked - Line.SKU:', line.SKU);
+                                    console.log('Button clicked - Line.Quantity:', line.Quantity);
+                                    markAsProcessed(order.OrderID, line.SKU, parseInt(line.Quantity));
+                                  }}
+                                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                >
+                                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                  </svg>
+                                  Mark as Processed
+                                </button>
+                              {:else}
+                                <span class="text-sm text-gray-400">Already processed</span>
+                              {/if}
+                            </td>
                           </tr>
                         {/if}
                       {/each}
@@ -392,7 +637,7 @@
                   <div class="text-sm text-gray-600">
                     Showing {rebateStats.skusWithRebates} SKUs with rebates from {apiData.Order.length} total orders
                     {#if ordersWithRebates.length > 0}
-                      <div class="mt-2">
+                      <div class="mt-2 space-x-2">
                         <button
                           type="button"
                           on:click={openOrdersWithRebates}
@@ -402,6 +647,16 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
                           </svg>
                           View {ordersWithRebates.length} Orders in Control Panel
+                        </button>
+                        <button
+                          type="button"
+                          on:click={exportToCSV}
+                          class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                          </svg>
+                          Export to CSV
                         </button>
                       </div>
                     {/if}

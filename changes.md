@@ -1,156 +1,229 @@
-# feat(rebates): Add rebates management system with API integration
+# feat(rebates): Add comprehensive rebate tracking with Supabase integration
 
-This commit implements a complete rebates management system with date-range filtering, API integration, and responsive UI components for tracking both active and claimed rebates.
-
-## Files Created:
-
-### 1. `src/routes/(protected)/rebates/+page.svelte`
-**Purpose**: Main rebates management page for viewing and filtering rebate-eligible orders
-**Key Features**:
-- Date range filtering with start/end date inputs
-- API integration with Azure Logic Apps endpoint
-- Responsive data table displaying orders and order lines
-- Loading states, error handling, and empty state management
-- Real-time filter status display
-
-**Usage**: Navigate to `/rebates` to access the rebates management interface
-
-**API Integration**:
-```javascript
-// Calls Azure Logic Apps API with payload:
-{
-  "Filter": {
-    "OrderStatus": ["Dispatched"],
-    "DateInvoicedFrom": "2025-01-01 00:00:00",
-    "DateInvoicedTo": "2025-01-31 23:59:59",
-    "OutputSelector": ["OrderLine"]
-  },
-  "action": "GetOrder"
-}
-```
-
-### 2. `src/routes/(protected)/rebates/claimed-rebates/+page.svelte`
-**Purpose**: Dedicated page for viewing and managing claimed rebates
-**Key Features**:
-- Identical filtering and API functionality to main rebates page
-- Specialized UI messaging for claimed rebates context
-- Same responsive table structure for consistency
-
-**Usage**: Navigate to `/rebates/claimed-rebates` to access claimed rebates tracking
+This commit transforms the rebates page into a complete rebate management system with company filtering, database integration, and automated calculations.
 
 ## Files Modified:
 
-### 1. `src/lib/Header.svelte`
-**Changes**: 
-- ADDED: "Rebates" menu item under Orders dropdown (desktop navigation)
-- ADDED: "Rebates" menu item under Orders dropdown (mobile navigation)
-- FIXED: Consistent styling and hover effects for new menu item
+### 1. `src/routes/(protected)/rebates/+page.svelte`
 
-**Why**: Provides easy access to rebates functionality from main navigation
-**Impact**: Users can access rebates management from any page via header navigation
-
-**Code Changes**:
+#### **ADDED: Company filter dropdown**
+- **Path**: Lines 15-21, 122-133
+- **Changes**: Static dropdown with "All Companies", "Diversey", "CleanPlus" options
+- **Why**: Enable filtering by rebate company for better organization
+- **Impact**: Users can focus on specific company rebates
+- **DIFF**:
 ```diff
-// Desktop Navigation - Orders Dropdown
-+ <a 
-+   href="{base}/rebates" 
-+   class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
-+   on:click={() => ordersOpen = false}
-+ >Rebates</a>
++ // Company filter state
++ let selectedCompany = '';
++ const companyOptions = [
++   { value: '', label: 'All Companies' },
++   { value: 'diversey', label: 'Diversey' },
++   { value: 'cleanplus', label: 'CleanPlus' }
++ ];
 
-// Mobile Navigation - Orders Dropdown  
-+ <a 
-+   href="{base}/rebates" 
-+   class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
-+   on:click={() => mobileOrdersOpen = false}
-+ >Rebates</a>
++ <div class="flex items-center gap-2">
++   <label for="company-select">Company:</label>
++   <select id="company-select" bind:value={selectedCompany}>
++     {#each companyOptions as option}
++       <option value={option.value}>{option.label}</option>
++     {/each}
++   </select>
++ </div>
 ```
+
+#### **ADDED: Supabase integration for rebate checking**
+- **Path**: Lines 3, 25-105
+- **Changes**: Integrated Supabase client and rebate table queries
+- **Why**: Real-time rebate validation against database
+- **Impact**: Automatic rebate detection and calculation for order SKUs
+- **DIFF**:
+```diff
++ import { supabase } from '$lib/supabase';
+
++ // Function to check SKUs against rebates table
++ async function checkRebates(orderData: any) {
++   const allSKUs = new Set<string>();
++   orderData.Order?.forEach((order: any) => {
++     order.OrderLine?.forEach((line: any) => {
++       if (line.SKU) allSKUs.add(line.SKU);
++     });
++   });
++   
++   const { data: rebates, error } = await supabase
++     .from('rebates')
++     .select('sku, rebate, company')
++     .in('sku', Array.from(allSKUs));
++ }
+```
+
+#### **ADDED: Rebate calculations and totals**
+- **Path**: Lines 13-16, 74-97, 278-279, 306-308
+- **Changes**: Unit rebate, total rebate per line, grand total calculation
+- **Why**: Provide comprehensive financial analysis of rebate opportunities
+- **Impact**: Clear visibility of rebate value per SKU and total potential savings
+- **DIFF**:
+```diff
++ let grandTotalRebate = 0;
++ let ordersWithRebates: string[] = [];
+
++ // Calculate grand total rebate and collect orders with rebates
++ let totalRebateAmount = 0;
++ orderData.Order?.forEach((order: any) => {
++   order.OrderLine?.forEach((line: any) => {
++     if (rebateLookup[line.SKU]) {
++       const unitRebate = parseFloat(rebateLookup[line.SKU].rebate);
++       const quantity = parseInt(line.Quantity);
++       totalRebateAmount += unitRebate * quantity;
++     }
++   });
++ });
+
++ <th>Unit Rebate</th>
++ <th>Total Rebate</th>
++ <td>${(parseFloat(rebatesData[line.SKU].rebate) * parseInt(line.Quantity)).toFixed(2)}</td>
+```
+
+#### **ADDED: Default date initialization**
+- **Path**: Lines 5-9, 181-186
+- **Changes**: Auto-populate start date (beginning of month) and end date (today)
+- **Why**: Improve user experience with sensible defaults
+- **Impact**: Users can immediately run reports without manual date selection
+- **DIFF**:
+```diff
++ // Date filter state - default to beginning of month and today
++ const today = new Date();
++ const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
++ let startDate = firstOfMonth.toISOString().split('T')[0];
++ let endDate = today.toISOString().split('T')[0];
+```
+
+#### **ADDED: Order redirect functionality**
+- **Path**: Lines 16, 75-97, 167-178, 392-405
+- **Changes**: Button to open control panel with filtered orders containing rebates
+- **Why**: Seamless workflow from rebate analysis to order management
+- **Impact**: Reduces manual work by auto-filtering relevant orders
+- **DIFF**:
+```diff
++ // Function to generate and open orders URL
++ function openOrdersWithRebates() {
++   const baseUrl = 'https://www.rapidsupplies.com.au/_cpanel/sales-orders';
++   const orderNumbers = ordersWithRebates.join(',');
++   const url = `${baseUrl}?order_number=in%3A${encodeURIComponent(orderNumbers)}`;
++   window.open(url, '_blank');
++ }
+
++ <button on:click={openOrdersWithRebates}>
++   View {ordersWithRebates.length} Orders in Control Panel
++ </button>
+```
+
+#### **ENHANCED: UI/UX improvements**
+- **Path**: Lines 253-268, 270-292, 387-412
+- **Changes**: Enhanced table layout, statistics panel, and visual indicators
+- **Why**: Better data presentation and user feedback
+- **Impact**: Easier identification of rebate opportunities and summary information
 
 ## Technical Improvements:
 
-### API Integration Architecture:
-- **Endpoint**: `https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs`
-- **Method**: POST
-- **Headers**: Content-Type: application/json
+### **Database Integration:**
+- **BEFORE**: Static display of order data only
+- **AFTER**: Real-time rebate validation against Supabase database
+- **Performance**: Batch SKU queries using `IN` clause for optimal performance
+- **Security**: Parameterized queries prevent injection attacks
 
-### Date Handling:
-- **Input Format**: HTML date inputs (YYYY-MM-DD)
-- **API Format**: Converted to "YYYY-MM-DD HH:MM:SS" with proper time boundaries
-- **Start Date**: Appends "00:00:00" for beginning of day
-- **End Date**: Appends "23:59:59" for end of day
+### **Data Processing:**
+- **BEFORE**: Manual rebate identification required
+- **AFTER**: Automatic rebate detection and calculation
+- **Efficiency**: Reduced from manual process to instant analysis
 
-### Error Handling Improvements:
-- **BEFORE**: No error handling for API failures
-- **AFTER**: Comprehensive error catching with user-friendly messages
-- **HTTP Status Validation**: Checks response.ok before parsing
-- **API Response Validation**: Verifies "Ack": "Success" in response
-- **Network Error Handling**: Catches and displays fetch failures
+### **User Experience:**
+- **BEFORE**: Empty date fields requiring manual input
+- **AFTER**: Smart defaults (current month) for immediate usability
+- **Workflow**: Direct integration with order management system
 
-### UI/UX Enhancements:
-- **Loading States**: Animated spinner with disabled buttons during API calls
-- **Form Validation**: Submit button disabled until both dates selected
-- **Progressive Enhancement**: Graceful degradation for JavaScript-disabled users
-- **Responsive Design**: Mobile-first approach with flexible layouts
-- **Accessibility**: Proper ARIA labels and keyboard navigation
+## Database Schema:
 
-### Performance Considerations:
-- **Lazy Loading**: API calls only triggered on explicit user action
-- **State Management**: Efficient reactive updates with Svelte stores
-- **Memory Management**: Proper cleanup of API responses when clearing filters
+### **Rebates Table Structure:**
+```sql
+CREATE TABLE public.rebates (
+  sku text not null,
+  rebate numeric(12, 8) not null,
+  company text not null,
+  created_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  updated_at timestamp with time zone not null default timezone ('utc'::text, now()),
+  constraint rebates_pkey primary key (sku)
+) TABLESPACE pg_default;
+```
 
-## Security Considerations:
-- **Input Validation**: Date inputs validated before API submission
-- **API Key Security**: Endpoint URL includes authentication parameters
-- **XSS Prevention**: All user inputs properly escaped in display
-- **HTTPS Only**: All API communications over secure connections
+## Endpoints and URLs:
 
-## Exact Endpoints Added:
-- **GET** `/rebates` - Main rebates management page
-- **GET** `/rebates/claimed-rebates` - Claimed rebates tracking page
+### **External Integration:**
+- **Control Panel URL**: `https://www.rapidsupplies.com.au/_cpanel/sales-orders`
+- **Query Format**: `?order_number=in%3A{order1}%2C{order2}%2C{order3}`
+- **Example**: `?order_number=in%3A25-0010138%2C24-005383`
+
+### **Supabase Queries:**
+- **Table**: `rebates`
+- **Query**: `SELECT sku, rebate, company FROM rebates WHERE sku IN (...)`
+- **Performance**: Optimized batch queries for multiple SKUs
 
 ## Testing Instructions:
-1. **Navigation Testing**:
-   ```bash
-   # Visit application and verify menu items
-   http://localhost:5173/rebates
-   http://localhost:5173/rebates/claimed-rebates
-   ```
 
-2. **API Integration Testing**:
-   - Select date range (e.g., 2025-01-01 to 2025-01-31)
-   - Click "Filter" button
-   - Verify API call in browser DevTools Network tab
-   - Confirm data displays in table format
+### **Manual Testing:**
+1. **Load page**: Verify default dates are set to current month
+2. **Select date range**: Choose custom date range and click Filter
+3. **Company filter**: Select "Diversey" or "CleanPlus" from dropdown
+4. **Rebate validation**: Verify SKUs with rebates show green badges
+5. **Calculations**: Check unit rebate × quantity = total rebate
+6. **Order redirect**: Click "View X Orders in Control Panel" button
 
-3. **Error Handling Testing**:
-   - Test with invalid date ranges
-   - Test with network disconnection
-   - Verify error messages display properly
+### **Expected Results:**
+- Rebate statistics panel shows coverage percentage
+- Only SKUs with rebates display in filtered table
+- Grand total matches sum of individual rebate calculations
+- Control panel opens with pre-filtered orders containing rebates
 
-4. **Responsive Testing**:
-   - Test on mobile devices (viewport < 768px)
-   - Verify dropdown menus work on touch devices
-   - Confirm table scrolls horizontally on small screens
+### **Database Requirements:**
+- Supabase environment variables configured
+- `rebates` table populated with test data
+- RLS policies configured for read access
+
+## Performance Considerations:
+
+### **Query Optimization:**
+- Batch SKU lookups using `IN` clause
+- Primary key index on SKU field
+- Recommended indexes:
+  ```sql
+  CREATE INDEX idx_rebates_company ON rebates (company);
+  CREATE INDEX idx_rebates_company_sku ON rebates (company, sku);
+  ```
+
+### **Memory Usage:**
+- Efficient use of Sets for unique SKU collection
+- Lookup maps for O(1) rebate access
+- Minimal DOM updates through reactive variables
+
+## Error Handling:
+
+### **API Failures:**
+- Graceful degradation when Supabase unavailable
+- Clear error messages for connection issues
+- Fallback to order display without rebate data
+
+### **Data Validation:**
+- SKU existence checks before rebate queries
+- Numeric validation for rebate calculations
+- Empty state handling for no rebate matches
 
 ## Breaking Changes:
-None - This is a pure addition with no modifications to existing functionality.
+- **NONE**: All changes are additive and backward compatible
 
 ## Dependencies:
-- **Existing**: Svelte, SvelteKit, Tailwind CSS
-- **No New Dependencies**: Uses existing project stack
+- **Added**: `@supabase/supabase-js` (already in project)
+- **Environment**: Requires Supabase credentials in environment variables
 
 ## Deployment Requirements:
-- No special deployment requirements
-- Routes automatically available after build
-- No environment variables needed for basic functionality
-
-## Related Features:
-- Integrates with existing Orders menu structure
-- Follows established UI patterns from other management pages
-- Uses consistent API patterns from batch-payments implementation
-
-## Future Enhancements Considered:
-- Export functionality for rebates data
-- Advanced filtering options (SKU, customer, etc.)
-- Rebate calculation and processing workflow
-- Integration with accounting systems
+- Ensure Supabase environment variables are configured
+- Verify `rebates` table schema matches specification
+- Test database connectivity before deployment

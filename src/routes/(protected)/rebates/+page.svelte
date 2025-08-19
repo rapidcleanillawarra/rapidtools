@@ -1,15 +1,108 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
+  import { supabase } from '$lib/supabase';
   
-  // Date filter state
-  let startDate = '';
-  let endDate = '';
+  // Date filter state - default to beginning of month and today
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  let startDate = firstOfMonth.toISOString().split('T')[0];
+  let endDate = today.toISOString().split('T')[0];
   let isLoading = false;
   let apiData: any = null;
   let error = '';
+  let rebatesData: any = {};
+  let rebateStats = { totalSKUs: 0, skusWithRebates: 0 };
+  let grandTotalRebate = 0;
+  let ordersWithRebates: string[] = [];
+  
+  // Company filter state
+  let selectedCompany = '';
+  const companyOptions = [
+    { value: '', label: 'All Companies' },
+    { value: 'diversey', label: 'Diversey' },
+    { value: 'cleanplus', label: 'CleanPlus' }
+  ];
   
   // API endpoint
   const API_ENDPOINT = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+  
+  // Function to check SKUs against rebates table
+  async function checkRebates(orderData: any) {
+    try {
+      // Extract all unique SKUs from order lines
+      const allSKUs = new Set<string>();
+      orderData.Order?.forEach((order: any) => {
+        order.OrderLine?.forEach((line: any) => {
+          if (line.SKU) {
+            allSKUs.add(line.SKU);
+          }
+        });
+      });
+
+      const skuList = Array.from(allSKUs);
+      
+      if (skuList.length === 0) {
+        rebatesData = {};
+        rebateStats = { totalSKUs: 0, skusWithRebates: 0 };
+        grandTotalRebate = 0;
+        ordersWithRebates = [];
+        return;
+      }
+
+      // Query Supabase for rebates matching these SKUs
+      const { data: rebates, error: rebateError } = await supabase
+        .from('rebates')
+        .select('sku, rebate, company')
+        .in('sku', skuList);
+
+      if (rebateError) {
+        console.error('Error fetching rebates:', rebateError);
+        ordersWithRebates = [];
+        return;
+      }
+
+      // Create a lookup map for quick access
+      const rebateLookup: any = {};
+      rebates?.forEach((rebate) => {
+        rebateLookup[rebate.sku] = rebate;
+      });
+
+      rebatesData = rebateLookup;
+      rebateStats = {
+        totalSKUs: skuList.length,
+        skusWithRebates: rebates?.length || 0
+      };
+
+      // Calculate grand total rebate and collect orders with rebates
+      let totalRebateAmount = 0;
+      const orderNumbersWithRebates = new Set<string>();
+      
+      orderData.Order?.forEach((order: any) => {
+        let orderHasRebates = false;
+        order.OrderLine?.forEach((line: any) => {
+          if (rebateLookup[line.SKU]) {
+            const unitRebate = parseFloat(rebateLookup[line.SKU].rebate);
+            const quantity = parseInt(line.Quantity);
+            totalRebateAmount += unitRebate * quantity;
+            orderHasRebates = true;
+          }
+        });
+        
+        if (orderHasRebates && order.OrderID) {
+          orderNumbersWithRebates.add(order.OrderID);
+        }
+      });
+      
+      grandTotalRebate = totalRebateAmount;
+      ordersWithRebates = Array.from(orderNumbersWithRebates);
+
+      console.log(`Rebate check: ${rebates?.length || 0}/${skuList.length} SKUs have rebates. Total rebate value: $${totalRebateAmount.toFixed(2)}. Orders with rebates: ${ordersWithRebates.length}`);
+      
+    } catch (err) {
+      console.error('Error checking rebates:', err);
+      ordersWithRebates = [];
+    }
+  }
   
   // Function to handle date filtering
   async function handleDateFilter() {
@@ -56,6 +149,8 @@
       
       if (data.Ack === 'Success') {
         apiData = data;
+        // Check rebates for all SKUs in the order data
+        await checkRebates(data);
       } else {
         throw new Error('API returned error response');
       }
@@ -72,12 +167,32 @@
     handleDateFilter();
   }
   
-  // Function to clear date filters
-  function clearDateFilters() {
-    startDate = '';
-    endDate = '';
+  // Function to generate and open orders URL
+  function openOrdersWithRebates() {
+    if (ordersWithRebates.length === 0) {
+      return;
+    }
+    
+    const baseUrl = 'https://www.rapidsupplies.com.au/_cpanel/sales-orders';
+    const orderNumbers = ordersWithRebates.join(',');
+    const url = `${baseUrl}?order_number=in%3A${encodeURIComponent(orderNumbers)}`;
+    
+    window.open(url, '_blank');
+  }
+  
+  // Function to clear all filters
+  function clearAllFilters() {
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    startDate = firstOfMonth.toISOString().split('T')[0];
+    endDate = today.toISOString().split('T')[0];
+    selectedCompany = '';
     apiData = null;
     error = '';
+    rebatesData = {};
+    rebateStats = { totalSKUs: 0, skusWithRebates: 0 };
+    grandTotalRebate = 0;
+    ordersWithRebates = [];
   }
 </script>
 
@@ -88,7 +203,7 @@
       <p class="text-gray-600">Manage and track rebate programs.</p>
     </div>
 
-    <!-- Date Range Filters -->
+    <!-- Date Range & Company Filters -->
     <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
       <div class="flex flex-wrap items-center gap-4">
         <div class="flex items-center gap-2">
@@ -109,6 +224,18 @@
             class="border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2"
           />
         </div>
+        <div class="flex items-center gap-2">
+          <label for="company-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">Company:</label>
+          <select
+            id="company-select"
+            bind:value={selectedCompany}
+            class="border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm px-3 py-2"
+          >
+            {#each companyOptions as option}
+              <option value={option.value}>{option.label}</option>
+            {/each}
+          </select>
+        </div>
         <button
           type="button"
           on:click={handleSubmit}
@@ -127,15 +254,15 @@
         </button>
         <button
           type="button"
-          on:click={clearDateFilters}
+          on:click={clearAllFilters}
           class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
           </svg>
-          Clear
+          Reset
         </button>
-        {#if startDate || endDate}
+        {#if startDate || endDate || selectedCompany}
           <div class="text-sm text-gray-500">
             {#if startDate && endDate}
               Showing data from {startDate} to {endDate}
@@ -143,6 +270,9 @@
               Showing data from {startDate} onwards
             {:else if endDate}
               Showing data up to {endDate}
+            {/if}
+            {#if selectedCompany}
+              {#if startDate || endDate} • {/if}Company: {companyOptions.find(c => c.value === selectedCompany)?.label}
             {/if}
           </div>
         {/if}
@@ -168,45 +298,121 @@
             <span class="text-sm text-gray-500">Retrieved: {apiData.CurrentTime}</span>
           </div>
           
+          <!-- Rebate Statistics -->
+          {#if rebateStats.totalSKUs > 0}
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="text-sm font-medium text-blue-900">Rebate Analysis</h4>
+                  <div class="flex items-center space-x-4 text-sm mt-1">
+                    <span class="text-blue-700">
+                      <span class="font-semibold">{rebateStats.skusWithRebates}</span> of <span class="font-semibold">{rebateStats.totalSKUs}</span> SKUs have rebates
+                    </span>
+                    <span class="text-blue-600">
+                      ({((rebateStats.skusWithRebates / rebateStats.totalSKUs) * 100).toFixed(1)}% coverage)
+                    </span>
+                  </div>
+                </div>
+                {#if grandTotalRebate > 0}
+                  <div class="text-right">
+                    <div class="text-xs text-blue-600">Potential Value</div>
+                    <div class="text-lg font-bold text-blue-800">${grandTotalRebate.toFixed(2)}</div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/if}
+          
           {#if apiData.Order && apiData.Order.length > 0}
             <div class="overflow-x-auto">
               <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                   <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Lines</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Rebate</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Rebate</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   {#each apiData.Order as order}
-                    <tr>
-                      <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.OrderID}
-                      </td>
-                      <td class="px-6 py-4">
-                        {#if order.OrderLine && order.OrderLine.length > 0}
-                          <div class="space-y-1">
-                            {#each order.OrderLine as line}
-                              <div class="text-sm text-gray-600">
-                                <span class="font-medium">SKU:</span> {line.SKU} | 
-                                <span class="font-medium">Qty:</span> {line.Quantity} | 
-                                <span class="font-medium">ID:</span> {line.OrderLineID}
+                    {#if order.OrderLine && order.OrderLine.length > 0}
+                      {#each order.OrderLine as line}
+                        {#if rebatesData[line.SKU]}
+                          <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {order.OrderID}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div class="flex items-center">
+                                <span class="font-medium">{line.SKU}</span>
+                                <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                  Rebate
+                                </span>
                               </div>
-                            {/each}
-                          </div>
-                        {:else}
-                          <span class="text-sm text-gray-400">No order lines</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {line.Quantity}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-green-700 font-medium">
+                              ${rebatesData[line.SKU].rebate}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-green-700 font-semibold">
+                              ${(parseFloat(rebatesData[line.SKU].rebate) * parseInt(line.Quantity)).toFixed(2)}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div class="flex items-center">
+                                <span>{rebatesData[line.SKU].company}</span>
+                                {#if selectedCompany && selectedCompany !== rebatesData[line.SKU].company}
+                                  <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">
+                                    Different Company
+                                  </span>
+                                {/if}
+                              </div>
+                            </td>
+                          </tr>
                         {/if}
-                      </td>
-                    </tr>
+                      {/each}
+                    {/if}
                   {/each}
                 </tbody>
               </table>
             </div>
             
-            <div class="mt-4 text-sm text-gray-600">
-              Total Orders: {apiData.Order.length}
-            </div>
+            {#if rebateStats.skusWithRebates === 0}
+              <div class="text-center py-8">
+                <p class="text-gray-500">No SKUs with rebates found in the selected date range.</p>
+              </div>
+            {:else}
+              <!-- Grand Total Section -->
+              <div class="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm text-gray-600">
+                    Showing {rebateStats.skusWithRebates} SKUs with rebates from {apiData.Order.length} total orders
+                    {#if ordersWithRebates.length > 0}
+                      <div class="mt-2">
+                        <button
+                          type="button"
+                          on:click={openOrdersWithRebates}
+                          class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                          </svg>
+                          View {ordersWithRebates.length} Orders in Control Panel
+                        </button>
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="text-right">
+                    <div class="text-sm text-green-600 font-medium">Total Rebate Value</div>
+                    <div class="text-xl font-bold text-green-800">${grandTotalRebate.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            {/if}
           {:else}
             <div class="text-center py-8">
               <p class="text-gray-500">No orders found for the selected date range.</p>

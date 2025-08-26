@@ -23,6 +23,7 @@
 
 	let isMounted = false;
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let isExporting = false;
 
 	// Modal state
 	let showBandsModal = false;
@@ -163,6 +164,90 @@
 		selectedSku = product.sku;
 		showBandsModal = true;
 	}
+
+	async function exportProductsToCSV() {
+		if (!$selectedCustomerGroupId || $totalItems === 0 || isExporting) return;
+		isExporting = true;
+		try {
+			const chunkSize = 1000;
+			const total = $totalItems;
+			const sort = { field: $sortField, direction: $sortDirection } as {
+				field: keyof PriceGroupProduct | '';
+				direction: 'asc' | 'desc';
+			};
+			const filters = { ...$searchFilters } as Partial<Record<keyof PriceGroupProduct, string>>;
+
+			let allRows: PriceGroupProduct[] = [];
+			let page = 1;
+			while (allRows.length < total) {
+				const { data } = await fetchProductsForGroup(
+					$selectedCustomerGroupId,
+					page,
+					chunkSize,
+					sort,
+					filters
+				);
+				allRows = allRows.concat(data);
+				if (data.length < chunkSize) break;
+				page += 1;
+			}
+
+			const escapeForCsv = (value: unknown): string => {
+				const str = value == null ? '' : String(value);
+				const needsQuoting = /[",\n]/.test(str);
+				const escaped = str.replace(/\"/g, '""');
+				return needsQuoting ? `"${escaped}"` : escaped;
+			};
+
+			const headers = [
+				'SKU',
+				'Price',
+				'Default Group',
+				'Promo Price',
+				'Min Qty',
+				'Max Qty',
+				'Multiple',
+				'Bands'
+			];
+			const lines: string[] = [headers.join(',')];
+
+			for (const row of allRows) {
+				const bandsText = row.multilevel_bands ? formatMultilevelBands(row.multilevel_bands) : '-';
+				const csvRow = [
+					row.sku,
+					row.price != null ? Number(row.price).toFixed(2) : '0.00',
+					row.default_client_group != null ? Number(row.default_client_group).toFixed(2) : '0.00',
+					row.promotion_price != null ? Number(row.promotion_price).toFixed(2) : '0.00',
+					row.minimum_quantity ?? 0,
+					row.maximum_quantity ?? 0,
+					row.multiple ?? '',
+					bandsText
+				].map(escapeForCsv).join(',');
+				lines.push(csvRow);
+			}
+
+			const csvString = lines.join('\n');
+			const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.setAttribute('href', url);
+			const groupName = $customerGroups.find((g) => g.id === $selectedCustomerGroupId)?.name || 'group';
+			const safeName = groupName.replace(/[^a-z0-9-_]+/gi, '_');
+			const now = new Date();
+			const pad = (n: number) => String(n).padStart(2, '0');
+			const filename = `customer-group-products-${safeName}-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+			link.setAttribute('download', filename);
+			link.style.visibility = 'hidden';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		} catch (e) {
+			console.error('Failed to export CSV:', e);
+		} finally {
+			isExporting = false;
+		}
+	}
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -217,6 +302,19 @@
 						</div>
 					{:else}
 						<div class="relative">
+							<div class="flex justify-end mb-2">
+								<button
+									class="px-3 py-1 border rounded-md text-sm disabled:opacity-50"
+									disabled={!$selectedCustomerGroupId || !$totalItems || isExporting}
+									on:click={exportProductsToCSV}
+								>
+									{#if isExporting}
+										Exporting...
+									{:else}
+										Download CSV
+									{/if}
+								</button>
+							</div>
 							{#if $isLoadingProducts}
 								<div
 									class="absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center z-20 rounded-lg"
@@ -430,7 +528,7 @@
 	</div>
 </div>
 
-<Modal show={showBandsModal} on:close={() => (showBandsModal = false)}>
+<Modal show={showBandsModal} onClose={() => (showBandsModal = false)} on:close={() => (showBandsModal = false)}>
 	<div slot="header">
 		Multi-Level Bands for <span class="font-bold">{selectedSku}</span>
 	</div>

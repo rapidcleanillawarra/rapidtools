@@ -243,6 +243,42 @@
   onMount(() => {
     loadCustomerGroups();
   });
+
+  function exportToCSV() {
+    if (!customerGroups || customerGroups.length === 0) return;
+
+    const escapeForCsv = (value: unknown): string => {
+      const str = value == null ? '' : String(value);
+      const needsQuoting = /[",\n]/.test(str);
+      const escaped = str.replace(/"/g, '""');
+      return needsQuoting ? `"${escaped}"` : escaped;
+    };
+
+    const headers = ['ID', 'Code', 'Name'];
+    const lines = [headers.join(',')];
+
+    // customerGroups is already in the current sort order
+    for (const group of customerGroups) {
+      const row = [group.id, group.code, group.name].map(escapeForCsv).join(',');
+      lines.push(row);
+    }
+
+    const csvString = lines.join('\n');
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const filename = `customer-groups-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.csv`;
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -269,6 +305,12 @@
           {:else}
             Import JSON
           {/if}
+        </button>
+        <button
+          class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+          on:click={exportToCSV}
+        >
+          Download CSV
         </button>
         <button
           class="px-4 py-2 bg-yellow-400 text-gray-900 rounded-md hover:bg-yellow-500 transition-colors"

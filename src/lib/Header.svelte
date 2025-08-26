@@ -333,6 +333,8 @@
               </div>
             {/if}
           </div>
+          <!-- Workshop Link -->
+          <a href="{base}/workshop/create" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">Workshop</a>
           <!-- STT Dropdown -->
           <div class="relative stt-dropdown">
             <button 
@@ -550,6 +552,8 @@
             >Pro Max Settings</a>
           </div>
         {/if}
+        <!-- Mobile Workshop Link -->
+        <a href="{base}/workshop/create" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Workshop</a>
         <!-- Mobile STT Dropdown -->
         <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileSttOpen = !mobileSttOpen}>
           <span>STT</span>

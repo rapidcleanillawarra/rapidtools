@@ -389,6 +389,11 @@
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => workshopOpen = false}
                   >Camera Access</a>
+                  <a
+                    href="{base}/workshop/job-status"
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => workshopOpen = false}
+                  >Workshop Job Status</a>
                 </div>
               </div>
             {/if}
@@ -633,6 +638,11 @@
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileWorkshopOpen = false}
             >Camera Access</a>
+            <a
+              href="{base}/workshop/job-status"
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileWorkshopOpen = false}
+            >Workshop Job Status</a>
           </div>
         {/if}
         <!-- Mobile STT Dropdown -->

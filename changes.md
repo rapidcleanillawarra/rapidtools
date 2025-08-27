@@ -1,112 +1,133 @@
-# fix(workshop): Make photo uploads optional and fix optional contacts saving
+# feat(workshop): Enhance camera workflow and reduce photo requirements
 
-This commit addresses two key issues in the workshop creation process: making photo uploads optional and fixing the optional contacts functionality that wasn't saving to the database.
+This commit improves the workshop camera functionality by moving the "Done" button to the modal and reducing the minimum photo requirement from 2 to 1, making the workflow more intuitive and efficient.
 
 ### Files Modified:
 
-#### 1. `src/routes/(protected)/workshop/create/+page.svelte`
-- CHANGED: Made photo uploads optional by setting `MIN_PHOTOS_REQUIRED = 0`
-- REMOVED: Photo validation that prevented form submission without photos
-- ADDED: Visual indicator showing photos are optional
-- FIXED: Critical typo in optional contacts code (`newConta  ct.number.trim()` → `newContact.number.trim()`)
-- ADDED: Phone number validation for optional contacts
-- ADDED: Required field validation for Product Name and Customer Name
-- ADDED: Visual indicators for required fields
+#### 1. `src/routes/(protected)/workshop/camera/+page.svelte`
+- MOVED: "Done" button from header to modal footer
+- CHANGED: Minimum photo requirement from 2 to 1
+- REMOVED: "+ Add More Photos" button from the photos section
+- ADDED: Automatic prompt display after photo capture
 - DIFF:
   ```diff
-  - const MIN_PHOTOS_REQUIRED = 2;
-  + const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
+  - <div class="flex gap-2">
+  -   <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
+  -   <button
+  -     class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+  -     disabled={isSaving || photos.length === 0}
+  -     on:click={savePhotosToDatabase}
+  -   >
+  -     {#if isSaving}
+  -       <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+  -         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+  -         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  -       </svg>
+  -       Saving...
+  -     {:else}
+  -       Done
+  -     {/if}
+  -   </button>
+  - </div>
+  + <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
 
-  - // Validate photo requirement
-  - if (photos.length < MIN_PHOTOS_REQUIRED) {
-  -   photoError = `At least ${MIN_PHOTOS_REQUIRED} photos are required`;
-  -   // Scroll to photos section
-  -   document.getElementById('photos-section')?.scrollIntoView({ behavior: 'smooth' });
-  -   return;
-  - }
-  + // Photos are optional, so no validation needed here
+  - <div class="flex items-center justify-between">
+  -   <h3 class="text-lg font-medium text-gray-900">
+  -     Photos ({photos.length})
+  -   </h3>
+  -   <button
+  -     class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
+  -     on:click={takeMorePhotos}
+  -   >
+  -     + Add More Photos
+  -   </button>
+  - </div>
+  + <h3 class="text-lg font-medium text-gray-900">
+  +   Photos ({photos.length})
+  + </h3>
 
-  - <span class="text-sm text-gray-600 ml-2">({photos.length}/{MIN_PHOTOS_REQUIRED} required)</span>
-  + <span class="text-sm text-gray-600 ml-2">({photos.length} added) <span class="text-gray-500">(optional)</span></span>
-  
-  - const trimmedNumber = newConta  ct.number.trim();
-  + const trimmedNumber = newContact.number.trim();
-  
-  + // Validate required fields
-  + const requiredFieldErrors = [];
-  + 
-  + if (!productName.trim()) {
-  +   requiredFieldErrors.push('Product Name is required');
-  + }
-  + 
-  + if (!customerName.trim()) {
-  +   requiredFieldErrors.push('Customer Name is required');
-  + }
+  - // Check if we need more photos (less than 2 total)
+  + // Check if we need more photos (less than 1 total)
+
+  - if (photos.length < 2) {
+  -   toastError('Please take at least 2 photos before saving');
+  + if (photos.length < 1) {
+  +   toastError('Please take at least 1 photo before saving');
+
+  - // Check if we need more photos (less than 1 total)
+  - // Use setTimeout to ensure photos array is updated
+  - setTimeout(() => {
+  -   if (photos.length < 1) {
+  -     triggerTakePhoto();
+  -   } else {
+  -     showPrompt = false;
+  -   }
+  - }, 100);
+  + // Show prompt immediately after photo is added to allow adding more photos
+  + // Use setTimeout to ensure photos array is updated
+  + setTimeout(() => {
+  +   showPrompt = true;
+  + }, 100);
+
+  + <button
+  +   class="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  +   disabled={isSaving || photos.length === 0}
+  +   on:click={() => { savePhotosToDatabase(); showPrompt = false; }}
+  + >
+  +   {#if isSaving}
+  +     <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+  +       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+  +       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+  +     </svg>
+  +     Saving...
+  +   {:else}
+  +     Done
+  +   {/if}
+  + </button>
   ```
-- WHY: Improve user experience by making photos optional and ensuring required fields are properly validated
-- IMPACT: Users can now submit workshop forms without photos and with properly validated fields
-
-#### 2. `src/lib/services/workshop.ts`
-- FIXED: Optional contacts not being saved to PostgreSQL `jsonb[]` column
-- ADDED: Proper formatting for PostgreSQL `jsonb[]` data type
-- ADDED: Comprehensive debugging for data flow tracking
-- DIFF:
-  ```diff
-  + // Format optional contacts for PostgreSQL jsonb[] type
-  + let formattedContacts: any[] = [];
-  + if (data.optionalContacts && Array.isArray(data.optionalContacts) && data.optionalContacts.length > 0) {
-  +   formattedContacts = data.optionalContacts.map(contact => ({
-  +     name: String(contact.name || ''),
-  +     number: String(contact.number || ''),
-  +     email: String(contact.email || '')
-  +   }));
-  + }
-  
-  - optional_contacts: data.optionalContacts,
-  + optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
-  ```
-- WHY: Fix the mismatch between JavaScript data structure and PostgreSQL's expected format for `jsonb[]` columns
-- IMPACT: Optional contacts now save correctly to the database
+- WHY: Improve user experience by providing a more intuitive workflow and reducing friction in the photo capture process
+- IMPACT: Users can now complete the workshop creation process more efficiently with fewer required photos and a more intuitive UI
 
 ### Technical Improvements:
 
-#### Form Validation:
-- BEFORE: Form allowed submission with empty required fields
-- AFTER: Form validates Product Name and Customer Name as required fields
-
-#### Data Type Handling:
-- BEFORE: Optional contacts were sent as a JavaScript array but not properly formatted for PostgreSQL's `jsonb[]` column
-- AFTER: Proper formatting ensures data is saved correctly in the database
-
 #### User Experience:
-- BEFORE: Users were required to upload at least 2 photos
-- AFTER: Photos are optional, with clear UI indication
+- BEFORE: Users needed to take at least 2 photos and had to use a separate button to add more photos
+- AFTER: Users only need 1 photo minimum, and the prompt automatically appears after each photo is captured
 
-#### Error Prevention:
-- BEFORE: Typo in code caused JavaScript errors
-- AFTER: Fixed typo and added validation for phone numbers
+#### UI Organization:
+- BEFORE: "Done" button was in the header, separate from other action buttons
+- AFTER: All action buttons are grouped logically in the modal footer, providing a more cohesive user experience
 
-#### Debugging:
-- ADDED: Comprehensive logging throughout the data flow
-- IMPROVED: Error messages for validation failures
+#### Workflow Efficiency:
+- BEFORE: Multiple clicks required to add photos (take photo → close prompt → click "+ Add More Photos")
+- AFTER: Streamlined workflow with automatic prompt display (take photo → prompt immediately appears for next photo)
+
+#### Code Cleanup:
+- REMOVED: Unnecessary `takeMorePhotos()` function
+- SIMPLIFIED: Photo section header layout
+- IMPROVED: Logic flow in `onFilesSelected()` function
 
 ### Testing Instructions:
 
-1. Create a new workshop without adding any photos
-   - Verify form submits successfully
-   - Check that the workshop is created in the database
+1. Open the workshop camera page
+   - Verify that only "Add Photos" button appears in the header
 
-2. Create a workshop with optional contacts
-   - Add contacts with various phone formats
-   - Verify contacts are saved correctly in the database
+2. Take a photo
+   - Verify that the prompt automatically appears after the photo is captured
+   - Verify that the "Done" button appears in the modal footer
 
-3. Try submitting a form without required fields
-   - Verify validation prevents submission
-   - Check that error messages are displayed
+3. Try saving with one photo
+   - Verify that the form submits successfully with just one photo
+
+4. Test the "Done" button in the modal
+   - Verify it correctly saves photos and navigates to the create page
+
+### Endpoints Modified:
+- No API endpoints were modified
 
 ### Related Components:
-- Workshop Create page
-- Workshop data services
+- Workshop Camera page
+- Workshop creation workflow
 
 ### Dependencies:
 - No new dependencies added

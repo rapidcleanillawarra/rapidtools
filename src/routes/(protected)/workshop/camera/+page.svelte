@@ -64,14 +64,10 @@
       // Reset to allow selecting the same file again
       input.value = '';
 
-      // Check if we need more photos (less than 2 total)
+      // Show prompt immediately after photo is added to allow adding more photos
       // Use setTimeout to ensure photos array is updated
       setTimeout(() => {
-        if (photos.length < 2) {
-          triggerTakePhoto();
-        } else {
-          showPrompt = false;
-        }
+        showPrompt = true;
       }, 100);
     } else {
       showPrompt = false;
@@ -120,12 +116,7 @@
     }
   }
 
-  function takeMorePhotos() {
-    showPrompt = false;
-    setTimeout(() => {
-      showPrompt = true;
-    }, 100);
-  }
+
 
   function createWorkshopDataFromPhotos() {
     return {
@@ -151,9 +142,9 @@
       toastError('No photos to save');
       return;
     }
-    
-    if (photos.length < 2) {
-      toastError('Please take at least 2 photos before saving');
+
+    if (photos.length < 1) {
+      toastError('Please take at least 1 photo before saving');
       return;
     }
 
@@ -199,9 +190,9 @@
       toastError('No photos to save');
       return;
     }
-    
-    if (photos.length < 2) {
-      toastError('Please take at least 2 photos before saving');
+
+    if (photos.length < 1) {
+      toastError('Please take at least 1 photo before saving');
       return;
     }
 
@@ -246,24 +237,7 @@
         <p class="text-gray-600 text-sm">Capture or upload photos for a workshop job.</p>
 
       </div>
-      <div class="flex gap-2">
-        <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
-        <button
-          class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          disabled={isSaving || photos.length === 0}
-          on:click={savePhotosToDatabase}
-        >
-          {#if isSaving}
-            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Saving...
-          {:else}
-            Done
-          {/if}
-        </button>
-      </div>
+      <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
     </div>
 
     <div class="p-6">
@@ -274,17 +248,9 @@
         </div>
       {:else}
         <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="text-lg font-medium text-gray-900">
-              Photos ({photos.length})
-            </h3>
-            <button
-              class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors"
-              on:click={takeMorePhotos}
-            >
-              + Add More Photos
-            </button>
-          </div>
+          <h3 class="text-lg font-medium text-gray-900">
+            Photos ({photos.length})
+          </h3>
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {#each photos as p, i}
               <div class="relative group">
@@ -431,24 +397,41 @@
           Cancel
         </button>
         {#if photos.length > 0}
-          <button
-            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
-            disabled={isSaving}
-            on:click={saveAndTakeMorePhotos}
-          >
-            {#if isSaving}
-              <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Saving...
-            {:else}
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-              </svg>
-              Save & Take More
-            {/if}
-          </button>
+          <div class="flex gap-2">
+            <button
+              class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+              disabled={isSaving}
+              on:click={saveAndTakeMorePhotos}
+            >
+              {#if isSaving}
+                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              {:else}
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Save & Take More
+              {/if}
+            </button>
+            <button
+              class="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSaving || photos.length === 0}
+              on:click={() => { savePhotosToDatabase(); showPrompt = false; }}
+            >
+              {#if isSaving}
+                <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Saving...
+              {:else}
+                Done
+              {/if}
+            </button>
+          </div>
         {/if}
       </div>
     </div>

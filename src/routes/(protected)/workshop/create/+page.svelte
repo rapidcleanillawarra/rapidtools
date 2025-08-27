@@ -7,6 +7,8 @@
   import { getCustomerDisplayName } from '$lib/services/customers';
   import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop } from '$lib/services/workshop';
   import { page } from '$app/stores';
+  import { currentUser } from '$lib/firebase';
+  import { get } from 'svelte/store';
 
   type LocationType = 'Site' | 'Workshop';
 
@@ -278,10 +280,16 @@
       startedWith
     };
 
+    // Get current user
+    const user = get(currentUser);
+    if (!user) {
+      throw new Error('You must be logged in to create a workshop');
+    }
+
     // Submit to Supabase - either create new or update existing
     const submitPromise = existingWorkshopId
       ? updateWorkshop(existingWorkshopId, formData)
-      : createWorkshop(formData);
+      : createWorkshop(formData, user.uid);
 
     submitPromise
       .then((workshop) => {

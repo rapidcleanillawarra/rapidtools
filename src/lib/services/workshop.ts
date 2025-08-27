@@ -1,6 +1,8 @@
 // Workshop service for Supabase operations
 import { supabase } from '$lib/supabase';
 import type { Customer } from './customers';
+import { currentUser } from '$lib/firebase';
+import { get } from 'svelte/store';
 
 // Workshop form data interface
 export interface WorkshopFormData {
@@ -84,6 +86,17 @@ export interface WorkshopPhoto {
  */
 export async function createWorkshop(data: WorkshopFormData, userId?: string): Promise<WorkshopRecord> {
   try {
+    // Get current user if no userId provided
+    let finalUserId = userId;
+    if (!finalUserId) {
+      const currentUserData = get(currentUser);
+      if (currentUserData) {
+        finalUserId = currentUserData.uid;
+      } else {
+        throw new Error('You must be logged in to create a workshop');
+      }
+    }
+
     // Upload photos first
     const photoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
 
@@ -102,7 +115,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       customer_data: data.selectedCustomer,
       optional_contacts: data.optionalContacts,
       status: 'pending' as const,
-      created_by: userId || 'system',
+      created_by: finalUserId,
       started_with: data.startedWith,
       photo_urls: photoUrls
     };

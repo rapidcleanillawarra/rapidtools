@@ -374,15 +374,21 @@
               >
                 <div class="py-1.5">
                   <a
+                    href="{base}/workshop"
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => workshopOpen = false}
+                  >Overview</a>
+                  <div class="h-px bg-gray-200 my-1"></div>
+                  <a
                     href="{base}/workshop/create"
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => workshopOpen = false}
-                  >Create</a>
+                  >Create Workshop</a>
                   <a
                     href="{base}/workshop/camera"
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => workshopOpen = false}
-                  >Camera</a>
+                  >Camera Access</a>
                 </div>
               </div>
             {/if}
@@ -612,15 +618,21 @@
         {#if mobileWorkshopOpen}
           <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
             <a
+              href="{base}/workshop"
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileWorkshopOpen = false}
+            >Overview</a>
+            <div class="h-px bg-gray-700 my-1"></div>
+            <a
               href="{base}/workshop/create"
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileWorkshopOpen = false}
-            >Create</a>
+            >Create Workshop</a>
             <a
               href="{base}/workshop/camera"
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileWorkshopOpen = false}
-            >Camera</a>
+            >Camera Access</a>
           </div>
         {/if}
         <!-- Mobile STT Dropdown -->

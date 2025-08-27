@@ -3,6 +3,7 @@ import { supabase } from '$lib/supabase';
 import type { Customer } from './customers';
 import { currentUser } from '$lib/firebase';
 import { get } from 'svelte/store';
+import { fetchUserProfile } from '$lib/userProfile';
 
 // Workshop form data interface
 export interface WorkshopFormData {
@@ -97,6 +98,27 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       }
     }
 
+    // Fetch user profile to get name information (same as Header)
+    let userProfile = null;
+    try {
+      userProfile = await fetchUserProfile(finalUserId);
+    } catch (error) {
+      console.warn('Could not fetch user profile:', error);
+      // Continue without profile - we'll use email fallback
+    }
+
+    // Create user name from profile or fallback to email
+    let createdByName = 'Unknown User';
+    if (userProfile && userProfile.firstName && userProfile.lastName) {
+      createdByName = `${userProfile.firstName} ${userProfile.lastName}`;
+    } else {
+      // Fallback to current user's email if profile not available
+      const currentUserData = get(currentUser);
+      if (currentUserData?.email) {
+        createdByName = currentUserData.email.split('@')[0] || 'Unknown User';
+      }
+    }
+
     // Upload photos first
     const photoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
 
@@ -115,7 +137,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       customer_data: data.selectedCustomer,
       optional_contacts: data.optionalContacts,
       status: 'pending' as const,
-      created_by: finalUserId,
+      created_by: createdByName,
       started_with: data.startedWith,
       photo_urls: photoUrls
     };
@@ -299,6 +321,8 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       optional_contacts: data.optionalContacts,
       updated_at: new Date().toISOString()
     };
+
+    // Note: We don't update created_by on updates as it should remain the original creator's name
 
     // Only add photo_urls if we have new photos
     if (photoUrls.length > 0) {

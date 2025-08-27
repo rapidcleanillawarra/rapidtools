@@ -65,7 +65,7 @@
       </div>
       <div class="flex gap-2">
         <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
-        <a href="{base}/workshop/create" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
+        <a href="{base}/workshop/create?from=camera" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
       </div>
     </div>
 

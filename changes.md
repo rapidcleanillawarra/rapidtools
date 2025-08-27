@@ -1,79 +1,141 @@
-fix(workshop): Remove direct camera access feature
+feat(workshop): Add photo management and update status workflow
 
-This commit removes the recently added direct camera access feature, reverting back to the original file input implementation for better compatibility and simpler maintenance.
+This commit introduces comprehensive photo management for workshops, including orphaned photo cleanup, storage statistics, and updates the workflow status from 'pending' to 'new'.
 
 ### Files Modified:
 
-#### 1. `src/routes/(protected)/workshop/camera/+page.svelte`
-- REMOVED: Direct camera access using `navigator.mediaDevices.getUserMedia()`
-- REMOVED: Live camera preview and capture interface
-- REMOVED: Camera support detection
-- REMOVED: Photo counter display
-- REMOVED: Visual feedback animations
-- REMOVED: Canvas-based photo capture
-- FIXED: Memory cleanup with proper `onDestroy` hook
+#### 1. `src/lib/services/workshop.ts`
+- ADDED: `cleanupOrphanedPhotos()` function for storage maintenance
+- ADDED: `getPhotoStatistics()` for storage monitoring
+- ADDED: `cleanupWorkshopPhotos()` for single workshop cleanup
+- CHANGED: Workshop status from 'pending' to 'new'
+- IMPROVED: Photo cleanup during workshop deletion
 - DIFF:
   ```diff
-  - // Direct camera access
-  - let cameraStream: MediaStream | null = null;
-  - let cameraVideo: HTMLVideoElement | null = null;
-  - let cameraCanvas: HTMLCanvasElement | null = null;
-  - let showCamera = false;
-  - let cameraSupported = false;
+  - status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  + status: 'new' | 'in_progress' | 'completed' | 'cancelled';
 
-  - async function startCamera() {
-  -   try {
-  -     const constraints = {
-  -       video: {
-  -         facingMode: { ideal: 'environment' },
-  -         width: { ideal: 1920 },
-  -         height: { ideal: 1080 }
-  -       }
-  -     };
-  -     cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-  -   } catch (error) {
-  -     console.error('Error accessing camera:', error);
-  -   }
-  - }
+  - status: 'pending' as const,
+  + status: 'new' as const,
 
-  + type PhotoItem = { file: File; url: string };
-  + let photos: PhotoItem[] = [];
+  + export async function cleanupOrphanedPhotos(): Promise<{
+  +   found: number;
+  +   deleted: number;
+  +   errors: string[];
+  + }> {
   ```
 
-#### 2. `src/routes/(protected)/workshop/create/+page.svelte`
-- REVERTED: PhotoItem type to original structure
-- REMOVED: Timestamp from photo metadata
+#### 2. `src/routes/(protected)/workshop/+page.svelte`
+- ADDED: New management dashboard page
+- ADDED: Storage statistics display
+- ADDED: Orphaned photo cleanup interface
+- ADDED: Recent workshops list
+- CHANGED: Status color scheme to match new workflow
 - DIFF:
   ```diff
-  - type PhotoItem = { file: File | null; url: string; timestamp: number };
-  + type PhotoItem = { file: File; url: string };
-
-  - newItems.push({ file, url, timestamp: Date.now() });
-  + newItems.push({ file, url });
+  - case 'pending': return 'bg-yellow-100 text-yellow-800';
+  + case 'new': return 'bg-blue-100 text-blue-800';
+  + case 'in_progress': return 'bg-yellow-100 text-yellow-800';
   ```
+
+#### 3. `src/routes/(protected)/workshop/camera/+page.svelte`
+- ADDED: URL parameter to track entry point
+- DIFF:
+  ```diff
+  - <a href="{base}/workshop/create" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
+  + <a href="{base}/workshop/create?from=camera" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
+  ```
+
+### Database Changes:
+
+```sql
+-- Update existing workshops
+ALTER TABLE workshop ALTER COLUMN status SET DEFAULT 'new';
+UPDATE workshop SET status = 'new' WHERE status = 'pending';
+
+-- Update status check constraint
+ALTER TABLE workshop DROP CONSTRAINT IF EXISTS workshop_status_check;
+ALTER TABLE workshop ADD CONSTRAINT workshop_status_check 
+  CHECK (status IN ('new', 'in_progress', 'completed', 'cancelled'));
+```
 
 ### Technical Improvements:
-- BEFORE: Complex direct camera implementation with potential browser compatibility issues
-- AFTER: Simple, reliable file input method with native mobile camera support
-- SECURITY: Reduced browser permission requirements
-- PERFORMANCE: Removed unnecessary video stream processing
-- MAINTENANCE: Simplified codebase with fewer potential points of failure
+
+#### Photo Management
+- BEFORE: No cleanup mechanism for orphaned photos
+- AFTER: Automated cleanup with manual and automatic triggers
+- IMPACT: Reduced storage costs and improved data consistency
+
+#### Status Workflow
+- BEFORE: Workshops started as 'pending'
+- AFTER: Workshops start as 'new' with clear status progression
+- IMPACT: Better workflow clarity and status tracking
+
+#### Storage Monitoring
+- BEFORE: No visibility into storage usage
+- AFTER: Detailed statistics with orphaned file detection
+- IMPACT: Proactive storage management and cost control
+
+### Security Considerations:
+- Photo deletion requires authentication
+- Safe file path handling in storage operations
+- Proper error handling for failed deletions
+- Row-level security maintained
+
+### Performance Optimizations:
+- Batch photo deletions using Promise.all
+- Efficient photo URL extraction and comparison
+- Indexed status and customer_name columns
+- Optimized storage queries with limits
 
 ### Testing Instructions:
-1. Navigate to Workshop > Camera
-2. Verify "Take Photo" opens native camera on mobile
-3. Verify "Upload from Device" allows file selection
-4. Confirm photos display correctly in grid
-5. Verify photo removal works
-6. Check memory cleanup on component destroy
 
-### Browser Compatibility:
-- Works on all modern browsers
-- No special permissions required
-- Uses native file input capabilities
+1. **Photo Cleanup:**
+   ```bash
+   # Navigate to workshop management
+   /workshop
 
-### Notes:
-- No breaking changes
-- No database schema changes
-- No API endpoint modifications
-- Maintains original functionality while removing experimental features
+   # Check statistics
+   Click "Clean Storage" to view orphaned photos
+
+   # Run cleanup
+   Confirm cleanup in modal
+   ```
+
+2. **Status Workflow:**
+   ```bash
+   # Test camera workflow
+   /workshop/camera → take photos → create form
+   Verify status: 'new' (blue badge)
+
+   # Test form workflow
+   /workshop/create
+   Verify status: 'new' (blue badge)
+   ```
+
+3. **Storage Management:**
+   ```bash
+   # Monitor statistics
+   Check dashboard for:
+   - Total photos
+   - Used photos
+   - Orphaned photos
+   - Storage size
+   ```
+
+### Breaking Changes:
+- Workshops previously marked as 'pending' will be updated to 'new'
+- Status color scheme updated in UI
+- Photo cleanup may remove orphaned files from storage
+
+### Error Handling:
+- Detailed error messages for failed cleanups
+- Safe handling of missing photos
+- Graceful handling of storage API errors
+- User feedback for all operations
+
+### Related Features:
+- Workshop creation from camera
+- Workshop creation from form
+- Photo storage management
+- Status workflow tracking

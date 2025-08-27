@@ -41,7 +41,7 @@
   let takePhotoInput: HTMLInputElement | null = null;
   let uploadPhotoInput: HTMLInputElement | null = null;
   let photoError = '';
-  const MIN_PHOTOS_REQUIRED = 2;
+  const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
 
   // Validation errors
   let siteLocationError = '';
@@ -158,12 +158,8 @@
     const [removed] = photos.splice(index, 1);
     if (removed) URL.revokeObjectURL(removed.url);
     photos = [...photos];
-    // Update photo error if below minimum
-    if (photos.length < MIN_PHOTOS_REQUIRED) {
-      photoError = `At least ${MIN_PHOTOS_REQUIRED} photos are required`;
-    } else {
-      photoError = '';
-    }
+    // Photos are optional, so no validation needed
+    photoError = '';
   }
 
   onDestroy(() => {
@@ -189,6 +185,22 @@
       contactError = 'At least one contact method (number or email) is required';
       return;
     }
+    
+    // Validate phone number format if provided
+    if (trimmedNumber) {
+      // Allow only digits, spaces, dashes, parentheses, and plus sign
+      const phoneRegex = /^[0-9\s\-\(\)\+]+$/;
+      if (!phoneRegex.test(trimmedNumber)) {
+        contactError = 'Phone number should contain only digits, spaces, dashes, parentheses, and plus sign';
+        return;
+      }
+    }
+    
+    // Validate email format if provided
+    if (trimmedEmail && !trimmedEmail.includes('@')) {
+      contactError = 'Please enter a valid email address';
+      return;
+    }
 
     // Check for duplicate contacts
     const isDuplicate = optionalContacts.some(contact =>
@@ -207,6 +219,8 @@
       number: trimmedNumber,
       email: trimmedEmail
     }];
+    
+    console.log('Optional contacts after adding:', optionalContacts);
 
     // Reset form
     newContact = { name: '', number: '', email: '' };
@@ -214,6 +228,7 @@
 
   function removeOptionalContact(index: number) {
     optionalContacts = optionalContacts.filter((_, i) => i !== index);
+    console.log('Optional contacts after removal:', optionalContacts);
   }
 
   function handleCustomerSelect(event: CustomEvent) {
@@ -238,6 +253,23 @@
     submitError = '';
     submitSuccess = false;
 
+    // Validate required fields
+    const requiredFieldErrors = [];
+    
+    if (!productName.trim()) {
+      requiredFieldErrors.push('Product Name is required');
+    }
+    
+    if (!customerName.trim()) {
+      requiredFieldErrors.push('Customer Name is required');
+    }
+    
+    // Show errors if any required fields are missing
+    if (requiredFieldErrors.length > 0) {
+      submitError = `Please fill in all required fields: ${requiredFieldErrors.join(', ')}`;
+      return;
+    }
+
     // Optional: Validate site location when location is 'Site' and field is not empty
     // Only show error if user has entered something but it's just whitespace
     if (locationOfRepair === 'Site' && siteLocation && !siteLocation.trim()) {
@@ -247,13 +279,7 @@
       return;
     }
 
-    // Validate photo requirement
-    if (photos.length < MIN_PHOTOS_REQUIRED) {
-      photoError = `At least ${MIN_PHOTOS_REQUIRED} photos are required`;
-      // Scroll to photos section
-      document.getElementById('photos-section')?.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
+    // Photos are optional, so no validation needed here
 
     // Clear any existing errors
     siteLocationError = '';
@@ -261,6 +287,11 @@
 
     // Start submission
     isSubmitting = true;
+
+    // Log optional contacts before form submission
+    console.log('Optional contacts before submission:', optionalContacts);
+    console.log('Optional contacts length:', optionalContacts?.length);
+    console.log('Optional contacts type:', typeof optionalContacts);
 
     // Prepare form data
     const formData = {
@@ -275,10 +306,14 @@
       contactEmail,
       contactNumber,
       selectedCustomer,
-      optionalContacts,
+      optionalContacts: optionalContacts || [], // Ensure it's always an array
       photos: photos.map(p => p.file),
       startedWith
     };
+
+    console.log('Form data being submitted:', formData);
+    console.log('Form data optional contacts:', formData.optionalContacts);
+    console.log('Form data optional contacts length:', formData.optionalContacts?.length);
 
     // Get current user
     const user = get(currentUser);
@@ -370,6 +405,9 @@
     {/if}
 
     <form class="p-6 space-y-8" on:submit|preventDefault={handleSubmit}>
+      <div class="text-sm text-gray-600 mb-4">
+        Fields marked with <span class="text-red-500">*</span> are required
+      </div>
       <!-- Machine Information -->
       <div>
         <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
@@ -394,8 +432,16 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="product-name">Product Name</label>
-            <input id="product-name" type="text" bind:value={productName} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="product-name">
+              Product Name <span class="text-red-500">*</span>
+            </label>
+            <input 
+              id="product-name" 
+              type="text" 
+              bind:value={productName} 
+              class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {!productName.trim() ? 'border border-red-300' : ''}" 
+              required
+            />
           </div>
 
           <div>
@@ -449,7 +495,7 @@
             <h3 class="font-medium text-gray-800">
               Photos
               <span class="text-sm text-gray-600 ml-2">
-                ({photos.length}/{MIN_PHOTOS_REQUIRED} required)
+                ({photos.length} added) <span class="text-gray-500">(optional)</span>
               </span>
             </h3>
             <div class="flex gap-2">
@@ -493,14 +539,18 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="customer-name">Customer Name (Maropost)</label>
-            <CustomerDropdown
-              id="customer-name"
-              bind:value={customerName}
-              placeholder="Search customers..."
-              on:select={handleCustomerSelect}
-              on:clear={handleCustomerClear}
-            />
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="customer-name">
+              Customer Name (Maropost) <span class="text-red-500">*</span>
+            </label>
+            <div class="{!customerName.trim() ? 'border border-red-300 rounded' : ''}">
+              <CustomerDropdown
+                id="customer-name"
+                bind:value={customerName}
+                placeholder="Search customers..."
+                on:select={handleCustomerSelect}
+                on:clear={handleCustomerClear}
+              />
+            </div>
 
             <!-- Selected Customer Display -->
             {#if selectedCustomer}
@@ -565,7 +615,13 @@
           </div>
           <div class="md:col-span-4">
             <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-number">Number</label>
-            <input id="opt-number" type="text" bind:value={newContact.number} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input 
+              id="opt-number" 
+              type="tel" 
+              bind:value={newContact.number} 
+              placeholder="Numbers, spaces, and + only"
+              class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            />
           </div>
           <div class="md:col-span-4">
             <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-email">Email</label>

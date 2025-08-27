@@ -122,6 +122,25 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
     // Upload photos first
     const photoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
 
+    // Debug optional contacts
+    console.log('Optional contacts before formatting:', data.optionalContacts);
+    console.log('Optional contacts length:', data.optionalContacts?.length);
+    console.log('Optional contacts type:', typeof data.optionalContacts);
+
+    // Format optional contacts for PostgreSQL jsonb[] type
+    // PostgreSQL jsonb[] expects an array of JSONB objects
+    let formattedContacts: any[] = [];
+    if (data.optionalContacts && Array.isArray(data.optionalContacts) && data.optionalContacts.length > 0) {
+      formattedContacts = data.optionalContacts.map(contact => ({
+        name: String(contact.name || ''),
+        number: String(contact.number || ''),
+        email: String(contact.email || '')
+      }));
+    }
+    console.log('Formatted contacts:', formattedContacts);
+    console.log('Formatted contacts length:', formattedContacts.length);
+    console.log('Formatted contacts type:', typeof formattedContacts[0]);
+    
     // Prepare workshop data
     const workshopData = {
       location_of_repair: data.locationOfRepair,
@@ -135,14 +154,17 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       contact_email: data.contactEmail,
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
-      optional_contacts: data.optionalContacts,
+      optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
       status: 'pending' as const,
       created_by: createdByName,
       started_with: data.startedWith,
       photo_urls: photoUrls
     };
 
-    console.log('Inserting workshop data:', workshopData);
+    console.log('Inserting workshop data:', JSON.stringify(workshopData, null, 2));
+    console.log('Optional contacts in workshopData:', workshopData.optional_contacts);
+    console.log('Optional contacts type in workshopData:', typeof workshopData.optional_contacts);
+    console.log('Optional contacts length in workshopData:', workshopData.optional_contacts?.length);
 
     const { data: workshop, error } = await supabase
       .from('workshop')
@@ -152,6 +174,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
 
     if (error) {
       console.error('Supabase insert error:', error);
+      console.error('Error details:', error.details, error.hint, error.message);
       throw error;
     }
 
@@ -305,6 +328,25 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       photoUrls = newPhotoUrls;
     }
 
+    // Debug optional contacts
+    console.log('Update - Optional contacts before formatting:', data.optionalContacts);
+    console.log('Update - Optional contacts length:', data.optionalContacts?.length);
+    console.log('Update - Optional contacts type:', typeof data.optionalContacts);
+
+    // Format optional contacts for PostgreSQL jsonb[] type
+    // PostgreSQL jsonb[] expects an array of JSONB objects
+    let formattedContacts: any[] = [];
+    if (data.optionalContacts && Array.isArray(data.optionalContacts) && data.optionalContacts.length > 0) {
+      formattedContacts = data.optionalContacts.map(contact => ({
+        name: String(contact.name || ''),
+        number: String(contact.number || ''),
+        email: String(contact.email || '')
+      }));
+    }
+    console.log('Update - Formatted contacts:', formattedContacts);
+    console.log('Update - Formatted contacts length:', formattedContacts.length);
+    console.log('Update - Formatted contacts type:', typeof formattedContacts[0]);
+    
     // Prepare update data
     const updateData: any = {
       location_of_repair: data.locationOfRepair,
@@ -318,7 +360,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       contact_email: data.contactEmail,
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
-      optional_contacts: data.optionalContacts,
+      optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
       updated_at: new Date().toISOString()
     };
 

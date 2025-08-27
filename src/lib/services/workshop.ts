@@ -8,8 +8,8 @@ import { fetchUserProfile } from '$lib/userProfile';
 // Workshop form data interface
 export interface WorkshopFormData {
   // Machine Information
-  locationOfRepair: 'Site' | 'Workshop';
-  productName: string;
+  locationOfRepair: 'Site' | 'Workshop' | null;
+  productName: string | null;
   clientsWorkOrder: string;
   makeModel: string;
   serialNumber: string;
@@ -17,7 +17,7 @@ export interface WorkshopFormData {
   faultDescription: string;
 
   // User Information
-  customerName: string;
+  customerName: string | null;
   contactEmail: string;
   contactNumber: string;
   selectedCustomer: Customer | null;
@@ -41,8 +41,8 @@ export interface WorkshopRecord {
   updated_at: string;
 
   // Machine Information
-  location_of_repair: 'Site' | 'Workshop';
-  product_name: string;
+  location_of_repair: 'Site' | 'Workshop' | null;
+  product_name: string | null;
   clients_work_order: string;
   make_model: string;
   serial_number: string;
@@ -50,7 +50,7 @@ export interface WorkshopRecord {
   fault_description: string;
 
   // Customer Information
-  customer_name: string;
+  customer_name: string | null;
   contact_email: string;
   contact_number: string;
   customer_data: Customer | null;
@@ -143,14 +143,14 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
     
     // Prepare workshop data
     const workshopData = {
-      location_of_repair: data.locationOfRepair,
-      product_name: data.productName,
+      location_of_repair: data.locationOfRepair || null,
+      product_name: data.productName || null,
       clients_work_order: data.clientsWorkOrder,
       make_model: data.makeModel,
       serial_number: data.serialNumber,
       site_location: data.siteLocation?.trim() || null, // Store null for empty values
       fault_description: data.faultDescription,
-      customer_name: data.customerName,
+      customer_name: data.customerName || null,
       contact_email: data.contactEmail,
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
@@ -322,7 +322,7 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
 export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>): Promise<WorkshopRecord> {
   try {
     // Handle photo uploads if new photos are provided
-    let photoUrls = [];
+    let photoUrls: string[] = [];
     if (data.photos && data.photos.length > 0) {
       const newPhotoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
       photoUrls = newPhotoUrls;
@@ -349,14 +349,14 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     
     // Prepare update data
     const updateData: any = {
-      location_of_repair: data.locationOfRepair,
-      product_name: data.productName,
+      location_of_repair: data.locationOfRepair || null,
+      product_name: data.productName || null,
       clients_work_order: data.clientsWorkOrder,
       make_model: data.makeModel,
       serial_number: data.serialNumber,
       site_location: data.siteLocation?.trim() || null,
       fault_description: data.faultDescription,
-      customer_name: data.customerName,
+      customer_name: data.customerName || null,
       contact_email: data.contactEmail,
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
@@ -443,7 +443,7 @@ export async function cleanupOrphanedPhotos(): Promise<{
     // Extract all photo URLs from workshops
     const usedPhotoUrls = new Set<string>();
     workshops?.forEach(workshop => {
-      workshop.photo_urls?.forEach(url => {
+      workshop.photo_urls?.forEach((url: string) => {
         if (url) {
           // Extract file path from Supabase URL
           const urlParts = url.split('/storage/v1/object/public/workshop-photos/');
@@ -525,7 +525,7 @@ export async function getPhotoStatistics(): Promise<{
 
     workshops?.forEach(workshop => {
       workshopsCount++;
-      workshop.photo_urls?.forEach(url => {
+      workshop.photo_urls?.forEach((url: string) => {
         if (url) {
           const urlParts = url.split('/storage/v1/object/public/workshop-photos/');
           if (urlParts.length > 1) {
@@ -586,7 +586,7 @@ export async function cleanupWorkshopPhotos(workshopId: string): Promise<number>
     }
 
     // Extract file names from URLs
-    const fileNames = workshop.photo_urls.map(url => {
+    const fileNames = workshop.photo_urls.map((url: string) => {
       const urlParts = url.split('/storage/v1/object/public/workshop-photos/');
       return urlParts.length > 1 ? urlParts[1] : null;
     }).filter(Boolean) as string[];

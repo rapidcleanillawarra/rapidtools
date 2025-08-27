@@ -1,112 +1,111 @@
-# feat(workshop): Add comprehensive workshop job status management
+feat(workshop-camera): Allow nullable fields and empty work order
 
-This commit introduces a new Workshop Job Status page that provides a comprehensive view of all workshop jobs with advanced filtering, sorting, and management capabilities.
-
-### Files Created:
-
-#### 1. `src/routes/(protected)/workshop/job-status/+page.svelte`
-- **Purpose**: Provides workshop managers with a centralized view to monitor and manage all workshop jobs
-- **Key Features**:
-  - Comprehensive table displaying all workshop jobs with key information
-  - Advanced filtering by status (pending, in_progress, completed, cancelled) and customer name
-  - Interactive column sorting with visual indicators
-  - Color-coded status badges for quick visual assessment
-  - Responsive design for both desktop and mobile
-- **Usage Examples**:
-  - Filter jobs by status to focus on specific workflow stages
-  - Search by customer name to find client-specific jobs
-  - Sort by creation date to prioritize oldest/newest jobs
-  - View complete job details including location, contact info, and photo counts
-- **DIFF**:
-  ```diff
-  + <script lang="ts">
-  +   import { onMount } from 'svelte';
-  +   import { getWorkshops, type WorkshopRecord } from '$lib/services/workshop';
-  +   import { fade } from 'svelte/transition';
-  +   import Select from 'svelte-select';
-  + 
-  +   let workshops: WorkshopRecord[] = [];
-  +   let filteredWorkshops: WorkshopRecord[] = [];
-  +   let loading = true;
-  +   let error: string | null = null;
-  + 
-  +   // Filter states
-  +   let statusFilter = '';
-  +   let customerFilter = '';
-  +   let sortBy = 'created_at';
-  +   let sortOrder: 'asc' | 'desc' = 'desc';
-  ```
-- **WHY**: Workshop managers needed a centralized way to view and manage all jobs without navigating to individual pages
-- **IMPACT**: Significantly improves operational efficiency by providing comprehensive job status visibility and management tools
+This commit updates the workshop camera functionality to allow location of repair, product name, and customer name fields to be nullable, and sets the client's work order to an empty string when capturing photos. This aligns the frontend behavior with recent database schema changes.
 
 ### Files Modified:
 
-#### 1. `src/lib/Header.svelte`
-- **ADDED**: "Workshop Job Status" menu item to Workshop dropdown in both desktop and mobile navigation
-- **DIFF**:
-  ```diff
-  + <a
-  +   href="{base}/workshop/job-status"
-  +   class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
-  +   on:click={() => workshopOpen = false}
-  + >Workshop Job Status</a>
-  ```
-- **WHY**: Provides navigation access to the new Workshop Job Status page
-- **IMPACT**: Makes the new feature easily accessible from the main navigation interface
+#### 1. `src/lib/services/workshop.ts`
+- **Changes**:
+  - Updated `WorkshopFormData` interface: `locationOfRepair`, `productName`, and `customerName` are now `string | null` or `'Site' | 'Workshop' | null`.
+  - Updated `WorkshopRecord` interface: `location_of_repair`, `product_name`, and `customer_name` are now `string | null` or `'Site' | 'Workshop' | null`.
+  - Modified `createWorkshop` function to use `data.locationOfRepair || null`, `data.productName || null`, and `data.customerName || null` to store null values if the incoming data is null or empty.
+  - Modified `updateWorkshop` function to use `data.locationOfRepair || null`, `data.productName || null`, and `data.customerName || null` for the same reason.
+  - Added explicit type annotations (`string[]` and `(url: string)`) to `photoUrls` variables and `url` parameters in `uploadWorkshopPhotos`, `cleanupOrphanedPhotos`, `getPhotoStatistics`, and `cleanupWorkshopPhotos` functions.
+- **Why**: To accommodate the database schema changes making these columns nullable, and to fix TypeScript linter errors related to implicit `any` types.
+- **Impact**: Allows workshop records to be created and updated with null values for location of repair, product name, and customer name. Improves code quality and type safety.
+
+- **Diff for WorkshopFormData interface update**:
+```diff
+--- a/src/lib/services/workshop.ts
++++ b/src/lib/services/workshop.ts
+@@ -8,11 +8,11 @@
+ // Workshop form data interface
+ export interface WorkshopFormData {
+   // Machine Information
+-  locationOfRepair: 'Site' | 'Workshop';
+-  productName: string;
++  locationOfRepair: 'Site' | 'Workshop' | null;
++  productName: string | null;
+   clientsWorkOrder: string;
+   makeModel: string;
+   serialNumber: string;
+   siteLocation: string; // Now optional
+   faultDescription: string;
+ 
+-  customerName: string;
++  customerName: string | null;
+   contactEmail: string;
+   contactNumber: string;
+   selectedCustomer: Customer | null;
+```
+
+- **Diff for createWorkshop function update**:
+```diff
+--- a/src/lib/services/workshop.ts
++++ b/src/lib/services/workshop.ts
+@@ -143,13 +143,13 @@
+    
+     // Prepare workshop data
+     const workshopData = {
+-      location_of_repair: data.locationOfRepair,
+-      product_name: data.productName,
++      location_of_repair: data.locationOfRepair || null,
++      product_name: data.productName || null,
+       clients_work_order: data.clientsWorkOrder,
+       make_model: data.makeModel,
+       serial_number: data.serialNumber,
+       site_location: data.siteLocation?.trim() || null, // Store null for empty values
+       fault_description: data.faultDescription,
+-      customer_name: data.customerName,
++      customer_name: data.customerName || null,
+       contact_email: data.contactEmail,
+       contact_number: data.contactNumber,
+       customer_data: data.selectedCustomer,
+```
+
+#### 2. `src/routes/(protected)/workshop/camera/+page.svelte`
+- **Changes**:
+  - Modified the `createWorkshopDataFromPhotos` function to set `locationOfRepair`, `productName`, `customerName` to `null`.
+  - Modified the `createWorkshopDataFromPhotos` function to set `clientsWorkOrder` to an empty string (`''`) instead of a generated unique ID.
+- **Why**: To reflect the nullable database columns and to allow for an empty work order when photos are captured directly from the camera, giving more flexibility in initial data entry.
+- **Impact**: When a user captures photos through the camera interface, these fields will no longer be pre-filled with default values but will be saved as `null` or an empty string, allowing them to be filled in later if needed.
+
+- **Diff for createWorkshopDataFromPhotos function update**:
+```diff
+--- a/src/routes/(protected)/workshop/camera/+page.svelte
++++ b/src/routes/(protected)/workshop/camera/+page.svelte
+@@ -120,11 +120,11 @@
+ 
+   function createWorkshopDataFromPhotos() {
+     return {
+-      locationOfRepair: 'Workshop' as const,
+-      productName: 'Photos captured via camera', // Required field - provide default
+-      clientsWorkOrder: `camera_${Date.now()}`, // Generate a unique work order
++      locationOfRepair: null,
++      productName: null,
++      clientsWorkOrder: '', // Empty work order
+       makeModel: '',
+       serialNumber: '',
+       siteLocation: '',
+       faultDescription: 'Photos captured via camera',
+-      customerName: 'Camera Capture', // Required field - provide default
++      customerName: null,
+       contactEmail: '',
+       contactNumber: '',
+       selectedCustomer: null,
+```
 
 ### Technical Improvements:
+- **BEFORE**: TypeScript linter reported implicit `any` type errors in `src/lib/services/workshop.ts` due to undeclared types for function parameters and variables.
+- **AFTER**: Explicit type annotations (`string[]`, `(url: string)`) were added, resolving the linter errors and improving code maintainability and readability.
 
-#### Data Management:
-- **BEFORE**: No centralized view of workshop jobs - required navigating to individual workshop pages
-- **AFTER**: Comprehensive dashboard with all workshop data in one place
-
-#### User Experience:
-- **BEFORE**: Limited ability to filter, sort, or search workshop jobs
-- **AFTER**: Advanced filtering, sorting, and search capabilities with visual indicators
-
-#### Accessibility:
-- **IMPLEMENTED**: Proper form labels and ARIA attributes for screen readers
-- **FIXED**: All potential accessibility issues identified by linting tools
-
-#### Error Handling:
-- **ADDED**: Proper error state display when workshop data fails to load
-- **ADDED**: Loading indicators during data fetching operations
-- **ADDED**: Empty state handling when no workshops match filters
+### Endpoints Modified:
+- The `createWorkshop` and `updateWorkshop` functions within `src/lib/services/workshop.ts` interact with the `supabase` client to perform database operations on the `workshop` table. No new endpoints were added, but the data sent to existing insert/update operations was modified.
 
 ### Testing Instructions:
-
-1. **Access the Workshop Job Status Page**:
-   - Navigate to Workshop → Workshop Job Status from the main menu
-   - Verify the page loads with workshop data in a table format
-
-2. **Test Filtering Capabilities**:
-   - Filter by status using the dropdown (try each status option)
-   - Search for a customer by typing in the customer filter field
-   - Verify results update correctly for each filter combination
-
-3. **Test Sorting Functionality**:
-   - Click column headers to sort (Created, Customer, Product, Work Order, Status)
-   - Verify sort direction toggles between ascending and descending
-   - Check that sort indicators (arrows) appear correctly
-
-4. **Test Responsive Design**:
-   - View the page on different screen sizes
-   - Verify table remains usable on mobile devices with horizontal scrolling
-   - Test mobile navigation to ensure the new menu item works correctly
-
-### Routes Added:
-- **Client Route**: `/workshop/job-status` (protected route)
-
-### Related Components:
-- Workshop service functions (`getWorkshops()`, `WorkshopRecord` interface)
-- Header navigation component
-- Existing workshop management workflow
-
-### Dependencies:
-- Uses existing components: Svelte Select, fade transition
-- No new external dependencies added
-
-### Performance Considerations:
-- Efficient client-side filtering and sorting to minimize server requests
-- Reactive data handling to prevent unnecessary re-renders
-- Pagination considerations for future implementation if workshop data grows significantly
+1.  Navigate to the camera page (e.g., `/workshop/camera`).
+2.  Take or upload one or more photos.
+3.  Click the "Done" button to save the photos to the database.
+4.  Verify that a new workshop record is created in your Supabase `public.workshop` table.
+5.  Check the `location_of_repair`, `product_name`, `customer_name`, and `clients_work_order` columns for the newly created record. They should be `null`, `null`, `null`, and an empty string (`''`) respectively.
+6.  (Optional) If you have an existing workshop record, try updating it through another interface to ensure that `null` values can still be passed for these fields.

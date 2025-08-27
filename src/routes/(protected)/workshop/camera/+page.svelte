@@ -120,14 +120,14 @@
 
   function createWorkshopDataFromPhotos() {
     return {
-      locationOfRepair: 'Workshop' as const,
-      productName: 'Photos captured via camera', // Required field - provide default
-      clientsWorkOrder: `camera_${Date.now()}`, // Generate a unique work order
+      locationOfRepair: null,
+      productName: null,
+      clientsWorkOrder: '', // Empty work order
       makeModel: '',
       serialNumber: '',
       siteLocation: '',
       faultDescription: 'Photos captured via camera',
-      customerName: 'Camera Capture', // Required field - provide default
+      customerName: null,
       contactEmail: '',
       contactNumber: '',
       selectedCustomer: null,

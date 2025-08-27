@@ -5,7 +5,7 @@
   import CustomerDropdown from '$lib/components/CustomerDropdown.svelte';
   import type { Customer } from '$lib/services/customers';
   import { getCustomerDisplayName } from '$lib/services/customers';
-  import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos } from '$lib/services/workshop';
+  import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop } from '$lib/services/workshop';
   import { page } from '$app/stores';
 
   type LocationType = 'Site' | 'Workshop';
@@ -51,6 +51,7 @@
 
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
+  let existingWorkshopId: string | null = null;
 
   // Check referrer to determine if user came from camera page
   $: if (typeof window !== 'undefined') {
@@ -62,8 +63,55 @@
         currentUrl.includes('from=camera') ||
         $page.url.searchParams.get('from') === 'camera') {
       startedWith = 'camera';
+
+      // Check if we have a workshop_id parameter to load existing workshop
+      const workshopId = $page.url.searchParams.get('workshop_id');
+      if (workshopId) {
+        existingWorkshopId = workshopId;
+        loadExistingWorkshop(workshopId);
+      }
     } else {
       startedWith = 'form';
+    }
+  }
+
+  async function loadExistingWorkshop(workshopId: string) {
+    try {
+      const workshop = await getWorkshop(workshopId);
+
+      if (!workshop) {
+        submitError = 'Workshop not found.';
+        return;
+      }
+
+      // Populate form with existing workshop data
+      locationOfRepair = workshop.location_of_repair;
+      productName = workshop.product_name;
+      clientsWorkOrder = workshop.clients_work_order;
+      makeModel = workshop.make_model;
+      serialNumber = workshop.serial_number;
+      siteLocation = workshop.site_location || '';
+      faultDescription = workshop.fault_description;
+      customerName = workshop.customer_name;
+      contactEmail = workshop.contact_email;
+      contactNumber = workshop.contact_number;
+      selectedCustomer = workshop.customer_data;
+      optionalContacts = workshop.optional_contacts || [];
+
+      // Load existing photos (they're already saved in storage)
+      // Note: We can't recreate File objects from URLs, so we'll show them differently
+      if (workshop.photo_urls && workshop.photo_urls.length > 0) {
+        // Create PhotoItem entries with the existing photo URLs
+        photos = workshop.photo_urls.map(url => ({
+          file: new File([], 'existing-photo.jpg', { type: 'image/jpeg' }), // Dummy file
+          url: url
+        }));
+      }
+
+      console.log('Loaded existing workshop:', workshop);
+    } catch (error) {
+      console.error('Error loading workshop:', error);
+      submitError = 'Failed to load existing workshop. Please try again.';
     }
   }
 
@@ -230,18 +278,27 @@
       startedWith
     };
 
-    // Submit to Supabase
-    createWorkshop(formData)
+    // Submit to Supabase - either create new or update existing
+    const submitPromise = existingWorkshopId
+      ? updateWorkshop(existingWorkshopId, formData)
+      : createWorkshop(formData);
+
+    submitPromise
       .then((workshop) => {
-        console.log('Workshop created successfully:', workshop);
+        console.log('Workshop saved successfully:', workshop);
         console.log('Started with:', startedWith);
         submitSuccess = true;
-        // Reset form after successful submission
-        resetForm();
+
+        if (existingWorkshopId) {
+          submitError = ''; // Clear any previous errors
+        } else {
+          // Reset form after successful creation
+          resetForm();
+        }
       })
       .catch((error) => {
-        console.error('Error creating workshop:', error);
-        submitError = error.message || 'Failed to create workshop. Please try again.';
+        console.error('Error saving workshop:', error);
+        submitError = error.message || 'Failed to save workshop. Please try again.';
       })
       .finally(() => {
         isSubmitting = false;
@@ -556,9 +613,9 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            Creating...
+            {existingWorkshopId ? 'Updating...' : 'Creating...'}
           {:else}
-            Create Job
+            {existingWorkshopId ? 'Update Job' : 'Create Job'}
           {/if}
         </button>
       </div>

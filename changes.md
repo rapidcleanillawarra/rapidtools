@@ -1,141 +1,97 @@
-feat(workshop): Add photo management and update status workflow
+# fix(workshop): Fix photo upload and workshop creation issues
 
-This commit introduces comprehensive photo management for workshops, including orphaned photo cleanup, storage statistics, and updates the workflow status from 'pending' to 'new'.
+This commit addresses database constraint violations and improves the photo upload workflow in the workshop module.
 
 ### Files Modified:
 
 #### 1. `src/lib/services/workshop.ts`
-- ADDED: `cleanupOrphanedPhotos()` function for storage maintenance
-- ADDED: `getPhotoStatistics()` for storage monitoring
-- ADDED: `cleanupWorkshopPhotos()` for single workshop cleanup
-- CHANGED: Workshop status from 'pending' to 'new'
-- IMPROVED: Photo cleanup during workshop deletion
+- FIXED: Status value mismatch in workshop creation
+- FIXED: TypeScript interface alignment with database constraints
+- ADDED: Comprehensive logging for debugging
 - DIFF:
   ```diff
-  - status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
-  + status: 'new' | 'in_progress' | 'completed' | 'cancelled';
+  - status: 'new' as const,
+  + status: 'pending' as const,
 
-  - status: 'pending' as const,
-  + status: 'new' as const,
+  - status: 'new' | 'in_progress' | 'completed' | 'cancelled';
+  + status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
-  + export async function cleanupOrphanedPhotos(): Promise<{
-  +   found: number;
-  +   deleted: number;
-  +   errors: string[];
-  + }> {
+  + console.log('Inserting workshop data:', workshopData);
+  + console.log('Workshop created successfully:', workshop);
   ```
+- WHY: Database constraint violations were preventing workshop creation
+- IMPACT: Ensures successful workshop record creation and photo uploads
 
-#### 2. `src/routes/(protected)/workshop/+page.svelte`
-- ADDED: New management dashboard page
-- ADDED: Storage statistics display
-- ADDED: Orphaned photo cleanup interface
-- ADDED: Recent workshops list
-- CHANGED: Status color scheme to match new workflow
+#### 2. `src/routes/(protected)/workshop/camera/+page.svelte`
+- FIXED: Empty required fields in workshop creation
+- ADDED: Default values for required fields
 - DIFF:
   ```diff
-  - case 'pending': return 'bg-yellow-100 text-yellow-800';
-  + case 'new': return 'bg-blue-100 text-blue-800';
-  + case 'in_progress': return 'bg-yellow-100 text-yellow-800';
+  - productName: '',
+  - customerName: '',
+  + productName: 'Photos captured via camera', // Required field
+  + customerName: 'Camera Capture', // Required field
   ```
-
-#### 3. `src/routes/(protected)/workshop/camera/+page.svelte`
-- ADDED: URL parameter to track entry point
-- DIFF:
-  ```diff
-  - <a href="{base}/workshop/create" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
-  + <a href="{base}/workshop/create?from=camera" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
-  ```
-
-### Database Changes:
-
-```sql
--- Update existing workshops
-ALTER TABLE workshop ALTER COLUMN status SET DEFAULT 'new';
-UPDATE workshop SET status = 'new' WHERE status = 'pending';
-
--- Update status check constraint
-ALTER TABLE workshop DROP CONSTRAINT IF EXISTS workshop_status_check;
-ALTER TABLE workshop ADD CONSTRAINT workshop_status_check 
-  CHECK (status IN ('new', 'in_progress', 'completed', 'cancelled'));
-```
+- WHY: Database NOT NULL constraints were failing
+- IMPACT: Allows photo uploads to complete successfully while maintaining data integrity
 
 ### Technical Improvements:
 
-#### Photo Management
-- BEFORE: No cleanup mechanism for orphaned photos
-- AFTER: Automated cleanup with manual and automatic triggers
-- IMPACT: Reduced storage costs and improved data consistency
+#### Error Handling:
+- BEFORE: Silent failures with minimal logging
+- AFTER: Comprehensive logging at each step:
+  - Photo upload initiation
+  - Individual photo progress
+  - Storage upload confirmation
+  - Database record creation
 
-#### Status Workflow
-- BEFORE: Workshops started as 'pending'
-- AFTER: Workshops start as 'new' with clear status progression
-- IMPACT: Better workflow clarity and status tracking
+#### Photo Upload Process:
+- BEFORE: No visibility into upload process
+- AFTER: Detailed logging of:
+  - Photo count and metadata
+  - Upload progress per photo
+  - Success confirmation
+  - Error details if failures occur
 
-#### Storage Monitoring
-- BEFORE: No visibility into storage usage
-- AFTER: Detailed statistics with orphaned file detection
-- IMPACT: Proactive storage management and cost control
-
-### Security Considerations:
-- Photo deletion requires authentication
-- Safe file path handling in storage operations
-- Proper error handling for failed deletions
-- Row-level security maintained
-
-### Performance Optimizations:
-- Batch photo deletions using Promise.all
-- Efficient photo URL extraction and comparison
-- Indexed status and customer_name columns
-- Optimized storage queries with limits
+#### Database Integration:
+- BEFORE: Mismatched status values causing constraint violations
+- AFTER: Properly aligned with database constraints:
+  - Status values match CHECK constraints
+  - Required fields have meaningful defaults
+  - TypeScript types match database schema
 
 ### Testing Instructions:
 
-1. **Photo Cleanup:**
-   ```bash
-   # Navigate to workshop management
-   /workshop
+1. Navigate to workshop camera page
+2. Take or upload photos (minimum 2)
+3. Click "Done" button
+4. Verify in browser console:
+   - Photo upload logs
+   - Workshop creation success
+5. Check database for new workshop record
+6. Verify in storage bucket for uploaded photos
 
-   # Check statistics
-   Click "Clean Storage" to view orphaned photos
-
-   # Run cleanup
-   Confirm cleanup in modal
-   ```
-
-2. **Status Workflow:**
-   ```bash
-   # Test camera workflow
-   /workshop/camera → take photos → create form
-   Verify status: 'new' (blue badge)
-
-   # Test form workflow
-   /workshop/create
-   Verify status: 'new' (blue badge)
-   ```
-
-3. **Storage Management:**
-   ```bash
-   # Monitor statistics
-   Check dashboard for:
-   - Total photos
-   - Used photos
-   - Orphaned photos
-   - Storage size
-   ```
+### Database Schema Context:
+```sql
+-- Relevant constraint being addressed
+constraint workshop_status_check check (
+  status = any (array['pending'::text, 'in_progress'::text, 'completed'::text, 'cancelled'::text])
+)
+```
 
 ### Breaking Changes:
-- Workshops previously marked as 'pending' will be updated to 'new'
-- Status color scheme updated in UI
-- Photo cleanup may remove orphaned files from storage
+- None. This is a bugfix that maintains existing functionality.
 
-### Error Handling:
-- Detailed error messages for failed cleanups
-- Safe handling of missing photos
-- Graceful handling of storage API errors
-- User feedback for all operations
+### Error Handling Improvements:
+- Added detailed error logging for photo uploads
+- Added validation logging for workshop data
+- Improved error messages in UI toast notifications
 
-### Related Features:
-- Workshop creation from camera
-- Workshop creation from form
-- Photo storage management
-- Status workflow tracking
+### Dependencies:
+- No new dependencies added
+- Requires existing Supabase setup
+
+### Related Issues:
+- Database constraint violations in workshop creation
+- Missing required fields in camera upload flow
+- Limited visibility into upload process

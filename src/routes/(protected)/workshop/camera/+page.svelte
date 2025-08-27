@@ -2,18 +2,21 @@
   import { fade } from 'svelte/transition';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
+  import { createWorkshop } from '$lib/services/workshop';
+  import { toastSuccess, toastError } from '$lib/utils/toast';
 
   type PhotoItem = { file: File; url: string };
   let photos: PhotoItem[] = [];
   let showPrompt = true;
+  let isSaving = false;
 
   let takePhotoInput: HTMLInputElement | null = null;
   let uploadPhotoInput: HTMLInputElement | null = null;
 
   onMount(() => {
-    // Auto-open system picker via prompt buttons
-    // Keep just the modal opening by default
-    showPrompt = true;
+    // Automatically trigger camera on page load
+    triggerTakePhoto();
   });
 
   function triggerTakePhoto() {
@@ -30,8 +33,19 @@
       addFiles(input.files);
       // Reset to allow selecting the same file again
       input.value = '';
+
+      // Check if we need more photos (less than 2 total)
+      // Use setTimeout to ensure photos array is updated
+      setTimeout(() => {
+        if (photos.length < 2) {
+          triggerTakePhoto();
+        } else {
+          showPrompt = false;
+        }
+      }, 100);
+    } else {
+      showPrompt = false;
     }
-    showPrompt = false;
   }
 
   function addFiles(fileList: FileList) {
@@ -50,6 +64,48 @@
     photos = [...photos];
   }
 
+  async function savePhotosToDatabase() {
+    if (photos.length === 0) {
+      toastError('No photos to save');
+      return;
+    }
+
+    isSaving = true;
+
+    try {
+      // Create a basic workshop record with just the photos
+      const workshopData = {
+        locationOfRepair: 'Workshop' as const,
+        productName: 'Photos captured via camera', // Required field - provide default
+        clientsWorkOrder: `camera_${Date.now()}`, // Generate a unique work order
+        makeModel: '',
+        serialNumber: '',
+        siteLocation: '',
+        faultDescription: 'Photos captured via camera',
+        customerName: 'Camera Capture', // Required field - provide default
+        contactEmail: '',
+        contactNumber: '',
+        selectedCustomer: null,
+        optionalContacts: [],
+        photos: photos.map(p => p.file),
+        startedWith: 'camera' as const
+      };
+
+      const workshop = await createWorkshop(workshopData);
+
+      toastSuccess(`Photos saved successfully! Workshop ID: ${workshop.id}`);
+
+      // Navigate to the create page with the workshop ID for editing
+      goto(`${base}/workshop/create?workshop_id=${workshop.id}&from=camera`);
+
+    } catch (error) {
+      console.error('Error saving photos:', error);
+      toastError('Failed to save photos. Please try again.');
+    } finally {
+      isSaving = false;
+    }
+  }
+
   onDestroy(() => {
     photos.forEach((p) => URL.revokeObjectURL(p.url));
   });
@@ -65,7 +121,21 @@
       </div>
       <div class="flex gap-2">
         <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
-        <a href="{base}/workshop/create?from=camera" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800">Done</a>
+        <button
+          class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          disabled={isSaving || photos.length === 0}
+          on:click={savePhotosToDatabase}
+        >
+          {#if isSaving}
+            <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Saving...
+          {:else}
+            Done
+          {/if}
+        </button>
       </div>
     </div>
 

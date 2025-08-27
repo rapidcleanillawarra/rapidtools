@@ -60,7 +60,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'new' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   created_by: string;
 
   // Workflow tracking
@@ -101,11 +101,13 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
       optional_contacts: data.optionalContacts,
-      status: 'new' as const,
+      status: 'pending' as const,
       created_by: userId || 'system',
       started_with: data.startedWith,
       photo_urls: photoUrls
     };
+
+    console.log('Inserting workshop data:', workshopData);
 
     const { data: workshop, error } = await supabase
       .from('workshop')
@@ -114,8 +116,11 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       .single();
 
     if (error) {
+      console.error('Supabase insert error:', error);
       throw error;
     }
+
+    console.log('Workshop created successfully:', workshop);
 
     return workshop as WorkshopRecord;
   } catch (error) {
@@ -128,7 +133,10 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
  * Upload photos to Supabase storage
  */
 export async function uploadWorkshopPhotos(photos: File[], workOrder: string): Promise<string[]> {
+  console.log('uploadWorkshopPhotos called with:', { photoCount: photos?.length, workOrder });
+
   if (!photos || photos.length === 0) {
+    console.log('No photos to upload, returning empty array');
     return [];
   }
 
@@ -137,6 +145,8 @@ export async function uploadWorkshopPhotos(photos: File[], workOrder: string): P
 
     for (let i = 0; i < photos.length; i++) {
       const photo = photos[i];
+      console.log(`Uploading photo ${i + 1}:`, { name: photo.name, size: photo.size, type: photo.type });
+
       const fileName = `${workOrder}_${Date.now()}_${i + 1}_${photo.name}`;
 
       const { data, error } = await supabase.storage
@@ -144,6 +154,7 @@ export async function uploadWorkshopPhotos(photos: File[], workOrder: string): P
         .upload(fileName, photo);
 
       if (error) {
+        console.error(`Error uploading photo ${i + 1}:`, error);
         throw error;
       }
 
@@ -152,9 +163,11 @@ export async function uploadWorkshopPhotos(photos: File[], workOrder: string): P
         .from('workshop-photos')
         .getPublicUrl(fileName);
 
+      console.log(`Photo ${i + 1} uploaded successfully:`, urlData.publicUrl);
       uploadedUrls.push(urlData.publicUrl);
     }
 
+    console.log('All photos uploaded successfully:', uploadedUrls);
     return uploadedUrls;
   } catch (error) {
     console.error('Error uploading photos:', error);
@@ -241,6 +254,58 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
     }
   } catch (error) {
     console.error('Error updating workshop status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update workshop
+ */
+export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>): Promise<WorkshopRecord> {
+  try {
+    // Handle photo uploads if new photos are provided
+    let photoUrls = [];
+    if (data.photos && data.photos.length > 0) {
+      const newPhotoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
+      photoUrls = newPhotoUrls;
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      location_of_repair: data.locationOfRepair,
+      product_name: data.productName,
+      clients_work_order: data.clientsWorkOrder,
+      make_model: data.makeModel,
+      serial_number: data.serialNumber,
+      site_location: data.siteLocation?.trim() || null,
+      fault_description: data.faultDescription,
+      customer_name: data.customerName,
+      contact_email: data.contactEmail,
+      contact_number: data.contactNumber,
+      customer_data: data.selectedCustomer,
+      optional_contacts: data.optionalContacts,
+      updated_at: new Date().toISOString()
+    };
+
+    // Only add photo_urls if we have new photos
+    if (photoUrls.length > 0) {
+      updateData.photo_urls = photoUrls;
+    }
+
+    const { data: workshop, error } = await supabase
+      .from('workshop')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return workshop as WorkshopRecord;
+  } catch (error) {
+    console.error('Error updating workshop:', error);
     throw error;
   }
 }

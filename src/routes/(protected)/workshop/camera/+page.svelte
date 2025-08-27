@@ -61,6 +61,7 @@
       <div>
         <h1 class="text-xl font-semibold">Camera</h1>
         <p class="text-gray-600 text-sm">Capture or upload photos for a workshop job.</p>
+
       </div>
       <div class="flex gap-2">
         <button class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={() => { showPrompt = true; }}>Add Photos</button>
@@ -110,5 +111,3 @@
     </div>
   </div>
 {/if}
-
-

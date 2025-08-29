@@ -1,111 +1,94 @@
-feat(workshop-camera): Allow nullable fields and empty work order
+feat(customer-group-invoices): Add order lines export with price comparison
 
-This commit updates the workshop camera functionality to allow location of repair, product name, and customer name fields to be nullable, and sets the client's work order to an empty string when capturing photos. This aligns the frontend behavior with recent database schema changes.
+Implements a new feature to export order lines with price comparison between discounted and list prices.
 
 ### Files Modified:
 
-#### 1. `src/lib/services/workshop.ts`
-- **Changes**:
-  - Updated `WorkshopFormData` interface: `locationOfRepair`, `productName`, and `customerName` are now `string | null` or `'Site' | 'Workshop' | null`.
-  - Updated `WorkshopRecord` interface: `location_of_repair`, `product_name`, and `customer_name` are now `string | null` or `'Site' | 'Workshop' | null`.
-  - Modified `createWorkshop` function to use `data.locationOfRepair || null`, `data.productName || null`, and `data.customerName || null` to store null values if the incoming data is null or empty.
-  - Modified `updateWorkshop` function to use `data.locationOfRepair || null`, `data.productName || null`, and `data.customerName || null` for the same reason.
-  - Added explicit type annotations (`string[]` and `(url: string)`) to `photoUrls` variables and `url` parameters in `uploadWorkshopPhotos`, `cleanupOrphanedPhotos`, `getPhotoStatistics`, and `cleanupWorkshopPhotos` functions.
-- **Why**: To accommodate the database schema changes making these columns nullable, and to fix TypeScript linter errors related to implicit `any` types.
-- **Impact**: Allows workshop records to be created and updated with null values for location of repair, product name, and customer name. Improves code quality and type safety.
+#### 1. `src/routes/customer-group-invoices/+page.svelte`
+- ADDED: "Get Order Lines" button in the actions toolbar
+- ADDED: Order lines export functionality with price comparison
+- ADDED: Helper function `fetchRrpMapForSkus` for batched RRP retrieval
+- MODIFIED: CSV generation to include price comparison
+- DIFF:
+  ```diff
+  + <button
+  +   class="bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700"
+  +   on:click={handleGetOrderLines}
+  + >
+  +   Get Order Lines
+  + </button>
 
-- **Diff for WorkshopFormData interface update**:
-```diff
---- a/src/lib/services/workshop.ts
-+++ b/src/lib/services/workshop.ts
-@@ -8,11 +8,11 @@
- // Workshop form data interface
- export interface WorkshopFormData {
-   // Machine Information
--  locationOfRepair: 'Site' | 'Workshop';
--  productName: string;
-+  locationOfRepair: 'Site' | 'Workshop' | null;
-+  productName: string | null;
-   clientsWorkOrder: string;
-   makeModel: string;
-   serialNumber: string;
-   siteLocation: string; // Now optional
-   faultDescription: string;
- 
--  customerName: string;
-+  customerName: string | null;
-   contactEmail: string;
-   contactNumber: string;
-   selectedCustomer: Customer | null;
-```
-
-- **Diff for createWorkshop function update**:
-```diff
---- a/src/lib/services/workshop.ts
-+++ b/src/lib/services/workshop.ts
-@@ -143,13 +143,13 @@
-    
-     // Prepare workshop data
-     const workshopData = {
--      location_of_repair: data.locationOfRepair,
--      product_name: data.productName,
-+      location_of_repair: data.locationOfRepair || null,
-+      product_name: data.productName || null,
-       clients_work_order: data.clientsWorkOrder,
-       make_model: data.makeModel,
-       serial_number: data.serialNumber,
-       site_location: data.siteLocation?.trim() || null, // Store null for empty values
-       fault_description: data.faultDescription,
--      customer_name: data.customerName,
-+      customer_name: data.customerName || null,
-       contact_email: data.contactEmail,
-       contact_number: data.contactNumber,
-       customer_data: data.selectedCustomer,
-```
-
-#### 2. `src/routes/(protected)/workshop/camera/+page.svelte`
-- **Changes**:
-  - Modified the `createWorkshopDataFromPhotos` function to set `locationOfRepair`, `productName`, `customerName` to `null`.
-  - Modified the `createWorkshopDataFromPhotos` function to set `clientsWorkOrder` to an empty string (`''`) instead of a generated unique ID.
-- **Why**: To reflect the nullable database columns and to allow for an empty work order when photos are captured directly from the camera, giving more flexibility in initial data entry.
-- **Impact**: When a user captures photos through the camera interface, these fields will no longer be pre-filled with default values but will be saved as `null` or an empty string, allowing them to be filled in later if needed.
-
-- **Diff for createWorkshopDataFromPhotos function update**:
-```diff
---- a/src/routes/(protected)/workshop/camera/+page.svelte
-+++ b/src/routes/(protected)/workshop/camera/+page.svelte
-@@ -120,11 +120,11 @@
- 
-   function createWorkshopDataFromPhotos() {
-     return {
--      locationOfRepair: 'Workshop' as const,
--      productName: 'Photos captured via camera', // Required field - provide default
--      clientsWorkOrder: `camera_${Date.now()}`, // Generate a unique work order
-+      locationOfRepair: null,
-+      productName: null,
-+      clientsWorkOrder: '', // Empty work order
-       makeModel: '',
-       serialNumber: '',
-       siteLocation: '',
-       faultDescription: 'Photos captured via camera',
--      customerName: 'Camera Capture', // Required field - provide default
-+      customerName: null,
-       contactEmail: '',
-       contactNumber: '',
-       selectedCustomer: null,
-```
+  + async function fetchRrpMapForSkus(skus: string[]): Promise<Map<string, number>> {
+  +   // Implementation for batched RRP retrieval
+  + }
+  ```
 
 ### Technical Improvements:
-- **BEFORE**: TypeScript linter reported implicit `any` type errors in `src/lib/services/workshop.ts` due to undeclared types for function parameters and variables.
-- **AFTER**: Explicit type annotations (`string[]`, `(url: string)`) were added, resolving the linter errors and improving code maintainability and readability.
 
-### Endpoints Modified:
-- The `createWorkshop` and `updateWorkshop` functions within `src/lib/services/workshop.ts` interact with the `supabase` client to perform database operations on the `workshop` table. No new endpoints were added, but the data sent to existing insert/update operations was modified.
+#### API Integration
+- BEFORE: No order lines export functionality
+- AFTER: Comprehensive export with price comparison and filtering
+- IMPROVED: Batched API calls to handle large datasets efficiently
+
+#### Data Processing
+- BEFORE: N/A
+- AFTER: 
+  - Efficient SKU deduplication
+  - Price comparison logic
+  - Automatic filtering of non-discounted items
+
+#### CSV Generation
+- Format: SKU, Discounted Price, List Price
+- Filtering: Excludes items where discounted price ≥ list price
+- Sorting: Alphabetical by SKU with header preserved
+
+### API Endpoints Used:
+1. Get Order Lines:
+   ```json
+   {
+     "Filter": {
+       "OrderID": ["array_of_order_ids"],
+       "OutputSelector": ["OrderLine", "OrderLine.UnitPrice"]
+     },
+     "action": "GetOrder"
+   }
+   ```
+
+2. Get RRP (List Price):
+   ```json
+   {
+     "Filter": {
+       "SKU": ["array_of_skus"],
+       "OutputSelector": ["RRP"]
+     },
+     "action": "GetItem"
+   }
+   ```
+
+### Error Handling:
+- Added validation for empty order sets
+- Graceful handling of missing RRP values
+- Proper error messaging for API failures
 
 ### Testing Instructions:
-1.  Navigate to the camera page (e.g., `/workshop/camera`).
-2.  Take or upload one or more photos.
-3.  Click the "Done" button to save the photos to the database.
-4.  Verify that a new workshop record is created in your Supabase `public.workshop` table.
-5.  Check the `location_of_repair`, `product_name`, `customer_name`, and `clients_work_order` columns for the newly created record. They should be `null`, `null`, `null`, and an empty string (`''`) respectively.
-6.  (Optional) If you have an existing workshop record, try updating it through another interface to ensure that `null` values can still be passed for these fields.
+1. Navigate to Customer Group Invoices page
+2. Apply filters to get a set of invoices
+3. Click "Get Order Lines" button
+4. Verify CSV contains:
+   - Only SKUs with actual discounts
+   - Correct price comparison
+   - Proper header row
+
+### Performance Considerations:
+- Implemented SKU batching (80 per request) to prevent payload size issues
+- Optimized data structures for price comparison
+- Efficient CSV generation with minimal memory footprint
+
+### Security:
+- No sensitive data exposed in exports
+- Uses existing API endpoints with proper authentication
+- Input validation on all user-provided data
+
+### Dependencies:
+- Requires existing API endpoints for order and item data
+- Uses browser's native CSV download capabilities

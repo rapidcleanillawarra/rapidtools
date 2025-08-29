@@ -497,6 +497,196 @@
     defaultAmount = invoice.balance;
   }
 
+  // Function to handle Get Order Lines
+  async function handleGetOrderLines() {
+    try {
+      // Collect all order IDs from all pages (use originalInvoices to get all data)
+      const orderIds = $originalInvoices.map(invoice => invoice.invoiceNumber);
+
+      if (orderIds.length === 0) {
+        toastError('No orders found to retrieve line items');
+        return;
+      }
+
+      console.log('Collecting order lines for orders:', orderIds);
+
+      // Show loading state
+      filterLoading.set(true);
+      currentLoadingStep.set('Retrieving order line items...');
+
+      // Prepare payload for Get Order Lines API
+      const orderLinesPayload = {
+        Filter: {
+          OrderID: orderIds,
+          OutputSelector: [
+            "OrderLine",
+            "OrderLine.UnitPrice"
+          ]
+        },
+        action: "GetOrder"
+      };
+
+      console.log('Get Order Lines API Payload:', orderLinesPayload);
+
+      // Make API call to get order lines
+      const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(orderLinesPayload)
+      });
+
+      const orderLinesData = await response.json();
+      console.log('Get Order Lines API Response:', orderLinesData);
+
+      if (!orderLinesData.Order || orderLinesData.Order.length === 0) {
+        toastError('No order line data found');
+        return;
+      }
+
+      // Process the data and generate CSV
+      const csvData = await generateOrderLinesCSV(orderLinesData.Order);
+
+      // Download the CSV file
+      downloadCSV(csvData, 'order_lines.csv');
+
+      toastSuccess(`Successfully exported ${csvData.length - 1} order line items to CSV`);
+
+    } catch (error) {
+      console.error('Error retrieving order lines:', error);
+      toastError('Failed to retrieve order line items');
+    } finally {
+      filterLoading.set(false);
+      currentLoadingStep.set('');
+    }
+  }
+
+  // Function to generate CSV data from order lines including List Price (RRP)
+  async function generateOrderLinesCSV(orders: any[]): Promise<string[][]> {
+    const header = [
+      'SKU',
+      'Discounted Price',
+      'List Price'
+    ];
+    const rows: string[][] = [];
+
+    // Collect all SKUs and their prices to find maximums (discounted price)
+    const skuPrices: { [sku: string]: number[] } = {};
+
+    // Process each order and its line items
+    orders.forEach(order => {
+      if (order.OrderLine && Array.isArray(order.OrderLine)) {
+        order.OrderLine.forEach((line: any) => {
+          const sku = line.SKU || '';
+          const unitPrice = parseFloat(line.UnitPrice) || 0;
+
+          if (sku && unitPrice > 0) {
+            if (!skuPrices[sku]) {
+              skuPrices[sku] = [];
+            }
+            skuPrices[sku].push(unitPrice);
+          }
+        });
+      }
+    });
+
+    const skus = Object.keys(skuPrices);
+
+    // Fetch RRP (List Price) for filtered SKUs
+    const rrpMap = await fetchRrpMapForSkus(skus);
+
+    // Build rows combining discounted price (min unit price) and list price (RRP)
+    // Skip SKUs where discounted price is equal to or higher than list price
+    skus.forEach(sku => {
+      const lowestPrice = Math.min(...skuPrices[sku]);
+      const listPrice = rrpMap.get(sku);
+
+      if (listPrice != null && !isNaN(listPrice) && lowestPrice >= listPrice) {
+        return; // Remove SKUs that are not actually discounted
+      }
+
+      rows.push([
+        sku,
+        lowestPrice.toFixed(2),
+        listPrice != null && !isNaN(listPrice) ? listPrice.toFixed(2) : ''
+      ]);
+    });
+
+    // Sort by SKU for consistent output (do not sort header)
+    rows.sort((a, b) => a[0].localeCompare(b[0]));
+
+    return [header, ...rows];
+  }
+
+  // Helper: fetch RRP values for a set of SKUs in batches; returns Map<SKU, RRP>
+  async function fetchRrpMapForSkus(skus: string[]): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (!skus || skus.length === 0) return result;
+
+    // Deduplicate and chunk to avoid payload limits
+    const uniqueSkus = Array.from(new Set(skus.map(s => (s || '').toString().trim()).filter(Boolean)));
+    const chunkSize = 80;
+    for (let i = 0; i < uniqueSkus.length; i += chunkSize) {
+      const chunk = uniqueSkus.slice(i, i + chunkSize);
+      const payload = {
+        Filter: {
+          SKU: chunk,
+          OutputSelector: ['RRP']
+        },
+        action: 'GetItem'
+      };
+
+      try {
+        const resp = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (data.Item && Array.isArray(data.Item)) {
+          for (const item of data.Item) {
+            const sku: string = (item.SKU || '').toString().trim();
+            const rrpRaw = parseFloat(item.RRP);
+            if (sku && !isNaN(rrpRaw)) {
+              result.set(sku, rrpRaw);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('RRP fetch failed for chunk', chunk, err);
+      }
+    }
+
+    return result;
+  }
+
+  // Function to download CSV file
+  function downloadCSV(data: string[][], filename: string) {
+    const csvContent = data.map(row =>
+      row.map(field => {
+        // Escape fields containing commas, quotes, or newlines
+        if (field.includes(',') || field.includes('"') || field.includes('\n')) {
+          return '"' + field.replace(/"/g, '""') + '"';
+        }
+        return field;
+      }).join(',')
+    ).join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
   // Function to close modal
   function closeModal() {
     isModalOpen.set(false);
@@ -625,7 +815,7 @@
 
     <!-- Apply Filter Button -->
     <div class="mb-6 flex justify-end gap-4">
-      <button
+            <button
         class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 flex items-center justify-center min-w-[160px]"
         on:click={() => {
           // Clear all filters
@@ -649,11 +839,19 @@
             company: '',
             status: ''
           });
-          
+
         }}
       >
         Clear All Filters
       </button>
+      {#if $invoices && $invoices.length > 0}
+        <button
+          class="bg-purple-600 text-white py-2 px-4 rounded hover:bg-purple-700 flex items-center justify-center min-w-[160px]"
+          on:click={handleGetOrderLines}
+        >
+          Get Order Lines
+        </button>
+      {/if}
       {#if $invoices && $invoices.length > 0}
         <button
           class="bg-gray-600 text-white py-2 px-4 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"

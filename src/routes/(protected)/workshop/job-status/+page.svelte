@@ -235,25 +235,28 @@
                 <th
                   scope="col"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  on:click={() => toggleSort('created_at')}
+                  on:click={() => toggleSort('status')}
                 >
                   <div class="flex items-center">
-                    Created
-                    {#if sortBy === 'created_at'}
+                    Status
+                    {#if sortBy === 'status'}
                       <svg class="ml-1 w-4 h-4 transform {sortOrder === 'desc' ? 'rotate-180' : ''}" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
                       </svg>
                     {/if}
                   </div>
                 </th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Photo
+                </th>
                 <th
                   scope="col"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  on:click={() => toggleSort('customer_name')}
+                  on:click={() => toggleSort('clients_work_order')}
                 >
                   <div class="flex items-center">
-                    Customer
-                    {#if sortBy === 'customer_name'}
+                    Customer Work Order
+                    {#if sortBy === 'clients_work_order'}
                       <svg class="ml-1 w-4 h-4 transform {sortOrder === 'desc' ? 'rotate-180' : ''}" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
                       </svg>
@@ -277,47 +280,48 @@
                 <th
                   scope="col"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  on:click={() => toggleSort('clients_work_order')}
+                  on:click={() => toggleSort('customer_name')}
                 >
                   <div class="flex items-center">
-                    Work Order
-                    {#if sortBy === 'clients_work_order'}
+                    Customer
+                    {#if sortBy === 'customer_name'}
                       <svg class="ml-1 w-4 h-4 transform {sortOrder === 'desc' ? 'rotate-180' : ''}" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
                       </svg>
                     {/if}
                   </div>
-                </th>
-                <th
-                  scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  on:click={() => toggleSort('status')}
-                >
-                  <div class="flex items-center">
-                    Status
-                    {#if sortBy === 'status'}
-                      <svg class="ml-1 w-4 h-4 transform {sortOrder === 'desc' ? 'rotate-180' : ''}" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                      </svg>
-                    {/if}
-                  </div>
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Location
                 </th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Contact
-                </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Photos
                 </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               {#each filteredWorkshops as workshop (workshop.id)}
                 <tr class="hover:bg-gray-50 transition-colors" transition:fade>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusColor(workshop.status)}">
+                      {workshop.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(workshop.created_at)}
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 text-gray-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+                      </svg>
+                      {workshop.photo_urls?.length || 0}
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {workshop.clients_work_order || 'N/A'}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">
+                      {workshop.product_name}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                      {workshop.make_model}
+                    </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <div class="text-sm font-medium text-gray-900">
@@ -329,43 +333,9 @@
                       </div>
                     {/if}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">
-                      {workshop.product_name}
-                    </div>
-                    <div class="text-sm text-gray-500">
-                      {workshop.make_model}
-                    </div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {workshop.clients_work_order || 'N/A'}
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusColor(workshop.status)}">
-                      {workshop.status.replace('_', ' ').toUpperCase()}
-                    </span>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {getLocationColor(workshop.location_of_repair)}">
-                      {workshop.location_of_repair}
-                    </span>
-                    {#if workshop.site_location}
-                      <div class="text-xs text-gray-500 mt-1">
-                        {workshop.site_location}
-                      </div>
-                    {/if}
-                  </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     <div>{workshop.contact_number}</div>
                     <div class="text-gray-500">{workshop.contact_email}</div>
-                  </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div class="flex items-center">
-                      <svg class="w-4 h-4 text-gray-400 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
-                      </svg>
-                      {workshop.photo_urls?.length || 0}
-                    </div>
                   </td>
                 </tr>
               {/each}

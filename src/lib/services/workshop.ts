@@ -63,7 +63,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
   created_by: string;
 
   // Workflow tracking
@@ -155,7 +155,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
       optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
-      status: 'pending' as const,
+      status: 'draft' as const,
       created_by: createdByName,
       started_with: data.startedWith,
       photo_urls: photoUrls

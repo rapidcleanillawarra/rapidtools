@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { getWorkshops, type WorkshopRecord } from '$lib/services/workshop';
   import { fade } from 'svelte/transition';
   import Select from 'svelte-select';
@@ -517,7 +518,7 @@
                     <button
                       type="button"
                       class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                      on:click={() => console.log('Process workshop:', workshop.id)}
+                      on:click={() => goto(`/workshop/create?workshop_id=${workshop.id}`)}
                     >
                       Process
                     </button>

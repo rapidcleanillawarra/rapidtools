@@ -54,6 +54,7 @@
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
   let existingWorkshopId: string | null = null;
+  let workshopStatus: 'draft' | 'in_progress' | 'completed' | 'cancelled' | null = null;
 
   // Check referrer to determine if user came from camera page
   $: if (typeof window !== 'undefined') {
@@ -65,38 +66,45 @@
         currentUrl.includes('from=camera') ||
         $page.url.searchParams.get('from') === 'camera') {
       startedWith = 'camera';
-
-      // Check if we have a workshop_id parameter to load existing workshop
-      const workshopId = $page.url.searchParams.get('workshop_id');
-      if (workshopId) {
-        existingWorkshopId = workshopId;
-        loadExistingWorkshop(workshopId);
-      }
     } else {
       startedWith = 'form';
+    }
+
+    // Check if we have a workshop_id parameter to load existing workshop (regardless of entry point)
+    const workshopId = $page.url.searchParams.get('workshop_id');
+    if (workshopId) {
+      existingWorkshopId = workshopId;
+      loadExistingWorkshop(workshopId);
     }
   }
 
   async function loadExistingWorkshop(workshopId: string) {
     try {
+      console.log('Loading workshop with ID:', workshopId);
       const workshop = await getWorkshop(workshopId);
 
       if (!workshop) {
+        console.error('Workshop not found for ID:', workshopId);
         submitError = 'Workshop not found.';
         return;
       }
 
+      console.log('Workshop loaded successfully:', workshop);
+
+      // Set workshop status
+      workshopStatus = workshop.status;
+
       // Populate form with existing workshop data
-      locationOfRepair = workshop.location_of_repair;
-      productName = workshop.product_name;
-      clientsWorkOrder = workshop.clients_work_order;
-      makeModel = workshop.make_model;
-      serialNumber = workshop.serial_number;
+      locationOfRepair = workshop.location_of_repair || 'Site';
+      productName = workshop.product_name || '';
+      clientsWorkOrder = workshop.clients_work_order || '';
+      makeModel = workshop.make_model || '';
+      serialNumber = workshop.serial_number || '';
       siteLocation = workshop.site_location || '';
-      faultDescription = workshop.fault_description;
-      customerName = workshop.customer_name;
-      contactEmail = workshop.contact_email;
-      contactNumber = workshop.contact_number;
+      faultDescription = workshop.fault_description || '';
+      customerName = workshop.customer_name || '';
+      contactEmail = workshop.contact_email || '';
+      contactNumber = workshop.contact_number || '';
       selectedCustomer = workshop.customer_data;
       optionalContacts = workshop.optional_contacts || [];
 
@@ -111,6 +119,14 @@
       }
 
       console.log('Loaded existing workshop:', workshop);
+      console.log('Form populated with data:', {
+        locationOfRepair,
+        productName,
+        customerName,
+        contactEmail,
+        workshopStatus,
+        selectedCustomer: selectedCustomer ? 'Customer selected' : 'No customer selected'
+      });
     } catch (error) {
       console.error('Error loading workshop:', error);
       submitError = 'Failed to load existing workshop. Please try again.';
@@ -348,6 +364,26 @@
       });
   }
 
+  function getSubmitButtonText() {
+    if (existingWorkshopId && workshopStatus === 'draft') {
+      return 'Create Maropost Order';
+    } else if (existingWorkshopId) {
+      return 'Update Job';
+    } else {
+      return 'Create Job';
+    }
+  }
+
+  function getSubmitButtonLoadingText() {
+    if (existingWorkshopId && workshopStatus === 'draft') {
+      return 'Creating Maropost Order...';
+    } else if (existingWorkshopId) {
+      return 'Updating...';
+    } else {
+      return 'Creating...';
+    }
+  }
+
   function resetForm() {
     // Reset all form fields
     locationOfRepair = 'Site';
@@ -363,6 +399,7 @@
     selectedCustomer = null;
     optionalContacts = [];
     newContact = { name: '', number: '', email: '' };
+    workshopStatus = null;
 
     // Clear photos
     photos.forEach(p => URL.revokeObjectURL(p.url));
@@ -379,7 +416,7 @@
   <div class="bg-white rounded-lg shadow-lg overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-200">
       <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">Create Workshop Job</h1>
+        <h1 class="text-xl font-semibold">{existingWorkshopId ? 'Edit Workshop Job' : 'Create Workshop Job'}</h1>
         <div class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
           Started via: <span class="font-medium capitalize">{startedWith}</span>
           {#if startedWith === 'camera'}
@@ -394,7 +431,7 @@
     <!-- Submission Status Messages -->
     {#if submitSuccess}
       <div class="mx-6 mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-        ✅ Workshop created successfully! The form has been reset.
+        ✅ Workshop {existingWorkshopId ? 'updated' : 'created'} successfully! {existingWorkshopId ? 'Changes have been saved.' : 'The form has been reset.'}
       </div>
     {/if}
 
@@ -677,9 +714,9 @@
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            {existingWorkshopId ? 'Updating...' : 'Creating...'}
+            {getSubmitButtonLoadingText()}
           {:else}
-            {existingWorkshopId ? 'Update Job' : 'Create Job'}
+            {getSubmitButtonText()}
           {/if}
         </button>
       </div>

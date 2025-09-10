@@ -38,7 +38,7 @@
   let optionalContacts: Contact[] = [];
   let contactError = '';
 
-  // Photos (managed by PhotoManager component)
+  // Photos (always visible Photos section)
   let photos: PhotoItem[] = [];
   let photoError = '';
   const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
@@ -68,6 +68,35 @@
 
   // Debug modal state
   $: console.log('Modal state changed:', { showSuccessModal, successMessage, generatedOrderId });
+
+  // Machine Information section state
+  let isMachineInfoExpanded = true;
+
+  // User Information section state
+  let isUserInfoExpanded = true;
+
+
+  // Generate summary for machine information
+  $: machineInfoSummaryItems = (() => {
+    const items = [];
+    if (productName.trim()) items.push({ label: 'Product', value: productName, priority: 1 });
+    if (locationOfRepair) items.push({ label: 'Location', value: locationOfRepair, priority: 2 });
+    if (makeModel.trim()) items.push({ label: 'Make/Model', value: makeModel, priority: 3 });
+    if (serialNumber.trim()) items.push({ label: 'Serial', value: serialNumber, priority: 4 });
+    if (siteLocation.trim()) items.push({ label: 'Site', value: siteLocation, priority: 5 });
+    return items.sort((a, b) => a.priority - b.priority);
+  })();
+
+  // Generate summary for user information
+  $: userInfoSummaryItems = (() => {
+    const items = [];
+    if (customerName.trim()) items.push({ label: 'Customer', value: customerName, priority: 1 });
+    if (contactEmail.trim()) items.push({ label: 'Email', value: contactEmail, priority: 2 });
+    if (contactNumber.trim()) items.push({ label: 'Phone', value: contactNumber, priority: 3 });
+    if (optionalContacts.length > 0) items.push({ label: 'Contacts', value: `${optionalContacts.length} additional`, priority: 4 });
+    return items.sort((a, b) => a.priority - b.priority);
+  })();
+
 
   // Check referrer to determine if user came from camera page
   $: if (typeof window !== 'undefined') {
@@ -539,162 +568,247 @@
       <div>
         <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
           <h2 class="font-medium text-gray-800">Machine Information</h2>
+          <button
+            type="button"
+            on:click={() => isMachineInfoExpanded = !isMachineInfoExpanded}
+            class="text-gray-600 hover:text-gray-800 p-1"
+            aria-label={isMachineInfoExpanded ? 'Collapse section' : 'Expand section'}
+          >
+            <svg class="w-5 h-5 transform transition-transform {isMachineInfoExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <div>
-            <fieldset class="bg-gray-100 rounded px-4 py-3">
-              <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
-              <div class="flex items-center gap-6">
-                <label class="inline-flex items-center gap-2 cursor-pointer">
-                  <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" />
-                  <span>Site</span>
-                </label>
-                <label class="inline-flex items-center gap-2 cursor-pointer">
-                  <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" />
-                  <span>Workshop</span>
-                </label>
-              </div>
-            </fieldset>
+        {#if !isMachineInfoExpanded}
+          <!-- Collapsed Summary View -->
+          <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
+            <div class="mb-3">
+              <h3 class="text-sm font-medium text-gray-800 mb-2">Machine Information Summary</h3>
+              {#if machineInfoSummaryItems.length > 0}
+                <div class="grid grid-cols-1 gap-1 md:grid-cols-2 md:gap-x-6">
+                  {#each machineInfoSummaryItems as item}
+                    <div class="flex items-center justify-between text-sm py-0.5">
+                      <span class="text-gray-600 font-medium">{item.label}:</span>
+                      <span class="text-gray-900 truncate ml-2">{item.value}</span>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="text-sm text-gray-500 italic">No information entered yet</div>
+              {/if}
+            </div>
+            <button
+              type="button"
+              on:click={() => isMachineInfoExpanded = true}
+              class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              Edit machine information
+            </button>
+          </div>
+        {:else}
+          <!-- Expanded Form View -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div>
+              <fieldset class="bg-gray-100 rounded px-4 py-3">
+                <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
+                <div class="flex items-center gap-6">
+                  <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" />
+                    <span>Site</span>
+                  </label>
+                  <label class="inline-flex items-center gap-2 cursor-pointer">
+                    <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" />
+                    <span>Workshop</span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="product-name">
+                Product Name <span class="text-red-500">*</span>
+              </label>
+              <input
+                id="product-name"
+                type="text"
+                bind:value={productName}
+                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {!productName.trim() ? 'border border-red-300' : ''}"
+                required
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="client-wo">Client’s Work Order</label>
+              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="make-model">Make/Model</label>
+              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="serial-number">Serial Number</label>
+              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="site-location">
+                Site/Location
+                <span class="text-gray-500 text-xs">(Optional)</span>
+              </label>
+              <input
+                id="site-location"
+                type="text"
+                bind:value={siteLocation}
+                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {siteLocationError ? 'border-red-500' : ''}"
+                placeholder={locationOfRepair === 'Site' ? 'Enter site location (optional)' : 'Enter location details (optional)'}
+              />
+              {#if siteLocationError}
+                <div class="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+                  {siteLocationError}
+                </div>
+              {/if}
+              {#if startedWith === 'camera' && locationOfRepair === 'Site'}
+                <div class="mt-2 p-2 bg-blue-100 border border-blue-200 text-blue-700 rounded text-sm">
+                  💡 Tip: You can add site location details later if needed
+                </div>
+              {/if}
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="fault-description">Fault Description</label>
+              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="product-name">
-              Product Name <span class="text-red-500">*</span>
-            </label>
-            <input 
-              id="product-name" 
-              type="text" 
-              bind:value={productName} 
-              class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {!productName.trim() ? 'border border-red-300' : ''}" 
-              required
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="client-wo">Client’s Work Order</label>
-            <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="make-model">Make/Model</label>
-            <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="serial-number">Serial Number</label>
-            <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="site-location">
-              Site/Location
-              <span class="text-gray-500 text-xs">(Optional)</span>
-            </label>
-            <input
-              id="site-location"
-              type="text"
-              bind:value={siteLocation}
-              class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {siteLocationError ? 'border-red-500' : ''}"
-              placeholder={locationOfRepair === 'Site' ? 'Enter site location (optional)' : 'Enter location details (optional)'}
-            />
-            {#if siteLocationError}
-              <div class="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-                {siteLocationError}
-              </div>
-            {/if}
-            {#if startedWith === 'camera' && locationOfRepair === 'Site'}
-              <div class="mt-2 p-2 bg-blue-100 border border-blue-200 text-blue-700 rounded text-sm">
-                💡 Tip: You can add site location details later if needed
-              </div>
-            {/if}
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="fault-description">Fault Description</label>
-            <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-          </div>
-        </div>
-
-        <!-- Photos -->
-        <PhotoManager
-          bind:photos
-          bind:error={photoError}
-          minPhotosRequired={MIN_PHOTOS_REQUIRED}
-          on:photosUpdated={event => photos = event.detail.photos}
-          on:error={event => photoError = event.detail.message}
-        />
+        {/if}
       </div>
 
       <!-- User Information -->
       <div>
         <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
           <h2 class="font-medium text-gray-800">User Information</h2>
+          <button
+            type="button"
+            on:click={() => isUserInfoExpanded = !isUserInfoExpanded}
+            class="text-gray-600 hover:text-gray-800 p-1"
+            aria-label={isUserInfoExpanded ? 'Collapse section' : 'Expand section'}
+          >
+            <svg class="w-5 h-5 transform transition-transform {isUserInfoExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="customer-name">
-              Customer Name (Maropost) <span class="text-red-500">*</span>
-            </label>
-            <div class="{!customerName.trim() ? 'border border-red-300 rounded' : ''}">
-              <CustomerDropdown
-                id="customer-name"
-                bind:value={customerName}
-                placeholder="Search customers..."
-                on:select={handleCustomerSelect}
-                on:clear={handleCustomerClear}
-              />
+        {#if !isUserInfoExpanded}
+          <!-- Collapsed Summary View -->
+          <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-md">
+            <div class="mb-3">
+              <h3 class="text-sm font-medium text-gray-800 mb-2">User Information Summary</h3>
+              {#if userInfoSummaryItems.length > 0}
+                <div class="grid grid-cols-1 gap-1 md:grid-cols-2 md:gap-x-6">
+                  {#each userInfoSummaryItems as item}
+                    <div class="flex items-center justify-between text-sm py-0.5">
+                      <span class="text-gray-600 font-medium">{item.label}:</span>
+                      <span class="text-gray-900 truncate ml-2">{item.value}</span>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="text-sm text-gray-500 italic">No information entered yet</div>
+              {/if}
+            </div>
+            <button
+              type="button"
+              on:click={() => isUserInfoExpanded = true}
+              class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              Edit user information
+            </button>
+          </div>
+        {:else}
+          <!-- Expanded Form View -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="customer-name">
+                Customer Name (Maropost) <span class="text-red-500">*</span>
+              </label>
+              <div class="{!customerName.trim() ? 'border border-red-300 rounded' : ''}">
+                <CustomerDropdown
+                  id="customer-name"
+                  bind:value={customerName}
+                  placeholder="Search customers..."
+                  on:select={handleCustomerSelect}
+                  on:clear={handleCustomerClear}
+                />
+              </div>
+
+              <!-- Selected Customer Display -->
+              {#if selectedCustomer}
+                <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                      <div class="font-medium text-blue-900">
+                        {getCustomerDisplayName(selectedCustomer)}
+                      </div>
+                      <div class="text-sm text-blue-700 mt-1">
+                        {selectedCustomer.EmailAddress}
+                      </div>
+                      {#if selectedCustomer.BillingAddress.BillPhone}
+                        <div class="text-sm text-blue-600">
+                          📞 {selectedCustomer.BillingAddress.BillPhone}
+                        </div>
+                      {/if}
+                      {#if selectedCustomer.BillingAddress.BillCity}
+                        <div class="text-sm text-blue-600">
+                          📍 {selectedCustomer.BillingAddress.BillCity}
+                        </div>
+                      {/if}
+                    </div>
+                    <button
+                      type="button"
+                      on:click={handleCustomerClear}
+                      class="text-blue-500 hover:text-blue-700 ml-2"
+                      aria-label="Clear selected customer"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              {/if}
             </div>
 
-            <!-- Selected Customer Display -->
-            {#if selectedCustomer}
-              <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <div class="font-medium text-blue-900">
-                      {getCustomerDisplayName(selectedCustomer)}
-                    </div>
-                    <div class="text-sm text-blue-700 mt-1">
-                      {selectedCustomer.EmailAddress}
-                    </div>
-                    {#if selectedCustomer.BillingAddress.BillPhone}
-                      <div class="text-sm text-blue-600">
-                        📞 {selectedCustomer.BillingAddress.BillPhone}
-                      </div>
-                    {/if}
-                    {#if selectedCustomer.BillingAddress.BillCity}
-                      <div class="text-sm text-blue-600">
-                        📍 {selectedCustomer.BillingAddress.BillCity}
-                      </div>
-                    {/if}
-                  </div>
-                  <button
-                    type="button"
-                    on:click={handleCustomerClear}
-                    class="text-blue-500 hover:text-blue-700 ml-2"
-                    aria-label="Clear selected customer"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            {/if}
-          </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-email">Contact Email</label>
+              <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-email">Contact Email</label>
-            <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <div class="md:col-span-1">
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-number">Contact Number</label>
+              <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
           </div>
-
-          <div class="md:col-span-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-number">Contact Number</label>
-            <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        </div>
+        {/if}
       </div>
+
+      <!-- Photos -->
+      <PhotoManager
+        bind:photos
+        bind:error={photoError}
+        minPhotosRequired={MIN_PHOTOS_REQUIRED}
+        on:photosUpdated={event => photos = event.detail.photos}
+        on:error={event => photoError = event.detail.message}
+      />
 
       <!-- Optional Contacts -->
       <ContactsManager

@@ -65,7 +65,7 @@
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
   let existingWorkshopId: string | null = null;
-  let workshopStatus: 'draft' | 'in_progress' | 'completed' | 'cancelled' | null = null;
+  let workshopStatus: 'draft' | 'in_progress' | 'completed' | 'cancelled' | 'to_be_quoted' | null = null;
 
   // Debug modal state
   $: console.log('Modal state changed:', { showSuccessModal, successMessage, generatedOrderId });
@@ -278,6 +278,107 @@
     contactNumber = '';
   }
 
+  async function handleUpdateJob(event: Event) {
+    event.preventDefault();
+
+    // Reset previous states
+    submitError = '';
+    submitSuccess = false;
+
+    // Validate required fields
+    const requiredFieldErrors = [];
+
+    if (!productName.trim()) {
+      requiredFieldErrors.push('Product Name is required');
+    }
+
+    if (!customerName.trim()) {
+      requiredFieldErrors.push('Customer Name is required');
+    }
+
+    // Show errors if any required fields are missing
+    if (requiredFieldErrors.length > 0) {
+      submitError = `Please fill in all required fields: ${requiredFieldErrors.join(', ')}`;
+      return;
+    }
+
+    // Optional: Validate site location when location is 'Site' and field is not empty
+    if (locationOfRepair === 'Site' && siteLocation && !siteLocation.trim()) {
+      siteLocationError = 'Please enter a valid site location or leave empty';
+      document.getElementById('site-location')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    // Clear any existing errors
+    siteLocationError = '';
+    photoError = '';
+
+    // Start submission
+    isSubmitting = true;
+
+    // Separate new photos from existing photos
+    const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
+    const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
+
+    // Prepare form data for update only (no status changes, no order creation)
+    const formData = {
+      locationOfRepair,
+      productName,
+      clientsWorkOrder,
+      makeModel,
+      serialNumber,
+      siteLocation,
+      faultDescription,
+      customerName,
+      contactEmail,
+      contactNumber,
+      selectedCustomer,
+      optionalContacts: optionalContacts || [],
+      photos: newPhotos,
+      existingPhotoUrls,
+      startedWith
+      // Note: No status changes, no order creation for update job
+    };
+
+    console.log('Update job form data:', formData);
+
+    // Get current user
+    const user = get(currentUser);
+    if (!user) {
+      throw new Error('You must be logged in to update a workshop');
+    }
+
+    try {
+      let workshop;
+      if (existingWorkshopId) {
+        // Update existing workshop
+        workshop = await updateWorkshop(existingWorkshopId, formData);
+        console.log('Workshop updated successfully:', workshop);
+      } else {
+        // Create new workshop
+        workshop = await createWorkshop(formData, user.uid);
+        console.log('Workshop created successfully:', workshop);
+      }
+
+      submitSuccess = true;
+      successMessage = existingWorkshopId
+        ? 'Workshop job updated successfully!'
+        : 'Workshop job created successfully!';
+
+      showSuccessModal = true;
+
+      if (!existingWorkshopId) {
+        // Reset form after successful creation
+        resetForm();
+      }
+    } catch (error) {
+      console.error('Error saving workshop:', error);
+      submitError = (error instanceof Error ? error.message : 'Failed to save workshop. Please try again.');
+    } finally {
+      isSubmitting = false;
+    }
+  }
+
   async function handleSubmit(event: Event) {
     event.preventDefault();
 
@@ -287,15 +388,15 @@
 
     // Validate required fields
     const requiredFieldErrors = [];
-    
+
     if (!productName.trim()) {
       requiredFieldErrors.push('Product Name is required');
     }
-    
+
     if (!customerName.trim()) {
       requiredFieldErrors.push('Customer Name is required');
     }
-    
+
     // Show errors if any required fields are missing
     if (requiredFieldErrors.length > 0) {
       submitError = `Please fill in all required fields: ${requiredFieldErrors.join(', ')}`;
@@ -303,15 +404,11 @@
     }
 
     // Optional: Validate site location when location is 'Site' and field is not empty
-    // Only show error if user has entered something but it's just whitespace
     if (locationOfRepair === 'Site' && siteLocation && !siteLocation.trim()) {
       siteLocationError = 'Please enter a valid site location or leave empty';
-      // Scroll to site location field
       document.getElementById('site-location')?.scrollIntoView({ behavior: 'smooth' });
       return;
     }
-
-    // Photos are optional, so no validation needed here
 
     // Clear any existing errors
     siteLocationError = '';
@@ -329,7 +426,6 @@
         console.log('Fetching customer data from API...');
         await fetchCustomerData();
         console.log('Customer data fetched successfully');
-        console.log('Customer API Data:', customerApiData);
       } catch (error) {
         console.error('Failed to fetch customer data:', error);
         submitError = 'Failed to fetch customer data. Please try again.';
@@ -360,7 +456,6 @@
           console.log('Creating order with customer data...');
           await createOrder();
           console.log('Order created successfully');
-          console.log('Order API Data:', orderApiData);
 
           // Store the generated order ID for the success message
           if (orderApiData && orderApiData.Order && orderApiData.Order.OrderID) {
@@ -372,28 +467,15 @@
           isSubmitting = false;
           return;
         }
-      } else {
-        console.log('Skipping order creation - workshop already has an order_id');
       }
-    } else {
-      console.log('New workshop creation - skipping customer data fetch and order creation');
     }
 
     // Log optional contacts before form submission
     console.log('Optional contacts before submission:', optionalContacts);
-    console.log('Optional contacts length:', optionalContacts?.length);
-    console.log('Optional contacts type:', typeof optionalContacts);
 
     // Separate new photos from existing photos
     const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
     const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
-
-    console.log('Photo separation:', {
-      totalPhotos: photos.length,
-      newPhotos: newPhotos.length,
-      existingPhotos: existingPhotoUrls.length,
-      existingPhotoUrls
-    });
 
     // Prepare form data
     const formData = {
@@ -408,20 +490,18 @@
       contactEmail,
       contactNumber,
       selectedCustomer,
-      optionalContacts: optionalContacts || [], // Ensure it's always an array
-      photos: newPhotos, // Only new photos to upload
-      existingPhotoUrls, // Preserve existing photo URLs
+      optionalContacts: optionalContacts || [],
+      photos: newPhotos,
+      existingPhotoUrls,
       startedWith,
       ...(existingWorkshopId && {
-        customerApiData, // Include the fetched customer data (only for existing workshops)
-        orderApiData, // Include the created order data (only for existing workshops)
-        order_id: generatedOrderId || null // Include the order_id (only for existing workshops)
+        customerApiData,
+        orderApiData,
+        order_id: generatedOrderId || null
       })
     };
 
-    console.log('Form data being submitted:', formData);
-    console.log('Form data optional contacts:', formData.optionalContacts);
-    console.log('Form data optional contacts length:', formData.optionalContacts?.length);
+    console.log('Submit form data:', formData);
 
     // Get current user
     const user = get(currentUser);
@@ -431,7 +511,7 @@
 
     // Update status to "to_be_quoted" if current status is "draft" (only for existing workshops)
     if (existingWorkshopId && workshopStatus === 'draft') {
-      formData.status = 'to_be_quoted';
+      (formData as any).status = 'to_be_quoted';
       console.log('Updating workshop status from draft to to_be_quoted');
     }
 
@@ -443,9 +523,6 @@
     submitPromise
       .then((workshop) => {
         console.log('Workshop saved successfully:', workshop);
-        console.log('Workshop order_id:', workshop.order_id);
-        console.log('Workshop status:', workshop.status);
-        console.log('Started with:', startedWith);
         submitSuccess = true;
 
         // Show success modal with appropriate message
@@ -458,12 +535,6 @@
             ? `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''}!`
             : `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
           : 'Workshop created successfully!';
-
-        console.log('Setting showSuccessModal to true');
-        console.log('Success message:', successMessage);
-        console.log('Generated Order ID:', generatedOrderId);
-        console.log('Order creation status:', shouldCreateOrder ? 'New order created' : 'Existing order reused');
-        console.log('Workshop ID from response:', workshop.id);
 
         showSuccessModal = true;
 
@@ -483,24 +554,23 @@
 
   function getSubmitButtonText() {
     if (!existingWorkshopId) {
-      // New workshop creation - only creates job, no order generation
-      return 'Create Job';
+      // New workshop creation - this should not happen since submit is only for existing workshops
+      return 'Submit';
     }
 
     if (existingWorkshopId && workshopStatus === 'draft') {
-      // Draft workshop - will create Maropost order and update status
+      // Draft workshop - will create Maropost order and update status to 'to_be_quoted'
       return 'Create Maropost Order';
     }
 
-    // Existing workshop that's not draft - will update job
-    // Note: Order creation will be conditional based on existing order_id
-    return 'Update Job';
+    // Existing workshop that's not draft - will create order if needed
+    return 'Create Order';
   }
 
   function getSubmitButtonLoadingText() {
     if (!existingWorkshopId) {
-      // New workshop creation - only creates job
-      return 'Creating Job...';
+      // New workshop creation - this should not happen since submit is only for existing workshops
+      return 'Submitting...';
     }
 
     if (existingWorkshopId && workshopStatus === 'draft') {
@@ -509,7 +579,7 @@
     }
 
     // Existing workshop update
-    return 'Updating Job...';
+    return 'Creating Order...';
   }
 
   async function fetchCustomerData() {
@@ -692,7 +762,7 @@
       </div>
     {/if}
 
-    <form class="p-6 space-y-8" on:submit|preventDefault={handleSubmit}>
+    <form class="p-6 space-y-8">
       <div class="text-sm text-gray-600 mb-4">
         Fields marked with <span class="text-red-500">*</span> are required
       </div>
@@ -955,21 +1025,44 @@
 
       <div class="flex justify-end gap-3">
         <a href="{base}/workshop" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>
+
+        <!-- Update Job Button - always visible for data updates only -->
         <button
-          type="submit"
+          type="button"
+          on:click={handleUpdateJob}
           disabled={isSubmitting}
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {#if isSubmitting}
             <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            {getSubmitButtonLoadingText()}
+            Updating Job...
           {:else}
-            {getSubmitButtonText()}
+            {existingWorkshopId ? 'Update Job' : 'Create Job'}
           {/if}
         </button>
+
+        <!-- Submit Button - for order creation and status transitions -->
+        {#if existingWorkshopId}
+          <button
+            type="button"
+            on:click={handleSubmit}
+            disabled={isSubmitting}
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {#if isSubmitting}
+              <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {getSubmitButtonLoadingText()}
+            {:else}
+              {getSubmitButtonText()}
+            {/if}
+          </button>
+        {/if}
       </div>
     </form>
   </div>

@@ -1,12 +1,16 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { base } from '$app/paths';
-  import { onDestroy } from 'svelte';
   import CustomerDropdown from '$lib/components/CustomerDropdown.svelte';
-  import Modal from '$lib/components/Modal.svelte';
+  import PhotoManager from '$lib/components/PhotoManager.svelte';
+  import ContactsManager from '$lib/components/ContactsManager.svelte';
+  import type { PhotoItem, Contact } from '$lib/types/workshop';
+  import SuccessModal from '$lib/components/SuccessModal.svelte';
   import type { Customer } from '$lib/services/customers';
   import { getCustomerDisplayName } from '$lib/services/customers';
   import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop } from '$lib/services/workshop';
+  import { fetchCustomerData, createOrder } from '$lib/services/maropost';
+  import { validateWorkshopForm } from '$lib/utils/validation';
   import { page } from '$app/stores';
   import { currentUser } from '$lib/firebase';
   import { get } from 'svelte/store';
@@ -31,16 +35,11 @@
   let selectedCustomer: Customer | null = null;
 
   // Optional Contacts
-  type Contact = { name: string; number: string; email: string };
   let optionalContacts: Contact[] = [];
-  let newContact: Contact = { name: '', number: '', email: '' };
   let contactError = '';
 
-  // Photos
-  type PhotoItem = { file: File; url: string; isExisting?: boolean };
+  // Photos (managed by PhotoManager component)
   let photos: PhotoItem[] = [];
-  let takePhotoInput: HTMLInputElement | null = null;
-  let uploadPhotoInput: HTMLInputElement | null = null;
   let photoError = '';
   const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
 
@@ -156,111 +155,14 @@
     siteLocationError = '';
   }
 
-  function triggerTakePhoto() {
-    takePhotoInput?.click();
+
+  // Event handlers for ContactsManager component
+  function handleContactsUpdated(event: CustomEvent) {
+    optionalContacts = event.detail.contacts;
   }
 
-  function triggerUploadPhoto() {
-    uploadPhotoInput?.click();
-  }
-
-  function onFilesSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input?.files && input.files.length > 0) {
-      addFiles(input.files);
-      // Reset to allow selecting the same file again
-      input.value = '';
-    }
-  }
-
-  function addFiles(fileList: FileList) {
-    const newItems: PhotoItem[] = [];
-    Array.from(fileList).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      const url = URL.createObjectURL(file);
-      newItems.push({ file, url, isExisting: false }); // Mark as new photo
-    });
-    photos = [...photos, ...newItems];
-    console.log('Added new photos:', newItems.length, 'Total photos:', photos.length);
-    // Clear photo error when photos are added
-    photoError = '';
-  }
-
-  function removePhoto(index: number) {
-    const [removed] = photos.splice(index, 1);
-    if (removed) URL.revokeObjectURL(removed.url);
-    photos = [...photos];
-    // Photos are optional, so no validation needed
-    photoError = '';
-  }
-
-  onDestroy(() => {
-    photos.forEach((p) => URL.revokeObjectURL(p.url));
-  });
-
-  function addOptionalContact() {
-    // Trim all inputs
-    const trimmedName = newContact.name.trim();
-    const trimmedNumber = newContact.number.trim();
-    const trimmedEmail = newContact.email.trim();
-
-    // Clear previous error
-    contactError = '';
-
-    // Validate: require name and at least one contact method
-    if (!trimmedName) {
-      contactError = 'Name is required';
-      return;
-    }
-
-    if (!trimmedNumber && !trimmedEmail) {
-      contactError = 'At least one contact method (number or email) is required';
-      return;
-    }
-    
-    // Validate phone number format if provided
-    if (trimmedNumber) {
-      // Allow only digits, spaces, dashes, parentheses, and plus sign
-      const phoneRegex = /^[0-9\s\-\(\)\+]+$/;
-      if (!phoneRegex.test(trimmedNumber)) {
-        contactError = 'Phone number should contain only digits, spaces, dashes, parentheses, and plus sign';
-        return;
-      }
-    }
-    
-    // Validate email format if provided
-    if (trimmedEmail && !trimmedEmail.includes('@')) {
-      contactError = 'Please enter a valid email address';
-      return;
-    }
-
-    // Check for duplicate contacts
-    const isDuplicate = optionalContacts.some(contact =>
-      contact.name.toLowerCase() === trimmedName.toLowerCase() &&
-      (contact.number === trimmedNumber || contact.email.toLowerCase() === trimmedEmail.toLowerCase())
-    );
-
-    if (isDuplicate) {
-      contactError = 'This contact already exists';
-      return;
-    }
-
-    // Add the contact 
-    optionalContacts = [...optionalContacts, {
-      name: trimmedName,
-      number: trimmedNumber,
-      email: trimmedEmail
-    }];
-    
-    console.log('Optional contacts after adding:', optionalContacts);
-
-    // Reset form
-    newContact = { name: '', number: '', email: '' };
-  }
-
-  function removeOptionalContact(index: number) {
-    optionalContacts = optionalContacts.filter((_, i) => i !== index);
-    console.log('Optional contacts after removal:', optionalContacts);
+  function handleContactError(event: CustomEvent) {
+    contactError = event.detail.message;
   }
 
   function handleCustomerSelect(event: CustomEvent) {
@@ -285,27 +187,16 @@
     submitError = '';
     submitSuccess = false;
 
-    // Validate required fields
-    const requiredFieldErrors = [];
+    // Validate required fields using validation utility
+    const validation = validateWorkshopForm({
+      productName,
+      customerName,
+      locationOfRepair,
+      siteLocation
+    });
 
-    if (!productName.trim()) {
-      requiredFieldErrors.push('Product Name is required');
-    }
-
-    if (!customerName.trim()) {
-      requiredFieldErrors.push('Customer Name is required');
-    }
-
-    // Show errors if any required fields are missing
-    if (requiredFieldErrors.length > 0) {
-      submitError = `Please fill in all required fields: ${requiredFieldErrors.join(', ')}`;
-      return;
-    }
-
-    // Optional: Validate site location when location is 'Site' and field is not empty
-    if (locationOfRepair === 'Site' && siteLocation && !siteLocation.trim()) {
-      siteLocationError = 'Please enter a valid site location or leave empty';
-      document.getElementById('site-location')?.scrollIntoView({ behavior: 'smooth' });
+    if (!validation.isValid) {
+      submitError = `Please fill in all required fields: ${validation.errors.join(', ')}`;
       return;
     }
 
@@ -386,27 +277,16 @@
     submitError = '';
     submitSuccess = false;
 
-    // Validate required fields
-    const requiredFieldErrors = [];
+    // Validate required fields using validation utility
+    const validation = validateWorkshopForm({
+      productName,
+      customerName,
+      locationOfRepair,
+      siteLocation
+    });
 
-    if (!productName.trim()) {
-      requiredFieldErrors.push('Product Name is required');
-    }
-
-    if (!customerName.trim()) {
-      requiredFieldErrors.push('Customer Name is required');
-    }
-
-    // Show errors if any required fields are missing
-    if (requiredFieldErrors.length > 0) {
-      submitError = `Please fill in all required fields: ${requiredFieldErrors.join(', ')}`;
-      return;
-    }
-
-    // Optional: Validate site location when location is 'Site' and field is not empty
-    if (locationOfRepair === 'Site' && siteLocation && !siteLocation.trim()) {
-      siteLocationError = 'Please enter a valid site location or leave empty';
-      document.getElementById('site-location')?.scrollIntoView({ behavior: 'smooth' });
+    if (!validation.isValid) {
+      submitError = `Please fill in all required fields: ${validation.errors.join(', ')}`;
       return;
     }
 
@@ -424,7 +304,7 @@
       // Fetch customer data from API first
       try {
         console.log('Fetching customer data from API...');
-        await fetchCustomerData();
+        customerApiData = await fetchCustomerData();
         console.log('Customer data fetched successfully');
       } catch (error) {
         console.error('Failed to fetch customer data:', error);
@@ -454,7 +334,7 @@
       if (shouldCreateOrder) {
         try {
           console.log('Creating order with customer data...');
-          await createOrder();
+          orderApiData = await createOrder(customerApiData);
           console.log('Order created successfully');
 
           // Store the generated order ID for the success message
@@ -582,117 +462,7 @@
     return 'Creating Order...';
   }
 
-  async function fetchCustomerData() {
-    try {
-      const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          "Filter": {
-            "Username": ["joeven_customer"],
-            "OutputSelector": [
-              "EmailAddress",
-              "BillingAddress",
-              "ShippingAddress"
-            ]
-          },
-          "action": "GetCustomer"
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`API call failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      customerApiData = data;
-      console.log('Customer API data fetched successfully:', data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching customer data:', error);
-      throw error;
-    }
-  }
-
-  async function createOrder() {
-    if (!customerApiData || !customerApiData.Customer || customerApiData.Customer.length === 0) {
-      throw new Error('Customer data not available for creating order');
-    }
-
-    const customer = customerApiData.Customer[0];
-
-    // Generate OrderID in format: YYYYWMDDHHMMSS (Year + W + Month + Day + Hour + Minutes + Seconds)
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0'); // getMonth() returns 0-11, so +1
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = now.getHours(); // Single digit for hour
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const orderId = `${year}W${month}${day}${hour}${minutes}${seconds}`;
-
-    console.log('Generated OrderID:', orderId);
-
-    try {
-      const orderPayload = {
-        "Order": [
-          {
-            "OrderID": orderId,
-            "OrderStatus": "Quote",
-            "Username": customer.Username || "joeven_customer",
-            "BillFirstName": customer.BillingAddress?.BillFirstName || "Joeven Customer",
-            "BillLastName": customer.BillingAddress?.BillLastName || "Cerveza",
-            "BillCompany": customer.BillingAddress?.BillCompany || "Rapid Clean Illawarra",
-            "BillStreet1": customer.BillingAddress?.BillStreetLine1 || "32 Crawford St.",
-            "BillStreet2": customer.BillingAddress?.BillStreetLine2 || "1148 Mountain Ash Rd",
-            "BillCity": customer.BillingAddress?.BillCity || "CANNINGTON",
-            "BillState": customer.BillingAddress?.BillState || "WA",
-            "BillPostCode": customer.BillingAddress?.BillPostCode || "6107",
-            "BillCountry": customer.BillingAddress?.BillCountry || "AU",
-            "BillPhone": customer.BillingAddress?.BillPhone || "61 2 9071 7908",
-            "BillFax": customer.BillingAddress?.BillFax || "",
-            "ShipFirstName": customer.ShippingAddress?.ShipFirstName || "Joeven Customer",
-            "ShipLastName": customer.ShippingAddress?.ShipLastName || "Cerveza",
-            "ShipCompany": customer.ShippingAddress?.ShipCompany || "Rapid Clean Illawarra",
-            "ShipStreet1": customer.ShippingAddress?.ShipStreetLine1 || "32 Crawford St.",
-            "ShipStreet2": customer.ShippingAddress?.ShipStreetLine2 || "1148 Mountain Ash Rd",
-            "ShipCity": customer.ShippingAddress?.ShipCity || "CANNINGTON",
-            "ShipState": customer.ShippingAddress?.ShipState || "WA",
-            "ShipPostCode": customer.ShippingAddress?.ShipPostCode || "6107",
-            "ShipCountry": customer.ShippingAddress?.ShipCountry || "AU",
-            "ShipPhone": customer.ShippingAddress?.ShipPhone || "61 2 9071 7908",
-            "ShipFax": customer.ShippingAddress?.ShipFax || "",
-            "EmailAddress": customer.EmailAddress || "joeven_rc@gmail.com"
-          }
-        ],
-        "action": "AddOrder"
-      };
-
-      console.log('Creating order with payload:', orderPayload);
-
-      const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(orderPayload)
-      });
-
-      if (!response.ok) {
-        throw new Error(`AddOrder API call failed: ${response.status} ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      orderApiData = data;
-      console.log('Order created successfully:', data);
-      return data;
-    } catch (error) {
-      console.error('Error creating order:', error);
-      throw error;
-    }
-  }
+  // API service functions are now imported from maropost service
 
   function resetForm() {
     // Reset all form fields
@@ -708,7 +478,6 @@
     contactNumber = '';
     selectedCustomer = null;
     optionalContacts = [];
-    newContact = { name: '', number: '', email: '' };
     workshopStatus = null;
 
     // Clear photos
@@ -848,45 +617,13 @@
         </div>
 
         <!-- Photos -->
-        <div class="mt-6" id="photos-section">
-          <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
-            <h3 class="font-medium text-gray-800">
-              Photos
-              <span class="text-sm text-gray-600 ml-2">
-                ({photos.length} added) <span class="text-gray-500">(optional)</span>
-              </span>
-            </h3>
-            <div class="flex gap-2">
-              <button type="button" class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={triggerTakePhoto}>Take Photo</button>
-              <button type="button" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800" on:click={triggerUploadPhoto}>Upload</button>
-            </div>
-          </div>
-          <!-- Hidden inputs for capture/upload -->
-          <input id="take-photo" class="hidden" type="file" accept="image/*" capture="environment" multiple bind:this={takePhotoInput} on:change={onFilesSelected} />
-          <input id="upload-photo" class="hidden" type="file" accept="image/*" multiple bind:this={uploadPhotoInput} on:change={onFilesSelected} />
-
-          {#if photos.length > 0}
-            <div class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-              {#each photos as p, i}
-                <div class="relative group">
-                  <img src={p.url} alt="" class="w-full h-24 sm:h-28 object-cover rounded-md border" />
-                  <button type="button" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs opacity-90 group-hover:opacity-100" aria-label="Remove photo" on:click={() => removePhoto(i)}>×</button>
-                </div>
-              {/each}
-            </div>
-          {:else}
-            <div class="mt-4 p-4 bg-gray-50 border-2 border-dashed border-gray-300 rounded-md text-center">
-              <p class="text-gray-500 text-sm">No photos added yet</p>
-              <p class="text-gray-400 text-xs mt-1">Use the buttons above to take photos or upload images</p>
-            </div>
-          {/if}
-
-          {#if photoError}
-            <div class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {photoError}
-            </div>
-          {/if}
-        </div>
+        <PhotoManager
+          bind:photos
+          bind:error={photoError}
+          minPhotosRequired={MIN_PHOTOS_REQUIRED}
+          on:photosUpdated={event => photos = event.detail.photos}
+          on:error={event => photoError = event.detail.message}
+        />
       </div>
 
       <!-- User Information -->
@@ -960,68 +697,12 @@
       </div>
 
       <!-- Optional Contacts -->
-      <div>
-        <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
-          <h2 class="font-medium text-gray-800">Optional Contacts</h2>
-          <button type="button" class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600" on:click={addOptionalContact}>Add</button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 items-end">
-          <div class="md:col-span-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-name">Name</label>
-            <input id="opt-name" type="text" bind:value={newContact.name} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div class="md:col-span-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-number">Number</label>
-            <input 
-              id="opt-number" 
-              type="tel" 
-              bind:value={newContact.number} 
-              placeholder="Numbers, spaces, and + only"
-              class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" 
-            />
-          </div>
-          <div class="md:col-span-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-email">Email</label>
-            <input id="opt-email" type="email" bind:value={newContact.email} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        </div>
-
-        {#if contactError}
-          <div class="mt-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-            {contactError}
-          </div>
-        {/if}
-
-        {#if optionalContacts.length > 0}
-          <div class="mt-4">
-            <div class="overflow-hidden border border-gray-200 rounded">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th class="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  {#each optionalContacts as contact, i}
-                    <tr>
-                      <td class="px-4 py-3 text-sm text-gray-900">{contact.name}</td>
-                      <td class="px-4 py-3 text-sm text-gray-900">{contact.number}</td>
-                      <td class="px-4 py-3 text-sm text-gray-900">{contact.email}</td>
-                      <td class="px-4 py-3 text-right">
-                        <button type="button" class="text-red-600 hover:text-red-800 text-sm" on:click={() => removeOptionalContact(i)}>Remove</button>
-                      </td>
-                    </tr>
-                  {/each}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        {/if}
-      </div>
+      <ContactsManager
+        bind:contacts={optionalContacts}
+        bind:error={contactError}
+        on:contactsUpdated={handleContactsUpdated}
+        on:error={handleContactError}
+      />
 
       <div class="flex justify-end gap-3">
         <a href="{base}/workshop" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>
@@ -1068,39 +749,12 @@
   </div>
 
   <!-- Success Modal -->
-  <Modal show={showSuccessModal} onClose={closeSuccessModal}>
-    <div slot="header" class="text-center">
-      <h3 class="text-lg font-medium text-gray-900">Success!</h3>
-    </div>
-
-    <div slot="body" class="text-center">
-      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-        <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-      </div>
-
-      <p class="text-sm text-gray-600 mb-4">{successMessage}</p>
-
-      {#if generatedOrderId}
-        <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-          <div class="text-sm text-blue-800">
-            <strong>Order ID:</strong> <span class="font-mono text-blue-900">{generatedOrderId}</span>
-          </div>
-        </div>
-      {/if}
-
-      <div class="flex justify-center space-x-3">
-        <button
-          type="button"
-          class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-          on:click={closeSuccessModal}
-        >
-          Continue
-        </button>
-      </div>
-    </div>
-  </Modal>
+  <SuccessModal
+    show={showSuccessModal}
+    message={successMessage}
+    orderId={generatedOrderId}
+    on:close={closeSuccessModal}
+  />
 </div>
 
 

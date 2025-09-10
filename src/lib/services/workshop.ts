@@ -32,6 +32,15 @@ export interface WorkshopFormData {
 
   // Workflow tracking
   startedWith: 'form' | 'camera';
+
+  // API data
+  customerApiData?: any;
+  orderApiData?: any;
+  order_id?: string | null;
+  status?: string;
+
+  // Photo handling
+  existingPhotoUrls?: string[];
 }
 
 // Database record interfaces
@@ -63,7 +72,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'draft' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'draft' | 'in_progress' | 'completed' | 'cancelled' | 'to_be_quoted';
   created_by: string;
 
   // Workflow tracking
@@ -71,6 +80,9 @@ export interface WorkshopRecord {
 
   // Photo references
   photo_urls: string[];
+
+  // Order information
+  order_id: string | null;
 }
 
 export interface WorkshopPhoto {
@@ -155,10 +167,11 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
       optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
-      status: 'draft' as const,
+      status: (data.status as any) || 'draft',
       created_by: createdByName,
       started_with: data.startedWith,
-      photo_urls: photoUrls
+      photo_urls: photoUrls,
+      order_id: data.order_id || null
     };
 
     console.log('Inserting workshop data:', JSON.stringify(workshopData, null, 2));
@@ -191,7 +204,16 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
  * Upload photos to Supabase storage
  */
 export async function uploadWorkshopPhotos(photos: File[], workOrder: string): Promise<string[]> {
-  console.log('uploadWorkshopPhotos called with:', { photoCount: photos?.length, workOrder });
+  // Make workOrder more dynamic if it's the default
+  const dynamicWorkOrder = workOrder === 'workshop'
+    ? `workshop_${Date.now().toString().slice(-6)}` // Add timestamp suffix for uniqueness
+    : workOrder;
+
+  console.log('uploadWorkshopPhotos called with:', {
+    photoCount: photos?.length,
+    originalWorkOrder: workOrder,
+    dynamicWorkOrder
+  });
 
   if (!photos || photos.length === 0) {
     console.log('No photos to upload, returning empty array');
@@ -205,7 +227,13 @@ export async function uploadWorkshopPhotos(photos: File[], workOrder: string): P
       const photo = photos[i];
       console.log(`Uploading photo ${i + 1}:`, { name: photo.name, size: photo.size, type: photo.type });
 
-      const fileName = `${workOrder}_${Date.now()}_${i + 1}_${photo.name}`;
+      // Generate unique filename with timestamp for each photo
+      const timestamp = Date.now() + Math.random() * 1000; // Add randomness to avoid collisions
+      const sanitizedFileName = photo.name.replace(/[^a-zA-Z0-9._-]/g, '_'); // Sanitize filename
+      const fileName = `${dynamicWorkOrder}_${timestamp}_${i + 1}_${sanitizedFileName}`;
+
+      console.log(`Generated filename for photo ${i + 1}:`, fileName);
+      console.log(`Filename breakdown: workOrder=${dynamicWorkOrder}, timestamp=${Math.floor(timestamp)}, index=${i + 1}, originalName=${photo.name}`);
 
       const { data, error } = await supabase.storage
         .from('workshop-photos')
@@ -328,6 +356,16 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       photoUrls = newPhotoUrls;
     }
 
+    // Merge with existing photo URLs if provided
+    if (data.existingPhotoUrls && data.existingPhotoUrls.length > 0) {
+      photoUrls = [...data.existingPhotoUrls, ...photoUrls];
+      console.log('Merged photo URLs:', {
+        existing: data.existingPhotoUrls,
+        new: photoUrls.slice(data.existingPhotoUrls.length),
+        merged: photoUrls
+      });
+    }
+
     // Debug optional contacts
     console.log('Update - Optional contacts before formatting:', data.optionalContacts);
     console.log('Update - Optional contacts length:', data.optionalContacts?.length);
@@ -364,11 +402,23 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       updated_at: new Date().toISOString()
     };
 
+    // Add order_id if provided
+    if (data.order_id !== undefined) {
+      updateData.order_id = data.order_id;
+    }
+
+    // Add status if provided
+    if (data.status) {
+      updateData.status = data.status;
+    }
+
     // Note: We don't update created_by on updates as it should remain the original creator's name
 
-    // Only add photo_urls if we have new photos
-    if (photoUrls.length > 0) {
-      updateData.photo_urls = photoUrls;
+    // Update photo_urls if we have photos (existing or new)
+    if (photoUrls.length > 0 || (data.existingPhotoUrls && data.existingPhotoUrls.length > 0)) {
+      const finalPhotoUrls = photoUrls.length > 0 ? photoUrls : data.existingPhotoUrls || [];
+      updateData.photo_urls = finalPhotoUrls;
+      console.log('Updating photo_urls with:', finalPhotoUrls);
     }
 
     const { data: workshop, error } = await supabase

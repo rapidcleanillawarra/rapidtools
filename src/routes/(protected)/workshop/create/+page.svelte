@@ -3,6 +3,7 @@
   import { base } from '$app/paths';
   import { onDestroy } from 'svelte';
   import CustomerDropdown from '$lib/components/CustomerDropdown.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import type { Customer } from '$lib/services/customers';
   import { getCustomerDisplayName } from '$lib/services/customers';
   import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop } from '$lib/services/workshop';
@@ -36,7 +37,7 @@
   let contactError = '';
 
   // Photos
-  type PhotoItem = { file: File; url: string };
+  type PhotoItem = { file: File; url: string; isExisting?: boolean };
   let photos: PhotoItem[] = [];
   let takePhotoInput: HTMLInputElement | null = null;
   let uploadPhotoInput: HTMLInputElement | null = null;
@@ -51,10 +52,23 @@
   let submitError = '';
   let submitSuccess = false;
 
+  // Success modal state
+  let showSuccessModal = false;
+  let successMessage = '';
+  let generatedOrderId = '';
+
+  // Customer data from API
+  let customerApiData: any = null;
+  // Order data from API
+  let orderApiData: any = null;
+
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
   let existingWorkshopId: string | null = null;
   let workshopStatus: 'draft' | 'in_progress' | 'completed' | 'cancelled' | null = null;
+
+  // Debug modal state
+  $: console.log('Modal state changed:', { showSuccessModal, successMessage, generatedOrderId });
 
   // Check referrer to determine if user came from camera page
   $: if (typeof window !== 'undefined') {
@@ -114,7 +128,8 @@
         // Create PhotoItem entries with the existing photo URLs
         photos = workshop.photo_urls.map(url => ({
           file: new File([], 'existing-photo.jpg', { type: 'image/jpeg' }), // Dummy file
-          url: url
+          url: url,
+          isExisting: true // Mark as existing photo
         }));
       }
 
@@ -163,9 +178,10 @@
     Array.from(fileList).forEach((file) => {
       if (!file.type.startsWith('image/')) return;
       const url = URL.createObjectURL(file);
-      newItems.push({ file, url });
+      newItems.push({ file, url, isExisting: false }); // Mark as new photo
     });
     photos = [...photos, ...newItems];
+    console.log('Added new photos:', newItems.length, 'Total photos:', photos.length);
     // Clear photo error when photos are added
     photoError = '';
   }
@@ -262,7 +278,7 @@
     contactNumber = '';
   }
 
-  function handleSubmit(event: Event) {
+  async function handleSubmit(event: Event) {
     event.preventDefault();
 
     // Reset previous states
@@ -304,10 +320,80 @@
     // Start submission
     isSubmitting = true;
 
+    let shouldCreateOrder = false;
+
+    // Only fetch customer data and create orders for existing workshops
+    if (existingWorkshopId) {
+      // Fetch customer data from API first
+      try {
+        console.log('Fetching customer data from API...');
+        await fetchCustomerData();
+        console.log('Customer data fetched successfully');
+        console.log('Customer API Data:', customerApiData);
+      } catch (error) {
+        console.error('Failed to fetch customer data:', error);
+        submitError = 'Failed to fetch customer data. Please try again.';
+        isSubmitting = false;
+        return;
+      }
+
+      // Check if this workshop already has an order_id
+      shouldCreateOrder = true;
+      try {
+        console.log('Checking if workshop already has order_id...');
+        const existingWorkshop = await getWorkshop(existingWorkshopId);
+
+        if (existingWorkshop && existingWorkshop.order_id) {
+          shouldCreateOrder = false;
+          generatedOrderId = existingWorkshop.order_id;
+          console.log('Workshop already has order_id:', generatedOrderId);
+        } else {
+          console.log('Workshop does not have an order_id, will create new order');
+        }
+      } catch (error) {
+        console.error('Error checking existing workshop order_id:', error);
+        // Continue with order creation if we can't check
+      }
+
+      if (shouldCreateOrder) {
+        try {
+          console.log('Creating order with customer data...');
+          await createOrder();
+          console.log('Order created successfully');
+          console.log('Order API Data:', orderApiData);
+
+          // Store the generated order ID for the success message
+          if (orderApiData && orderApiData.Order && orderApiData.Order.OrderID) {
+            generatedOrderId = orderApiData.Order.OrderID;
+          }
+        } catch (error) {
+          console.error('Failed to create order:', error);
+          submitError = 'Failed to create order. Please try again.';
+          isSubmitting = false;
+          return;
+        }
+      } else {
+        console.log('Skipping order creation - workshop already has an order_id');
+      }
+    } else {
+      console.log('New workshop creation - skipping customer data fetch and order creation');
+    }
+
     // Log optional contacts before form submission
     console.log('Optional contacts before submission:', optionalContacts);
     console.log('Optional contacts length:', optionalContacts?.length);
     console.log('Optional contacts type:', typeof optionalContacts);
+
+    // Separate new photos from existing photos
+    const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
+    const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
+
+    console.log('Photo separation:', {
+      totalPhotos: photos.length,
+      newPhotos: newPhotos.length,
+      existingPhotos: existingPhotoUrls.length,
+      existingPhotoUrls
+    });
 
     // Prepare form data
     const formData = {
@@ -323,8 +409,14 @@
       contactNumber,
       selectedCustomer,
       optionalContacts: optionalContacts || [], // Ensure it's always an array
-      photos: photos.map(p => p.file),
-      startedWith
+      photos: newPhotos, // Only new photos to upload
+      existingPhotoUrls, // Preserve existing photo URLs
+      startedWith,
+      ...(existingWorkshopId && {
+        customerApiData, // Include the fetched customer data (only for existing workshops)
+        orderApiData, // Include the created order data (only for existing workshops)
+        order_id: generatedOrderId || null // Include the order_id (only for existing workshops)
+      })
     };
 
     console.log('Form data being submitted:', formData);
@@ -337,6 +429,12 @@
       throw new Error('You must be logged in to create a workshop');
     }
 
+    // Update status to "to_be_quoted" if current status is "draft" (only for existing workshops)
+    if (existingWorkshopId && workshopStatus === 'draft') {
+      formData.status = 'to_be_quoted';
+      console.log('Updating workshop status from draft to to_be_quoted');
+    }
+
     // Submit to Supabase - either create new or update existing
     const submitPromise = existingWorkshopId
       ? updateWorkshop(existingWorkshopId, formData)
@@ -345,12 +443,31 @@
     submitPromise
       .then((workshop) => {
         console.log('Workshop saved successfully:', workshop);
+        console.log('Workshop order_id:', workshop.order_id);
+        console.log('Workshop status:', workshop.status);
         console.log('Started with:', startedWith);
         submitSuccess = true;
 
-        if (existingWorkshopId) {
-          submitError = ''; // Clear any previous errors
-        } else {
+        // Show success modal with appropriate message
+        const isUpdate = !!existingWorkshopId;
+        const wasDraft = existingWorkshopId && workshopStatus === 'draft';
+        const hadExistingOrder = !shouldCreateOrder && isUpdate;
+
+        successMessage = isUpdate
+          ? hadExistingOrder
+            ? `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''}!`
+            : `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
+          : 'Workshop created successfully!';
+
+        console.log('Setting showSuccessModal to true');
+        console.log('Success message:', successMessage);
+        console.log('Generated Order ID:', generatedOrderId);
+        console.log('Order creation status:', shouldCreateOrder ? 'New order created' : 'Existing order reused');
+        console.log('Workshop ID from response:', workshop.id);
+
+        showSuccessModal = true;
+
+        if (!isUpdate) {
           // Reset form after successful creation
           resetForm();
         }
@@ -365,22 +482,145 @@
   }
 
   function getSubmitButtonText() {
-    if (existingWorkshopId && workshopStatus === 'draft') {
-      return 'Create Maropost Order';
-    } else if (existingWorkshopId) {
-      return 'Update Job';
-    } else {
+    if (!existingWorkshopId) {
+      // New workshop creation - only creates job, no order generation
       return 'Create Job';
     }
+
+    if (existingWorkshopId && workshopStatus === 'draft') {
+      // Draft workshop - will create Maropost order and update status
+      return 'Create Maropost Order';
+    }
+
+    // Existing workshop that's not draft - will update job
+    // Note: Order creation will be conditional based on existing order_id
+    return 'Update Job';
   }
 
   function getSubmitButtonLoadingText() {
+    if (!existingWorkshopId) {
+      // New workshop creation - only creates job
+      return 'Creating Job...';
+    }
+
     if (existingWorkshopId && workshopStatus === 'draft') {
+      // Draft workshop
       return 'Creating Maropost Order...';
-    } else if (existingWorkshopId) {
-      return 'Updating...';
-    } else {
-      return 'Creating...';
+    }
+
+    // Existing workshop update
+    return 'Updating Job...';
+  }
+
+  async function fetchCustomerData() {
+    try {
+      const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          "Filter": {
+            "Username": ["joeven_customer"],
+            "OutputSelector": [
+              "EmailAddress",
+              "BillingAddress",
+              "ShippingAddress"
+            ]
+          },
+          "action": "GetCustomer"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      customerApiData = data;
+      console.log('Customer API data fetched successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching customer data:', error);
+      throw error;
+    }
+  }
+
+  async function createOrder() {
+    if (!customerApiData || !customerApiData.Customer || customerApiData.Customer.length === 0) {
+      throw new Error('Customer data not available for creating order');
+    }
+
+    const customer = customerApiData.Customer[0];
+
+    // Generate OrderID in format: YYYYWMDDHHMMSS (Year + W + Month + Day + Hour + Minutes + Seconds)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // getMonth() returns 0-11, so +1
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = now.getHours(); // Single digit for hour
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const orderId = `${year}W${month}${day}${hour}${minutes}${seconds}`;
+
+    console.log('Generated OrderID:', orderId);
+
+    try {
+      const orderPayload = {
+        "Order": [
+          {
+            "OrderID": orderId,
+            "OrderStatus": "Quote",
+            "Username": customer.Username || "joeven_customer",
+            "BillFirstName": customer.BillingAddress?.BillFirstName || "Joeven Customer",
+            "BillLastName": customer.BillingAddress?.BillLastName || "Cerveza",
+            "BillCompany": customer.BillingAddress?.BillCompany || "Rapid Clean Illawarra",
+            "BillStreet1": customer.BillingAddress?.BillStreetLine1 || "32 Crawford St.",
+            "BillStreet2": customer.BillingAddress?.BillStreetLine2 || "1148 Mountain Ash Rd",
+            "BillCity": customer.BillingAddress?.BillCity || "CANNINGTON",
+            "BillState": customer.BillingAddress?.BillState || "WA",
+            "BillPostCode": customer.BillingAddress?.BillPostCode || "6107",
+            "BillCountry": customer.BillingAddress?.BillCountry || "AU",
+            "BillPhone": customer.BillingAddress?.BillPhone || "61 2 9071 7908",
+            "BillFax": customer.BillingAddress?.BillFax || "",
+            "ShipFirstName": customer.ShippingAddress?.ShipFirstName || "Joeven Customer",
+            "ShipLastName": customer.ShippingAddress?.ShipLastName || "Cerveza",
+            "ShipCompany": customer.ShippingAddress?.ShipCompany || "Rapid Clean Illawarra",
+            "ShipStreet1": customer.ShippingAddress?.ShipStreetLine1 || "32 Crawford St.",
+            "ShipStreet2": customer.ShippingAddress?.ShipStreetLine2 || "1148 Mountain Ash Rd",
+            "ShipCity": customer.ShippingAddress?.ShipCity || "CANNINGTON",
+            "ShipState": customer.ShippingAddress?.ShipState || "WA",
+            "ShipPostCode": customer.ShippingAddress?.ShipPostCode || "6107",
+            "ShipCountry": customer.ShippingAddress?.ShipCountry || "AU",
+            "ShipPhone": customer.ShippingAddress?.ShipPhone || "61 2 9071 7908",
+            "ShipFax": customer.ShippingAddress?.ShipFax || "",
+            "EmailAddress": customer.EmailAddress || "joeven_rc@gmail.com"
+          }
+        ],
+        "action": "AddOrder"
+      };
+
+      console.log('Creating order with payload:', orderPayload);
+
+      const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderPayload)
+      });
+
+      if (!response.ok) {
+        throw new Error(`AddOrder API call failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      orderApiData = data;
+      console.log('Order created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Error creating order:', error);
+      throw error;
     }
   }
 
@@ -409,6 +649,17 @@
     siteLocationError = '';
     photoError = '';
     contactError = '';
+
+    // Clear success modal state
+    showSuccessModal = false;
+    successMessage = '';
+    generatedOrderId = '';
+  }
+
+  function closeSuccessModal() {
+    showSuccessModal = false;
+    successMessage = '';
+    generatedOrderId = '';
   }
 </script>
 
@@ -722,6 +973,41 @@
       </div>
     </form>
   </div>
+
+  <!-- Success Modal -->
+  <Modal show={showSuccessModal} onClose={closeSuccessModal}>
+    <div slot="header" class="text-center">
+      <h3 class="text-lg font-medium text-gray-900">Success!</h3>
+    </div>
+
+    <div slot="body" class="text-center">
+      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+        <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+      </div>
+
+      <p class="text-sm text-gray-600 mb-4">{successMessage}</p>
+
+      {#if generatedOrderId}
+        <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+          <div class="text-sm text-blue-800">
+            <strong>Order ID:</strong> <span class="font-mono text-blue-900">{generatedOrderId}</span>
+          </div>
+        </div>
+      {/if}
+
+      <div class="flex justify-center space-x-3">
+        <button
+          type="button"
+          class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          on:click={closeSuccessModal}
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  </Modal>
 </div>
 
 

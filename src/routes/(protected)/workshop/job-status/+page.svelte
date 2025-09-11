@@ -16,6 +16,10 @@
   let currentWorkshopPhotos: string[] = [];
   let currentWorkshopId = '';
 
+  // Delete confirmation modal state
+  let showDeleteModal = false;
+  let workshopToDelete: WorkshopRecord | null = null;
+
   // Photo loading states (using arrays for better reactivity)
   let loadedPhotos: string[] = [];
   let failedPhotos: string[] = [];
@@ -214,6 +218,33 @@
     (window as any).testImageUrl = testImageUrl;
   }
 
+  function openDeleteModal(workshop: WorkshopRecord) {
+    workshopToDelete = workshop;
+    showDeleteModal = true;
+  }
+
+  function closeDeleteModal() {
+    showDeleteModal = false;
+    workshopToDelete = null;
+  }
+
+  async function deleteWorkshop(workshopId: string) {
+    try {
+      // Here you would implement the actual delete logic
+      // For now, we'll just remove it from the local array
+      workshops = workshops.filter(w => w.id !== workshopId);
+      closeDeleteModal();
+      console.log('Workshop deleted:', workshopId);
+    } catch (err) {
+      console.error('Error deleting workshop:', err);
+      error = 'Failed to delete workshop';
+    }
+  }
+
+  function handleRowClick(workshop: WorkshopRecord) {
+    goto(`/workshop/create?workshop_id=${workshop.id}`);
+  }
+
   onMount(() => {
     loadWorkshops();
   });
@@ -232,7 +263,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-gray-900 mb-2">Workshop Job Status</h1>
@@ -418,7 +449,7 @@
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               {#each filteredWorkshops as workshop (workshop.id)}
-                <tr class="hover:bg-gray-50 transition-colors" transition:fade>
+                <tr class="hover:bg-gray-50 transition-colors cursor-pointer" transition:fade on:click={() => handleRowClick(workshop)}>
                   <td class="px-4 py-4 whitespace-nowrap">
                     <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusColor(workshop.status)}">
                       {workshop.status.replace('_', ' ').toUpperCase()}
@@ -438,7 +469,10 @@
                             <button
                               type="button"
                               class="w-28 h-28 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                              on:click={() => openPhotoViewer(workshop, index)}
+                              on:click={(e) => {
+                                e.stopPropagation();
+                                openPhotoViewer(workshop, index);
+                              }}
                               aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
                             >
                               <!-- Always render img to trigger load/error events -->
@@ -496,7 +530,7 @@
                   <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     {workshop.clients_work_order || 'N/A'}
                   </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
+                  <td class="px-4 py-4 whitespace-normal">
                     <div class="text-sm font-medium text-gray-900">
                       {workshop.product_name}
                     </div>
@@ -504,7 +538,7 @@
                       {workshop.make_model}
                     </div>
                   </td>
-                  <td class="px-4 py-4 whitespace-nowrap">
+                  <td class="px-4 py-4 whitespace-normal">
                     <div class="text-sm font-medium text-gray-900">
                       {workshop.customer_name}
                     </div>
@@ -517,10 +551,16 @@
                   <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                     <button
                       type="button"
-                      class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                      on:click={() => goto(`/workshop/create?workshop_id=${workshop.id}`)}
+                      class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+                      on:click={(e) => {
+                        e.stopPropagation();
+                        openDeleteModal(workshop);
+                      }}
                     >
-                      Process
+                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -623,24 +663,48 @@
       <div class="text-gray-300">Photo {currentPhotoIndex + 1} of {currentWorkshopPhotos.length}</div>
     </div>
 
-    <!-- Debug overlay (only in development) -->
-    {#if typeof window !== 'undefined' && window.location.hostname === 'localhost'}
-      <div class="absolute top-4 right-16 bg-black bg-opacity-75 text-white px-3 py-2 rounded text-xs max-w-xs">
-        <div class="font-medium mb-1">Debug Info:</div>
-        <div class="text-gray-300 break-all">
-          {currentWorkshopPhotos[currentPhotoIndex]}
+  </div>
+{/if}
+
+<!-- Delete Confirmation Modal -->
+{#if showDeleteModal && workshopToDelete}
+  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" transition:fade>
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+      <div class="px-6 py-4">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-lg font-medium text-gray-900">Delete Workshop</h3>
+            <div class="mt-2">
+              <p class="text-sm text-gray-500">
+                Are you sure you want to delete the workshop for <strong>{workshopToDelete.customer_name}</strong>?
+                This action cannot be undone.
+              </p>
+            </div>
+          </div>
         </div>
+      </div>
+      <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
         <button
-          class="mt-1 text-blue-300 hover:text-blue-100 underline text-xs"
-          on:click={() => {
-            navigator.clipboard.writeText(currentWorkshopPhotos[currentPhotoIndex]);
-            console.log('URL copied to clipboard:', currentWorkshopPhotos[currentPhotoIndex]);
-          }}
+          type="button"
+          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          on:click={closeDeleteModal}
         >
-          Copy URL
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          on:click={() => workshopToDelete && deleteWorkshop(workshopToDelete.id)}
+        >
+          Delete
         </button>
       </div>
-    {/if}
+    </div>
   </div>
 {/if}
 

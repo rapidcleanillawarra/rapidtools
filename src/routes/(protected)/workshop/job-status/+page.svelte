@@ -2,9 +2,14 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { getWorkshops, deleteWorkshop as deleteWorkshopService, type WorkshopRecord } from '$lib/services/workshop';
-  import { fade } from 'svelte/transition';
-  import Select from 'svelte-select';
   import { toastSuccess } from '$lib/utils/toast';
+
+  // Import new components
+  import PhotoViewer from '$lib/components/PhotoViewer.svelte';
+  import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+  import WorkshopCard from '$lib/components/WorkshopCard.svelte';
+  import StatusColumn from '$lib/components/StatusColumn.svelte';
+  import WorkshopFilters from '$lib/components/WorkshopFilters.svelte';
 
   let workshops: WorkshopRecord[] = [];
   let filteredWorkshops: WorkshopRecord[] = [];
@@ -14,8 +19,7 @@
   // Photo viewer modal state
   let showPhotoViewer = false;
   let currentPhotoIndex = 0;
-  let currentWorkshopPhotos: string[] = [];
-  let currentWorkshopId = '';
+  let currentWorkshop: WorkshopRecord | null = null;
 
   // Delete confirmation modal state
   let showDeleteModal = false;
@@ -29,16 +33,19 @@
   // View states
   let currentView: 'table' | 'board' = loadViewPreference();
 
+  // Filter states
+  let statusFilter = '';
+  let customerFilter = '';
+  let sortBy = 'created_at';
+  let sortOrder: 'asc' | 'desc' = 'desc';
+
   // LocalStorage functions for view preference
-  // Saves user's preferred view (table or board) to localStorage
   function saveViewPreference(view: 'table' | 'board') {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('workshop-view-preference', view);
     }
   }
 
-  // Loads user's saved view preference from localStorage
-  // Defaults to 'table' if no preference is saved or localStorage is unavailable
   function loadViewPreference(): 'table' | 'board' {
     if (typeof localStorage !== 'undefined') {
       const saved = localStorage.getItem('workshop-view-preference');
@@ -48,34 +55,6 @@
     }
     return 'table'; // default fallback
   }
-
-  // Filter states
-  let statusFilter = '';
-  let customerFilter = '';
-  let sortBy = 'created_at';
-  let sortOrder: 'asc' | 'desc' = 'desc';
-
-  // Status options for filter
-  const statusOptions = [
-    { label: 'All Statuses', value: '' },
-    { label: 'Draft', value: 'draft' },
-    { label: 'To be Quoted', value: 'to_be_quoted' },
-    { label: 'Docket Ready', value: 'docket_ready' },
-    { label: 'Quoted/Repaired', value: 'quoted_repaired' },
-    { label: 'WAITING APPROVAL PO', value: 'waiting_approval_po' },
-    { label: 'Waiting for Parts', value: 'waiting_for_parts' },
-    { label: 'BOOKED IN FOR REPAIR/ SERVICE', value: 'booked_in_for_repair_service' },
-    { label: 'PENDING JOBS', value: 'pending_jobs' }
-  ];
-
-  // Sort options
-  const sortOptions = [
-    { label: 'Created Date', value: 'created_at' },
-    { label: 'Customer Name', value: 'customer_name' },
-    { label: 'Product Name', value: 'product_name' },
-    { label: 'Status', value: 'status' },
-    { label: 'Work Order', value: 'clients_work_order' }
-  ];
 
   async function loadWorkshops() {
     try {
@@ -186,40 +165,15 @@
   // Photo viewer functions
   function openPhotoViewer(workshop: WorkshopRecord, photoIndex: number = 0) {
     if (!workshop.photo_urls || workshop.photo_urls.length === 0) return;
-
-    currentWorkshopPhotos = workshop.photo_urls;
+    currentWorkshop = workshop;
     currentPhotoIndex = photoIndex;
-    currentWorkshopId = workshop.id;
     showPhotoViewer = true;
-
-    // Debug: Log the URLs being used
-    console.log('Opening photo viewer for workshop:', workshop.id);
-    console.log('Photo URLs:', workshop.photo_urls);
-    console.log('Selected photo URL:', workshop.photo_urls[photoIndex]);
-    console.log('Photo ready state:', isPhotoReady(workshop.photo_urls[photoIndex]));
   }
 
   function closePhotoViewer() {
     showPhotoViewer = false;
+    currentWorkshop = null;
     currentPhotoIndex = 0;
-    currentWorkshopPhotos = [];
-    currentWorkshopId = '';
-  }
-
-  function nextPhoto() {
-    if (currentPhotoIndex < currentWorkshopPhotos.length - 1) {
-      currentPhotoIndex++;
-    } else {
-      currentPhotoIndex = 0; // Loop to first photo
-    }
-  }
-
-  function previousPhoto() {
-    if (currentPhotoIndex > 0) {
-      currentPhotoIndex--;
-    } else {
-      currentPhotoIndex = currentWorkshopPhotos.length - 1; // Loop to last photo
-    }
   }
 
   function handlePhotoLoad(photoUrl: string) {
@@ -280,7 +234,17 @@
   function closeDeleteModal() {
     showDeleteModal = false;
     workshopToDelete = null;
-    isDeletingWorkshop = false; // Reset loading state when modal closes
+    isDeletingWorkshop = false;
+  }
+
+  function handleDeleteConfirm() {
+    if (workshopToDelete) {
+      deleteWorkshop(workshopToDelete.id);
+    }
+  }
+
+  function handleDeleteCancel() {
+    closeDeleteModal();
   }
 
   async function deleteWorkshop(workshopId: string) {
@@ -388,67 +352,17 @@
     {/if}
 
     <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Status Filter -->
-        <div>
-          <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <Select
-            items={statusOptions}
-            value={statusOptions.find(opt => opt.value === statusFilter)}
-            on:select={(e) => {
-              statusFilter = e.detail.value;
-              applyFilters();
-            }}
-            placeholder="Filter by status"
-          />
-        </div>
-
-        <!-- Customer Filter -->
-        <div>
-          <label for="customer-filter" class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-          <input
-            id="customer-filter"
-            type="text"
-            bind:value={customerFilter}
-            on:input={applyFilters}
-            placeholder="Search customers..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-          />
-        </div>
-
-        <!-- Sort By -->
-        <div>
-          <label for="sort-by-filter" class="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-          <Select
-            items={sortOptions}
-            value={sortOptions.find(opt => opt.value === sortBy)}
-            on:select={(e) => {
-              sortBy = e.detail.value;
-              applyFilters();
-            }}
-            placeholder="Sort by..."
-          />
-        </div>
-
-        <!-- Sort Order -->
-        <div>
-          <label for="sort-order-filter" class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-          <button
-            on:click={() => {
-              sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-              applyFilters();
-            }}
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 flex items-center justify-between"
-          >
-            <span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
-            <svg class="w-4 h-4 text-gray-400 transform {sortOrder === 'desc' ? 'rotate-180' : ''}" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
+    <WorkshopFilters
+      bind:statusFilter
+      bind:customerFilter
+      bind:sortBy
+      bind:sortOrder
+      on:statusFilterChanged={(e) => statusFilter = e.detail.value}
+      on:customerFilterChanged={(e) => customerFilter = e.detail.value}
+      on:sortByChanged={(e) => sortBy = e.detail.value}
+      on:sortOrderChanged={(e) => sortOrder = e.detail.value}
+      on:applyFilters={applyFilters}
+    />
 
     {#if currentView === 'table'}
       <!-- Table View -->
@@ -556,121 +470,15 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 {#each filteredWorkshops as workshop (workshop.id)}
-                  <tr class="hover:bg-gray-50 transition-colors cursor-pointer" transition:fade on:click={() => handleRowClick(workshop)}>
-                    <td class="px-4 py-4 whitespace-nowrap">
-                      <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusColor(workshop.status)}">
-                        {workshop.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                        <div class="flex items-center space-x-1">
-                          {#each workshop.photo_urls.slice(0, 3) as photoUrl, index}
-                            <div class="relative group">
-                              <!-- Skeleton loader -->
-                              {#if !isPhotoReady(photoUrl) && !failedPhotos.includes(photoUrl)}
-                                <div class="w-28 h-28 bg-gray-200 rounded animate-pulse"></div>
-                              {/if}
-
-                              <!-- Photo thumbnail -->
-                              <button
-                                type="button"
-                                class="w-28 h-28 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                                on:click={(e) => {
-                                  e.stopPropagation();
-                                  openPhotoViewer(workshop, index);
-                                }}
-                                aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
-                              >
-                                <!-- Always render img to trigger load/error events -->
-                                <img
-                                  src={photoUrl}
-                                  alt="Photo {index + 1}"
-                                  class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
-                                  on:load={() => handlePhotoLoad(photoUrl)}
-                                  on:error={() => handlePhotoError(photoUrl)}
-                                />
-                              </button>
-
-                              <!-- Error indicator -->
-                              {#if failedPhotos.includes(photoUrl)}
-                                <div class="w-28 h-28 bg-gray-100 rounded flex items-center justify-center text-base text-gray-500 border border-gray-300">
-                                  <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                                  </svg>
-                                </div>
-                              {/if}
-                            </div>
-                          {/each}
-
-                          <!-- Show count if more than 3 photos -->
-                          {#if workshop.photo_urls.length > 3}
-                            <div class="w-28 h-28 bg-gray-100 rounded flex items-center justify-center text-lg text-gray-600 font-medium">
-                              +{workshop.photo_urls.length - 3}
-                            </div>
-                          {/if}
-                        </div>
-                      {:else}
-                        <div class="text-gray-400 text-xs">No photos</div>
-                      {/if}
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div class="text-sm font-medium text-gray-900">
-                        {new Date(workshop.created_at).toLocaleDateString('en-AU', {
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })}
-                      </div>
-                      <div class="text-xs text-gray-500">
-                        {new Date(workshop.created_at).toLocaleTimeString('en-AU', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </div>
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div class="text-sm font-medium text-gray-900">
-                        {workshop.created_by || 'Unknown'}
-                      </div>
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {workshop.clients_work_order || 'N/A'}
-                    </td>
-                    <td class="px-4 py-4 whitespace-normal">
-                      <div class="text-sm font-medium text-gray-900">
-                        {workshop.product_name}
-                      </div>
-                      <div class="text-sm text-gray-500">
-                        {workshop.make_model}
-                      </div>
-                    </td>
-                    <td class="px-4 py-4 whitespace-normal">
-                      <div class="text-sm font-medium text-gray-900">
-                        {workshop.customer_name}
-                      </div>
-                      {#if workshop.customer_data}
-                        <div class="text-sm text-gray-500">
-                          {workshop.customer_data.EmailAddress || ''}
-                        </div>
-                      {/if}
-                    </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <button
-                        type="button"
-                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
-                        on:click={(e) => {
-                          e.stopPropagation();
-                          openDeleteModal(workshop);
-                        }}
-                      >
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+                  <WorkshopCard
+                    {workshop}
+                    viewMode="table"
+                    {loadedPhotos}
+                    {failedPhotos}
+                    on:click={({ detail }) => handleRowClick(detail.workshop)}
+                    on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+                    on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+                  />
                 {/each}
               </tbody>
             </table>
@@ -705,768 +513,93 @@
         {:else}
           {@const workshopsByStatus = getWorkshopsByStatus()}
           <div class="flex gap-6 overflow-x-auto pb-4 min-w-max">
-            <!-- Draft Column -->
-            <div class="bg-yellow-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">Draft</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  {workshopsByStatus.draft.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.draft as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
+            <StatusColumn
+              status="draft"
+              title="Draft"
+              workshops={workshopsByStatus.draft}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
+            <StatusColumn
+              status="to_be_quoted"
+              title="To be Quoted"
+              workshops={workshopsByStatus.to_be_quoted}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
+            <StatusColumn
+              status="docket_ready"
+              title="Docket Ready"
+              workshops={workshopsByStatus.docket_ready}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
+            <StatusColumn
+              status="quoted_repaired"
+              title="Quoted/Repaired"
+              workshops={workshopsByStatus.quoted_repaired}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
+            <StatusColumn
+              status="waiting_approval_po"
+              title="WAITING APPROVAL PO"
+              workshops={workshopsByStatus.waiting_approval_po}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
+            <StatusColumn
+              status="waiting_for_parts"
+              title="Waiting for Parts"
+              workshops={workshopsByStatus.waiting_for_parts}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
+            <StatusColumn
+              status="booked_in_for_repair_service"
+              title="BOOKED IN FOR REPAIR/ SERVICE"
+              workshops={workshopsByStatus.booked_in_for_repair_service}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
 
-            <!-- To be Quoted Column -->
-            <div class="bg-orange-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">To be Quoted</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  {workshopsByStatus.to_be_quoted.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.to_be_quoted as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-            <!-- Docket Ready Column -->
-            <div class="bg-blue-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">Docket Ready</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {workshopsByStatus.docket_ready.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.docket_ready as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-            <!-- Quoted/Repaired Column -->
-            <div class="bg-teal-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">Quoted/Repaired</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
-                  {workshopsByStatus.quoted_repaired.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.quoted_repaired as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-            <!-- WAITING APPROVAL PO Column -->
-            <div class="bg-purple-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">WAITING APPROVAL PO</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  {workshopsByStatus.waiting_approval_po.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.waiting_approval_po as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-            <!-- Waiting for Parts Column -->
-            <div class="bg-gray-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">Waiting for Parts</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                  {workshopsByStatus.waiting_for_parts.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.waiting_for_parts as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-            <!-- BOOKED IN FOR REPAIR/ SERVICE Column -->
-            <div class="bg-indigo-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">BOOKED IN FOR REPAIR/ SERVICE</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                  {workshopsByStatus.booked_in_for_repair_service.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.booked_in_for_repair_service as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-            <!-- PENDING JOBS Column -->
-            <div class="bg-red-50 rounded-lg p-4 min-h-96 w-72 flex-shrink-0">
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">PENDING JOBS</h3>
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  {workshopsByStatus.pending_jobs.length}
-                </span>
-              </div>
-              <div class="space-y-3">
-                {#each workshopsByStatus.pending_jobs as workshop (workshop.id)}
-                  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={() => handleRowClick(workshop)} on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRowClick(workshop); }}} role="button" tabindex="0" aria-label={`View details for ${workshop.customer_name}'s workshop`}>
-                    <!-- Photo Section -->
-                    {#if workshop.photo_urls && workshop.photo_urls.length > 0}
-                      <div class="mb-3">
-                        <div class="relative">
-                          <!-- Skeleton loader -->
-                          {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-200 rounded animate-pulse"></div>
-                          {/if}
-
-                          <!-- Photo thumbnail -->
-                          <button
-                            type="button"
-                            class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              openPhotoViewer(workshop, 0);
-                            }}
-                            aria-label="View photo for {workshop.customer_name}'s workshop"
-                          >
-                            <!-- Always render img to trigger load/error events -->
-                            <img
-                              src={workshop.photo_urls[0]}
-                              alt="Photo for {workshop.customer_name}"
-                              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                              on:load={() => handlePhotoLoad(workshop.photo_urls[0])}
-                              on:error={() => handlePhotoError(workshop.photo_urls[0])}
-                            />
-                          </button>
-
-                          <!-- Error indicator -->
-                          {#if failedPhotos.includes(workshop.photo_urls[0])}
-                            <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                              <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                              </svg>
-                            </div>
-                          {/if}
-
-                          <!-- Photo count indicator if multiple photos -->
-                          {#if workshop.photo_urls.length > 1}
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-full">
-                              {workshop.photo_urls.length}
-                            </div>
-                          {/if}
-                        </div>
-                      </div>
-                    {:else}
-                      <!-- No photos placeholder -->
-                      <div class="mb-3">
-                        <div class="w-full h-32 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-400 border border-gray-200">
-                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    {/if}
-
-                    <div class="flex items-start justify-between mb-2">
-                      <div class="flex-1 min-w-0">
-                        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-                        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
-                      </div>
-                    </div>
-
-                    <div class="text-xs text-gray-500 mb-2">
-                      <div>WO: {workshop.clients_work_order || 'N/A'}</div>
-                      <div>{formatDate(workshop.created_at)}</div>
-                    </div>
-
-                    <button
-                      type="button"
-                      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
-                      on:click={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal(workshop);
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-
-
-
+            <StatusColumn
+              status="pending_jobs"
+              title="PENDING JOBS"
+              workshops={workshopsByStatus.pending_jobs}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
           </div>
 
           <!-- Summary for Board View -->
@@ -1482,159 +615,23 @@
 </div>
 
 <!-- Photo Viewer Modal -->
-{#if showPhotoViewer && currentWorkshopPhotos.length > 0}
-  <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" transition:fade>
-    <!-- Close button -->
-    <button
-      class="absolute top-4 right-4 z-20 bg-black bg-opacity-50 text-white rounded-full p-2 hover:bg-opacity-70 transition-colors"
-      on:click={closePhotoViewer}
-      aria-label="Close viewer"
-    >
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-      </svg>
-    </button>
-
-    <!-- Navigation buttons -->
-    {#if currentWorkshopPhotos.length > 1}
-      <button
-        class="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-black bg-opacity-50 text-white rounded-full p-3 hover:bg-opacity-70 transition-colors"
-        on:click={previousPhoto}
-        aria-label="Previous photo"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-        </svg>
-      </button>
-
-      <button
-        class="absolute right-4 top-1/2 transform -translate-y-1/2 z-20 bg-black bg-opacity-50 text-white rounded-full p-3 hover:bg-opacity-70 transition-colors"
-        on:click={nextPhoto}
-        aria-label="Next photo"
-      >
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-        </svg>
-      </button>
-    {/if}
-
-    <!-- Main image -->
-    <div class="max-w-full max-h-full p-4 relative">
-      <!-- Loading skeleton -->
-      {#if !isPhotoReady(currentWorkshopPhotos[currentPhotoIndex]) && !failedPhotos.includes(currentWorkshopPhotos[currentPhotoIndex])}
-        <div class="w-96 h-96 bg-gray-300 rounded-lg animate-pulse flex items-center justify-center">
-          <div class="text-gray-500 text-sm">Loading...</div>
-        </div>
-      {/if}
-
-      <!-- Error state -->
-      {#if failedPhotos.includes(currentWorkshopPhotos[currentPhotoIndex])}
-        <div class="w-96 h-96 bg-gray-100 rounded-lg flex flex-col items-center justify-center border border-gray-300">
-          <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-          </svg>
-          <div class="text-gray-600 text-center">
-            <div class="font-medium">Failed to load image</div>
-            <div class="text-sm text-gray-500 mt-1">The image could not be loaded</div>
-          </div>
-        </div>
-      {/if}
-
-      <!-- Photo (always render to trigger load/error events) -->
-      <img
-        src={currentWorkshopPhotos[currentPhotoIndex]}
-        alt="Photo {currentPhotoIndex + 1} of {currentWorkshopPhotos.length}"
-        class="max-w-full max-h-full object-contain rounded-lg shadow-2xl {isPhotoReady(currentWorkshopPhotos[currentPhotoIndex]) ? 'block' : 'hidden'}"
-        style="max-height: 80vh; max-width: 80vw;"
-        on:load={() => handlePhotoLoad(currentWorkshopPhotos[currentPhotoIndex])}
-        on:error={() => handlePhotoError(currentWorkshopPhotos[currentPhotoIndex])}
-      />
-    </div>
-
-    <!-- Image counter -->
-    {#if currentWorkshopPhotos.length > 1}
-      <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-        {currentPhotoIndex + 1} / {currentWorkshopPhotos.length}
-      </div>
-    {/if}
-
-    <!-- Workshop info overlay -->
-    <div class="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-2 rounded text-sm">
-      <div class="font-medium">Workshop ID: {currentWorkshopId}</div>
-      <div class="text-gray-300">Photo {currentPhotoIndex + 1} of {currentWorkshopPhotos.length}</div>
-    </div>
-
-  </div>
-{/if}
+<PhotoViewer
+  {showPhotoViewer}
+  workshop={currentWorkshop}
+  {currentPhotoIndex}
+  {loadedPhotos}
+  {failedPhotos}
+  on:close={closePhotoViewer}
+  on:photoIndexChanged={({ detail }) => currentPhotoIndex = detail.index}
+/>
 
 <!-- Delete Confirmation Modal -->
-{#if showDeleteModal && workshopToDelete}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" transition:fade>
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-      <div class="px-6 py-4">
-        <div class="flex items-center">
-          <div class="flex-shrink-0">
-            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-            </svg>
-          </div>
-          <div class="ml-3">
-            <h3 class="text-lg font-medium text-gray-900">Delete Workshop</h3>
-            <div class="mt-2">
-              <p class="text-sm text-gray-500">
-                Are you sure you want to delete the workshop for <strong>{workshopToDelete.customer_name}</strong>?
-                This action cannot be undone.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="px-6 py-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
-        <button
-          type="button"
-          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          on:click={closeDeleteModal}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[80px]"
-          disabled={isDeletingWorkshop}
-          on:click={() => workshopToDelete && deleteWorkshop(workshopToDelete.id)}
-        >
-          {#if isDeletingWorkshop}
-            <div class="flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <span>Deleting...</span>
-            </div>
-          {:else}
-            Delete
-          {/if}
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
-
-<!-- Keyboard navigation -->
-<svelte:window on:keydown={(e) => {
-  if (!showPhotoViewer) return;
-
-  switch (e.key) {
-    case 'Escape':
-      closePhotoViewer();
-      break;
-    case 'ArrowLeft':
-      e.preventDefault();
-      previousPhoto();
-      break;
-    case 'ArrowRight':
-      e.preventDefault();
-      nextPhoto();
-      break;
-  }
-}} />
+<DeleteConfirmationModal
+  {showDeleteModal}
+  title="Delete Workshop"
+  message="Are you sure you want to delete the workshop for {workshopToDelete?.customer_name || 'this customer'}?"
+  itemName={workshopToDelete?.customer_name}
+  {isDeletingWorkshop}
+  on:confirm={handleDeleteConfirm}
+  on:cancel={handleDeleteCancel}
+/>

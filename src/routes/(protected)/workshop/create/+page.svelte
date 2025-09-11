@@ -44,11 +44,14 @@
   let photoError = '';
   const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
 
-  // Issue and More Info (new section)
+  // Docket Info (new section)
   let quoteDescription: string = '';
   let stockOnHand: string = '';
   let travelTime: string = '';
   let callOut: string = '';
+
+  type QuoteOrRepairType = 'Quote' | 'Repaired';
+  let quoteOrRepaired: QuoteOrRepairType = 'Quote';
 
   type PartItem = { sku: string; quantity: string };
   let parts: PartItem[] = [
@@ -56,8 +59,22 @@
     { sku: '', quantity: '' },
     { sku: '', quantity: '' }
   ];
+
   function addPartRow() {
     parts = [...parts, { sku: '', quantity: '' }];
+  }
+
+  function removePartRow(index: number) {
+    // Don't remove if it's the last row
+    if (parts.length <= 1) return;
+
+    // Remove the part at the specified index
+    parts = parts.filter((_, i) => i !== index);
+
+    // If we now have no parts, add an empty one back
+    if (parts.length === 0) {
+      parts = [{ sku: '', quantity: '' }];
+    }
   }
 
   let additionalInformation: string = '';
@@ -229,6 +246,7 @@
       contactNumber = workshop.contact_number || '';
       selectedCustomer = workshop.customer_data;
       optionalContacts = workshop.optional_contacts || [];
+      quoteOrRepaired = workshop.quote_or_repaired || 'Quote';
 
       // Load existing photos (they're already saved in storage)
       // Note: We can't recreate File objects from URLs, so we'll show them differently
@@ -336,7 +354,8 @@
       optionalContacts: optionalContacts || [],
       photos: newPhotos,
       existingPhotoUrls,
-      startedWith
+      startedWith,
+      quoteOrRepaired
       // Note: No status changes, no order creation for update job
     };
 
@@ -483,6 +502,7 @@
       photos: newPhotos,
       existingPhotoUrls,
       startedWith,
+      quoteOrRepaired,
       ...(existingWorkshopId && {
         customerApiData,
         orderApiData,
@@ -673,14 +693,34 @@
   <div class="container mx-auto px-4 py-8" in:fade>
   <div class="bg-white rounded-lg shadow-lg overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-200">
-      <div class="flex items-center justify-between">
-        <h1 class="text-xl font-semibold">{existingWorkshopId ? 'Edit Workshop Job' : 'Create Workshop Job'}</h1>
-        <div class="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-          Started via: <span class="font-medium capitalize">{startedWith}</span>
-          {#if startedWith === 'camera'}
-            📷
+      <div class="flex flex-col items-center space-y-3">
+        <h1 class="text-2xl font-bold text-center">
+          {#if existingWorkshopId && workshopStatus && workshopStatus !== 'draft' && existingOrderId}
+            Order #{existingOrderId}
+          {:else if existingWorkshopId}
+            Edit Workshop Job
           {:else}
-            📝
+            Create Workshop Job
+          {/if}
+        </h1>
+        <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+          {#if existingWorkshopId && workshopStatus && workshopStatus !== 'draft'}
+            Status: <span class="font-semibold capitalize">
+              {#if workshopStatus === 'to_be_quoted'}
+                To Be Quoted
+              {:else if workshopStatus === 'in_progress'}
+                In Progress
+              {:else}
+                {workshopStatus.replace('_', ' ')}
+              {/if}
+            </span>
+          {:else}
+            Started via: <span class="font-medium capitalize">{startedWith}</span>
+            {#if startedWith === 'camera'}
+              📷
+            {:else}
+              📝
+            {/if}
           {/if}
         </div>
       </div>
@@ -1026,74 +1066,107 @@
         </div>
       </div>
 
-      <!-- Issue and More Info -->
-      <div class="space-y-4">
-        <div class="bg-gray-100 px-4 py-3 rounded font-medium text-gray-800">
-          Issue and More Info
-        </div>
+      <!-- Docket Info - Only show for non-draft workshops -->
+      {#if workshopStatus !== 'draft'}
+        <div class="space-y-4">
+          <div class="bg-gray-100 px-4 py-3 rounded font-medium text-gray-800">
+            Docket Info
+          </div>
 
-        <!-- Top row: Quote Description | Stock On Hand -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Quote or Repaired -->
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="quote-description">Quote Description</label>
-            <textarea id="quote-description" rows="3" bind:value={quoteDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="stock-on-hand">Stock On Hand</label>
-            <input id="stock-on-hand" type="text" bind:value={stockOnHand} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        </div>
-
-        <!-- Second row: Travel Time | Call out -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="travel-time">Travel Time</label>
-            <input id="travel-time" type="text" bind:value={travelTime} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="call-out">Call out</label>
-            <input id="call-out" type="text" bind:value={callOut} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        </div>
-
-        <!-- Parts -->
-        <div>
-          <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
-            <h3 class="font-medium text-gray-800">Parts</h3>
-            <button type="button" on:click={addPartRow} class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Add</button>
-          </div>
-
-          <div class="mt-3 space-y-3">
-            {#each parts as part, idx}
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1" for={`sku-${idx}`}>SKU</label>
-                  <input id={`sku-${idx}`} type="text" bind:value={part.sku} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
-                <div>
-                  <label class="block text-sm font-medium text-gray-700 mb-1" for={`qty-${idx}`}>Quantity</label>
-                  <input id={`qty-${idx}`} type="text" bind:value={part.quantity} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                </div>
+            <fieldset class="bg-gray-100 rounded px-4 py-3">
+              <legend class="block text-sm font-medium text-gray-700 mb-1">Quote or Repaired</legend>
+              <div class="flex items-center gap-6">
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                  <input id="quote-radio" type="radio" name="quoteOrRepaired" value="Quote" bind:group={quoteOrRepaired} class="h-4 w-4 text-blue-600" />
+                  <span>Quote</span>
+                </label>
+                <label class="inline-flex items-center gap-2 cursor-pointer">
+                  <input id="repaired-radio" type="radio" name="quoteOrRepaired" value="Repaired" bind:group={quoteOrRepaired} class="h-4 w-4 text-blue-600" />
+                  <span>Repaired</span>
+                </label>
               </div>
-            {/each}
-          </div>
-        </div>
-
-        <!-- Bottom row: Additional Information | Labour -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="additional-information">Additional Information</label>
-            <textarea id="additional-information" rows="3" bind:value={additionalInformation} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </fieldset>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1" for="labour">Labour</label>
-            <input id="labour" type="text" bind:value={labour} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <!-- Quote Description | Additional Information -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="quote-description">Quote Description</label>
+              <textarea id="quote-description" rows="3" bind:value={quoteDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="additional-information">Additional Information</label>
+              <textarea id="additional-information" rows="3" bind:value={additionalInformation} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
           </div>
+
+          <!-- Stock On Hand | Labour -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="stock-on-hand">Stock On Hand</label>
+              <input id="stock-on-hand" type="text" bind:value={stockOnHand} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="labour">Labour</label>
+              <input id="labour" type="text" bind:value={labour} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <!-- Travel Time | Call out -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="travel-time">Travel Time</label>
+              <input id="travel-time" type="text" bind:value={travelTime} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="call-out">Call out</label>
+              <input id="call-out" type="text" bind:value={callOut} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
+          <!-- Parts -->
+          <div>
+            <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
+              <h3 class="font-medium text-gray-800">Parts</h3>
+              <button type="button" on:click={addPartRow} class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Add</button>
+            </div>
+
+            <div class="mt-3 space-y-3">
+              {#each parts as part, idx}
+                <div class="flex gap-4 items-end">
+                  <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for={`sku-${idx}`}>SKU</label>
+                    <input id={`sku-${idx}`} type="text" bind:value={part.sku} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1" for={`qty-${idx}`}>Quantity</label>
+                    <input id={`qty-${idx}`} type="text" bind:value={part.quantity} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div class="flex items-end">
+                    <button
+                      type="button"
+                      on:click={() => removePartRow(idx)}
+                      disabled={parts.length <= 1}
+                      class="w-10 h-10 flex items-center justify-center px-2 py-2 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600 transition-colors"
+                      aria-label="Remove part row"
+                    >
+                      <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            </div>
+          </div>
+
         </div>
-      </div>
+      {/if}
 
       <div class="flex justify-end gap-3">
         <a href="{base}/workshop/job-status" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>

@@ -32,6 +32,7 @@ export interface WorkshopFormData {
 
   // Workflow tracking
   startedWith: 'form' | 'camera';
+  quoteOrRepaired: 'Quote' | 'Repaired';
 
   // API data
   customerApiData?: any;
@@ -80,6 +81,9 @@ export interface WorkshopRecord {
 
   // Photo references
   photo_urls: string[];
+
+  // Quote or Repaired
+  quote_or_repaired: 'Quote' | 'Repaired';
 
   // Order information
   order_id: string | null;

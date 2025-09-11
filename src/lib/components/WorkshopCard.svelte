@@ -178,22 +178,24 @@
         </div>
       {/if}
     </td>
-    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900 relative">
+      <!-- X delete button positioned in upper right corner -->
       <button
         type="button"
-        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+        class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 z-10"
         on:click={handleDeleteClick}
+        title="Delete workshop"
+        aria-label="Delete workshop"
       >
-        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
-        Delete
       </button>
     </td>
   </tr>
 {:else}
   <!-- Board Card View -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={handleClick} role="button" tabindex="0" on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}>
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer relative" on:click={handleClick} role="button" tabindex="0" on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}>
     <!-- Photo Section -->
     {#if workshop.photo_urls && workshop.photo_urls.length > 0}
       <div class="mb-3">
@@ -276,12 +278,17 @@
       <div>{formatDateShort(workshop.created_at)}</div>
     </div>
 
+    <!-- X delete button positioned in upper right corner -->
     <button
       type="button"
-      class="w-full inline-flex items-center justify-center px-2 py-1 border border-transparent text-xs leading-3 font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-500 transition-colors duration-200"
+      class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 z-10"
       on:click={handleDeleteClick}
+      title="Delete workshop"
+      aria-label="Delete workshop"
     >
-      Delete
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
     </button>
   </div>
 {/if}

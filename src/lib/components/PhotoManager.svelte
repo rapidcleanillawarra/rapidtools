@@ -46,14 +46,22 @@
 
   function removePhoto(index: number) {
     const [removed] = photos.splice(index, 1);
-    if (removed) URL.revokeObjectURL(removed.url);
+    if (removed && !removed.isExisting) {
+      // Only revoke URLs for new photos created with URL.createObjectURL
+      URL.revokeObjectURL(removed.url);
+    }
     photos = [...photos];
     dispatch('photosUpdated', { photos });
     dispatch('error', { message: '' });
   }
 
   onDestroy(() => {
-    photos.forEach((p) => URL.revokeObjectURL(p.url));
+    photos.forEach((p) => {
+      if (!p.isExisting) {
+        // Only revoke URLs for new photos created with URL.createObjectURL
+        URL.revokeObjectURL(p.url);
+      }
+    });
   });
 
   // Reactive statement to update error when photos change

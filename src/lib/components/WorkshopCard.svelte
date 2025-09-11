@@ -66,7 +66,7 @@
 
 {#if viewMode === 'table'}
   <!-- Table Row View -->
-  <tr class="hover:bg-gray-50 transition-colors cursor-pointer" on:click={handleClick}>
+  <tr class="hover:bg-gray-50 transition-colors cursor-pointer" on:click={handleClick} role="button" tabindex="0" on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}>
     <td class="px-4 py-4 whitespace-nowrap">
       <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {getStatusColor(workshop.status)}">
         {workshop.status.replace('_', ' ').toUpperCase()}
@@ -89,12 +89,30 @@
                 on:click={(e) => handlePhotoClick(index, e)}
                 aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
               >
-                <!-- Always render img to trigger load/error events -->
-                <img
-                  src={photoUrl}
-                  alt="Photo {index + 1}"
-                  class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
-                />
+                <div class="w-full h-full relative">
+                  <!-- Always render img to trigger load/error events -->
+                  <img
+                    src={photoUrl}
+                    alt="Photo {index + 1}"
+                    class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
+                    on:load={() => {
+                      // Remove from failed if it was there
+                      failedPhotos = failedPhotos.filter(url => url !== photoUrl);
+                      // Add to loaded if not already there
+                      if (!loadedPhotos.includes(photoUrl)) {
+                        loadedPhotos = [...loadedPhotos, photoUrl];
+                      }
+                    }}
+                    on:error={() => {
+                      // Remove from loaded if it was there
+                      loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
+                      // Add to failed if not already there
+                      if (!failedPhotos.includes(photoUrl)) {
+                        failedPhotos = [...failedPhotos, photoUrl];
+                      }
+                    }}
+                  />
+                </div>
               </button>
 
               <!-- Error indicator -->
@@ -175,7 +193,7 @@
   </tr>
 {:else}
   <!-- Board Card View -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={handleClick}>
+  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer" on:click={handleClick} role="button" tabindex="0" on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}>
     <!-- Photo Section -->
     {#if workshop.photo_urls && workshop.photo_urls.length > 0}
       <div class="mb-3">
@@ -192,12 +210,30 @@
             on:click={(e) => handlePhotoClick(0, e)}
             aria-label="View photo for {workshop.customer_name}'s workshop"
           >
-            <!-- Always render img to trigger load/error events -->
-            <img
-              src={workshop.photo_urls[0]}
-              alt="Photo for {workshop.customer_name}"
-              class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-            />
+            <div class="w-full h-full relative">
+              <!-- Always render img to trigger load/error events -->
+              <img
+                src={workshop.photo_urls[0]}
+                alt="Photo for {workshop.customer_name}"
+                class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
+                on:load={() => {
+                  // Remove from failed if it was there
+                  failedPhotos = failedPhotos.filter(url => url !== workshop.photo_urls[0]);
+                  // Add to loaded if not already there
+                  if (!loadedPhotos.includes(workshop.photo_urls[0])) {
+                    loadedPhotos = [...loadedPhotos, workshop.photo_urls[0]];
+                  }
+                }}
+                on:error={() => {
+                  // Remove from loaded if it was there
+                  loadedPhotos = loadedPhotos.filter(url => url !== workshop.photo_urls[0]);
+                  // Add to failed if not already there
+                  if (!failedPhotos.includes(workshop.photo_urls[0])) {
+                    failedPhotos = [...failedPhotos, workshop.photo_urls[0]];
+                  }
+                }}
+              />
+            </div>
           </button>
 
           <!-- Error indicator -->

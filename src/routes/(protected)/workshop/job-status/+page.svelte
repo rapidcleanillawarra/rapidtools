@@ -512,7 +512,15 @@
           </div>
         {:else}
           {@const workshopsByStatus = getWorkshopsByStatus()}
-          <div class="flex gap-6 overflow-x-auto pb-4 min-w-max">
+          <div class="relative">
+            <!-- Scroll indicator (fade effect) -->
+            <div class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+            <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+
+            <!-- Scrollable container with better vertical space -->
+            <div class="flex gap-6 overflow-x-auto pb-6 px-4 scroll-smooth scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 scroll-snap-x-mandatory"
+                 style="scroll-behavior: smooth; scrollbar-width: thin; scroll-padding-left: 1rem; scroll-padding-right: 1rem; min-height: 600px;">
+              <div class="flex gap-6 min-w-max py-2">
             <StatusColumn
               status="draft"
               title="Draft"
@@ -600,6 +608,8 @@
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
             />
+              </div>
+            </div>
           </div>
 
           <!-- Summary for Board View -->
@@ -627,11 +637,78 @@
 
 <!-- Delete Confirmation Modal -->
 <DeleteConfirmationModal
-  {showDeleteModal}
+  show={showDeleteModal}
   title="Delete Workshop"
   message="Are you sure you want to delete the workshop for {workshopToDelete?.customer_name || 'this customer'}?"
-  itemName={workshopToDelete?.customer_name}
-  {isDeletingWorkshop}
+  itemName={workshopToDelete?.customer_name || 'Unknown Customer'}
+  isDeleting={isDeletingWorkshop}
   on:confirm={handleDeleteConfirm}
   on:cancel={handleDeleteCancel}
 />
+
+<style>
+  /* Custom scrollbar styles for webkit browsers */
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-corner {
+    background: #f1f5f9;
+  }
+
+  /* Custom scrollbar styles for Firefox */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+
+  /* Smooth scroll snap for better UX */
+  .snap-start {
+    scroll-snap-align: start;
+  }
+
+  /* Scroll container snap behavior */
+  .scroll-snap-x-mandatory {
+    scroll-snap-type: x mandatory;
+  }
+
+  /* Hide scroll indicators on very small screens */
+  @media (max-width: 640px) {
+    .scrollbar-thin::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-thin {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  }
+
+  /* Hide scrollbars on mobile devices */
+  @media (max-width: 768px) {
+    .scrollbar-thin::-webkit-scrollbar {
+      display: none;
+    }
+
+    .scrollbar-thin {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  }
+</style>

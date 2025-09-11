@@ -1,9 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import Modal from './Modal.svelte';
   import type { WorkshopRecord } from '$lib/services/workshop';
 
-  export let show: boolean = false;
+  export let showPhotoViewer: boolean = false;
   export let workshop: WorkshopRecord | null = null;
   export let currentPhotoIndex: number = 0;
   export let loadedPhotos: string[] = [];
@@ -69,7 +68,7 @@
 
   // Keyboard navigation
   function handleKeydown(event: KeyboardEvent) {
-    if (!show) return;
+    if (!showPhotoViewer) return;
 
     switch (event.key) {
       case 'Escape':
@@ -89,7 +88,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-{#if show && workshop && photoUrls.length > 0}
+{#if showPhotoViewer && workshop && photoUrls.length > 0}
   <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
     <!-- Close button -->
     <button

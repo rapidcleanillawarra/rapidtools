@@ -509,8 +509,12 @@
     optionalContacts = [];
     workshopStatus = null;
 
-    // Clear photos
-    photos.forEach(p => URL.revokeObjectURL(p.url));
+    // Clear photos - only revoke URLs for new photos created with URL.createObjectURL
+    photos.forEach(p => {
+      if (!p.isExisting) {
+        URL.revokeObjectURL(p.url);
+      }
+    });
     photos = [];
 
     // Clear errors

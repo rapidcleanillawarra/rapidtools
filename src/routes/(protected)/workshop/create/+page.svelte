@@ -44,6 +44,25 @@
   let photoError = '';
   const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
 
+  // Issue and More Info (new section)
+  let quoteDescription: string = '';
+  let stockOnHand: string = '';
+  let travelTime: string = '';
+  let callOut: string = '';
+
+  type PartItem = { sku: string; quantity: string };
+  let parts: PartItem[] = [
+    { sku: '', quantity: '' },
+    { sku: '', quantity: '' },
+    { sku: '', quantity: '' }
+  ];
+  function addPartRow() {
+    parts = [...parts, { sku: '', quantity: '' }];
+  }
+
+  let additionalInformation: string = '';
+  let labour: string = '';
+
   // Photo viewer modal state
   let showPhotoViewer = false;
   let currentPhotoIndex = 0;
@@ -1004,6 +1023,75 @@
             on:error={handleContactError}
           />
         {/if}
+        </div>
+      </div>
+
+      <!-- Issue and More Info -->
+      <div class="space-y-4">
+        <div class="bg-gray-100 px-4 py-3 rounded font-medium text-gray-800">
+          Issue and More Info
+        </div>
+
+        <!-- Top row: Quote Description | Stock On Hand -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="quote-description">Quote Description</label>
+            <textarea id="quote-description" rows="3" bind:value={quoteDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="stock-on-hand">Stock On Hand</label>
+            <input id="stock-on-hand" type="text" bind:value={stockOnHand} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <!-- Second row: Travel Time | Call out -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="travel-time">Travel Time</label>
+            <input id="travel-time" type="text" bind:value={travelTime} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="call-out">Call out</label>
+            <input id="call-out" type="text" bind:value={callOut} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+        </div>
+
+        <!-- Parts -->
+        <div>
+          <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
+            <h3 class="font-medium text-gray-800">Parts</h3>
+            <button type="button" on:click={addPartRow} class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Add</button>
+          </div>
+
+          <div class="mt-3 space-y-3">
+            {#each parts as part, idx}
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1" for={`sku-${idx}`}>SKU</label>
+                  <input id={`sku-${idx}`} type="text" bind:value={part.sku} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1" for={`qty-${idx}`}>Quantity</label>
+                  <input id={`qty-${idx}`} type="text" bind:value={part.quantity} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <!-- Bottom row: Additional Information | Labour -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="additional-information">Additional Information</label>
+            <textarea id="additional-information" rows="3" bind:value={additionalInformation} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="labour">Labour</label>
+            <input id="labour" type="text" bind:value={labour} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
         </div>
       </div>
 

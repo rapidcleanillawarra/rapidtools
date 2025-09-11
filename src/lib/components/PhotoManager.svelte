@@ -12,6 +12,7 @@
   const dispatch = createEventDispatcher<{
     photosUpdated: { photos: PhotoItem[] };
     error: { message: string };
+    photoClick: { photoIndex: number };
   }>();
 
   function triggerTakePhoto() {
@@ -55,6 +56,11 @@
     dispatch('error', { message: '' });
   }
 
+  function handlePhotoClick(index: number, event: Event) {
+    event.stopPropagation(); // Prevent event bubbling
+    dispatch('photoClick', { photoIndex: index });
+  }
+
   onDestroy(() => {
     photos.forEach((p) => {
       if (!p.isExisting) {
@@ -72,7 +78,7 @@
   }
 </script>
 
-<div class="mt-6" id="photos-section">
+<div id="photos-section">
   <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
     <h3 class="font-medium text-gray-800">
       Photos
@@ -94,7 +100,14 @@
     <div class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
       {#each photos as p, i}
         <div class="relative group">
-          <img src={p.url} alt="" class="w-full h-24 sm:h-28 object-cover rounded-md border" />
+          <button
+            type="button"
+            class="w-full h-24 sm:h-28 rounded-md border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
+            on:click={(e) => handlePhotoClick(i, e)}
+            aria-label="View photo {i + 1} of {photos.length}"
+          >
+            <img src={p.url} alt="" class="w-full h-full object-cover rounded-md" />
+          </button>
           <button type="button" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs opacity-90 group-hover:opacity-100" aria-label="Remove photo" on:click={() => removePhoto(i)}>×</button>
         </div>
       {/each}

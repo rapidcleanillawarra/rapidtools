@@ -4,6 +4,7 @@
 
   export let showPhotoViewer: boolean = false;
   export let workshop: WorkshopRecord | null = null;
+  export let photoUrls: string[] = [];
   export let currentPhotoIndex: number = 0;
   export let loadedPhotos: string[] = [];
   export let failedPhotos: string[] = [];
@@ -13,15 +14,15 @@
     photoIndexChanged: { index: number };
   }>();
 
-  $: photoUrls = workshop?.photo_urls || [];
-  $: currentPhotoUrl = photoUrls[currentPhotoIndex];
+  $: computedPhotoUrls = photoUrls.length > 0 ? photoUrls : (workshop?.photo_urls || []);
+  $: currentPhotoUrl = computedPhotoUrls[currentPhotoIndex];
 
   function closeViewer() {
     dispatch('close');
   }
 
   function nextPhoto() {
-    if (currentPhotoIndex < photoUrls.length - 1) {
+    if (currentPhotoIndex < computedPhotoUrls.length - 1) {
       const newIndex = currentPhotoIndex + 1;
       currentPhotoIndex = newIndex;
       dispatch('photoIndexChanged', { index: newIndex });
@@ -38,7 +39,7 @@
       currentPhotoIndex = newIndex;
       dispatch('photoIndexChanged', { index: newIndex });
     } else {
-      const newIndex = photoUrls.length - 1;
+      const newIndex = computedPhotoUrls.length - 1;
       currentPhotoIndex = newIndex;
       dispatch('photoIndexChanged', { index: newIndex });
     }
@@ -88,7 +89,7 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
-{#if showPhotoViewer && workshop && photoUrls.length > 0}
+{#if showPhotoViewer && (workshop || photoUrls.length > 0) && computedPhotoUrls.length > 0}
   <div class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
     <!-- Close button -->
     <button
@@ -102,7 +103,7 @@
     </button>
 
     <!-- Navigation buttons -->
-    {#if photoUrls.length > 1}
+    {#if computedPhotoUrls.length > 1}
       <button
         class="absolute left-4 top-1/2 transform -translate-y-1/2 z-20 bg-black bg-opacity-50 text-white rounded-full p-3 hover:bg-opacity-70 transition-colors"
         on:click={previousPhoto}
@@ -149,7 +150,7 @@
       <!-- Photo (always render to trigger load/error events) -->
       <img
         src={currentPhotoUrl}
-        alt="Photo {currentPhotoIndex + 1} of {photoUrls.length}"
+        alt="Photo {currentPhotoIndex + 1} of {computedPhotoUrls.length}"
         class="max-w-full max-h-full object-contain rounded-lg shadow-2xl {isPhotoReady(currentPhotoUrl) ? 'block' : 'hidden'}"
         style="max-height: 80vh; max-width: 80vw;"
         on:load={() => handlePhotoLoad(currentPhotoUrl)}
@@ -158,16 +159,16 @@
     </div>
 
     <!-- Image counter -->
-    {#if photoUrls.length > 1}
+    {#if computedPhotoUrls.length > 1}
       <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-black bg-opacity-50 text-white px-3 py-1 rounded-full text-sm">
-        {currentPhotoIndex + 1} / {photoUrls.length}
+        {currentPhotoIndex + 1} / {computedPhotoUrls.length}
       </div>
     {/if}
 
     <!-- Workshop info overlay -->
     <div class="absolute top-4 left-4 bg-black bg-opacity-50 text-white px-3 py-2 rounded text-sm">
-      <div class="font-medium">Workshop ID: {workshop.id}</div>
-      <div class="text-gray-300">Photo {currentPhotoIndex + 1} of {photoUrls.length}</div>
+      <div class="font-medium">Workshop ID: {workshop?.id || 'create-workshop'}</div>
+      <div class="text-gray-300">Photo {currentPhotoIndex + 1} of {computedPhotoUrls.length}</div>
     </div>
   </div>
 {/if}

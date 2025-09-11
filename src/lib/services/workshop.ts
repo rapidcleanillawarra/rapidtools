@@ -295,6 +295,7 @@ export async function getWorkshops(filters?: {
     let query = supabase
       .from('workshop')
       .select('*')
+      .neq('status', 'deleted') // Exclude soft-deleted records
       .order('created_at', { ascending: false });
 
     if (filters?.status) {
@@ -440,18 +441,19 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 }
 
 /**
- * Delete workshop (soft delete by changing status)
+ * Delete workshop (soft delete by changing status to 'deleted')
  */
 export async function deleteWorkshop(id: string): Promise<void> {
   try {
     // First clean up photos associated with this workshop
     await cleanupWorkshopPhotos(id);
 
-    // Then soft delete the workshop
+    // Then soft delete the workshop by setting status to 'deleted' and deleted_at timestamp
     const { error } = await supabase
       .from('workshop')
       .update({
-        status: 'cancelled',
+        status: 'deleted',
+        deleted_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', id);

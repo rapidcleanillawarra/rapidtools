@@ -40,8 +40,8 @@ export function validateRequiredFields(formData: WorkshopFormData): ValidationRe
 export function validateSiteLocation(locationOfRepair: string, siteLocation?: string): ValidationResult {
   const errors: string[] = [];
 
-  if (locationOfRepair === 'Site' && siteLocation && !siteLocation.trim()) {
-    errors.push('Please enter a valid site location or leave empty');
+  if (locationOfRepair === 'Site' && (!siteLocation || !siteLocation.trim())) {
+    errors.push('Site Location is required when Location of Repair is Site');
   }
 
   return {

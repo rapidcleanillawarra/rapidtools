@@ -6,6 +6,7 @@
   export let error: string = '';
 
   let newContact: Contact = { name: '', number: '', email: '' };
+  let isExpanded: boolean = true;
 
   const dispatch = createEventDispatcher<{
     contactsUpdated: { contacts: Contact[] };
@@ -86,65 +87,152 @@
   }
 </script>
 
-<div>
+<div class="space-y-4">
+  <!-- Optional Contacts Title -->
   <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
-    <h2 class="font-medium text-gray-800">Optional Contacts</h2>
-    <button type="button" class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600" on:click={addOptionalContact}>Add</button>
+    <h2 class="font-medium text-gray-800">
+      Optional Contacts
+      {#if contacts.length > 0}
+        <span class="text-sm text-gray-600 ml-2">({contacts.length} added)</span>
+      {/if}
+    </h2>
+    <button
+      type="button"
+      on:click={() => isExpanded = !isExpanded}
+      class="text-gray-600 hover:text-gray-800 p-1 transition-transform duration-200"
+      aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+    >
+      <svg class="w-5 h-5 transform transition-transform {isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      </svg>
+    </button>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 items-end">
-    <div class="md:col-span-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-name">Name</label>
-      <input id="opt-name" type="text" bind:value={newContact.name} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-    </div>
-    <div class="md:col-span-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-number">Number</label>
-      <input
-        id="opt-number"
-        type="tel"
-        bind:value={newContact.number}
-        placeholder="Numbers, spaces, and + only"
-        class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
-    <div class="md:col-span-4">
-      <label class="block text-sm font-medium text-gray-700 mb-1" for="opt-email">Email</label>
-      <input id="opt-email" type="email" bind:value={newContact.email} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-    </div>
-  </div>
-
-  {#if error}
-    <div class="mt-2 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-      {error}
-    </div>
-  {/if}
-
-  {#if contacts.length > 0}
-    <div class="mt-4">
-      <div class="overflow-hidden border border-gray-200 rounded">
-        <table class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-              <th class="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            {#each contacts as contact, i}
+  {#if !isExpanded}
+    <!-- Collapsed Summary View -->
+    <div class="mt-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg shadow-sm overflow-hidden">
+      {#if contacts.length > 0}
+        <div class="overflow-hidden">
+          <table class="min-w-full divide-y divide-purple-200">
+            <thead class="bg-purple-100">
               <tr>
-                <td class="px-4 py-3 text-sm text-gray-900">{contact.name}</td>
-                <td class="px-4 py-3 text-sm text-gray-900">{contact.number}</td>
-                <td class="px-4 py-3 text-sm text-gray-900">{contact.email}</td>
-                <td class="px-4 py-3 text-right">
-                  <button type="button" class="text-red-600 hover:text-red-800 text-sm" on:click={() => removeOptionalContact(i)}>Remove</button>
-                </td>
+                <th class="px-3 py-2 text-left text-xs font-medium text-purple-700 uppercase tracking-wider">Name</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-purple-700 uppercase tracking-wider">Number</th>
+                <th class="px-3 py-2 text-left text-xs font-medium text-purple-700 uppercase tracking-wider">Email</th>
               </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody class="bg-white divide-y divide-purple-100">
+              {#each contacts as contact, i}
+                <tr>
+                  <td class="px-3 py-2 text-sm font-medium text-gray-900">{contact.name}</td>
+                  <td class="px-3 py-2 text-sm text-gray-600">{contact.number || '-'}</td>
+                  <td class="px-3 py-2 text-sm text-gray-600 truncate max-w-40">{contact.email || '-'}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <div class="p-3 bg-purple-50 border-t border-purple-200">
+          <div class="flex justify-center">
+            <button
+              type="button"
+              on:click={() => isExpanded = true}
+              class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 text-sm font-semibold bg-white px-3 py-1.5 rounded-md border border-purple-200 hover:border-purple-300 transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+              </svg>
+              Edit Contacts
+            </button>
+          </div>
+        </div>
+      {:else}
+        <div class="p-6">
+          <div class="text-sm text-gray-500 italic text-center">No contacts added yet</div>
+          <div class="mt-3 flex justify-center">
+            <button
+              type="button"
+              on:click={() => isExpanded = true}
+              class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 text-sm font-semibold bg-white px-3 py-1.5 rounded-md border border-purple-200 hover:border-purple-300 transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+              Add Contacts
+            </button>
+          </div>
+        </div>
+      {/if}
     </div>
+  {:else}
+    <!-- Contacts Table -->
+    <div class="overflow-hidden border border-gray-200 rounded">
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+          <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        {#each contacts as contact, i}
+          <tr>
+            <td class="px-4 py-3 text-sm text-gray-900">{contact.name}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">{contact.number}</td>
+            <td class="px-4 py-3 text-sm text-gray-900">{contact.email}</td>
+            <td class="px-4 py-3 text-right">
+              <button type="button" class="text-red-600 hover:text-red-800 text-sm" on:click={() => removeOptionalContact(i)}>Remove</button>
+            </td>
+          </tr>
+        {/each}
+
+        <!-- Add New Contact Row -->
+        <tr class="bg-gray-50">
+          <td class="px-4 py-3">
+            <input
+              type="text"
+              bind:value={newContact.name}
+              placeholder="Enter name"
+              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </td>
+          <td class="px-4 py-3">
+            <input
+              type="tel"
+              bind:value={newContact.number}
+              placeholder="Numbers, spaces, and + only"
+              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </td>
+          <td class="px-4 py-3">
+            <input
+              type="email"
+              bind:value={newContact.email}
+              placeholder="Enter email"
+              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </td>
+          <td class="px-4 py-3 text-right">
+            <button
+              type="button"
+              class="px-3 py-2 bg-indigo-500 text-white text-sm rounded hover:bg-indigo-600 transition-colors"
+              on:click={addOptionalContact}
+            >
+              Add
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+    {#if error}
+      <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+        {error}
+      </div>
+    {/if}
   {/if}
+
 </div>

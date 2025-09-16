@@ -106,6 +106,7 @@
   function getWorkshopsByStatus() {
     const grouped: { [key: string]: WorkshopRecord[] } = {
       draft: [],
+      pickup: [],
       to_be_quoted: [],
       docket_ready: [],
       quoted_repaired: [],
@@ -147,6 +148,7 @@
   function getStatusColor(status: string) {
     switch (status) {
       case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'pickup': return 'bg-cyan-100 text-cyan-800';
       case 'to_be_quoted': return 'bg-orange-100 text-orange-800';
       case 'docket_ready': return 'bg-blue-100 text-blue-800';
       case 'quoted_repaired': return 'bg-teal-100 text-teal-800';
@@ -525,6 +527,17 @@
               status="draft"
               title="Draft"
               workshops={workshopsByStatus.draft}
+              {loadedPhotos}
+              {failedPhotos}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+            />
+
+            <StatusColumn
+              status="pickup"
+              title="Pickup"
+              workshops={workshopsByStatus.pickup}
               {loadedPhotos}
               {failedPhotos}
               on:click={({ detail }) => handleRowClick(detail.workshop)}

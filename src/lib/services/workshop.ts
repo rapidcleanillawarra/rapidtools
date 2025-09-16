@@ -73,7 +73,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'draft' | 'in_progress' | 'completed' | 'cancelled' | 'to_be_quoted';
+  status: 'draft' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled';
   created_by: string;
 
   // Workflow tracking
@@ -415,6 +415,11 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     // Add status if provided
     if (data.status) {
       updateData.status = data.status;
+    }
+
+    // Add started_with if provided
+    if (data.startedWith) {
+      updateData.started_with = data.startedWith;
     }
 
     // Note: We don't update created_by on updates as it should remain the original creator's name

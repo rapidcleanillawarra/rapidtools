@@ -109,7 +109,7 @@
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
   let existingWorkshopId: string | null = null;
-  let workshopStatus: 'draft' | 'in_progress' | 'completed' | 'cancelled' | 'to_be_quoted' | null = null;
+  let workshopStatus: 'draft' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled' | null = null;
   let existingOrderId: string | null = null;
 
   // Debug modal state
@@ -247,6 +247,7 @@
       selectedCustomer = workshop.customer_data;
       optionalContacts = workshop.optional_contacts || [];
       quoteOrRepaired = workshop.quote_or_repaired || 'Quote';
+      startedWith = workshop.started_with || 'form';
 
       // Load existing photos (they're already saved in storage)
       // Note: We can't recreate File objects from URLs, so we'll show them differently
@@ -518,10 +519,13 @@
       throw new Error('You must be logged in to create a workshop');
     }
 
-    // Update status to "to_be_quoted" if current status is "draft" (only for existing workshops)
-    if (existingWorkshopId && workshopStatus === 'draft') {
+    // Set status to "to_be_quoted" for new workshops or update existing draft workshops
+    if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'draft')) {
       (formData as any).status = 'to_be_quoted';
-      console.log('Updating workshop status from draft to to_be_quoted');
+      console.log(existingWorkshopId
+        ? 'Updating workshop status from draft to to_be_quoted'
+        : 'Setting new workshop status to to_be_quoted'
+      );
     }
 
     // Submit to Supabase - either create new or update existing
@@ -543,7 +547,7 @@
           ? hadExistingOrder
             ? `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''}!`
             : `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
-          : 'Workshop created successfully!';
+          : 'Workshop created successfully and ready to be quoted!';
 
         showSuccessModal = true;
 
@@ -565,13 +569,21 @@
     console.log('getSubmitButtonText called with:', {
       existingWorkshopId,
       workshopStatus,
-      existingOrderId
+      existingOrderId,
+      locationOfRepair,
+      siteLocation
     });
 
+    // Check if location is Site and site location has a value
+    if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
+      console.log('Site location provided, returning Pickup');
+      return 'Pickup →';
+    }
+
     if (!existingWorkshopId) {
-      // New workshop creation - this should not happen since submit is only for existing workshops
-      console.log('No existingWorkshopId, returning Submit');
-      return 'Submit';
+      // New workshop creation - will be set to 'to_be_quoted' status
+      console.log('No existingWorkshopId, returning To be Quoted');
+      return 'To be Quoted';
     }
 
     if (existingWorkshopId && workshopStatus === 'draft') {
@@ -592,9 +604,14 @@
   }
 
   function getSubmitButtonLoadingText() {
+    // Check if location is Site and site location has a value
+    if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
+      return 'Scheduling Pickup...';
+    }
+
     if (!existingWorkshopId) {
-      // New workshop creation - this should not happen since submit is only for existing workshops
-      return 'Submitting...';
+      // New workshop creation - will be set to 'to_be_quoted' status
+      return 'Creating Quote...';
     }
 
     if (existingWorkshopId && workshopStatus === 'draft') {
@@ -703,25 +720,33 @@
             Create Workshop Job
           {/if}
         </h1>
-        <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-          {#if existingWorkshopId && workshopStatus && workshopStatus !== 'draft'}
+        <div class="flex flex-wrap gap-2">
+          <!-- Status Pill -->
+          <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
             Status: <span class="font-semibold capitalize">
-              {#if workshopStatus === 'to_be_quoted'}
+              {#if workshopStatus === 'pickup'}
+                Pickup
+              {:else if workshopStatus === 'to_be_quoted'}
                 To Be Quoted
               {:else if workshopStatus === 'in_progress'}
                 In Progress
+              {:else if workshopStatus === 'draft' || !existingWorkshopId}
+                Draft
               {:else}
-                {workshopStatus.replace('_', ' ')}
+                {workshopStatus?.replace('_', ' ') || 'Draft'}
               {/if}
             </span>
-          {:else}
+          </div>
+
+          <!-- Started Via Pill -->
+          <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
             Started via: <span class="font-medium capitalize">{startedWith}</span>
             {#if startedWith === 'camera'}
               📷
             {:else}
               📝
             {/if}
-          {/if}
+          </div>
         </div>
       </div>
     </div>
@@ -839,14 +864,18 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="site-location">
                 Site/Location
-                <span class="text-gray-500 text-xs">(Optional)</span>
+                {#if locationOfRepair === 'Site'}
+                  <span class="text-red-500 text-xs">* Required</span>
+                {:else}
+                  <span class="text-gray-500 text-xs">(Optional)</span>
+                {/if}
               </label>
               <input
                 id="site-location"
                 type="text"
                 bind:value={siteLocation}
                 class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {siteLocationError ? 'border-red-500' : ''}"
-                placeholder={locationOfRepair === 'Site' ? 'Enter site location (optional)' : 'Enter location details (optional)'}
+                placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
               />
               {#if siteLocationError}
                 <div class="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
@@ -999,75 +1028,16 @@
         </div>
 
         <!-- Optional Contacts -->
-      <div>
-        <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
-          <h2 class="font-medium text-gray-800">
-            Optional Contacts
-            {#if optionalContacts.length > 0}
-              <span class="text-sm text-gray-600 ml-2">({optionalContacts.length} added)</span>
-            {/if}
-          </h2>
-          <button
-            type="button"
-            on:click={() => isOptionalContactsExpanded = !isOptionalContactsExpanded}
-            class="text-gray-600 hover:text-gray-800 p-1"
-            aria-label={isOptionalContactsExpanded ? 'Collapse section' : 'Expand section'}
-          >
-            <svg class="w-5 h-5 transform transition-transform {isOptionalContactsExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-          </button>
-        </div>
-
-        {#if !isOptionalContactsExpanded}
-          <!-- Collapsed Summary View -->
-          <div class="mt-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg shadow-sm">
-            {#if optionalContactsSummaryItems.length > 0}
-              <div class="space-y-3">
-                {#each optionalContactsSummaryItems as contact}
-                  <div class="bg-white p-3 rounded-md border border-purple-100 shadow-sm">
-                    <div class="font-medium text-purple-900 mb-1">{contact.label}: {contact.value}</div>
-                    <div class="text-sm text-gray-600 space-y-1">
-                      {#if contact.phone}
-                        <div>📞 {contact.phone}</div>
-                      {/if}
-                      {#if contact.email}
-                        <div>✉️ {contact.email}</div>
-                      {/if}
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            {:else}
-              <div class="text-sm text-gray-500 italic text-center py-4">No optional contacts added yet</div>
-            {/if}
-            <div class="mt-3 flex justify-center">
-              <button
-                type="button"
-                on:click={() => isOptionalContactsExpanded = true}
-                class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 text-sm font-semibold bg-white px-3 py-1.5 rounded-md border border-purple-200 hover:border-purple-300 transition-colors"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                </svg>
-                Edit Contacts
-              </button>
-            </div>
-          </div>
-        {:else}
-          <!-- Expanded Form View -->
-          <ContactsManager
-            bind:contacts={optionalContacts}
-            bind:error={contactError}
-            on:contactsUpdated={handleContactsUpdated}
-            on:error={handleContactError}
-          />
-        {/if}
-        </div>
+        <ContactsManager
+          bind:contacts={optionalContacts}
+          bind:error={contactError}
+          on:contactsUpdated={handleContactsUpdated}
+          on:error={handleContactError}
+        />
       </div>
 
-      <!-- Docket Info - Only show for non-draft workshops -->
-      {#if workshopStatus !== 'draft'}
+      <!-- Docket Info - Only show for non-draft and non-pickup workshops -->
+      {#if workshopStatus && workshopStatus !== 'draft' && workshopStatus !== 'pickup'}
         <div class="space-y-4">
           <div class="bg-gray-100 px-4 py-3 rounded font-medium text-gray-800">
             Docket Info

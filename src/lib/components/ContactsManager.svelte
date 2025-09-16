@@ -8,6 +8,16 @@
   let newContact: Contact = { name: '', number: '', email: '' };
   let isExpanded: boolean = true;
 
+  // Expose whether there are incomplete contact fields
+  export const hasIncompleteContact = () => {
+    return newContact.name.trim() || newContact.number.trim() || newContact.email.trim();
+  };
+
+  // Method to clear incomplete contact fields
+  export const clearIncompleteContact = () => {
+    newContact = { name: '', number: '', email: '' };
+  };
+
   const dispatch = createEventDispatcher<{
     contactsUpdated: { contacts: Contact[] };
     error: { message: string };

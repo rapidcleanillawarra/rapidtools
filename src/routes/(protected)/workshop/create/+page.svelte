@@ -7,6 +7,7 @@
   import ContactsManager from '$lib/components/ContactsManager.svelte';
   import type { PhotoItem, Contact } from '$lib/types/workshop';
   import SuccessModal from '$lib/components/SuccessModal.svelte';
+  import PostSubmissionModal from '$lib/components/PostSubmissionModal.svelte';
   import type { Customer } from '$lib/services/customers';
   import { getCustomerDisplayName } from '$lib/services/customers';
   import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop } from '$lib/services/workshop';
@@ -38,6 +39,7 @@
   // Optional Contacts
   let optionalContacts: Contact[] = [];
   let contactError = '';
+  let contactsManager: any = null;
 
   // Photos (always visible Photos section)
   let photos: PhotoItem[] = [];
@@ -100,6 +102,13 @@
   let showSuccessModal = false;
   let successMessage = '';
   let generatedOrderId = '';
+
+  // Post-submission modal state (for new job creation)
+  let showPostSubmissionModal = false;
+
+  // Incomplete contact modal state
+  let showIncompleteContactModal = false;
+  let pendingAction: (() => void) | null = null;
 
   // Customer data from API
   let customerApiData: any = null;
@@ -308,8 +317,37 @@
     contactNumber = '';
   }
 
+  function checkIncompleteContacts(action: () => void) {
+    if (contactsManager && contactsManager.hasIncompleteContact()) {
+      pendingAction = action;
+      showIncompleteContactModal = true;
+      return true; // Has incomplete contacts, modal shown
+    }
+    return false; // No incomplete contacts
+  }
+
+  function proceedWithAction() {
+    if (pendingAction) {
+      pendingAction();
+      pendingAction = null;
+    }
+    showIncompleteContactModal = false;
+  }
+
+  function clearIncompleteContact() {
+    if (contactsManager) {
+      contactsManager.clearIncompleteContact();
+    }
+    showIncompleteContactModal = false;
+  }
+
   async function handleUpdateJob(event: Event) {
     event.preventDefault();
+
+    // Check for incomplete contacts first
+    if (checkIncompleteContacts(() => handleUpdateJob(event))) {
+      return; // Modal shown, action deferred
+    }
 
     // Reset previous states
     submitError = '';
@@ -383,14 +421,17 @@
       submitSuccess = true;
       successMessage = existingWorkshopId
         ? 'Workshop job updated successfully!'
-        : 'Workshop job created successfully!';
+        : 'Workshop created successfully and ready to be quoted!';
 
-      showSuccessModal = true;
-
-      if (!existingWorkshopId) {
-        // Reset form after successful creation
-        resetForm();
+      if (existingWorkshopId) {
+        // For updates, show the regular success modal
+        showSuccessModal = true;
+      } else {
+        // For new job creation, show the post-submission modal
+        showPostSubmissionModal = true;
       }
+
+      // Don't reset form immediately for new creations - let user choose in modal
     } catch (error) {
       console.error('Error saving workshop:', error);
       submitError = (error instanceof Error ? error.message : 'Failed to save workshop. Please try again.');
@@ -401,6 +442,11 @@
 
   async function handleSubmit(event: Event) {
     event.preventDefault();
+
+    // Check for incomplete contacts first
+    if (checkIncompleteContacts(() => handleSubmit(event))) {
+      return; // Modal shown, action deferred
+    }
 
     // Reset previous states
     submitError = '';
@@ -428,8 +474,13 @@
 
     let shouldCreateOrder = false;
 
-    // Only fetch customer data and create orders for existing workshops
-    if (existingWorkshopId) {
+    // Only create Maropost orders for existing workshops that don't already have an order
+    // New forms should never create Maropost orders
+    // Explicit check: if this is a brand new form with no existing data, never create order
+    const isNewForm = !existingWorkshopId && !workshopStatus && !existingOrderId;
+    if (isNewForm) {
+      console.log('This is a new form with no existing data - skipping Maropost order creation');
+    } else if (existingWorkshopId) {
       // Fetch customer data from API first
       try {
         console.log('Fetching customer data from API...');
@@ -549,12 +600,15 @@
             : `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
           : 'Workshop created successfully and ready to be quoted!';
 
-        showSuccessModal = true;
-
-        if (!isUpdate) {
-          // Reset form after successful creation
-          resetForm();
+        if (isUpdate) {
+          // For updates, show the regular success modal
+          showSuccessModal = true;
+        } else {
+          // For new job creation, show the post-submission modal
+          showPostSubmissionModal = true;
         }
+
+        // Don't reset form immediately for new creations - let user choose in modal
       })
       .catch((error) => {
         console.error('Error saving workshop:', error);
@@ -588,8 +642,8 @@
 
     if (existingWorkshopId && workshopStatus === 'draft') {
       // Draft workshop - will create Maropost order and update status to 'to_be_quoted'
-      console.log('Draft status, returning Create Maropost Order');
-      return 'Create Maropost Order';
+      console.log('Draft status, returning To be Quoted');
+      return 'To be Quoted';
     }
 
     if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
@@ -615,8 +669,8 @@
     }
 
     if (existingWorkshopId && workshopStatus === 'draft') {
-      // Draft workshop
-      return 'Creating Maropost Order...';
+      // Draft workshop - will create Maropost order and update status to 'to_be_quoted'
+      return 'Creating Quote...';
     }
 
     if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
@@ -670,6 +724,19 @@
     showSuccessModal = false;
     successMessage = '';
     generatedOrderId = '';
+  }
+
+  function closePostSubmissionModal() {
+    showPostSubmissionModal = false;
+    successMessage = '';
+    generatedOrderId = '';
+    // Reset form when user chooses to continue
+    resetForm();
+  }
+
+  function navigateToJobStatus() {
+    // Navigate to workshop job status page (don't reset form since we're navigating away)
+    window.location.href = `${base}/workshop/job-status`;
   }
 
   // Photo viewer functions
@@ -1029,6 +1096,7 @@
 
         <!-- Optional Contacts -->
         <ContactsManager
+          bind:this={contactsManager}
           bind:contacts={optionalContacts}
           bind:error={contactError}
           on:contactsUpdated={handleContactsUpdated}
@@ -1189,6 +1257,58 @@
     orderId={generatedOrderId}
     on:close={closeSuccessModal}
   />
+
+  <!-- Post-Submission Modal -->
+  <PostSubmissionModal
+    show={showPostSubmissionModal}
+    message={successMessage}
+    orderId={generatedOrderId}
+    on:close={closePostSubmissionModal}
+    on:navigateToJobStatus={navigateToJobStatus}
+  />
+
+  <!-- Incomplete Contact Modal -->
+  {#if showIncompleteContactModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Incomplete Contact Information</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600">
+            You have started entering contact information but haven't completed it yet. What would you like to do?
+          </p>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex space-x-3">
+          <button
+            type="button"
+            on:click={clearIncompleteContact}
+            class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+          >
+            Clear & Continue
+          </button>
+          <button
+            type="button"
+            on:click={() => showIncompleteContactModal = false}
+            class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Photo Viewer Modal -->
   <PhotoViewer

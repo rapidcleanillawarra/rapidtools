@@ -118,7 +118,7 @@
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
   let existingWorkshopId: string | null = null;
-  let workshopStatus: 'draft' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled' | null = null;
+  let workshopStatus: 'new' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled' | null = null;
   let existingOrderId: string | null = null;
 
   // Debug modal state
@@ -147,8 +147,8 @@
   // Optional Contacts section state
   let isOptionalContactsExpanded = true;
 
-  // Auto-collapse sections for non-draft workshops
-  $: if (existingWorkshopId && workshopStatus && workshopStatus !== 'draft') {
+  // Auto-collapse sections for non-new workshops
+  $: if (existingWorkshopId && workshopStatus && workshopStatus !== 'new') {
     isMachineInfoExpanded = false;
     isUserInfoExpanded = false;
     isOptionalContactsExpanded = false;
@@ -570,11 +570,11 @@
       throw new Error('You must be logged in to create a workshop');
     }
 
-    // Set status to "to_be_quoted" for new workshops or update existing draft workshops
-    if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'draft')) {
+    // Set status to "to_be_quoted" for new workshops or update existing new workshops
+    if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
       (formData as any).status = 'to_be_quoted';
       console.log(existingWorkshopId
-        ? 'Updating workshop status from draft to to_be_quoted'
+        ? 'Updating workshop status from new to to_be_quoted'
         : 'Setting new workshop status to to_be_quoted'
       );
     }
@@ -591,13 +591,13 @@
 
         // Show success modal with appropriate message
         const isUpdate = !!existingWorkshopId;
-        const wasDraft = existingWorkshopId && workshopStatus === 'draft';
+        const wasNew = existingWorkshopId && workshopStatus === 'new';
         const hadExistingOrder = !shouldCreateOrder && isUpdate;
 
         successMessage = isUpdate
           ? hadExistingOrder
-            ? `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''}!`
-            : `Workshop updated successfully${wasDraft ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
+            ? `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''}!`
+            : `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
           : 'Workshop created successfully and ready to be quoted!';
 
         if (isUpdate) {
@@ -640,9 +640,9 @@
       return 'To be Quoted';
     }
 
-    if (existingWorkshopId && workshopStatus === 'draft') {
-      // Draft workshop - will create Maropost order and update status to 'to_be_quoted'
-      console.log('Draft status, returning To be Quoted');
+    if (existingWorkshopId && workshopStatus === 'new') {
+      // New workshop - will create Maropost order and update status to 'to_be_quoted'
+      console.log('New status, returning To be Quoted');
       return 'To be Quoted';
     }
 
@@ -668,8 +668,8 @@
       return 'Creating Quote...';
     }
 
-    if (existingWorkshopId && workshopStatus === 'draft') {
-      // Draft workshop - will create Maropost order and update status to 'to_be_quoted'
+    if (existingWorkshopId && workshopStatus === 'new') {
+      // New workshop - will create Maropost order and update status to 'to_be_quoted'
       return 'Creating Quote...';
     }
 
@@ -779,7 +779,7 @@
     <div class="px-6 py-4 border-b border-gray-200">
       <div class="flex flex-col items-center space-y-3">
         <h1 class="text-2xl font-bold text-center">
-          {#if existingWorkshopId && workshopStatus && workshopStatus !== 'draft' && existingOrderId}
+          {#if existingWorkshopId && workshopStatus && workshopStatus !== 'new' && existingOrderId}
             Order #{existingOrderId}
           {:else if existingWorkshopId}
             Edit Workshop Job
@@ -797,10 +797,10 @@
                 To Be Quoted
               {:else if workshopStatus === 'in_progress'}
                 In Progress
-              {:else if workshopStatus === 'draft' || !existingWorkshopId}
-                Draft
+              {:else if workshopStatus === 'new' || !existingWorkshopId}
+                New
               {:else}
-                {workshopStatus?.replace('_', ' ') || 'Draft'}
+                {workshopStatus?.replace('_', ' ') || 'New'}
               {/if}
             </span>
           </div>
@@ -1104,8 +1104,8 @@
         />
       </div>
 
-      <!-- Docket Info - Only show for non-draft and non-pickup workshops -->
-      {#if workshopStatus && workshopStatus !== 'draft' && workshopStatus !== 'pickup'}
+      <!-- Docket Info - Only show for non-new and non-pickup workshops -->
+      {#if workshopStatus && workshopStatus !== 'new' && workshopStatus !== 'pickup'}
         <div class="space-y-4">
           <div class="bg-gray-100 px-4 py-3 rounded font-medium text-gray-800">
             Docket Info

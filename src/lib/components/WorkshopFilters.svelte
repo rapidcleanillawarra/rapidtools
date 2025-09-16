@@ -19,7 +19,7 @@
   // Status options for filter
   const statusOptions = [
     { label: 'All Statuses', value: '' },
-    { label: 'Draft', value: 'draft' },
+    { label: 'New', value: 'new' },
     { label: 'To be Quoted', value: 'to_be_quoted' },
     { label: 'Docket Ready', value: 'docket_ready' },
     { label: 'Quoted/Repaired', value: 'quoted_repaired' },

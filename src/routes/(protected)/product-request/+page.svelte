@@ -43,7 +43,7 @@
   let notification = { show: false, message: '', type: 'info' };
 
   // Local Storage Keys
-  const STORAGE_KEY = 'product_request_draft';
+  const STORAGE_KEY = 'product_request_new';
   const STORAGE_TIMESTAMP_KEY = 'product_request_timestamp';
 
   // State for user
@@ -604,7 +604,7 @@ For any questions or concerns, please contact the system administrator.`;
     // Try to load saved data first
     const hasLoadedData = loadFromLocalStorage();
     if (hasLoadedData) {
-      showNotification('Draft data loaded from previous session', 'info');
+      showNotification('New data loaded from previous session', 'info');
     }
     
     fetchBrands();
@@ -637,11 +637,11 @@ For any questions or concerns, please contact the system administrator.`;
             on:click={() => {
               clearLocalStorage();
               rows = [createEmptyRow()];
-              showNotification('Draft cleared', 'info');
+              showNotification('New cleared', 'info');
             }}
             class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
           >
-            Clear Draft
+            Clear New
           </button>
           {#if user?.email === 'orders@rapidcleanillawarra.com.au' || user?.email === 'marketing@rapidcleanillawarra.com.au'}
             <span class="text-sm text-blue-600 font-medium italic">

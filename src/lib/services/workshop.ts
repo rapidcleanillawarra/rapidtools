@@ -73,7 +73,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'draft' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'new' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled';
   created_by: string;
 
   // Workflow tracking
@@ -171,7 +171,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       contact_number: data.contactNumber,
       customer_data: data.selectedCustomer,
       optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
-      status: (data.status as any) || 'draft',
+      status: (data.status as any) || 'new',
       created_by: createdByName,
       started_with: data.startedWith,
       photo_urls: photoUrls,

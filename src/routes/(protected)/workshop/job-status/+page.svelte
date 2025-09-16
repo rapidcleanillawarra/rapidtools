@@ -105,7 +105,7 @@
 
   function getWorkshopsByStatus() {
     const grouped: { [key: string]: WorkshopRecord[] } = {
-      draft: [],
+      new: [],
       pickup: [],
       to_be_quoted: [],
       docket_ready: [],
@@ -147,7 +147,7 @@
 
   function getStatusColor(status: string) {
     switch (status) {
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'new': return 'bg-yellow-100 text-yellow-800';
       case 'pickup': return 'bg-cyan-100 text-cyan-800';
       case 'to_be_quoted': return 'bg-orange-100 text-orange-800';
       case 'docket_ready': return 'bg-blue-100 text-blue-800';
@@ -524,9 +524,9 @@
                  style="scroll-behavior: smooth; scrollbar-width: thin; scroll-padding-left: 1rem; scroll-padding-right: 1rem; min-height: 600px;">
               <div class="flex gap-6 min-w-max py-2">
             <StatusColumn
-              status="draft"
-              title="Draft"
-              workshops={workshopsByStatus.draft}
+              status="new"
+              title="New"
+              workshops={workshopsByStatus.new}
               {loadedPhotos}
               {failedPhotos}
               on:click={({ detail }) => handleRowClick(detail.workshop)}

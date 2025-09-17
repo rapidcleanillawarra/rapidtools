@@ -6,6 +6,7 @@
   export let show: boolean = false;
   export let message: string = '';
   export let orderId: string | null = null;
+  export let isPickup: boolean = false;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -25,7 +26,13 @@
 
 <Modal {show} onClose={handleClose}>
   <div slot="header" class="text-center">
-    <h3 class="text-lg font-medium text-gray-900">Job Created Successfully!</h3>
+    <h3 class="text-lg font-medium text-gray-900">
+      {#if isPickup}
+        Pickup Scheduled Successfully!
+      {:else}
+        Job Created Successfully!
+      {/if}
+    </h3>
   </div>
 
   <div slot="body" class="text-center">
@@ -37,7 +44,7 @@
 
     <p class="text-sm text-gray-600 mb-4">{message}</p>
 
-    {#if orderId}
+    {#if orderId && !isPickup}
       <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
         <div class="text-sm text-blue-800">
           <strong>Order ID:</strong> <span class="font-mono text-blue-900">{orderId}</span>

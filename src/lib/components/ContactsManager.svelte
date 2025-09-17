@@ -99,23 +99,25 @@
 
 <div class="space-y-4">
   <!-- Optional Contacts Title -->
-  <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
+  <div
+    class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors"
+    on:click={() => isExpanded = !isExpanded}
+    role="button"
+    tabindex="0"
+    aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isExpanded = !isExpanded; } }}
+  >
     <h2 class="font-medium text-gray-800">
       Optional Contacts
       {#if contacts.length > 0}
         <span class="text-sm text-gray-600 ml-2">({contacts.length} added)</span>
       {/if}
     </h2>
-    <button
-      type="button"
-      on:click={() => isExpanded = !isExpanded}
-      class="text-gray-600 hover:text-gray-800 p-1 transition-transform duration-200"
-      aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
-    >
+    <div class="text-gray-600">
       <svg class="w-5 h-5 transform transition-transform {isExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
       </svg>
-    </button>
+    </div>
   </div>
 
   {#if !isExpanded}

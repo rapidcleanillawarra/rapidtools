@@ -14,6 +14,7 @@ export interface WorkshopFormData {
   makeModel: string;
   serialNumber: string;
   siteLocation: string; // Now optional
+  schedules?: any; // JSONB field for schedule data
   faultDescription: string;
 
   // User Information
@@ -57,6 +58,7 @@ export interface WorkshopRecord {
   make_model: string;
   serial_number: string;
   site_location: string | null; // Now nullable
+  schedules?: any; // JSONB field for schedule data
   fault_description: string;
 
   // Customer Information
@@ -165,6 +167,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       make_model: data.makeModel,
       serial_number: data.serialNumber,
       site_location: data.siteLocation?.trim() || null, // Store null for empty values
+      schedules: data.schedules || null,
       fault_description: data.faultDescription,
       customer_name: data.customerName || null,
       contact_email: data.contactEmail,
@@ -398,6 +401,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       make_model: data.makeModel,
       serial_number: data.serialNumber,
       site_location: data.siteLocation?.trim() || null,
+      schedules: data.schedules || null,
       fault_description: data.faultDescription,
       customer_name: data.customerName || null,
       contact_email: data.contactEmail,

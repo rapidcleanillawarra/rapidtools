@@ -27,6 +27,50 @@
   let serialNumber = '';
   let siteLocation = '';
   let faultDescription = '';
+  let schedules: any = null;
+
+  // Computed property for pickup schedule
+  $: pickupSchedule = schedules?.pickup_schedule || '';
+
+  // Function to update pickup schedule
+  function updatePickupSchedule(value: string) {
+    schedules = {
+      ...schedules,
+      pickup_schedule: value
+    };
+  }
+
+  // Function to format pickup schedule for display
+  function formatPickupSchedule(datetimeString: string): string {
+    if (!datetimeString) return '';
+
+    try {
+      const date = new Date(datetimeString);
+
+      // Format as "Sep 17, 2:30 PM"
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.warn('Error formatting pickup schedule:', error);
+      return datetimeString; // Return original string if formatting fails
+    }
+  }
+
+  // Get minimum date/time for pickup schedule (current date/time)
+  $: minDateTime = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  })();
 
   // User Information
   let customerName = '';
@@ -106,6 +150,9 @@
   // Post-submission modal state (for new job creation)
   let showPostSubmissionModal = false;
 
+  // Track if current submission is a pickup
+  let isPickupSubmission = false;
+
   // Incomplete contact modal state
   let showIncompleteContactModal = false;
   let pendingAction: (() => void) | null = null;
@@ -163,7 +210,8 @@
     if (makeModel.trim()) items.push({ label: 'Make/Model', value: makeModel, priority: 3 });
     if (serialNumber.trim()) items.push({ label: 'Serial', value: serialNumber, priority: 4 });
     if (siteLocation.trim()) items.push({ label: 'Site', value: siteLocation, priority: 5 });
-    if (faultDescription.trim()) items.push({ label: 'Fault Description', value: faultDescription, priority: 6 });
+    if (pickupSchedule.trim()) items.push({ label: 'Pickup Schedule', value: formatPickupSchedule(pickupSchedule), priority: 6 });
+    if (faultDescription.trim()) items.push({ label: 'Fault Description', value: faultDescription, priority: 7 });
     return items.sort((a, b) => a.priority - b.priority);
   })();
 
@@ -249,6 +297,7 @@
       makeModel = workshop.make_model || '';
       serialNumber = workshop.serial_number || '';
       siteLocation = workshop.site_location || '';
+      schedules = workshop.schedules || null;
       faultDescription = workshop.fault_description || '';
       customerName = workshop.customer_name || '';
       contactEmail = workshop.contact_email || '';
@@ -385,6 +434,7 @@
       makeModel,
       serialNumber,
       siteLocation,
+      schedules,
       faultDescription,
       customerName,
       contactEmail,
@@ -472,13 +522,19 @@
     // Start submission
     isSubmitting = true;
 
+    // Check if this is a pickup submission
+    isPickupSubmission = locationOfRepair === 'Site' && siteLocation.trim() !== '';
+
     let shouldCreateOrder = false;
 
     // Only create Maropost orders for existing workshops that don't already have an order
     // New forms should never create Maropost orders
+    // Pickup submissions should never create Maropost orders
     // Explicit check: if this is a brand new form with no existing data, never create order
     const isNewForm = !existingWorkshopId && !workshopStatus && !existingOrderId;
-    if (isNewForm) {
+    if (isPickupSubmission) {
+      console.log('This is a pickup submission - skipping Maropost order creation');
+    } else if (isNewForm) {
       console.log('This is a new form with no existing data - skipping Maropost order creation');
     } else if (existingWorkshopId) {
       // Fetch customer data from API first
@@ -545,6 +601,7 @@
       makeModel,
       serialNumber,
       siteLocation,
+      schedules,
       faultDescription,
       customerName,
       contactEmail,
@@ -570,8 +627,13 @@
       throw new Error('You must be logged in to create a workshop');
     }
 
-    // Set status to "to_be_quoted" for new workshops or update existing new workshops
-    if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
+    // Set status based on submission type
+    if (isPickupSubmission) {
+      // For pickup submissions, set status to "pickup"
+      (formData as any).status = 'pickup';
+      console.log('Setting workshop status to pickup for pickup submission');
+    } else if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
+      // For regular submissions, set status to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
       console.log(existingWorkshopId
         ? 'Updating workshop status from new to to_be_quoted'
@@ -594,14 +656,23 @@
         const wasNew = existingWorkshopId && workshopStatus === 'new';
         const hadExistingOrder = !shouldCreateOrder && isUpdate;
 
-        successMessage = isUpdate
-          ? hadExistingOrder
-            ? `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''}!`
-            : `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
-          : 'Workshop created successfully and ready to be quoted!';
+        if (isPickupSubmission) {
+          successMessage = isUpdate
+            ? 'Workshop updated successfully and scheduled for pickup!'
+            : 'Workshop created successfully and scheduled for pickup!';
+        } else {
+          successMessage = isUpdate
+            ? hadExistingOrder
+              ? `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''}!`
+              : `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
+            : 'Workshop created successfully and ready to be quoted!';
+        }
 
-        if (isUpdate) {
-          // For updates, show the regular success modal
+        if (isPickupSubmission) {
+          // For pickup submissions, always show the post-submission modal with View Job Status option
+          showPostSubmissionModal = true;
+        } else if (isUpdate) {
+          // For regular updates, show the regular success modal
           showSuccessModal = true;
         } else {
           // For new job creation, show the post-submission modal
@@ -658,7 +729,7 @@
   }
 
   function getSubmitButtonLoadingText() {
-    // Check if location is Site and site location has a value
+    // Check if location is Site and site location has a value (pickup scenario)
     if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
       return 'Scheduling Pickup...';
     }
@@ -692,6 +763,7 @@
     makeModel = '';
     serialNumber = '';
     siteLocation = '';
+    schedules = null;
     faultDescription = '';
     customerName = '';
     contactEmail = '';
@@ -839,18 +911,20 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Machine Information -->
         <div>
-        <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
+        <div
+          class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors"
+          on:click={() => isMachineInfoExpanded = !isMachineInfoExpanded}
+          role="button"
+          tabindex="0"
+          aria-label={isMachineInfoExpanded ? 'Collapse section' : 'Expand section'}
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isMachineInfoExpanded = !isMachineInfoExpanded; } }}
+        >
           <h2 class="font-medium text-gray-800">Machine Information</h2>
-          <button
-            type="button"
-            on:click={() => isMachineInfoExpanded = !isMachineInfoExpanded}
-            class="text-gray-600 hover:text-gray-800 p-1"
-            aria-label={isMachineInfoExpanded ? 'Collapse section' : 'Expand section'}
-          >
+          <div class="text-gray-600">
             <svg class="w-5 h-5 transform transition-transform {isMachineInfoExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
-          </button>
+          </div>
         </div>
 
         {#if !isMachineInfoExpanded}
@@ -957,6 +1031,19 @@
             </div>
 
             <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="pickup-schedule">Pickup Schedule</label>
+              <input
+                id="pickup-schedule"
+                type="datetime-local"
+                value={pickupSchedule}
+                on:input={(e) => updatePickupSchedule((e.target as HTMLInputElement).value)}
+                min={minDateTime}
+                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Select pickup date and time"
+              />
+            </div>
+
+            <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1" for="fault-description">Fault Description</label>
               <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
             </div>
@@ -967,18 +1054,20 @@
 
         <!-- User Information -->
       <div>
-        <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
+        <div
+          class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors"
+          on:click={() => isUserInfoExpanded = !isUserInfoExpanded}
+          role="button"
+          tabindex="0"
+          aria-label={isUserInfoExpanded ? 'Collapse section' : 'Expand section'}
+          on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isUserInfoExpanded = !isUserInfoExpanded; } }}
+        >
           <h2 class="font-medium text-gray-800">User Information</h2>
-          <button
-            type="button"
-            on:click={() => isUserInfoExpanded = !isUserInfoExpanded}
-            class="text-gray-600 hover:text-gray-800 p-1"
-            aria-label={isUserInfoExpanded ? 'Collapse section' : 'Expand section'}
-          >
+          <div class="text-gray-600">
             <svg class="w-5 h-5 transform transition-transform {isUserInfoExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
-          </button>
+          </div>
         </div>
 
         {#if !isUserInfoExpanded}
@@ -1026,33 +1115,48 @@
                 />
               </div>
 
-              <!-- Selected Customer Display -->
-              {#if selectedCustomer}
-                <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <!-- Customer Display (either selected customer or manual entry) -->
+              {#if selectedCustomer || customerName.trim()}
+                <div class="mt-3 p-3 {selectedCustomer ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'} border rounded-md">
                   <div class="flex items-start justify-between">
                     <div class="flex-1">
-                      <div class="font-medium text-blue-900">
-                        {getCustomerDisplayName(selectedCustomer)}
+                      <div class="text-sm font-medium text-gray-700 mb-2">Selected Customer:</div>
+                      <div class="font-medium {selectedCustomer ? 'text-blue-900' : 'text-gray-900'} text-lg">
+                        {selectedCustomer ? `${selectedCustomer.BillingAddress.BillFirstName || ''} ${selectedCustomer.BillingAddress.BillLastName || ''}`.trim() || getCustomerDisplayName(selectedCustomer) : customerName}
                       </div>
-                      <div class="text-sm text-blue-700 mt-1">
-                        {selectedCustomer.EmailAddress}
-                      </div>
-                      {#if selectedCustomer.BillingAddress.BillPhone}
-                        <div class="text-sm text-blue-600">
-                          📞 {selectedCustomer.BillingAddress.BillPhone}
+                      {#if selectedCustomer}
+                        {#if selectedCustomer.BillingAddress.BillCompany}
+                          <div class="text-sm text-blue-700 mt-1 font-medium">
+                            {selectedCustomer.BillingAddress.BillCompany}
+                          </div>
+                        {/if}
+                        <div class="text-sm text-blue-600 mt-1">
+                          {selectedCustomer.EmailAddress}
                         </div>
-                      {/if}
-                      {#if selectedCustomer.BillingAddress.BillCity}
-                        <div class="text-sm text-blue-600">
-                          📍 {selectedCustomer.BillingAddress.BillCity}
+                        {#if selectedCustomer.BillingAddress.BillPhone}
+                          <div class="text-sm text-blue-600">
+                            📞 {selectedCustomer.BillingAddress.BillPhone}
+                          </div>
+                        {/if}
+                        {#if selectedCustomer.BillingAddress.BillCity}
+                          <div class="text-sm text-blue-600">
+                            📍 {selectedCustomer.BillingAddress.BillCity}
+                          </div>
+                        {/if}
+                        <div class="text-xs text-blue-600 mt-2 font-medium">
+                          ✓ Linked to Maropost customer
+                        </div>
+                      {:else}
+                        <div class="text-xs text-gray-500 mt-1">
+                          Manual entry - not linked to Maropost customer
                         </div>
                       {/if}
                     </div>
                     <button
                       type="button"
                       on:click={handleCustomerClear}
-                      class="text-blue-500 hover:text-blue-700 ml-2"
-                      aria-label="Clear selected customer"
+                      class="{selectedCustomer ? 'text-blue-500 hover:text-blue-700' : 'text-gray-500 hover:text-gray-700'} ml-2"
+                      aria-label="Clear customer"
                     >
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -1263,6 +1367,7 @@
     show={showPostSubmissionModal}
     message={successMessage}
     orderId={generatedOrderId}
+    isPickup={isPickupSubmission}
     on:close={closePostSubmissionModal}
     on:navigateToJobStatus={navigateToJobStatus}
   />

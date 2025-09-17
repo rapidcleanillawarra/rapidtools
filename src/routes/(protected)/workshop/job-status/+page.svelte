@@ -312,8 +312,19 @@
           <h1 class="text-3xl font-bold text-gray-900 mb-2">Workshop Job Status</h1>
           <p class="text-gray-600">View and manage all workshop jobs</p>
         </div>
-        <!-- View Toggle -->
-        <div class="flex bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <a
+            href="/workshop/create"
+            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Create Workshop
+          </a>
+          <!-- View Toggle -->
+          <div class="flex bg-white rounded-lg p-1 border border-gray-200 shadow-sm">
           <button
             class="px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 {currentView === 'table' ? 'bg-yellow-400 text-white' : 'text-gray-700 hover:bg-gray-100'}"
             on:click={() => {
@@ -338,6 +349,7 @@
             </svg>
             Board
           </button>
+          </div>
         </div>
       </div>
     </div>

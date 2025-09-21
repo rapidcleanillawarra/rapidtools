@@ -5,6 +5,7 @@
   export let photos: PhotoItem[] = [];
   export let error: string = '';
   export let minPhotosRequired: number = 0;
+  export let workshopStatus: string | null = null;
 
   let takePhotoInput: HTMLInputElement | null = null;
   let uploadPhotoInput: HTMLInputElement | null = null;
@@ -86,10 +87,12 @@
         ({photos.length} added) <span class="text-gray-500">(optional)</span>
       </span>
     </h3>
-    <div class="flex gap-2">
-      <button type="button" class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={triggerTakePhoto}>Take Photo</button>
-      <button type="button" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800" on:click={triggerUploadPhoto}>Upload</button>
-    </div>
+    {#if workshopStatus !== 'pickup'}
+      <div class="flex gap-2">
+        <button type="button" class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={triggerTakePhoto}>Take Photo</button>
+        <button type="button" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800" on:click={triggerUploadPhoto}>Upload</button>
+      </div>
+    {/if}
   </div>
 
   <!-- Hidden inputs for capture/upload -->
@@ -97,18 +100,20 @@
   <input id="upload-photo" class="hidden" type="file" accept="image/*" multiple bind:this={uploadPhotoInput} on:change={onFilesSelected} />
 
   {#if photos.length > 0}
-    <div class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
       {#each photos as p, i}
         <div class="relative group">
           <button
             type="button"
-            class="w-full h-24 sm:h-28 rounded-md border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
+            class="w-full h-48 sm:h-52 md:h-56 lg:h-48 rounded-md border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
             on:click={(e) => handlePhotoClick(i, e)}
             aria-label="View photo {i + 1} of {photos.length}"
           >
             <img src={p.url} alt="" class="w-full h-full object-cover rounded-md" />
           </button>
-          <button type="button" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs opacity-90 group-hover:opacity-100" aria-label="Remove photo" on:click={() => removePhoto(i)}>×</button>
+          {#if workshopStatus !== 'pickup'}
+            <button type="button" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs opacity-90 group-hover:opacity-100" aria-label="Remove photo" on:click={() => removePhoto(i)}>×</button>
+          {/if}
         </div>
       {/each}
     </div>

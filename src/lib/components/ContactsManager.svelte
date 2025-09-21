@@ -4,6 +4,7 @@
 
   export let contacts: Contact[] = [];
   export let error: string = '';
+  export let workshopStatus: string | null = null;
 
   let newContact: Contact = { name: '', number: '', email: '' };
   let isExpanded: boolean = true;
@@ -201,41 +202,43 @@
         {/each}
 
         <!-- Add New Contact Row -->
-        <tr class="bg-gray-50">
-          <td class="px-4 py-3">
-            <input
-              type="text"
-              bind:value={newContact.name}
-              placeholder="Enter name"
-              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </td>
-          <td class="px-4 py-3">
-            <input
-              type="tel"
-              bind:value={newContact.number}
-              placeholder="Numbers, spaces, and + only"
-              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </td>
-          <td class="px-4 py-3">
-            <input
-              type="email"
-              bind:value={newContact.email}
-              placeholder="Enter email"
-              class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </td>
-          <td class="px-4 py-3 text-right">
-            <button
-              type="button"
-              class="px-3 py-2 bg-indigo-500 text-white text-sm rounded hover:bg-indigo-600 transition-colors"
-              on:click={addOptionalContact}
-            >
-              Add
-            </button>
-          </td>
-        </tr>
+        {#if workshopStatus !== 'pickup'}
+          <tr class="bg-gray-50">
+            <td class="px-4 py-3">
+              <input
+                type="text"
+                bind:value={newContact.name}
+                placeholder="Enter name"
+                class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </td>
+            <td class="px-4 py-3">
+              <input
+                type="tel"
+                bind:value={newContact.number}
+                placeholder="Numbers, spaces, and + only"
+                class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </td>
+            <td class="px-4 py-3">
+              <input
+                type="email"
+                bind:value={newContact.email}
+                placeholder="Enter email"
+                class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </td>
+            <td class="px-4 py-3 text-right">
+              <button
+                type="button"
+                class="px-3 py-2 bg-indigo-500 text-white text-sm rounded hover:bg-indigo-600 transition-colors"
+                on:click={addOptionalContact}
+              >
+                Add
+              </button>
+            </td>
+          </tr>
+        {/if}
       </tbody>
     </table>
   </div>

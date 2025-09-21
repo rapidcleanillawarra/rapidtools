@@ -192,7 +192,7 @@
   let isUserInfoExpanded = true;
 
   // Optional Contacts section state
-  let isOptionalContactsExpanded = true;
+  let isOptionalContactsExpanded = false;
 
   // Auto-collapse sections for non-new workshops
   $: if (existingWorkshopId && workshopStatus && workshopStatus !== 'new') {
@@ -629,9 +629,9 @@
 
     // Set status based on submission type
     if (isPickupSubmission) {
-      // For pickup submissions, set status to "pickup"
-      (formData as any).status = 'pickup';
-      console.log('Setting workshop status to pickup for pickup submission');
+      // For pickup submissions, set status to "to_be_quoted"
+      (formData as any).status = 'to_be_quoted';
+      console.log('Setting workshop status to to_be_quoted for pickup submission');
     } else if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
       // For regular submissions, set status to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -658,8 +658,8 @@
 
         if (isPickupSubmission) {
           successMessage = isUpdate
-            ? 'Workshop updated successfully and scheduled for pickup!'
-            : 'Workshop created successfully and scheduled for pickup!';
+            ? 'Workshop updated successfully and ready to be quoted!'
+            : 'Workshop created successfully and ready to be quoted!';
         } else {
           successMessage = isUpdate
             ? hadExistingOrder
@@ -699,6 +699,12 @@
       siteLocation
     });
 
+    // Check if workshop status is pickup - return "Delivered/To Be Quoted"
+    if (existingWorkshopId && workshopStatus === 'pickup') {
+      console.log('Pickup status, returning Delivered/To Be Quoted');
+      return 'Delivered/To Be Quoted';
+    }
+
     // Check if location is Site and site location has a value
     if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
       console.log('Site location provided, returning Pickup');
@@ -731,7 +737,7 @@
   function getSubmitButtonLoadingText() {
     // Check if location is Site and site location has a value (pickup scenario)
     if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
-      return 'Scheduling Pickup...';
+      return 'Processing...';
     }
 
     if (!existingWorkshopId) {
@@ -798,13 +804,6 @@
     generatedOrderId = '';
   }
 
-  function closePostSubmissionModal() {
-    showPostSubmissionModal = false;
-    successMessage = '';
-    generatedOrderId = '';
-    // Reset form when user chooses to continue
-    resetForm();
-  }
 
   function navigateToJobStatus() {
     // Navigate to workshop job status page (don't reset form since we're navigating away)
@@ -949,9 +948,10 @@
                 class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm font-semibold bg-white px-3 py-1.5 rounded-md border border-blue-200 hover:border-blue-300 transition-colors"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
-                Edit Details
+                {workshopStatus === 'pickup' ? 'View Details' : 'Edit Details'}
               </button>
             </div>
           </div>
@@ -962,12 +962,12 @@
               <fieldset class="bg-gray-100 rounded px-4 py-3">
                 <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
                 <div class="flex items-center gap-6">
-                  <label class="inline-flex items-center gap-2 cursor-pointer">
-                    <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" />
+                  <label class="inline-flex items-center gap-2 {workshopStatus === 'pickup' ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                    <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={workshopStatus === 'pickup'} />
                     <span>Site</span>
                   </label>
-                  <label class="inline-flex items-center gap-2 cursor-pointer">
-                    <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" />
+                  <label class="inline-flex items-center gap-2 {workshopStatus === 'pickup' ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                    <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={workshopStatus === 'pickup'} />
                     <span>Workshop</span>
                   </label>
                 </div>
@@ -982,24 +982,25 @@
                 id="product-name"
                 type="text"
                 bind:value={productName}
-                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {!productName.trim() ? 'border border-red-300' : ''}"
+                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {!productName.trim() ? 'border border-red-300' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 required
+                disabled={workshopStatus === 'pickup'}
               />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="client-wo">Client’s Work Order</label>
-              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="make-model">Make/Model</label>
-              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="serial-number">Serial Number</label>
-              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
             </div>
 
             <div>
@@ -1015,8 +1016,9 @@
                 id="site-location"
                 type="text"
                 bind:value={siteLocation}
-                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {siteLocationError ? 'border-red-500' : ''}"
+                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {siteLocationError ? 'border-red-500' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
+                disabled={workshopStatus === 'pickup'}
               />
               {#if siteLocationError}
                 <div class="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
@@ -1038,14 +1040,15 @@
                 value={pickupSchedule}
                 on:input={(e) => updatePickupSchedule((e.target as HTMLInputElement).value)}
                 min={minDateTime}
-                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder="Select pickup date and time"
+                disabled={workshopStatus === 'pickup'}
               />
             </div>
 
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1" for="fault-description">Fault Description</label>
-              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'}></textarea>
             </div>
           </div>
 
@@ -1092,9 +1095,10 @@
                 class="inline-flex items-center gap-2 text-green-600 hover:text-green-800 text-sm font-semibold bg-white px-3 py-1.5 rounded-md border border-green-200 hover:border-green-300 transition-colors"
               >
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
-                Edit Details
+                {workshopStatus === 'pickup' ? 'View Details' : 'Edit Details'}
               </button>
             </div>
           </div>
@@ -1171,12 +1175,12 @@
             <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-email">Contact Email</label>
-                <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
               </div>
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-number">Contact Number</label>
-                <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
               </div>
             </div>
           </div>
@@ -1192,6 +1196,7 @@
             bind:photos
             bind:error={photoError}
             minPhotosRequired={MIN_PHOTOS_REQUIRED}
+            workshopStatus={workshopStatus}
             on:photosUpdated={event => photos = event.detail.photos}
             on:error={event => photoError = event.detail.message}
             on:photoClick={event => openPhotoViewer(event.detail.photoIndex)}
@@ -1199,13 +1204,72 @@
         </div>
 
         <!-- Optional Contacts -->
-        <ContactsManager
-          bind:this={contactsManager}
-          bind:contacts={optionalContacts}
-          bind:error={contactError}
-          on:contactsUpdated={handleContactsUpdated}
-          on:error={handleContactError}
-        />
+        {#if optionalContacts.length > 0}
+          <div>
+          <div
+            class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-75' : ''}"
+            on:click={() => { if (workshopStatus !== 'pickup') isOptionalContactsExpanded = !isOptionalContactsExpanded; }}
+            role="button"
+            tabindex="0"
+            aria-label={isOptionalContactsExpanded ? 'Collapse section' : 'Expand section'}
+            on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (workshopStatus !== 'pickup') isOptionalContactsExpanded = !isOptionalContactsExpanded; } }}
+          >
+            <h2 class="font-medium text-gray-800">Optional Contacts</h2>
+            {#if workshopStatus !== 'pickup'}
+              <div class="text-gray-600">
+                <svg class="w-5 h-5 transform transition-transform {isOptionalContactsExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            {/if}
+          </div>
+
+          {#if !isOptionalContactsExpanded}
+            <!-- Collapsed Summary View -->
+            <div class="mt-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg shadow-sm">
+              {#if optionalContactsSummaryItems.length > 0}
+                <div class="space-y-2">
+                  {#each optionalContactsSummaryItems as item}
+                    <div class="flex items-center justify-between bg-white px-3 py-2 rounded-md border border-purple-100 shadow-sm">
+                      <span class="text-xs font-semibold text-purple-700 uppercase tracking-wide">{item.label}:</span>
+                      <span class="text-sm font-bold text-gray-900 truncate max-w-48">{item.value}</span>
+                    </div>
+                  {/each}
+                </div>
+              {:else}
+                <div class="text-sm text-gray-500 italic text-center py-4">No optional contacts added yet</div>
+              {/if}
+              {#if workshopStatus !== 'pickup'}
+                <div class="mt-3 flex justify-center">
+                  <button
+                    type="button"
+                    on:click={() => isOptionalContactsExpanded = true}
+                    class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 text-sm font-semibold bg-white px-3 py-1.5 rounded-md border border-purple-200 hover:border-purple-300 transition-colors"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                    </svg>
+                    Edit Details
+                  </button>
+                </div>
+              {/if}
+            </div>
+          {:else}
+            <!-- Expanded Form View -->
+            <div class="mt-4">
+              <ContactsManager
+                bind:this={contactsManager}
+                bind:contacts={optionalContacts}
+                bind:error={contactError}
+                workshopStatus={workshopStatus}
+                on:contactsUpdated={handleContactsUpdated}
+                on:error={handleContactError}
+              />
+            </div>
+          {/if}
+          </div>
+        {/if}
       </div>
 
       <!-- Docket Info - Only show for non-new and non-pickup workshops -->
@@ -1368,7 +1432,6 @@
     message={successMessage}
     orderId={generatedOrderId}
     isPickup={isPickupSubmission}
-    on:close={closePostSubmissionModal}
     on:navigateToJobStatus={navigateToJobStatus}
   />
 

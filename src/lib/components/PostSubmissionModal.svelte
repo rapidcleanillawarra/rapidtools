@@ -9,13 +9,11 @@
   export let isPickup: boolean = false;
 
   const dispatch = createEventDispatcher<{
-    close: void;
     navigateToJobStatus: void;
   }>();
 
   function handleClose() {
     show = false;
-    dispatch('close');
   }
 
   function handleNavigateToJobStatus() {
@@ -56,14 +54,7 @@
       What would you like to do next?
     </p>
 
-    <div class="flex justify-center space-x-3">
-      <button
-        type="button"
-        class="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
-        on:click={handleClose}
-      >
-        Continue Here
-      </button>
+    <div class="flex justify-center">
       <button
         type="button"
         class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"

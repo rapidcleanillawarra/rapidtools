@@ -96,8 +96,8 @@
   let travelTime: string = '';
   let callOut: string = '';
 
-  type QuoteOrRepairType = 'Quote' | 'Repaired';
-  let quoteOrRepaired: QuoteOrRepairType = 'Quote';
+  type QuoteOrRepairType = 'Quote' | 'Repair';
+  let quoteOrRepair: QuoteOrRepairType = 'Quote';
 
   type PartItem = { sku: string; quantity: string };
   let parts: PartItem[] = [
@@ -246,6 +246,11 @@
     return items.sort((a, b) => a.priority - b.priority);
   })();
 
+  // Determine docket info background color based on quote or repair selection
+  $: docketInfoBackgroundClass = quoteOrRepair === 'Quote'
+    ? 'bg-purple-100 text-purple-800'
+    : 'bg-green-100 text-green-800';
+
 
   // Check referrer to determine if user came from camera page
   $: if (typeof window !== 'undefined') {
@@ -304,7 +309,7 @@
       contactNumber = workshop.contact_number || '';
       selectedCustomer = workshop.customer_data;
       optionalContacts = workshop.optional_contacts || [];
-      quoteOrRepaired = workshop.quote_or_repaired || 'Quote';
+      quoteOrRepair = workshop.quote_or_repaired || 'Quote';
       startedWith = workshop.started_with || 'form';
 
       // Load existing photos (they're already saved in storage)
@@ -444,7 +449,7 @@
       photos: newPhotos,
       existingPhotoUrls,
       startedWith,
-      quoteOrRepaired
+      quoteOrRepair
       // Note: No status changes, no order creation for update job
     };
 
@@ -611,7 +616,7 @@
       photos: newPhotos,
       existingPhotoUrls,
       startedWith,
-      quoteOrRepaired,
+      quoteOrRepair,
       ...(existingWorkshopId && {
         customerApiData,
         orderApiData,
@@ -705,33 +710,20 @@
       return 'Delivered/To Be Quoted';
     }
 
-    // Check if location is Site and site location has a value
-    if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
-      console.log('Site location provided, returning Pickup');
-      return 'Pickup →';
-    }
-
     if (!existingWorkshopId) {
+      // Check if location is Site and site location has a value
+      if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
+        console.log('Site location provided, returning Pickup');
+        return 'Pickup →';
+      }
       // New workshop creation - will be set to 'to_be_quoted' status
       console.log('No existingWorkshopId, returning To be Quoted');
       return 'To be Quoted';
     }
 
-    if (existingWorkshopId && workshopStatus === 'new') {
-      // New workshop - will create Maropost order and update status to 'to_be_quoted'
-      console.log('New status, returning To be Quoted');
-      return 'To be Quoted';
-    }
-
-    if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
-      // Workshop with "to be quoted" status - ready for docket preparation
-      console.log('to_be_quoted status, returning Docket Ready');
-      return 'Docket Ready';
-    }
-
-    // Default for other statuses
-    console.log('Default case, returning Next. Status:', workshopStatus);
-    return 'Next';
+    // For all existing workshops, show "Docket Ready" on page load
+    console.log('Existing workshop, returning Docket Ready');
+    return 'Docket Ready';
   }
 
   function getSubmitButtonLoadingText() {
@@ -1274,23 +1266,23 @@
 
       <!-- Docket Info - Only show for non-new and non-pickup workshops -->
       {#if workshopStatus && workshopStatus !== 'new' && workshopStatus !== 'pickup'}
-        <div class="space-y-4">
-          <div class="bg-gray-100 px-4 py-3 rounded font-medium text-gray-800">
+        <div class="space-y-4 {docketInfoBackgroundClass} px-4 py-3 rounded">
+          <div class="font-medium">
             Docket Info
           </div>
 
-          <!-- Quote or Repaired -->
+          <!-- Quote or Repair -->
           <div>
             <fieldset class="bg-gray-100 rounded px-4 py-3">
-              <legend class="block text-sm font-medium text-gray-700 mb-1">Quote or Repaired</legend>
+              <legend class="block text-sm font-medium text-gray-700 mb-1">Quote or Repair</legend>
               <div class="flex items-center gap-6">
                 <label class="inline-flex items-center gap-2 cursor-pointer">
-                  <input id="quote-radio" type="radio" name="quoteOrRepaired" value="Quote" bind:group={quoteOrRepaired} class="h-4 w-4 text-blue-600" />
+                  <input id="quote-radio" type="radio" name="quoteOrRepair" value="Quote" bind:group={quoteOrRepair} class="h-4 w-4 text-blue-600" />
                   <span>Quote</span>
                 </label>
                 <label class="inline-flex items-center gap-2 cursor-pointer">
-                  <input id="repaired-radio" type="radio" name="quoteOrRepaired" value="Repaired" bind:group={quoteOrRepaired} class="h-4 w-4 text-blue-600" />
-                  <span>Repaired</span>
+                  <input id="repair-radio" type="radio" name="quoteOrRepair" value="Repair" bind:group={quoteOrRepair} class="h-4 w-4 text-blue-600" />
+                  <span>Repair</span>
                 </label>
               </div>
             </fieldset>

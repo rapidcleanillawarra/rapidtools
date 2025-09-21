@@ -16,6 +16,7 @@
   import { page } from '$app/stores';
   import { currentUser } from '$lib/firebase';
   import { get } from 'svelte/store';
+  import { toastError, toastSuccess, toastInfo } from '$lib/utils/toast';
 
   type LocationType = 'Site' | 'Workshop';
 
@@ -101,8 +102,6 @@
 
   type PartItem = { sku: string; quantity: string };
   let parts: PartItem[] = [
-    { sku: '', quantity: '' },
-    { sku: '', quantity: '' },
     { sku: '', quantity: '' }
   ];
 
@@ -134,13 +133,9 @@
   let loadedPhotos: string[] = [];
   let failedPhotos: string[] = [];
 
-  // Validation errors
-  let siteLocationError = '';
 
   // Form submission state
   let isSubmitting = false;
-  let submitError = '';
-  let submitSuccess = false;
 
   // Success modal state
   let showSuccessModal = false;
@@ -283,7 +278,7 @@
 
       if (!workshop) {
         console.error('Workshop not found for ID:', workshopId);
-        submitError = 'Workshop not found.';
+        toastError('Workshop not found.');
         return;
       }
 
@@ -334,17 +329,10 @@
       });
     } catch (error) {
       console.error('Error loading workshop:', error);
-      submitError = 'Failed to load existing workshop. Please try again.';
+      toastError('Failed to load existing workshop. Please try again.');
     }
   }
 
-  // Clear site location error when location changes or site location is entered
-  $: if (locationOfRepair !== 'Site') {
-    siteLocationError = '';
-  }
-  $: if (siteLocation.trim()) {
-    siteLocationError = '';
-  }
 
 
   // Event handlers for ContactsManager component
@@ -404,8 +392,6 @@
     }
 
     // Reset previous states
-    submitError = '';
-    submitSuccess = false;
 
     // Validate required fields using validation utility
     const validation = validateWorkshopForm({
@@ -416,12 +402,11 @@
     });
 
     if (!validation.isValid) {
-      submitError = `Please fill in all required fields: ${validation.errors.join(', ')}`;
+      toastError(`Please fill in all required fields: ${validation.errors.join(', ')}`);
       return;
     }
 
     // Clear any existing errors
-    siteLocationError = '';
     photoError = '';
 
     // Start submission
@@ -473,10 +458,12 @@
         console.log('Workshop created successfully:', workshop);
       }
 
-      submitSuccess = true;
       successMessage = existingWorkshopId
         ? 'Workshop job updated successfully!'
         : 'Workshop created successfully and ready to be quoted!';
+
+      // Show toast notification
+      toastSuccess(successMessage);
 
       if (existingWorkshopId) {
         // For updates, show the regular success modal
@@ -489,7 +476,7 @@
       // Don't reset form immediately for new creations - let user choose in modal
     } catch (error) {
       console.error('Error saving workshop:', error);
-      submitError = (error instanceof Error ? error.message : 'Failed to save workshop. Please try again.');
+      toastError(error instanceof Error ? error.message : 'Failed to save workshop. Please try again.');
     } finally {
       isSubmitting = false;
     }
@@ -504,8 +491,6 @@
     }
 
     // Reset previous states
-    submitError = '';
-    submitSuccess = false;
 
     // Validate required fields using validation utility
     const validation = validateWorkshopForm({
@@ -516,12 +501,11 @@
     });
 
     if (!validation.isValid) {
-      submitError = `Please fill in all required fields: ${validation.errors.join(', ')}`;
+      toastError(`Please fill in all required fields: ${validation.errors.join(', ')}`);
       return;
     }
 
     // Clear any existing errors
-    siteLocationError = '';
     photoError = '';
 
     // Start submission
@@ -549,7 +533,7 @@
         console.log('Customer data fetched successfully');
       } catch (error) {
         console.error('Failed to fetch customer data:', error);
-        submitError = 'Failed to fetch customer data. Please try again.';
+        toastError('Failed to fetch customer data. Please try again.');
         isSubmitting = false;
         return;
       }
@@ -584,7 +568,7 @@
           }
         } catch (error) {
           console.error('Failed to create order:', error);
-          submitError = 'Failed to create order. Please try again.';
+          toastError('Failed to create order. Please try again.');
           isSubmitting = false;
           return;
         }
@@ -654,7 +638,6 @@
     submitPromise
       .then((workshop) => {
         console.log('Workshop saved successfully:', workshop);
-        submitSuccess = true;
 
         // Show success modal with appropriate message
         const isUpdate = !!existingWorkshopId;
@@ -673,6 +656,9 @@
             : 'Workshop created successfully and ready to be quoted!';
         }
 
+        // Show toast notification
+        toastSuccess(successMessage);
+
         if (isPickupSubmission) {
           // For pickup submissions, always show the post-submission modal with View Job Status option
           showPostSubmissionModal = true;
@@ -688,7 +674,7 @@
       })
       .catch((error) => {
         console.error('Error saving workshop:', error);
-        submitError = error.message || 'Failed to save workshop. Please try again.';
+        toastError(error.message || 'Failed to save workshop. Please try again.');
       })
       .finally(() => {
         isSubmitting = false;
@@ -704,26 +690,33 @@
       siteLocation
     });
 
-    // Check if workshop status is pickup - return "Delivered/To Be Quoted"
+    // Priority 1: Check if location is Site and site location has a value - return "Pickup →"
+    if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
+      console.log('Site location provided, returning Pickup');
+      return 'Pickup →';
+    }
+
+    // Priority 2: Check if workshop status is pickup - return "Delivered/To Be Quoted"
     if (existingWorkshopId && workshopStatus === 'pickup') {
       console.log('Pickup status, returning Delivered/To Be Quoted');
       return 'Delivered/To Be Quoted';
     }
 
-    if (!existingWorkshopId) {
-      // Check if location is Site and site location has a value
-      if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
-        console.log('Site location provided, returning Pickup');
-        return 'Pickup →';
-      }
-      // New workshop creation - will be set to 'to_be_quoted' status
-      console.log('No existingWorkshopId, returning To be Quoted');
+    // Priority 3: For workshops with "new" status, show "To be Quoted"
+    if (workshopStatus === 'new') {
+      console.log('Workshop with new status, returning To be Quoted');
       return 'To be Quoted';
     }
 
-    // For all existing workshops, show "Docket Ready" on page load
-    console.log('Existing workshop, returning Docket Ready');
-    return 'Docket Ready';
+    // Priority 4: For existing workshops with "to_be_quoted" status, show "Docket Ready"
+    if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
+      console.log('Existing workshop with to_be_quoted status, returning Docket Ready');
+      return 'Docket Ready';
+    }
+
+    // Priority 5: Default for other existing workshops
+    console.log('Existing workshop with different status, returning Update Job');
+    return 'Update Job';
   }
 
   function getSubmitButtonLoadingText() {
@@ -737,8 +730,8 @@
       return 'Creating Quote...';
     }
 
-    if (existingWorkshopId && workshopStatus === 'new') {
-      // New workshop - will create Maropost order and update status to 'to_be_quoted'
+    if (workshopStatus === 'new') {
+      // Workshop with new status - will be set to 'to_be_quoted' status
       return 'Creating Quote...';
     }
 
@@ -780,7 +773,6 @@
     photos = [];
 
     // Clear errors
-    siteLocationError = '';
     photoError = '';
     contactError = '';
 
@@ -881,18 +873,6 @@
       </div>
     </div>
 
-    <!-- Submission Status Messages -->
-    {#if submitSuccess}
-      <div class="mx-6 mt-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-        ✅ Workshop {existingWorkshopId ? 'updated' : 'created'} successfully! {existingWorkshopId ? 'Changes have been saved.' : 'The form has been reset.'}
-      </div>
-    {/if}
-
-    {#if submitError}
-      <div class="mx-6 mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-        ❌ {submitError}
-      </div>
-    {/if}
 
     <form class="p-6 space-y-8">
       <div class="text-sm text-gray-600 mb-4">
@@ -1009,15 +989,10 @@
                 id="site-location"
                 type="text"
                 bind:value={siteLocation}
-                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {siteLocationError ? 'border-red-500' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
                 disabled={workshopStatus === 'pickup'}
               />
-              {#if siteLocationError}
-                <div class="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-                  {siteLocationError}
-                </div>
-              {/if}
               {#if startedWith === 'camera' && locationOfRepair === 'Site'}
                 <div class="mt-2 p-2 bg-blue-100 border border-blue-200 text-blue-700 rounded text-sm">
                   💡 Tip: You can add site location details later if needed
@@ -1198,7 +1173,7 @@
         </div>
 
         <!-- Optional Contacts -->
-        {#if optionalContacts.length > 0}
+        {#if optionalContacts.length > 0 || workshopStatus === 'to_be_quoted'}
           <div>
           <div
             class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-75' : ''}"
@@ -1337,8 +1312,8 @@
 
           <!-- Parts -->
           <div>
-            <div class="flex items-center justify-between bg-white border border-gray-300 px-4 py-3 rounded-lg">
-              <h3 class="font-medium text-gray-800">Parts</h3>
+            <div class="flex items-center justify-between border border-gray-300 px-4 py-3 rounded-lg" style="background-color: rgb(30, 30, 30);">
+              <h3 class="font-medium text-white">Parts</h3>
               <button type="button" on:click={addPartRow} class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Add</button>
             </div>
 

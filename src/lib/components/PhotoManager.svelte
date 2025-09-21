@@ -80,17 +80,17 @@
 </script>
 
 <div id="photos-section">
-  <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
-    <h3 class="font-medium text-gray-800">
+  <div class="flex items-center justify-between px-4 py-3 rounded" style="background-color: rgb(30, 30, 30);">
+    <h3 class="font-medium text-white">
       Photos
-      <span class="text-sm text-gray-600 ml-2">
-        ({photos.length} added) <span class="text-gray-500">(optional)</span>
+      <span class="text-sm text-gray-300 ml-2">
+        ({photos.length} added) <span class="text-gray-400">(optional)</span>
       </span>
     </h3>
     {#if workshopStatus !== 'pickup'}
       <div class="flex gap-2">
         <button type="button" class="px-3 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700" on:click={triggerTakePhoto}>Take Photo</button>
-        <button type="button" class="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800" on:click={triggerUploadPhoto}>Upload</button>
+        <button type="button" class="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700" on:click={triggerUploadPhoto}>Upload</button>
       </div>
     {/if}
   </div>

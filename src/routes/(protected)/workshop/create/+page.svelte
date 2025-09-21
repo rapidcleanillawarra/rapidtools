@@ -618,9 +618,9 @@
 
     // Set status based on submission type
     if (isPickupSubmission) {
-      // For pickup submissions, set status to "to_be_quoted"
-      (formData as any).status = 'to_be_quoted';
-      console.log('Setting workshop status to to_be_quoted for pickup submission');
+      // For pickup submissions, set status to "pickup"
+      (formData as any).status = 'pickup';
+      console.log('Setting workshop status to pickup for pickup submission');
     } else if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
       // For regular submissions, set status to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';

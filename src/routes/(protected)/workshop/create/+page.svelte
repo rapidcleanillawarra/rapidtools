@@ -903,15 +903,16 @@
         <!-- Machine Information -->
         <div>
         <div
-          class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors"
+          class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors"
+          style="background-color: rgb(30, 30, 30);"
           on:click={() => isMachineInfoExpanded = !isMachineInfoExpanded}
           role="button"
           tabindex="0"
           aria-label={isMachineInfoExpanded ? 'Collapse section' : 'Expand section'}
           on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isMachineInfoExpanded = !isMachineInfoExpanded; } }}
         >
-          <h2 class="font-medium text-gray-800">Machine Information</h2>
-          <div class="text-gray-600">
+          <h2 class="font-medium text-white">Machine Information</h2>
+          <div class="text-white">
             <svg class="w-5 h-5 transform transition-transform {isMachineInfoExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
@@ -951,7 +952,7 @@
           <!-- Expanded Form View -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <div>
-              <fieldset class="bg-gray-100 rounded px-4 py-3">
+              <fieldset class="bg-white border border-gray-300 rounded-lg px-4 py-3">
                 <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
                 <div class="flex items-center gap-6">
                   <label class="inline-flex items-center gap-2 {workshopStatus === 'pickup' ? 'cursor-not-allowed' : 'cursor-pointer'}">
@@ -974,7 +975,7 @@
                 id="product-name"
                 type="text"
                 bind:value={productName}
-                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {!productName.trim() ? 'border border-red-300' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!productName.trim() ? 'border-red-300' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 required
                 disabled={workshopStatus === 'pickup'}
               />
@@ -982,17 +983,17 @@
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="client-wo">Client’s Work Order</label>
-              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="make-model">Make/Model</label>
-              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="serial-number">Serial Number</label>
-              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
             </div>
 
             <div>
@@ -1008,7 +1009,7 @@
                 id="site-location"
                 type="text"
                 bind:value={siteLocation}
-                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {siteLocationError ? 'border-red-500' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {siteLocationError ? 'border-red-500' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
                 disabled={workshopStatus === 'pickup'}
               />
@@ -1032,7 +1033,7 @@
                 value={pickupSchedule}
                 on:input={(e) => updatePickupSchedule((e.target as HTMLInputElement).value)}
                 min={minDateTime}
-                class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder="Select pickup date and time"
                 disabled={workshopStatus === 'pickup'}
               />
@@ -1040,7 +1041,7 @@
 
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1" for="fault-description">Fault Description</label>
-              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'}></textarea>
+              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'}></textarea>
             </div>
           </div>
 
@@ -1050,15 +1051,16 @@
         <!-- User Information -->
       <div>
         <div
-          class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors"
+          class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors"
+          style="background-color: rgb(30, 30, 30);"
           on:click={() => isUserInfoExpanded = !isUserInfoExpanded}
           role="button"
           tabindex="0"
           aria-label={isUserInfoExpanded ? 'Collapse section' : 'Expand section'}
           on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); isUserInfoExpanded = !isUserInfoExpanded; } }}
         >
-          <h2 class="font-medium text-gray-800">User Information</h2>
-          <div class="text-gray-600">
+          <h2 class="font-medium text-white">User Information</h2>
+          <div class="text-white">
             <svg class="w-5 h-5 transform transition-transform {isUserInfoExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
             </svg>
@@ -1167,12 +1169,12 @@
             <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-email">Contact Email</label>
-                <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+                <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
               </div>
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-number">Contact Number</label>
-                <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+                <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
               </div>
             </div>
           </div>
@@ -1199,16 +1201,17 @@
         {#if optionalContacts.length > 0}
           <div>
           <div
-            class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded cursor-pointer hover:bg-gray-200 transition-colors {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-75' : ''}"
+            class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-75' : ''}"
+            style="background-color: rgb(30, 30, 30);"
             on:click={() => { if (workshopStatus !== 'pickup') isOptionalContactsExpanded = !isOptionalContactsExpanded; }}
             role="button"
             tabindex="0"
             aria-label={isOptionalContactsExpanded ? 'Collapse section' : 'Expand section'}
             on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (workshopStatus !== 'pickup') isOptionalContactsExpanded = !isOptionalContactsExpanded; } }}
           >
-            <h2 class="font-medium text-gray-800">Optional Contacts</h2>
+            <h2 class="font-medium text-white">Optional Contacts</h2>
             {#if workshopStatus !== 'pickup'}
-              <div class="text-gray-600">
+              <div class="text-white">
                 <svg class="w-5 h-5 transform transition-transform {isOptionalContactsExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                 </svg>
@@ -1266,14 +1269,19 @@
 
       <!-- Docket Info - Only show for non-new and non-pickup workshops -->
       {#if workshopStatus && workshopStatus !== 'new' && workshopStatus !== 'pickup'}
-        <div class="space-y-4 {docketInfoBackgroundClass} px-4 py-3 rounded">
-          <div class="font-medium">
-            Docket Info
-          </div>
+        <!-- Docket Info Title -->
+        <div
+          class="flex items-center justify-between px-4 py-3 rounded"
+          style="background-color: rgb(30, 30, 30);"
+        >
+          <h2 class="font-medium text-white">Docket Info</h2>
+        </div>
 
+        <!-- Docket Info Content -->
+        <div class="space-y-4 {docketInfoBackgroundClass} px-4 py-3 rounded">
           <!-- Quote or Repair -->
           <div>
-            <fieldset class="bg-gray-100 rounded px-4 py-3">
+            <fieldset class="bg-white border border-gray-300 rounded-lg px-4 py-3">
               <legend class="block text-sm font-medium text-gray-700 mb-1">Quote or Repair</legend>
               <div class="flex items-center gap-6">
                 <label class="inline-flex items-center gap-2 cursor-pointer">
@@ -1292,12 +1300,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="quote-description">Quote Description</label>
-              <textarea id="quote-description" rows="3" bind:value={quoteDescription} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+              <textarea id="quote-description" rows="3" bind:value={quoteDescription} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="additional-information">Additional Information</label>
-              <textarea id="additional-information" rows="3" bind:value={additionalInformation} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+              <textarea id="additional-information" rows="3" bind:value={additionalInformation} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
             </div>
           </div>
 
@@ -1305,12 +1313,12 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="stock-on-hand">Stock On Hand</label>
-              <input id="stock-on-hand" type="text" bind:value={stockOnHand} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="stock-on-hand" type="text" bind:value={stockOnHand} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="labour">Labour</label>
-              <input id="labour" type="text" bind:value={labour} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="labour" type="text" bind:value={labour} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
 
@@ -1318,18 +1326,18 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="travel-time">Travel Time</label>
-              <input id="travel-time" type="text" bind:value={travelTime} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="travel-time" type="text" bind:value={travelTime} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="call-out">Call out</label>
-              <input id="call-out" type="text" bind:value={callOut} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input id="call-out" type="text" bind:value={callOut} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
             </div>
           </div>
 
           <!-- Parts -->
           <div>
-            <div class="flex items-center justify-between bg-gray-100 px-4 py-3 rounded">
+            <div class="flex items-center justify-between bg-white border border-gray-300 px-4 py-3 rounded-lg">
               <h3 class="font-medium text-gray-800">Parts</h3>
               <button type="button" on:click={addPartRow} class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700">Add</button>
             </div>
@@ -1339,11 +1347,11 @@
                 <div class="flex gap-4 items-end">
                   <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1" for={`sku-${idx}`}>SKU</label>
-                    <input id={`sku-${idx}`} type="text" bind:value={part.sku} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input id={`sku-${idx}`} type="text" bind:value={part.sku} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1" for={`qty-${idx}`}>Quantity</label>
-                    <input id={`qty-${idx}`} type="text" bind:value={part.quantity} class="w-full bg-gray-100 rounded px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input id={`qty-${idx}`} type="text" bind:value={part.quantity} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                   </div>
                   <div class="flex items-end">
                     <button
@@ -1454,7 +1462,7 @@
           <button
             type="button"
             on:click={clearIncompleteContact}
-            class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+            class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
           >
             Clear & Continue
           </button>

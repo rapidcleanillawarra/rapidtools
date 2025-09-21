@@ -124,7 +124,7 @@
       on:input={handleInput}
       on:focus={handleFocus}
       on:blur={handleBlur}
-      class="w-full bg-gray-100 rounded px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       autocomplete="off"
     />
     <button

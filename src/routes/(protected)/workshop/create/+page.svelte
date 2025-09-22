@@ -97,7 +97,7 @@
   let travelTime: string = '';
   let callOut: string = '';
 
-  type QuoteOrRepairType = 'Quote' | 'Repair';
+  type QuoteOrRepairType = 'Quote' | 'Repaired';
   let quoteOrRepair: QuoteOrRepairType = 'Quote';
 
   type PartItem = { sku: string; quantity: string };
@@ -160,7 +160,7 @@
   // Determine entry point
   let startedWith: 'form' | 'camera' = 'form';
   let existingWorkshopId: string | null = null;
-  let workshopStatus: 'new' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled' | null = null;
+  let workshopStatus: JobStatus = null;
   let existingOrderId: string | null = null;
 
   // Debug modal state
@@ -304,7 +304,7 @@
       contactNumber = workshop.contact_number || '';
       selectedCustomer = workshop.customer_data;
       optionalContacts = workshop.optional_contacts || [];
-      quoteOrRepair = workshop.quote_or_repaired || 'Quote';
+      quoteOrRepaired: quoteOrRepair = workshop.quote_or_repaired || 'Quote';
       startedWith = workshop.started_with || 'form';
 
       // Load existing photos (they're already saved in storage)
@@ -434,7 +434,7 @@
       photos: newPhotos,
       existingPhotoUrls,
       startedWith,
-      quoteOrRepair
+      quoteOrRepaired: quoteOrRepair
       // Note: No status changes, no order creation for update job
     };
 
@@ -511,8 +511,8 @@
     // Start submission
     isSubmitting = true;
 
-    // Check if this is a pickup submission
-    isPickupSubmission = locationOfRepair === 'Site' && siteLocation.trim() !== '';
+    // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
+    isPickupSubmission = !existingWorkshopId && locationOfRepair === 'Site' && siteLocation.trim() !== '';
 
     let shouldCreateOrder = false;
 
@@ -539,7 +539,7 @@
       }
 
       // Check if this workshop already has an order_id
-      shouldCreateOrder = true;
+      shouldCreateOrder = currentJobStatus.canCreateOrder;
       try {
         console.log('Checking if workshop already has order_id...');
         const existingWorkshop = await getWorkshop(existingWorkshopId);
@@ -600,7 +600,7 @@
       photos: newPhotos,
       existingPhotoUrls,
       startedWith,
-      quoteOrRepair,
+      quoteOrRepaired: quoteOrRepair,
       ...(existingWorkshopId && {
         customerApiData,
         orderApiData,
@@ -616,11 +616,22 @@
       throw new Error('You must be logged in to create a workshop');
     }
 
-    // Set status based on submission type
+    // Set status based on submission type - using centralized job status logic
+    console.log('Status setting debug:', {
+      isPickupSubmission,
+      existingWorkshopId,
+      workshopStatus,
+      currentJobStatus: currentJobStatus.buttonText
+    });
+
     if (isPickupSubmission) {
       // For pickup submissions, set status to "pickup"
       (formData as any).status = 'pickup';
       console.log('Setting workshop status to pickup for pickup submission');
+    } else if (existingWorkshopId && workshopStatus === 'pickup') {
+      // For existing pickup jobs being submitted, update to "to_be_quoted"
+      (formData as any).status = 'to_be_quoted';
+      console.log('Updating workshop status from pickup to to_be_quoted');
     } else if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
       // For regular submissions, set status to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -629,6 +640,8 @@
         : 'Setting new workshop status to to_be_quoted'
       );
     }
+
+    console.log('Final formData status:', (formData as any).status);
 
     // Submit to Supabase - either create new or update existing
     const submitPromise = existingWorkshopId
@@ -681,7 +694,141 @@
       });
   }
 
-  function getSubmitButtonText() {
+  // ============================================
+  // JOB STATUS MANAGEMENT - CRITICAL BUSINESS LOGIC
+  // ============================================
+  // This function centralizes all job status checks and determines
+  // what actions are allowed based on the current state.
+  // DO NOT MODIFY THIS WITHOUT CAREFUL CONSIDERATION OF BUSINESS IMPACT
+
+  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | null;
+
+  interface JobStatusContext {
+    existingWorkshopId: string | null;
+    workshopStatus: JobStatus;
+    existingOrderId: string | null;
+    locationOfRepair: 'Site' | 'Workshop';
+    siteLocation: string;
+  }
+
+  interface JobStatusResult {
+    canEditMachineInfo: boolean;
+    canEditUserInfo: boolean;
+    canEditContacts: boolean;
+    canCreateOrder: boolean;
+    canPickup: boolean;
+    buttonText: string;
+    statusDisplay: string;
+    priority: number; // Lower number = higher priority
+  }
+
+  /**
+   * CRITICAL: Evaluates job status and determines allowed actions
+   * This function contains the core business logic for job state management.
+   * All status-dependent behavior should derive from this single source of truth.
+   */
+  function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
+    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfRepair, siteLocation } = context;
+
+    console.log('Evaluating job status:', context);
+
+    // ============================================
+    // PRIORITY 1: PICKUP STATUS JOBS (Highest Priority)
+    // ============================================
+    // Jobs that are already in pickup status (delivered to workshop)
+    if (existingWorkshopId && workshopStatus === 'pickup') {
+      return {
+        canEditMachineInfo: false,  // Pickup jobs cannot modify machine info
+        canEditUserInfo: false,     // Pickup jobs cannot modify user info
+        canEditContacts: false,     // Pickup jobs cannot modify contacts
+        canCreateOrder: false,      // Pickup jobs never create Maropost orders
+        canPickup: false,          // Already picked up
+        buttonText: 'Delivered/To Be Quoted',
+        statusDisplay: 'Pickup',
+        priority: 1
+      };
+    }
+
+
+    // ============================================
+    // PRIORITY 2: NEW JOBS
+    // ============================================
+    // Brand new jobs that haven't been saved yet
+    if (workshopStatus === 'new') {
+      return {
+        canEditMachineInfo: true,   // Can edit everything for new jobs
+        canEditUserInfo: true,
+        canEditContacts: true,
+        canCreateOrder: false,      // New jobs don't create orders until submitted
+        canPickup: false,          // New jobs aren't pickups
+        buttonText: 'To be Quoted',
+        statusDisplay: 'New',
+        priority: 2
+      };
+    }
+
+    // ============================================
+    // PRIORITY 3: BRAND NEW FORMS (No existing workshop)
+    // ============================================
+    // Forms that are being created from scratch (no workshop_id in URL)
+    if (!existingWorkshopId) {
+      return {
+        canEditMachineInfo: true,   // Can edit everything for new forms
+        canEditUserInfo: true,
+        canEditContacts: true,
+        canCreateOrder: false,      // New forms don't create orders until submitted
+        canPickup: false,          // New forms aren't pickups
+        buttonText: 'Create Job',
+        statusDisplay: 'New',
+        priority: 3
+      };
+    }
+
+    // ============================================
+    // PRIORITY 4: TO BE QUOTED STATUS
+    // ============================================
+    // Jobs that are ready for quoting/docket creation
+    if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info once quoted
+        canEditUserInfo: false,     // Cannot edit user info once quoted
+        canEditContacts: true,      // Can still add contacts for quoted jobs
+        canCreateOrder: !existingOrderId, // Can create order if doesn't have one
+        canPickup: false,          // Quoted jobs aren't pickups
+        buttonText: 'Docket Ready',
+        statusDisplay: 'To Be Quoted',
+        priority: 4
+      };
+    }
+
+    // ============================================
+    // PRIORITY 5: OTHER EXISTING JOBS (Default)
+    // ============================================
+    // Unknown status jobs (fallback for any unhandled statuses)
+    return {
+      canEditMachineInfo: false,  // Cannot edit machine info for active jobs
+      canEditUserInfo: false,     // Cannot edit user info for active jobs
+      canEditContacts: false,     // Cannot edit contacts for active jobs
+      canCreateOrder: false,      // Active jobs shouldn't create new orders
+      canPickup: false,          // Active jobs aren't pickups
+      buttonText: 'Update Job',
+      statusDisplay: workshopStatus?.replace('_', ' ') || 'Unknown',
+      priority: 5
+    };
+  }
+
+  // ============================================
+  // PUBLIC API: Get current job status evaluation
+  // ============================================
+  $: currentJobStatus = evaluateJobStatus({
+    existingWorkshopId,
+    workshopStatus,
+    existingOrderId,
+    locationOfRepair,
+    siteLocation
+  });
+
+  function getSubmitButtonText(): string {
     console.log('getSubmitButtonText called with:', {
       existingWorkshopId,
       workshopStatus,
@@ -690,38 +837,13 @@
       siteLocation
     });
 
-    // Priority 1: Check if location is Site and site location has a value - return "Pickup →"
-    if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
-      console.log('Site location provided, returning Pickup');
-      return 'Pickup →';
-    }
-
-    // Priority 2: Check if workshop status is pickup - return "Delivered/To Be Quoted"
-    if (existingWorkshopId && workshopStatus === 'pickup') {
-      console.log('Pickup status, returning Delivered/To Be Quoted');
-      return 'Delivered/To Be Quoted';
-    }
-
-    // Priority 3: For workshops with "new" status, show "To be Quoted"
-    if (workshopStatus === 'new') {
-      console.log('Workshop with new status, returning To be Quoted');
-      return 'To be Quoted';
-    }
-
-    // Priority 4: For existing workshops with "to_be_quoted" status, show "Docket Ready"
-    if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
-      console.log('Existing workshop with to_be_quoted status, returning Docket Ready');
-      return 'Docket Ready';
-    }
-
-    // Priority 5: Default for other existing workshops
-    console.log('Existing workshop with different status, returning Update Job');
-    return 'Update Job';
+    // Use status-based button text only
+    return currentJobStatus.buttonText;
   }
 
   function getSubmitButtonLoadingText() {
-    // Check if location is Site and site location has a value (pickup scenario)
-    if (locationOfRepair === 'Site' && siteLocation && siteLocation.trim()) {
+    // Use centralized job status logic
+    if (currentJobStatus.canPickup) {
       return 'Processing...';
     }
 
@@ -845,19 +967,7 @@
         <div class="flex flex-wrap gap-2">
           <!-- Status Pill -->
           <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-            Status: <span class="font-semibold capitalize">
-              {#if workshopStatus === 'pickup'}
-                Pickup
-              {:else if workshopStatus === 'to_be_quoted'}
-                To Be Quoted
-              {:else if workshopStatus === 'in_progress'}
-                In Progress
-              {:else if workshopStatus === 'new' || !existingWorkshopId}
-                New
-              {:else}
-                {workshopStatus?.replace('_', ' ') || 'New'}
-              {/if}
-            </span>
+            Status: <span class="font-semibold capitalize">{currentJobStatus.statusDisplay}</span>
           </div>
 
           <!-- Started Via Pill -->
@@ -924,7 +1034,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
-                {workshopStatus === 'pickup' ? 'View Details' : 'Edit Details'}
+{!currentJobStatus.canEditUserInfo ? 'View Details' : 'Edit Details'}
               </button>
             </div>
           </div>
@@ -935,12 +1045,12 @@
               <fieldset class="bg-white border border-gray-300 rounded-lg px-4 py-3">
                 <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
                 <div class="flex items-center gap-6">
-                  <label class="inline-flex items-center gap-2 {workshopStatus === 'pickup' ? 'cursor-not-allowed' : 'cursor-pointer'}">
-                    <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={workshopStatus === 'pickup'} />
+                  <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                    <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
                     <span>Site</span>
                   </label>
-                  <label class="inline-flex items-center gap-2 {workshopStatus === 'pickup' ? 'cursor-not-allowed' : 'cursor-pointer'}">
-                    <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={workshopStatus === 'pickup'} />
+                  <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                    <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
                     <span>Workshop</span>
                   </label>
                 </div>
@@ -955,25 +1065,25 @@
                 id="product-name"
                 type="text"
                 bind:value={productName}
-                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!productName.trim() ? 'border-red-300' : ''} {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!productName.trim() ? 'border-red-300' : ''} {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
                 required
-                disabled={workshopStatus === 'pickup'}
+                disabled={!currentJobStatus.canEditMachineInfo}
               />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="client-wo">Client’s Work Order</label>
-              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+              <input id="client-wo" type="text" bind:value={clientsWorkOrder} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditMachineInfo} />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="make-model">Make/Model</label>
-              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+              <input id="make-model" type="text" bind:value={makeModel} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditMachineInfo} />
             </div>
 
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="serial-number">Serial Number</label>
-              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+              <input id="serial-number" type="text" bind:value={serialNumber} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditMachineInfo} />
             </div>
 
             <div>
@@ -989,9 +1099,9 @@
                 id="site-location"
                 type="text"
                 bind:value={siteLocation}
-                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
-                disabled={workshopStatus === 'pickup'}
+                disabled={!currentJobStatus.canEditMachineInfo}
               />
               {#if startedWith === 'camera' && locationOfRepair === 'Site'}
                 <div class="mt-2 p-2 bg-blue-100 border border-blue-200 text-blue-700 rounded text-sm">
@@ -1008,15 +1118,15 @@
                 value={pickupSchedule}
                 on:input={(e) => updatePickupSchedule((e.target as HTMLInputElement).value)}
                 min={minDateTime}
-                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}"
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
                 placeholder="Select pickup date and time"
-                disabled={workshopStatus === 'pickup'}
+                disabled={!currentJobStatus.canEditMachineInfo}
               />
             </div>
 
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1" for="fault-description">Fault Description</label>
-              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'}></textarea>
+              <textarea id="fault-description" rows="3" bind:value={faultDescription} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditMachineInfo}></textarea>
             </div>
           </div>
 
@@ -1067,7 +1177,7 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                 </svg>
-                {workshopStatus === 'pickup' ? 'View Details' : 'Edit Details'}
+{!currentJobStatus.canEditUserInfo ? 'View Details' : 'Edit Details'}
               </button>
             </div>
           </div>
@@ -1144,12 +1254,12 @@
             <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-email">Contact Email</label>
-                <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+                <input id="contact-email" type="email" bind:value={contactEmail} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditUserInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditUserInfo} />
               </div>
 
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1" for="contact-number">Contact Number</label>
-                <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-50' : ''}" disabled={workshopStatus === 'pickup'} />
+                <input id="contact-number" type="tel" bind:value={contactNumber} class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditUserInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditUserInfo} />
               </div>
             </div>
           </div>
@@ -1176,16 +1286,16 @@
         {#if optionalContacts.length > 0 || workshopStatus === 'to_be_quoted'}
           <div>
           <div
-            class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors {workshopStatus === 'pickup' ? 'cursor-not-allowed opacity-75' : ''}"
+            class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors {!currentJobStatus.canEditContacts ? 'cursor-not-allowed opacity-75' : ''}"
             style="background-color: rgb(30, 30, 30);"
-            on:click={() => { if (workshopStatus !== 'pickup') isOptionalContactsExpanded = !isOptionalContactsExpanded; }}
+            on:click={() => { if (currentJobStatus.canEditContacts) isOptionalContactsExpanded = !isOptionalContactsExpanded; }}
             role="button"
             tabindex="0"
             aria-label={isOptionalContactsExpanded ? 'Collapse section' : 'Expand section'}
-            on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (workshopStatus !== 'pickup') isOptionalContactsExpanded = !isOptionalContactsExpanded; } }}
+            on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (currentJobStatus.canEditContacts) isOptionalContactsExpanded = !isOptionalContactsExpanded; } }}
           >
             <h2 class="font-medium text-white">Optional Contacts</h2>
-            {#if workshopStatus !== 'pickup'}
+            {#if currentJobStatus.canEditContacts}
               <div class="text-white">
                 <svg class="w-5 h-5 transform transition-transform {isOptionalContactsExpanded ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -1209,7 +1319,7 @@
               {:else}
                 <div class="text-sm text-gray-500 italic text-center py-4">No optional contacts added yet</div>
               {/if}
-              {#if workshopStatus !== 'pickup'}
+              {#if currentJobStatus.canEditContacts}
                 <div class="mt-3 flex justify-center">
                   <button
                     type="button"

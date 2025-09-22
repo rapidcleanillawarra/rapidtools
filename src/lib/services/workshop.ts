@@ -75,7 +75,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'new' | 'pickup' | 'to_be_quoted' | 'in_progress' | 'completed' | 'cancelled';
+  status: 'new' | 'pickup' | 'to_be_quoted';
   created_by: string;
 
   // Workflow tracking
@@ -419,6 +419,9 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     // Add status if provided
     if (data.status) {
       updateData.status = data.status;
+      console.log('UpdateWorkshop - Setting status to:', data.status);
+    } else {
+      console.log('UpdateWorkshop - No status provided in data');
     }
 
     // Add started_with if provided

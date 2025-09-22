@@ -6,11 +6,14 @@
   export let viewMode: 'table' | 'board' = 'table';
   export let loadedPhotos: string[] = [];
   export let failedPhotos: string[] = [];
+  export let draggable: boolean = true;
+  export let draggedWorkshopId: string | null = null;
 
   const dispatch = createEventDispatcher<{
     click: { workshop: WorkshopRecord };
     photoClick: { workshop: WorkshopRecord; photoIndex: number };
     deleteClick: { workshop: WorkshopRecord };
+    dragstart: { workshop: WorkshopRecord; event: DragEvent };
   }>();
 
   function formatDate(dateString: string) {
@@ -61,6 +64,21 @@
   function handleDeleteClick(event: Event) {
     event.stopPropagation();
     dispatch('deleteClick', { workshop });
+  }
+
+  function handleDragStart(event: DragEvent) {
+    if (!draggable) {
+      event.preventDefault();
+      return;
+    }
+    // Set the drag data to include the workshop ID
+    event.dataTransfer!.setData('application/json', JSON.stringify({
+      workshopId: workshop.id,
+      currentStatus: workshop.status
+    }));
+    // Set drag effect
+    event.dataTransfer!.effectAllowed = 'move';
+    dispatch('dragstart', { workshop, event });
   }
 </script>
 
@@ -195,7 +213,19 @@
   </tr>
 {:else}
   <!-- Board Card View -->
-  <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow cursor-pointer relative" on:click={handleClick} role="button" tabindex="0" on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}>
+  <div
+    class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all duration-200 cursor-pointer relative"
+    class:cursor-move={draggable}
+    class:opacity-50={draggedWorkshopId === workshop.id}
+    class:scale-95={draggedWorkshopId === workshop.id}
+    class:rotate-2={draggedWorkshopId === workshop.id}
+    on:click={handleClick}
+    on:dragstart={handleDragStart}
+    draggable={draggable}
+    role="button"
+    tabindex="0"
+    on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } }}
+  >
     <!-- Photo Section -->
     {#if workshop.photo_urls && workshop.photo_urls.length > 0}
       <div class="mb-3">

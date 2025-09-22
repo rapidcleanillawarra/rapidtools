@@ -75,7 +75,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'new' | 'pickup' | 'to_be_quoted';
+  status: 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted_repaired' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'pending_jobs';
   created_by: string;
 
   // Workflow tracking

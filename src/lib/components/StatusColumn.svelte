@@ -1,12 +1,20 @@
 <script lang="ts">
   import WorkshopCard from './WorkshopCard.svelte';
   import type { WorkshopRecord } from '$lib/services/workshop';
+  import { createEventDispatcher } from 'svelte';
 
   export let status: string;
   export let title: string;
   export let workshops: WorkshopRecord[] = [];
   export let loadedPhotos: string[] = [];
   export let failedPhotos: string[] = [];
+  export let draggedWorkshopId: string | null = null;
+
+  const dispatch = createEventDispatcher<{
+    drop: { workshopId: string; newStatus: string };
+  }>();
+
+  let isDragOver = false;
 
   function getColumnColor(status: string) {
     switch (status) {
@@ -35,9 +43,56 @@
       default: return 'bg-gray-100 text-gray-800';
     }
   }
+
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.dataTransfer!.dropEffect = 'move';
+  }
+
+  function handleDragEnter(event: DragEvent) {
+    event.preventDefault();
+    isDragOver = true;
+  }
+
+  function handleDragLeave(event: DragEvent) {
+    event.preventDefault();
+    // Only set isDragOver to false if we're actually leaving the column (not entering a child element)
+    if (event.currentTarget === event.target) {
+      isDragOver = false;
+    }
+  }
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    isDragOver = false;
+
+    try {
+      const data = JSON.parse(event.dataTransfer!.getData('application/json'));
+      if (data.workshopId && data.currentStatus !== status) {
+        dispatch('drop', {
+          workshopId: data.workshopId,
+          newStatus: status
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing drag data:', error);
+    }
+  }
 </script>
 
-<div class="bg-white rounded-lg border border-gray-200 snap-start flex flex-col w-72 flex-shrink-0 min-h-96 max-h-[70vh]">
+<div
+  class="bg-white rounded-lg border border-gray-200 snap-start flex flex-col w-72 flex-shrink-0 min-h-96 max-h-[70vh] transition-all duration-200"
+  class:bg-blue-50={isDragOver}
+  class:border-blue-300={isDragOver}
+  class:ring-2={isDragOver}
+  class:ring-blue-200={isDragOver}
+  role="region"
+  aria-label="{title} status column"
+  on:dragover={handleDragOver}
+  on:dragenter={handleDragEnter}
+  on:dragleave={handleDragLeave}
+  on:drop={handleDrop}
+>
   <!-- Header - Fixed, non-scrollable -->
   <div class="flex items-center justify-between p-4 pb-3 border-b border-gray-100 flex-shrink-0">
     <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">{title}</h3>
@@ -64,9 +119,11 @@
             viewMode="board"
             {loadedPhotos}
             {failedPhotos}
+            {draggedWorkshopId}
             on:click
             on:photoClick
             on:deleteClick
+            on:dragstart
           />
         {/each}
       </div>

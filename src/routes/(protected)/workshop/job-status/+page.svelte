@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { getWorkshops, deleteWorkshop as deleteWorkshopService, type WorkshopRecord } from '$lib/services/workshop';
+  import { getWorkshops, deleteWorkshop as deleteWorkshopService, updateWorkshopStatus, type WorkshopRecord } from '$lib/services/workshop';
   import { toastSuccess } from '$lib/utils/toast';
 
   // Import new components
@@ -32,6 +32,9 @@
 
   // View states
   let currentView: 'table' | 'board' = loadViewPreference();
+
+  // Drag states
+  let draggedWorkshopId: string | null = null;
 
   // Filter states
   let statusFilter = '';
@@ -274,6 +277,46 @@
       error = 'Failed to delete workshop';
     } finally {
       isDeletingWorkshop = false;
+    }
+  }
+
+  function handleWorkshopDragStart(event: CustomEvent<{ workshop: WorkshopRecord; event: DragEvent }>) {
+    draggedWorkshopId = event.detail.workshop.id;
+    console.log('Started dragging workshop:', draggedWorkshopId);
+  }
+
+  function handleWorkshopDragEnd() {
+    draggedWorkshopId = null;
+    console.log('Finished dragging workshop');
+  }
+
+  async function handleWorkshopDrop(event: CustomEvent<{ workshopId: string; newStatus: string }>) {
+    const { workshopId, newStatus } = event.detail;
+
+    try {
+      // Find the workshop to get its current status for the success message
+      const workshop = workshops.find(w => w.id === workshopId);
+      if (!workshop) return;
+
+      // Update the workshop status
+      await updateWorkshopStatus(workshopId, newStatus as WorkshopRecord['status']);
+
+      // Reload the workshops data to reflect the change
+      await loadWorkshops();
+
+      // Show success message
+      toastSuccess(
+        `Workshop "${workshop.customer_name}" moved to ${newStatus.replace('_', ' ').toUpperCase()}`,
+        'Status Updated'
+      );
+
+      console.log('Workshop status updated:', workshopId, '->', newStatus);
+    } catch (err) {
+      console.error('Error updating workshop status:', err);
+      error = 'Failed to update workshop status';
+    } finally {
+      // Reset drag state
+      draggedWorkshopId = null;
     }
   }
 
@@ -541,9 +584,12 @@
               workshops={workshopsByStatus.new}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -552,9 +598,12 @@
               workshops={workshopsByStatus.pickup}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -563,9 +612,12 @@
               workshops={workshopsByStatus.to_be_quoted}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -574,9 +626,12 @@
               workshops={workshopsByStatus.docket_ready}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -585,9 +640,12 @@
               workshops={workshopsByStatus.quoted_repaired}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -596,9 +654,12 @@
               workshops={workshopsByStatus.waiting_approval_po}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -607,9 +668,12 @@
               workshops={workshopsByStatus.waiting_for_parts}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -618,9 +682,12 @@
               workshops={workshopsByStatus.booked_in_for_repair_service}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
 
             <StatusColumn
@@ -629,9 +696,12 @@
               workshops={workshopsByStatus.pending_jobs}
               {loadedPhotos}
               {failedPhotos}
+              {draggedWorkshopId}
               on:click={({ detail }) => handleRowClick(detail.workshop)}
               on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
             />
               </div>
             </div>
@@ -701,11 +771,6 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: #cbd5e1 #f1f5f9;
-  }
-
-  /* Smooth scroll snap for better UX */
-  .snap-start {
-    scroll-snap-align: start;
   }
 
   /* Scroll container snap behavior */

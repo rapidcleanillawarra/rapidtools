@@ -9,6 +9,7 @@
   export let loadedPhotos: string[] = [];
   export let failedPhotos: string[] = [];
   export let draggedWorkshopId: string | null = null;
+  export let recentlyMovedWorkshopId: string | null = null;
 
   const dispatch = createEventDispatcher<{
     drop: { workshopId: string; newStatus: string };
@@ -120,6 +121,7 @@
             {loadedPhotos}
             {failedPhotos}
             {draggedWorkshopId}
+            {recentlyMovedWorkshopId}
             on:click
             on:photoClick
             on:deleteClick

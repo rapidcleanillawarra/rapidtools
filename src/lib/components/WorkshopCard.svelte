@@ -8,6 +8,7 @@
   export let failedPhotos: string[] = [];
   export let draggable: boolean = true;
   export let draggedWorkshopId: string | null = null;
+  export let recentlyMovedWorkshopId: string | null = null;
 
   const dispatch = createEventDispatcher<{
     click: { workshop: WorkshopRecord };
@@ -219,6 +220,9 @@
     class:opacity-50={draggedWorkshopId === workshop.id}
     class:scale-95={draggedWorkshopId === workshop.id}
     class:rotate-2={draggedWorkshopId === workshop.id}
+    class:border-2={recentlyMovedWorkshopId === workshop.id}
+    class:border-green-400={recentlyMovedWorkshopId === workshop.id}
+    class:shadow-lg={recentlyMovedWorkshopId === workshop.id}
     on:click={handleClick}
     on:dragstart={handleDragStart}
     draggable={draggable}
@@ -240,13 +244,13 @@
             type="button"
             class="w-full h-32 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
             on:click={(e) => handlePhotoClick(0, e)}
-            aria-label="View photo for {workshop.customer_name}'s workshop"
+            aria-label="View photo for {workshop.product_name} workshop"
           >
             <div class="w-full h-full relative">
               <!-- Always render img to trigger load/error events -->
               <img
                 src={workshop.photo_urls[0]}
-                alt="Photo for {workshop.customer_name}"
+                alt="Photo for {workshop.product_name}"
                 class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
                 on:load={() => {
                   // Remove from failed if it was there
@@ -298,8 +302,8 @@
 
     <div class="flex items-start justify-between mb-2">
       <div class="flex-1 min-w-0">
-        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.customer_name}</h4>
-        <p class="text-xs text-gray-500 truncate">{workshop.product_name}</p>
+        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.product_name}</h4>
+        <p class="text-xs text-gray-500 truncate">{workshop.customer_name}</p>
       </div>
     </div>
 

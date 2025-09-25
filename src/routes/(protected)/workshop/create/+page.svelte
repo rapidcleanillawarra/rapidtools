@@ -632,6 +632,11 @@
       // For existing pickup jobs being submitted, update to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
       console.log('Updating workshop status from pickup to to_be_quoted');
+    } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
+      // For existing "to_be_quoted" jobs, change status based on Quote/Repair selection
+      const newStatus = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
+      (formData as any).status = newStatus;
+      console.log(`Updating workshop status from to_be_quoted to ${newStatus}`);
     } else if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
       // For regular submissions, set status to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -655,6 +660,7 @@
         // Show success modal with appropriate message
         const isUpdate = !!existingWorkshopId;
         const wasNew = existingWorkshopId && workshopStatus === 'new';
+        const wasToBeQuoted = existingWorkshopId && workshopStatus === 'to_be_quoted';
         const hadExistingOrder = !shouldCreateOrder && isUpdate;
 
         if (isPickupSubmission) {
@@ -663,9 +669,11 @@
             : 'Workshop created successfully and ready to be quoted!';
         } else {
           successMessage = isUpdate
-            ? hadExistingOrder
-              ? `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''}!`
-              : `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
+            ? wasToBeQuoted
+              ? `Workshop updated successfully and marked as ${quoteOrRepair === 'Quote' ? 'Quoted' : 'Repaired'}!`
+              : hadExistingOrder
+                ? `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''}!`
+                : `Workshop updated successfully${wasNew ? ' and status changed to "To Be Quoted"' : ''} and new order generated!`
             : 'Workshop created successfully and ready to be quoted!';
         }
 
@@ -701,7 +709,7 @@
   // what actions are allowed based on the current state.
   // DO NOT MODIFY THIS WITHOUT CAREFUL CONSIDERATION OF BUSINESS IMPACT
 
-  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | null;
+  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'pending_jobs' | null;
 
   interface JobStatusContext {
     existingWorkshopId: string | null;
@@ -798,6 +806,23 @@
         buttonText: 'Docket Ready',
         statusDisplay: 'To Be Quoted',
         priority: 4
+      };
+    }
+
+    // ============================================
+    // PRIORITY 4.5: COMPLETED JOBS (Quoted or Repaired)
+    // ============================================
+    // Jobs that have been quoted or repaired (final statuses)
+    if (existingWorkshopId && (workshopStatus === 'quoted' || workshopStatus === 'repaired')) {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info for completed jobs
+        canEditUserInfo: false,     // Cannot edit user info for completed jobs
+        canEditContacts: false,     // Cannot edit contacts for completed jobs
+        canCreateOrder: false,      // Completed jobs don't create new orders
+        canPickup: false,          // Completed jobs aren't pickups
+        buttonText: 'Update Job',
+        statusDisplay: workshopStatus === 'quoted' ? 'Quoted' : 'Repaired',
+        priority: 4.5
       };
     }
 

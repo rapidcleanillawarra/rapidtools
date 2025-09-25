@@ -112,7 +112,8 @@
       pickup: [],
       to_be_quoted: [],
       docket_ready: [],
-      quoted_repaired: [],
+      quoted: [],
+      repaired: [],
       waiting_approval_po: [],
       waiting_for_parts: [],
       booked_in_for_repair_service: [],
@@ -154,7 +155,8 @@
       case 'pickup': return 'bg-cyan-100 text-cyan-800';
       case 'to_be_quoted': return 'bg-orange-100 text-orange-800';
       case 'docket_ready': return 'bg-blue-100 text-blue-800';
-      case 'quoted_repaired': return 'bg-teal-100 text-teal-800';
+      case 'quoted': return 'bg-green-100 text-green-800';
+      case 'repaired': return 'bg-teal-100 text-teal-800';
       case 'waiting_approval_po': return 'bg-purple-100 text-purple-800';
       case 'waiting_for_parts': return 'bg-gray-100 text-gray-800';
       case 'booked_in_for_repair_service': return 'bg-indigo-100 text-indigo-800';
@@ -635,9 +637,23 @@
             />
 
             <StatusColumn
-              status="quoted_repaired"
-              title="Quoted/Repaired"
-              workshops={workshopsByStatus.quoted_repaired}
+              status="quoted"
+              title="Quoted"
+              workshops={workshopsByStatus.quoted}
+              {loadedPhotos}
+              {failedPhotos}
+              {draggedWorkshopId}
+              on:click={({ detail }) => handleRowClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
+            />
+
+            <StatusColumn
+              status="repaired"
+              title="Repaired"
+              workshops={workshopsByStatus.repaired}
               {loadedPhotos}
               {failedPhotos}
               {draggedWorkshopId}

@@ -22,7 +22,8 @@
       case 'new': return 'bg-yellow-50';
       case 'to_be_quoted': return 'bg-orange-50';
       case 'docket_ready': return 'bg-blue-50';
-      case 'quoted_repaired': return 'bg-teal-50';
+      case 'quoted': return 'bg-green-50';
+      case 'repaired': return 'bg-teal-50';
       case 'waiting_approval_po': return 'bg-purple-50';
       case 'waiting_for_parts': return 'bg-gray-50';
       case 'booked_in_for_repair_service': return 'bg-indigo-50';
@@ -36,7 +37,8 @@
       case 'new': return 'bg-yellow-100 text-yellow-800';
       case 'to_be_quoted': return 'bg-orange-100 text-orange-800';
       case 'docket_ready': return 'bg-blue-100 text-blue-800';
-      case 'quoted_repaired': return 'bg-teal-100 text-teal-800';
+      case 'quoted': return 'bg-green-100 text-green-800';
+      case 'repaired': return 'bg-teal-100 text-teal-800';
       case 'waiting_approval_po': return 'bg-purple-100 text-purple-800';
       case 'waiting_for_parts': return 'bg-gray-100 text-gray-800';
       case 'booked_in_for_repair_service': return 'bg-indigo-100 text-indigo-800';

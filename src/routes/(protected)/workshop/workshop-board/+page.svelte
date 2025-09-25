@@ -93,7 +93,8 @@
       pickup: [],
       to_be_quoted: [],
       docket_ready: [],
-      quoted_repaired: [],
+      quoted: [],
+      repaired: [],
       waiting_approval_po: [],
       waiting_for_parts: [],
       booked_in_for_repair_service: [],
@@ -451,9 +452,24 @@
             />
 
             <StatusColumn
-              status="quoted_repaired"
-              title="Quoted/Repaired"
-              workshops={workshopsByStatus.quoted_repaired}
+              status="quoted"
+              title="Quoted"
+              workshops={workshopsByStatus.quoted}
+              {loadedPhotos}
+              {failedPhotos}
+              {draggedWorkshopId}
+              {recentlyMovedWorkshopId}
+              on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
+            />
+
+            <StatusColumn
+              status="repaired"
+              title="Repaired"
+              workshops={workshopsByStatus.repaired}
               {loadedPhotos}
               {failedPhotos}
               {draggedWorkshopId}

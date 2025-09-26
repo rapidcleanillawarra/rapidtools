@@ -527,6 +527,21 @@
             />
 
             <StatusColumn
+              status="repaired"
+              title="Repaired"
+              workshops={workshopsByStatus.repaired}
+              {loadedPhotos}
+              {failedPhotos}
+              {draggedWorkshopId}
+              {recentlyMovedWorkshopId}
+              on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
+            />
+
+            <StatusColumn
               status="pending_jobs"
               title="PENDING JOBS"
               workshops={workshopsByStatus.pending_jobs}

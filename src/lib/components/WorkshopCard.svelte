@@ -217,6 +217,8 @@
   <!-- Board Card View -->
   <div
     class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all duration-200 cursor-pointer relative"
+    class:bg-purple-50={workshop.status === 'quoted'}
+    class:bg-green-50={workshop.status === 'repaired'}
     class:cursor-move={draggable}
     class:opacity-50={draggedWorkshopId === workshop.id}
     class:scale-95={draggedWorkshopId === workshop.id}

@@ -15,6 +15,7 @@
   let proMaxOpen = false; // Add this line
   let workshopOpen = false; // Add workshop dropdown state
   let sttOpen = false; // Add STT dropdown state
+  let catalogueOpen = false; // Add catalogue dropdown state
 
   // Subscribe to the currentUser store
   let user: import('firebase/auth').User | null = null;
@@ -54,6 +55,7 @@
   let mobileProMaxOpen = false; // Add this line
   let mobileWorkshopOpen = false; // Add mobile workshop dropdown state
   let mobileSttOpen = false; // Add mobile STT dropdown state
+  let mobileCatalogueOpen = false; // Add mobile catalogue dropdown state
 
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
@@ -80,6 +82,9 @@
     }
     if (!target.closest('.stt-dropdown') && sttOpen) { // Add STT dropdown handling
       sttOpen = false;
+    }
+    if (!target.closest('.catalogue-dropdown') && catalogueOpen) { // Add catalogue dropdown handling
+      catalogueOpen = false;
     }
   }
 
@@ -110,6 +115,8 @@
       mobileWorkshopOpen = false; // Add mobile workshop dropdown
       sttOpen = false; // Add STT dropdown
       mobileSttOpen = false; // Add mobile STT dropdown
+      catalogueOpen = false; // Add catalogue dropdown
+      mobileCatalogueOpen = false; // Add mobile catalogue dropdown
     };
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
@@ -192,6 +199,10 @@
               </div>
             {/if}
           </div>
+          <!-- Catalogue -->
+          <a href="{base}/catalogue" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">
+            Catalogue
+          </a>
           <!-- Orders Dropdown -->
           <div class="relative orders-dropdown">
             <button 
@@ -502,6 +513,7 @@
     {#if mobileMenuOpen}
       <div class="md:hidden bg-gray-900 border-t border-gray-800 px-2 pt-2 pb-3 space-y-1">
         <a href="{base}/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Home</a>
+        <a href="{base}/catalogue" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Catalogue</a>
         <!-- Mobile Products Dropdown -->
         <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileProductsOpen = !mobileProductsOpen}>
           <span>Products</span>

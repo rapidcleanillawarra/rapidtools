@@ -95,6 +95,7 @@
       docket_ready: [],
       quoted: [],
       repaired: [],
+      return: [],
       waiting_approval_po: [],
       waiting_for_parts: [],
       booked_in_for_repair_service: [],
@@ -467,21 +468,6 @@
             />
 
             <StatusColumn
-              status="repaired"
-              title="Repaired"
-              workshops={workshopsByStatus.repaired}
-              {loadedPhotos}
-              {failedPhotos}
-              {draggedWorkshopId}
-              {recentlyMovedWorkshopId}
-              on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
-              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
-              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
-              on:dragstart={handleWorkshopDragStart}
-              on:drop={handleWorkshopDrop}
-            />
-
-            <StatusColumn
               status="waiting_approval_po"
               title="WAITING APPROVAL PO"
               workshops={workshopsByStatus.waiting_approval_po}
@@ -530,6 +516,21 @@
               status="repaired"
               title="Repaired"
               workshops={workshopsByStatus.repaired}
+              {loadedPhotos}
+              {failedPhotos}
+              {draggedWorkshopId}
+              {recentlyMovedWorkshopId}
+              on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
+            />
+
+            <StatusColumn
+              status="return"
+              title="Return"
+              workshops={workshopsByStatus.return}
               {loadedPhotos}
               {failedPhotos}
               {draggedWorkshopId}

@@ -16,6 +16,21 @@
   userProfile.subscribe((p) => {
     profile = p;
   });
+
+  // Function to print catalogue with JSON data
+  async function printCatalogue() {
+    try {
+      // Fetch the catalogue data from the JSON file
+      const response = await fetch('/catalogue-data.json');
+      const catalogueData = await response.json();
+      const encodedData = encodeURIComponent(JSON.stringify(catalogueData));
+      window.open(`/catalogue/print?data=${encodedData}`, '_blank');
+    } catch (error) {
+      console.error('Error loading catalogue data:', error);
+      // Fallback: redirect without data
+      window.open('/catalogue/print', '_blank');
+    }
+  }
 </script>
 
 <div class="container mx-auto px-4 py-8" in:fade>
@@ -46,7 +61,15 @@
       </div>
 
       <div id="page-content" class="px-6 py-8">
-        <h2 id="product-range" class="text-3xl font-bold text-[rgb(148,186,77)] underline text-center mb-8">CLEANING AND LAUNDRY SOLUTIONS</h2>
+        <div class="flex justify-between items-center mb-8">
+          <h2 id="product-range" class="text-3xl font-bold text-[rgb(148,186,77)] underline">CLEANING AND LAUNDRY SOLUTIONS</h2>
+          <button
+            on:click={printCatalogue}
+            class="bg-[rgb(148,186,77)] text-white px-6 py-3 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold"
+          >
+            Print Catalogue
+          </button>
+        </div>
 
         <div class="bg-[rgb(30,30,30)] text-white p-3 rounded-lg mb-8">
           <h3 class="text-xl font-semibold">Washroom Cleaner</h3>

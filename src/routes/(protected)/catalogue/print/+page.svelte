@@ -1,6 +1,20 @@
-<script>
+<script lang="ts">
+    import type { PageData } from './$types';
+
+    export let data: PageData;
+
     function printPage() {
         window.print();
+    }
+
+    // Helper function to get certification icon URL
+    function getCertificationIcon(certification: string): string {
+        const iconMap: Record<string, string> = {
+            environmentally_friendly: "https://www.rapidsupplies.com.au/assets/images/environmentally_friendly.png",
+            food_safe: "https://www.rapidsupplies.com.au/assets/images/food_safe.png",
+            recognized: "https://www.rapidsupplies.com.au/assets/images/recognized.png"
+        };
+        return iconMap[certification] || "";
     }
 </script>
 
@@ -61,7 +75,7 @@
         .page-header {
             background: #000;
             color: white;
-            padding: 20px;
+            padding: 10px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -127,7 +141,9 @@
             display: grid;
             grid-template-columns: 1fr 2fr;
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
+            min-height: 200px;
+            max-height: 200px;
         }
 
         .product-image-section {
@@ -162,26 +178,26 @@
             color: white;
             border-radius: 8px;
             padding: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
         .product-name {
-            font-size: 12pt;
+            font-size: 9pt;
             font-weight: bold;
         }
 
         .product-price {
-            font-size: 12pt;
+            font-size: 9pt;
             font-weight: bold;
         }
 
         .product-description-section {
             background: #f9f9f9;
             border-radius: 8px;
-            padding: 16px;
+            padding: 10px;
         }
 
         .description-header {
@@ -192,7 +208,7 @@
         }
 
         .description-title {
-            font-size: 12pt;
+            font-size: 9pt;
             font-weight: bold;
             color: #555;
             margin: 0;
@@ -203,7 +219,7 @@
         .description-text {
             font-size: 9pt;
             color: #666;
-            line-height: 1.5;
+            line-height: 1.2;
         }
 
         .print-button {
@@ -223,6 +239,10 @@
 
         .print-button:hover {
             background: #7a9a3d;
+        }
+
+        .page-break {
+            page-break-before: always;
         }
 
         @media print {
@@ -259,6 +279,7 @@
 
 <button class="print-button" on:click={printPage}>Print Catalogue</button>
 <div class="container">
+    {#each data.catalogueData.productRanges as productRange, rangeIndex}
         <!-- Page Header -->
         <div class="page-header">
             <img
@@ -277,253 +298,72 @@
                         <span>orders@rapidcleanillawarra.com.au</span>
                     </div>
                 </div>
-                <span class="page-number">1</span>
+                <span class="page-number">{rangeIndex + 1}</span>
             </div>
         </div>
 
         <div class="page-header-content">
-            <h2 class="product-range-title">CLEANING AND LAUNDRY SOLUTIONS</h2>
+            <h2 class="product-range-title">{productRange.title}</h2>
+        </div>
 
+        {#each productRange.categories as category}
             <div class="category-header">
-                <h3 class="category-title">Washroom Cleaner</h3>
-            </div>
-        </div>
-
-        <!-- Product 1 -->
-        <div class="product-grid">
-            <div class="product-image-section">
-                <!-- Product Image -->
-                <img
-                    src="https://www.rapidsupplies.com.au/assets/full/140370.jpg?20240719121930&1759111621806"
-                    alt="Washroom Cleaner Product"
-                    class="product-image"
-                />
+                <h3 class="category-title">{category.name}</h3>
             </div>
 
-            <div>
-                <!-- Product Name and Price -->
-                <div class="product-details">
-                    <h4 class="product-name">HI-GENIC H4</h4>
-                    <div class="product-price">$29.99</div>
-                </div>
+            {#each category.products as product, productIndex}
+                <!-- Product Grid -->
+                <div class="product-grid">
+                    <div class="product-image-section">
+                        {#if product.image}
+                            <img
+                                src={product.image}
+                                alt="{product.name} Product"
+                                class="product-image"
+                            />
+                        {:else}
+                            <div class="image-placeholder">
+                                Product Image
+                            </div>
+                        {/if}
+                    </div>
 
-                <!-- Product Description -->
-                <div class="product-description-section">
-                    <div class="description-header">
-                        <h5 class="description-title">Product Description</h5>
-                        <!-- Tags and Certifications -->
-                        <div class="certifications">
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/environmentally_friendly.png"
-                                alt="Environmentally Friendly"
-                                class="certification-img"
-                            />
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/food_safe.png"
-                                alt="Food Safe"
-                                class="certification-img"
-                            />
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/recognized.png"
-                                alt="Recognized"
-                                class="certification-img"
-                            />
+                    <div>
+                        <!-- Product Name and Price -->
+                        <div class="product-details">
+                            <h4 class="product-name">{product.name}</h4>
+                            <div class="product-price">{product.price}</div>
+                        </div>
+
+                        <!-- Product Description -->
+                        <div class="product-description-section">
+                            <div class="description-header">
+                                <h5 class="description-title">Product Description</h5>
+                                <!-- Tags and Certifications -->
+                                {#if product.certifications && product.certifications.length > 0}
+                                    <div class="certifications">
+                                        {#each product.certifications as certification}
+                                            <img
+                                                src={getCertificationIcon(certification)}
+                                                alt={certification.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                class="certification-img"
+                                            />
+                                        {/each}
+                                    </div>
+                                {/if}
+                            </div>
+                            <p class="description-text">
+                                {product.description}
+                            </p>
                         </div>
                     </div>
-                    <p class="description-text">
-                        Hi-Genic is formulated using safe acids and anionic surfactants: a combination that has proven to be the least corrosive to all metals yet gives excellent performance. The regular use of Hi-Genic brightens stainless steel and porcelain surfaces. Hi-Genic Washroom Cleaner can be used safely on a wide variety of surfaces including stainless steel and porcelain toilet bowls, urinals and stone bench tops.
-                    </p>
                 </div>
-            </div>
-        </div>
+            {/each}
+        {/each}
 
-        <!-- Product 2 -->
-        <div class="product-grid">
-            <div class="product-image-section">
-                <!-- Product Image -->
-                <div class="image-placeholder">
-                    Product Image
-                </div>
-            </div>
-
-            <div>
-                <!-- Product Name and Price -->
-                <div class="product-details">
-                    <h4 class="product-name">DEEP CLEAN PRO</h4>
-                    <div class="product-price">$34.50</div>
-                </div>
-
-                <!-- Product Description -->
-                <div class="product-description-section">
-                    <div class="description-header">
-                        <h5 class="description-title">Product Description</h5>
-                        <!-- Tags and Certifications -->
-                        <div class="certifications">
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/environmentally_friendly.png"
-                                alt="Environmentally Friendly"
-                                class="certification-img"
-                            />
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/food_safe.png"
-                                alt="Food Safe"
-                                class="certification-img"
-                            />
-                        </div>
-                    </div>
-                    <p class="description-text">
-                        Deep Clean Pro is a heavy-duty cleaner designed for tough industrial applications. Its powerful formula penetrates deep into surfaces to remove stubborn stains, grease, and grime. Perfect for manufacturing facilities, garages, and heavy equipment maintenance.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Product 3 -->
-        <div class="product-grid">
-            <div class="product-image-section">
-                <!-- Product Image -->
-                <div class="image-placeholder">
-                    Product Image
-                </div>
-            </div>
-
-            <div>
-                <!-- Product Name and Price -->
-                <div class="product-details">
-                    <h4 class="product-name">SHINE MASTER</h4>
-                    <div class="product-price">$24.99</div>
-                </div>
-
-                <!-- Product Description -->
-                <div class="product-description-section">
-                    <div class="description-header">
-                        <h5 class="description-title">Product Description</h5>
-                        <!-- Tags and Certifications -->
-                        <div class="certifications">
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/recognized.png"
-                                alt="Recognized"
-                                class="certification-img"
-                            />
-                        </div>
-                    </div>
-                    <p class="description-text">
-                        Shine Master polish and protectant restores luster to metal surfaces while providing long-lasting protection against corrosion and fingerprints. Ideal for brass, chrome, and stainless steel fixtures in commercial and residential settings.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Repeating Header for Page 2 -->
-        <div class="repeat-header">
-            <!-- Page Header -->
-            <div class="page-header">
-                <img
-                    src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-                    alt="Rapid Supplies Logo"
-                    class="logo"
-                />
-                <div class="contact-info">
-                    <div class="contact-item">
-                        <span>📞</span>
-                        <span>4227 2833</span>
-                    </div>
-                    <div class="contact-item">
-                        <span>📧</span>
-                        <span>orders@rapidcleanillawarra.com.au</span>
-                    </div>
-                </div>
-                <span class="page-number">2</span>
-            </div>
-
-            <div class="page-header-content">
-                <h2 class="product-range-title">CLEANING AND LAUNDRY SOLUTIONS</h2>
-
-                <div class="category-header">
-                    <h3 class="category-title">Washroom Cleaner</h3>
-                </div>
-            </div>
-        </div>
-
-        <!-- Product 4 -->
-        <div class="product-grid">
-            <div class="product-image-section">
-                <!-- Product Image -->
-                <div class="image-placeholder">
-                    Product Image
-                </div>
-            </div>
-
-            <div>
-                <!-- Product Name and Price -->
-                <div class="product-details">
-                    <h4 class="product-name">FLOOR GUARD</h4>
-                    <div class="product-price">$39.99</div>
-                </div>
-
-                <!-- Product Description -->
-                <div class="product-description-section">
-                    <div class="description-header">
-                        <h5 class="description-title">Product Description</h5>
-                        <!-- Tags and Certifications -->
-                        <div class="certifications">
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/environmentally_friendly.png"
-                                alt="Environmentally Friendly"
-                                class="certification-img"
-                            />
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/food_safe.png"
-                                alt="Food Safe"
-                                class="certification-img"
-                            />
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/recognized.png"
-                                alt="Recognized"
-                                class="certification-img"
-                            />
-                        </div>
-                    </div>
-                    <p class="description-text">
-                        Floor Guard provides superior protection for all types of flooring including tile, concrete, and vinyl. This sealant creates an invisible barrier that repels water, oil, and stains while maintaining the natural appearance of your floors.
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Product 5 -->
-        <div class="product-grid">
-            <div class="product-image-section">
-                <!-- Product Image -->
-                <div class="image-placeholder">
-                    Product Image
-                </div>
-            </div>
-
-            <div>
-                <!-- Product Name and Price -->
-                <div class="product-details">
-                    <h4 class="product-name">QUICK DRY</h4>
-                    <div class="product-price">$19.99</div>
-                </div>
-
-                <!-- Product Description -->
-                <div class="product-description-section">
-                    <div class="description-header">
-                        <h5 class="description-title">Product Description</h5>
-                        <!-- Tags and Certifications -->
-                        <div class="certifications">
-                            <img
-                                src="https://www.rapidsupplies.com.au/assets/images/food_safe.png"
-                                alt="Food Safe"
-                                class="certification-img"
-                            />
-                        </div>
-                    </div>
-                    <p class="description-text">
-                        Quick Dry is a fast-evaporating cleaner that leaves no residue. Perfect for glass surfaces, mirrors, and stainless steel appliances. Its alcohol-based formula dries quickly, eliminating streaks and spots for a crystal-clear finish.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+        <!-- Add page break for next product range if not the last one -->
+        {#if rangeIndex < data.catalogueData.productRanges.length - 1}
+            <div class="page-break"></div>
+        {/if}
+    {/each}
+</div>

@@ -199,10 +199,54 @@
               </div>
             {/if}
           </div>
-          <!-- Catalogue -->
-          <a href="{base}/catalogue" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">
-            Catalogue
-          </a>
+          <!-- Catalogue Dropdown -->
+          <div class="relative catalogue-dropdown">
+            <button
+              type="button"
+              class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1 flex items-center gap-1 focus:outline-none"
+              on:click|stopPropagation={() => {
+                catalogueOpen = !catalogueOpen;
+                if (catalogueOpen) {
+                  productsOpen = false;
+                  ordersOpen = false;
+                  shippingOpen = false;
+                  proMaxOpen = false;
+                  workshopOpen = false;
+                  sttOpen = false;
+                }
+              }}
+            >
+              Catalogue
+              <svg
+                class="w-4 h-4 ml-1 transform transition-transform duration-200"
+                class:rotate-180={catalogueOpen}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            {#if catalogueOpen}
+              <div
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                transition:fade
+              >
+                <div class="py-1.5">
+                  <a
+                    href="{base}/catalogue"
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => catalogueOpen = false}
+                  >View Catalogue</a>
+                  <a
+                    href="{base}/catalogue/print"
+                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
+                    on:click={() => catalogueOpen = false}
+                  >Print Catalogue</a>
+                </div>
+              </div>
+            {/if}
+          </div>
           <!-- Orders Dropdown -->
           <div class="relative orders-dropdown">
             <button 
@@ -513,7 +557,25 @@
     {#if mobileMenuOpen}
       <div class="md:hidden bg-gray-900 border-t border-gray-800 px-2 pt-2 pb-3 space-y-1">
         <a href="{base}/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Home</a>
-        <a href="{base}/catalogue" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Catalogue</a>
+        <!-- Mobile Catalogue Dropdown -->
+        <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileCatalogueOpen = !mobileCatalogueOpen}>
+          <span>Catalogue</span>
+          <svg class="w-4 h-4 ml-1 transform transition-transform duration-200" class:rotate-180={mobileCatalogueOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        {#if mobileCatalogueOpen}
+          <div class="pl-4 space-y-1 bg-gray-800/50 mt-1">
+            <a
+              href="{base}/catalogue"
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileCatalogueOpen = false}
+            >View Catalogue</a>
+            <a
+              href="{base}/catalogue/print"
+              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
+              on:click={() => mobileCatalogueOpen = false}
+            >Print Catalogue</a>
+          </div>
+        {/if}
         <!-- Mobile Products Dropdown -->
         <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileProductsOpen = !mobileProductsOpen}>
           <span>Products</span>

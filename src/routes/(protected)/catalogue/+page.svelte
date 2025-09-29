@@ -45,83 +45,58 @@
         </div>
       </div>
 
-      <div class="px-6 py-8">
-        <div class="grid md:grid-cols-2 gap-8">
-          <div class="bg-gray-50 p-6 rounded-lg">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">🛍️ Browse Products</h2>
-            <p class="text-gray-600 mb-4">
-              Explore our extensive range of cleaning and laundry solutions, organized by category and brand.
-            </p>
-            <ul class="space-y-2 text-gray-600">
-              <li class="flex items-center">
-                <span class="text-green-500 mr-2">✓</span>
-                Search and filter products
-              </li>
-              <li class="flex items-center">
-                <span class="text-green-500 mr-2">✓</span>
-                View detailed specifications
-              </li>
-              <li class="flex items-center">
-                <span class="text-green-500 mr-2">✓</span>
-                Compare prices and options
-              </li>
-            </ul>
-          </div>
+      <div id="page-content" class="px-6 py-8">
+        <h2 id="product-range" class="text-3xl font-bold text-[rgb(148,186,77)] underline text-center mb-8">CLEANING AND LAUNDRY SOLUTIONS</h2>
 
-          <div class="bg-gray-50 p-6 rounded-lg">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">📊 Product Information</h2>
-            <p class="text-gray-600 mb-4">
-              Access comprehensive product data including pricing, availability, and technical details.
-            </p>
-            <ul class="space-y-2 text-gray-600">
-              <li class="flex items-center">
-                <span class="text-blue-500 mr-2">✓</span>
-                Real-time pricing information
-              </li>
-              <li class="flex items-center">
-                <span class="text-blue-500 mr-2">✓</span>
-                Stock availability status
-              </li>
-              <li class="flex items-center">
-                <span class="text-blue-500 mr-2">✓</span>
-                Detailed product specifications
-              </li>
-            </ul>
-          </div>
+        <div class="bg-[rgb(30,30,30)] text-white p-3 rounded-lg mb-8">
+          <h3 class="text-xl font-semibold">Washroom Cleaner</h3>
         </div>
 
-        <div class="mt-8 text-center">
-          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-yellow-800 mb-2">🚧 Coming Soon</h3>
-            <p class="text-yellow-700">
-              The full catalogue functionality is currently under development. This page will soon include:
-            </p>
-            <div class="mt-4 grid md:grid-cols-3 gap-4 text-sm text-yellow-700">
-              <div>
-                <strong>Advanced Search</strong><br>
-                Filter by brand, category, price range
+        <div id="category-content" class="grid grid-cols-12 gap-4 mb-8">
+          <div class="col-span-4">
+            <!-- Product Image -->
+            <div class="bg-gray-100 rounded-lg p-4 text-center mb-4">
+              <div class="w-full h-32 bg-gray-200 rounded flex items-center justify-center text-gray-500">
+                Product Image
               </div>
-              <div>
-                <strong>Product Comparison</strong><br>
-                Compare multiple products side-by-side
-              </div>
-              <div>
-                <strong>Bulk Actions</strong><br>
-                Export data and bulk operations
-              </div>
+            </div>
+
+            <!-- Tags and Certifications -->
+            <div class="grid grid-cols-3 gap-2">
+              <img
+                src="https://www.rapidsupplies.com.au/assets/images/recognized.png"
+                alt="Recognized"
+                class="w-full h-auto"
+              />
+              <img
+                src="https://www.rapidsupplies.com.au/assets/images/environmentally_friendly.png"
+                alt="Environmentally Friendly"
+                class="w-full h-auto"
+              />
+              <img
+                src="https://www.rapidsupplies.com.au/assets/images/food_safe.png"
+                alt="Food Safe"
+                class="w-full h-auto"
+              />
+            </div>
+          </div>
+          <div class="col-span-8">
+            <!-- Product Name -->
+            <div class="bg-[rgb(148,186,77)] text-white rounded-lg p-4 mb-4 flex justify-between items-center">
+              <h4 class="text-lg font-semibold">Product Name</h4>
+              <div class="text-xl font-bold">$29.99</div>
+            </div>
+
+            <!-- Product Description -->
+            <div class="bg-gray-50 rounded-lg p-4">
+              <h5 class="text-md font-medium text-gray-700 mb-2">Product Description</h5>
+              <p class="text-gray-600 leading-relaxed">
+                Detailed product description will go here. This section will contain comprehensive information about the product's features, specifications, usage instructions, and benefits. The description should provide all the necessary details that customers need to make an informed purchasing decision.
+              </p>
             </div>
           </div>
         </div>
 
-        {#if user && profile}
-          <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 class="text-lg font-semibold text-blue-800 mb-2">👤 Welcome, {profile.firstName}!</h3>
-            <p class="text-blue-700">
-              You're logged in as {profile.firstName} {profile.lastName} ({user.email}).
-              The catalogue will show personalized pricing based on your account settings.
-            </p>
-          </div>
-        {/if}
       </div>
     </div>
   </div>

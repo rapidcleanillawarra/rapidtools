@@ -252,6 +252,9 @@
     ? 'bg-purple-100 text-purple-800'
     : 'bg-green-100 text-green-800';
 
+  // Determine if pickup schedule is required (new jobs with Site location)
+  $: isPickupScheduleRequired = (workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site';
+
 
   // Check referrer to determine if user came from camera page
   $: if (typeof window !== 'undefined') {
@@ -400,11 +403,14 @@
     // Reset previous states
 
     // Validate required fields using validation utility
+    const isNewPickupJob = (workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site';
     const validation = validateWorkshopForm({
       productName,
       customerName,
       locationOfRepair,
-      siteLocation
+      siteLocation,
+      pickupSchedule,
+      isNewPickupJob
     });
 
     if (!validation.isValid) {
@@ -499,11 +505,14 @@
     // Reset previous states
 
     // Validate required fields using validation utility
+    const isNewPickupJob = (workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site';
     const validation = validateWorkshopForm({
       productName,
       customerName,
       locationOfRepair,
-      siteLocation
+      siteLocation,
+      pickupSchedule,
+      isNewPickupJob
     });
 
     if (!validation.isValid) {
@@ -777,34 +786,40 @@
     // ============================================
     // Brand new jobs that haven't been saved yet
     if (workshopStatus === 'new') {
+      // Special case: If location is Site, this becomes a pickup job
+      const isPickupJob = locationOfRepair === 'Site';
+
       return {
         canEditMachineInfo: true,   // Can edit everything for new jobs
         canEditUserInfo: true,
         canEditContacts: true,
         canCreateOrder: false,      // New jobs don't create orders until submitted
-        canPickup: false,          // New jobs aren't pickups
-        buttonText: 'To be Quoted',
+        canPickup: isPickupJob,     // Site repairs are pickup jobs
+        buttonText: isPickupJob ? 'Pickup →' : 'To be Quoted',
         statusDisplay: 'New',
         priority: 2
       };
     }
 
-    // ============================================
-    // PRIORITY 3: BRAND NEW FORMS (No existing workshop)
-    // ============================================
-    // Forms that are being created from scratch (no workshop_id in URL)
-    if (!existingWorkshopId) {
-      return {
-        canEditMachineInfo: true,   // Can edit everything for new forms
-        canEditUserInfo: true,
-        canEditContacts: true,
-        canCreateOrder: false,      // New forms don't create orders until submitted
-        canPickup: false,          // New forms aren't pickups
-        buttonText: 'Create Job',
-        statusDisplay: 'New',
-        priority: 3
-      };
-    }
+  // ============================================
+  // PRIORITY 3: BRAND NEW FORMS (No existing workshop)
+  // ============================================
+  // Forms that are being created from scratch (no workshop_id in URL)
+  if (!existingWorkshopId) {
+    // Special case: If location is Site, this becomes a pickup job
+    const isPickupJob = locationOfRepair === 'Site';
+
+    return {
+      canEditMachineInfo: true,   // Can edit everything for new forms
+      canEditUserInfo: true,
+      canEditContacts: true,
+      canCreateOrder: false,      // New forms don't create orders until submitted
+      canPickup: isPickupJob,     // Site repairs are pickup jobs
+      buttonText: isPickupJob ? 'Pickup →' : 'Create Job',
+      statusDisplay: 'New',
+      priority: 3
+    };
+  }
 
     // ============================================
     // PRIORITY 4: TO BE QUOTED STATUS
@@ -1159,7 +1174,12 @@
             </div>
 
             <div class="md:col-span-2">
-              <label class="block text-sm font-medium text-gray-700 mb-1" for="pickup-schedule">Pickup Schedule</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="pickup-schedule">
+                Pickup Schedule
+                {#if isPickupScheduleRequired}
+                  <span class="text-red-500">*</span>
+                {/if}
+              </label>
               <input
                 id="pickup-schedule"
                 type="datetime-local"

@@ -22,7 +22,7 @@
   }
 </script>
 
-<Modal {show} onClose={handleClose}>
+<Modal {show} allowClose={false}>
   <div slot="header" class="text-center">
     <h3 class="text-lg font-medium text-gray-900">
       {#if isPickup}
@@ -49,10 +49,6 @@
         </div>
       </div>
     {/if}
-
-    <p class="text-sm text-gray-600 mb-6">
-      What would you like to do next?
-    </p>
 
     <div class="flex justify-center">
       <button

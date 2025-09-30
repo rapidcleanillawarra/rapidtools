@@ -12,6 +12,8 @@ export interface WorkshopFormData {
   customerName: string;
   locationOfRepair: string;
   siteLocation?: string;
+  pickupSchedule?: string;
+  isNewPickupJob?: boolean;
 }
 
 /**
@@ -51,14 +53,34 @@ export function validateSiteLocation(locationOfRepair: string, siteLocation?: st
 }
 
 /**
+ * Validates pickup schedule when it's a new pickup job
+ */
+export function validatePickupSchedule(isNewPickupJob: boolean, pickupSchedule?: string): ValidationResult {
+  const errors: string[] = [];
+
+  if (isNewPickupJob && (!pickupSchedule || !pickupSchedule.trim())) {
+    errors.push('Pickup Schedule is required for new pickup jobs');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+}
+
+/**
  * Comprehensive form validation combining all validation rules
  */
 export function validateWorkshopForm(formData: WorkshopFormData): ValidationResult {
   const requiredValidation = validateRequiredFields(formData);
   const siteLocationValidation = validateSiteLocation(formData.locationOfRepair, formData.siteLocation);
+  const pickupScheduleValidation = validatePickupSchedule(
+    formData.isNewPickupJob || false,
+    formData.pickupSchedule
+  );
 
   return {
-    isValid: requiredValidation.isValid && siteLocationValidation.isValid,
-    errors: [...requiredValidation.errors, ...siteLocationValidation.errors]
+    isValid: requiredValidation.isValid && siteLocationValidation.isValid && pickupScheduleValidation.isValid,
+    errors: [...requiredValidation.errors, ...siteLocationValidation.errors, ...pickupScheduleValidation.errors]
   };
 }

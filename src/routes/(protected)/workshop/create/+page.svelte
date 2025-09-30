@@ -158,6 +158,9 @@
   // Pickup submission modal state
   let showPickupSubmissionModal = false;
 
+  // Pickup status change modal state (for new pickup jobs)
+  let showPickupStatusChangeModal = false;
+
   // Customer data from API
   let customerApiData: any = null;
   // Order data from API
@@ -636,13 +639,14 @@
       isPickupSubmission,
       existingWorkshopId,
       workshopStatus,
+      locationOfRepair,
       currentJobStatus: currentJobStatus.buttonText
     });
 
-    if (isPickupSubmission) {
-      // For pickup submissions, set status to "pickup"
+    // Simple logic: if current status is new and location is Site, set to pickup
+    if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
       (formData as any).status = 'pickup';
-      console.log('Setting workshop status to pickup for pickup submission');
+      console.log('Setting workshop status to pickup for new Site job');
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -653,13 +657,10 @@
       const newStatus = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
       (formData as any).status = newStatus;
       console.log(`Updating workshop status from to_be_quoted to ${newStatus}`);
-    } else if (!existingWorkshopId || (existingWorkshopId && workshopStatus === 'new')) {
-      // For regular submissions, set status to "to_be_quoted"
+    } else {
+      // Default: set to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
-      console.log(existingWorkshopId
-        ? 'Updating workshop status from new to to_be_quoted'
-        : 'Setting new workshop status to to_be_quoted'
-      );
+      console.log('Setting workshop status to to_be_quoted (default)');
     }
 
     console.log('Final formData status:', (formData as any).status);
@@ -679,10 +680,9 @@
         const wasToBeQuoted = existingWorkshopId && workshopStatus === 'to_be_quoted';
         const hadExistingOrder = !shouldCreateOrder && isUpdate;
 
-        if (isPickupSubmission) {
-          successMessage = isUpdate
-            ? 'Workshop updated successfully and ready to be quoted!'
-            : 'Workshop created successfully and ready to be quoted!';
+        // Set success message based on status change
+        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
+          successMessage = 'Workshop created successfully as a pickup job!';
         } else if (wasPickupJob) {
           successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
         } else {
@@ -698,12 +698,12 @@
         // Show toast notification
         toastSuccess(successMessage);
 
-        if (wasPickupJob) {
+        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
+          // For new pickup submissions, show the pickup status change modal that forces workshop board navigation
+          showPickupStatusChangeModal = true;
+        } else if (wasPickupJob) {
           // For pickup job submissions, show the pickup submission modal
           showPickupSubmissionModal = true;
-        } else if (isPickupSubmission) {
-          // For pickup submissions, always show the post-submission modal with View Job Status option
-          showPostSubmissionModal = true;
         } else if (isUpdate) {
           // For regular updates, show the regular success modal
           showSuccessModal = true;
@@ -977,6 +977,12 @@
 
   function closePickupSubmissionModal() {
     showPickupSubmissionModal = false;
+  }
+
+  function closePickupStatusChangeModal() {
+    showPickupStatusChangeModal = false;
+    // Force navigation to workshop board
+    navigateToWorkshopBoard();
   }
 
   // Photo viewer functions
@@ -1672,6 +1678,56 @@
             class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Pickup Status Change Modal (for new pickup jobs) -->
+  {#if showPickupStatusChangeModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Pickup Job Created</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            Your workshop job has been successfully created as a pickup job. The equipment is scheduled for collection and will be brought to the workshop for repair.
+          </p>
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                  <strong>Next Step:</strong> Monitor the workshop board to track when the equipment arrives and the job status updates.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closePickupStatusChangeModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Go to Workshop Board
           </button>
         </div>
       </div>

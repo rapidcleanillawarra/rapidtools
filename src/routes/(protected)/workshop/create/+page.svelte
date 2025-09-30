@@ -145,12 +145,18 @@
   // Post-submission modal state (for new job creation)
   let showPostSubmissionModal = false;
 
-  // Track if current submission is a pickup
-  let isPickupSubmission = false;
+    // Track if current submission is a pickup
+    let isPickupSubmission = false;
+
+    // Track if this was originally a pickup job
+    let wasPickupJob = false;
 
   // Incomplete contact modal state
   let showIncompleteContactModal = false;
   let pendingAction: (() => void) | null = null;
+
+  // Pickup submission modal state
+  let showPickupSubmissionModal = false;
 
   // Customer data from API
   let customerApiData: any = null;
@@ -631,6 +637,7 @@
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
+      wasPickupJob = true;
       console.log('Updating workshop status from pickup to to_be_quoted');
     } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
       // For existing "to_be_quoted" jobs, change status based on Quote/Repair selection
@@ -667,6 +674,8 @@
           successMessage = isUpdate
             ? 'Workshop updated successfully and ready to be quoted!'
             : 'Workshop created successfully and ready to be quoted!';
+        } else if (wasPickupJob) {
+          successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
         } else {
           successMessage = isUpdate
             ? wasToBeQuoted
@@ -680,7 +689,10 @@
         // Show toast notification
         toastSuccess(successMessage);
 
-        if (isPickupSubmission) {
+        if (wasPickupJob) {
+          // For pickup job submissions, show the pickup submission modal
+          showPickupSubmissionModal = true;
+        } else if (isPickupSubmission) {
           // For pickup submissions, always show the post-submission modal with View Job Status option
           showPostSubmissionModal = true;
         } else if (isUpdate) {
@@ -699,6 +711,8 @@
       })
       .finally(() => {
         isSubmitting = false;
+        // Reset pickup job flag
+        wasPickupJob = false;
       });
   }
 
@@ -939,6 +953,15 @@
   function navigateToJobStatus() {
     // Navigate to workshop job status page (don't reset form since we're navigating away)
     window.location.href = `${base}/workshop/job-status`;
+  }
+
+  function navigateToWorkshopBoard() {
+    // Navigate to workshop board page (don't reset form since we're navigating away)
+    window.location.href = `${base}/workshop/workshop-board`;
+  }
+
+  function closePickupSubmissionModal() {
+    showPickupSubmissionModal = false;
   }
 
   // Photo viewer functions
@@ -1308,7 +1331,7 @@
         </div>
 
         <!-- Optional Contacts -->
-        {#if optionalContacts.length > 0 || workshopStatus === 'to_be_quoted'}
+        {#if optionalContacts.length > 0 || workshopStatus === 'to_be_quoted' || workshopStatus === 'new'}
           <div>
           <div
             class="flex items-center justify-between px-4 py-3 rounded cursor-pointer hover:bg-gray-700 transition-colors {!currentJobStatus.canEditContacts ? 'cursor-not-allowed opacity-75' : ''}"
@@ -1598,6 +1621,42 @@
     on:close={closePhotoViewer}
     on:photoIndexChanged={({ detail }) => currentPhotoIndex = detail.index}
   />
+
+  <!-- Pickup Submission Modal -->
+  {#if showPickupSubmissionModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Pickup Job Submitted</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600">
+            Your pickup job has been successfully submitted and is now ready to be quoted. The job status has been updated to "To Be Quoted".
+          </p>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={navigateToWorkshopBoard}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 
 

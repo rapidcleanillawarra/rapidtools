@@ -59,6 +59,24 @@
       profile = p;
     });
 
+    // Helper function to check if SKU already exists in any catalogue
+    function skuExistsInCatalogue(skuContent: string): boolean {
+      for (const level1 of hierarchy) {
+        for (const level2 of level1.level2Items) {
+          for (const level3 of level2.level3Items) {
+            for (const item of level3.items) {
+              // Extract SKU from item content (remove the 📦 prefix)
+              const itemSku = item.content.replace('📦 ', '');
+              if (itemSku === skuContent) {
+                return true;
+              }
+            }
+          }
+        }
+      }
+      return false;
+    }
+
     // Function to print catalogue with JSON data
     async function printCatalogue() {
       try {
@@ -84,15 +102,18 @@
         draggedElement.style.opacity = '1';
         draggedElement = null;
       }
+      draggedOverElement = null;
     }
 
     function handleDragOver(event: DragEvent) {
       event.preventDefault();
-      draggedOverElement = event.target as HTMLElement;
+      draggedOverElement = event.currentTarget as HTMLElement;
     }
 
     function handleDrop(event: DragEvent) {
       event.preventDefault();
+      draggedOverElement = event.currentTarget as HTMLElement;
+
       if (draggedElement && draggedOverElement && draggedElement !== draggedOverElement) {
         const skuContent = draggedElement.dataset.sku;
         const toLevel1Id = parseInt(draggedOverElement.dataset.level1Id || '0');
@@ -236,6 +257,38 @@
 
     // Remove item from level 3 container
     function removeItem(level1Id: number, level2Id: number, level3Id: number, itemId: number) {
+      let removedItem: any = null;
+
+      // First, find the item to be removed
+      hierarchy.forEach(level1 => {
+        if (level1.id === level1Id) {
+          level1.level2Items.forEach(level2 => {
+            if (level2.id === level2Id) {
+              level2.level3Items.forEach(level3 => {
+                if (level3.id === level3Id) {
+                  level3.items.forEach(item => {
+                    if (item.id === itemId) {
+                      removedItem = item;
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+      });
+
+      // If we found the item, extract the SKU and add it back to the available list
+      if (removedItem) {
+        const skuContent = removedItem.content.replace('📦 ', '');
+        // Check if SKU is not already in the list before adding
+        if (!skuList.includes(skuContent)) {
+          skuList = [...skuList, skuContent];
+          toastInfo(`SKU "${skuContent}" returned to available list`, 'SKU Restored');
+        }
+      }
+
+      // Then remove the item from the hierarchy
       hierarchy = hierarchy.map(level1 => {
         if (level1.id === level1Id) {
           return {
@@ -267,22 +320,54 @@
     function processSKUs() {
       if (skuText.trim()) {
         // Split by newlines, commas, or spaces and filter out empty items
-        const processedSKUs = skuText
+        let processedSKUs = skuText
           .split(/[\n,]+/)
           .map(sku => sku.trim())
           .filter(sku => sku.length > 0);
 
-        skuList = processedSKUs;
+        // Filter out duplicates and SKUs that already exist in catalogues
+        const uniqueSKUs: string[] = [];
+        const duplicateSKUs: string[] = [];
+        const existingSKUs: string[] = [];
+
+        for (const sku of processedSKUs) {
+          if (uniqueSKUs.includes(sku)) {
+            duplicateSKUs.push(sku);
+          } else if (skuExistsInCatalogue(sku)) {
+            existingSKUs.push(sku);
+          } else {
+            uniqueSKUs.push(sku);
+          }
+        }
+
+        skuList = uniqueSKUs;
         skuText = ''; // Clear the textarea after processing
 
-        if (processedSKUs.length > 0) {
-          toastSuccess(`Processed ${processedSKUs.length} SKU${processedSKUs.length > 1 ? 's' : ''} successfully!`, 'SKUs Processed');
+        if (uniqueSKUs.length > 0) {
+          toastSuccess(`Processed ${uniqueSKUs.length} SKU${uniqueSKUs.length > 1 ? 's' : ''} successfully!`, 'SKUs Processed');
+        }
+
+        // Notify about duplicates and existing SKUs
+        if (duplicateSKUs.length > 0) {
+          toastWarning(`${duplicateSKUs.length} duplicate SKU${duplicateSKUs.length > 1 ? 's' : ''} removed: ${duplicateSKUs.join(', ')}`, 'Duplicates Removed');
+        }
+
+        if (existingSKUs.length > 0) {
+          toastWarning(`${existingSKUs.length} SKU${existingSKUs.length > 1 ? 's' : ''} already in catalogue: ${existingSKUs.join(', ')}`, 'SKUs Already Exist');
         }
       }
     }
 
     // Add SKU item to a catalogue
     function addSKUToCatalogue(level1Id: number, level2Id: number, skuContent: string) {
+      // Check if SKU already exists in any catalogue
+      if (skuExistsInCatalogue(skuContent)) {
+        toastWarning(`SKU "${skuContent}" already exists in catalogue`, 'Duplicate SKU');
+        // Remove from skuList if it exists there
+        skuList = skuList.filter(sku => sku !== skuContent);
+        return;
+      }
+
       hierarchy = hierarchy.map(level1 => {
         if (level1.id === level1Id) {
           return {
@@ -290,6 +375,7 @@
             level2Items: level1.level2Items.map(level2 => {
               if (level2.id === level2Id) {
                 let level3Items = [...level2.level3Items];
+
                 // If no level 3 containers exist, create one
                 if (level3Items.length === 0) {
                   level3Items = [{
@@ -298,14 +384,28 @@
                     items: []
                   }];
                 }
-                // Add SKU to the first level 3 container
-                level3Items[0] = {
-                  ...level3Items[0],
-                  items: [...level3Items[0].items, {
+
+                // Find the last level 3 container or create a new one if the last one is full (limit to 10 items per container)
+                let targetLevel3Index = level3Items.length - 1;
+                if (level3Items[targetLevel3Index].items.length >= 10) {
+                  // Create a new level 3 container
+                  level3Items = [...level3Items, {
+                    id: nextId++,
+                    title: 'Level 3',
+                    items: []
+                  }];
+                  targetLevel3Index = level3Items.length - 1;
+                }
+
+                // Add SKU to the target level 3 container
+                level3Items[targetLevel3Index] = {
+                  ...level3Items[targetLevel3Index],
+                  items: [...level3Items[targetLevel3Index].items, {
                     id: nextId++,
                     content: `📦 ${skuContent}`
                   }]
                 };
+
                 return {
                   ...level2,
                   level3Items
@@ -317,6 +417,7 @@
         }
         return level1;
       });
+
       // Remove the SKU from the list
       skuList = skuList.filter(sku => sku !== skuContent);
 
@@ -363,6 +464,31 @@
 
       // Then, add the item to the target catalogue
       if (itemToMove) {
+        // Extract SKU from the item content
+        const itemSku = itemToMove.content.replace('📦 ', '');
+
+        // Check if this SKU already exists in the target catalogue (but not in the same location we're moving from)
+        let skuExistsInTarget = false;
+        hierarchy.forEach(level1 => {
+          level1.level2Items.forEach(level2 => {
+            // Skip the source catalogue if it's the same one
+            if (!(level1.id === fromLevel1Id && level2.id === fromLevel2Id)) {
+              level2.level3Items.forEach(level3 => {
+                level3.items.forEach(item => {
+                  const existingSku = item.content.replace('📦 ', '');
+                  if (existingSku === itemSku) {
+                    skuExistsInTarget = true;
+                  }
+                });
+              });
+            }
+          });
+        });
+
+        if (skuExistsInTarget) {
+          toastWarning(`SKU "${itemSku}" already exists in target catalogue`, 'Duplicate SKU');
+          return;
+        }
         hierarchy = hierarchy.map(level1 => {
           if (level1.id === toLevel1Id) {
             return {
@@ -378,10 +504,23 @@
                       items: []
                     }];
                   }
-                  // Add item to the first level 3 container
-                  level3Items[0] = {
-                    ...level3Items[0],
-                    items: [...level3Items[0].items, itemToMove]
+
+                  // Find the last level 3 container or create a new one if the last one is full (limit to 10 items per container)
+                  let targetLevel3Index = level3Items.length - 1;
+                  if (level3Items[targetLevel3Index].items.length >= 10) {
+                    // Create a new level 3 container
+                    level3Items = [...level3Items, {
+                      id: nextId++,
+                      title: 'Level 3',
+                      items: []
+                    }];
+                    targetLevel3Index = level3Items.length - 1;
+                  }
+
+                  // Add item to the target level 3 container
+                  level3Items[targetLevel3Index] = {
+                    ...level3Items[targetLevel3Index],
+                    items: [...level3Items[targetLevel3Index].items, itemToMove]
                   };
                   return {
                     ...level2,
@@ -404,27 +543,8 @@
     <div class="max-w-4xl mx-auto">
       <div class="bg-white shadow-lg rounded-lg overflow-hidden">
         <!-- Page Header -->
-        <div class="pl-8 pr-4 py-8 bg-black text-white flex items-center justify-between">
-          <img
-            src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-            alt="Rapid Supplies Logo"
-            class="h-12 w-auto"
-          />
-          <div class="text-center">
-          </div>
-          <div class="text-right flex items-center space-x-4">
-            <div class="text-sm text-left space-y-1">
-              <div class="flex items-center space-x-2">
-                <span>📞</span>
-                <span>4227 2833</span>
-              </div>
-              <div class="flex items-center space-x-2">
-                <span>📧</span>
-                <span>orders@rapidcleanillawarra.com.au</span>
-              </div>
-            </div>
-            <span class="text-4xl font-bold text-white">1</span>
-          </div>
+        <div class="px-6 py-6 border-b border-gray-200">
+          <h2 class="text-2xl font-bold text-gray-800">Create Product Catalogue</h2>
         </div>
 
         <div id="page-content" class="px-6 py-8">
@@ -546,13 +666,6 @@
                           />
                           <div class="flex space-x-1">
                             <button
-                              on:click={() => addItemToLevel2(level1.id, level2.id)}
-                              class="bg-purple-500 text-white px-2 py-1 rounded text-xs hover:bg-purple-600 transition-colors"
-                              title="Add Item"
-                            >
-                              +
-                            </button>
-                            <button
                               on:click={() => removeLevel2(level1.id, level2.id)}
                               class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
                               title="Remove Catalogue"
@@ -579,9 +692,7 @@
                                 <span>{item.content}</span>
                             <button
                               on:click={() => {
-                                const itemContent = item.content;
                                 removeItem(level1.id, level2.id, level3.id, item.id);
-                                toastWarning(`Item "${itemContent}" removed from catalogue`, 'Item Removed');
                               }}
                               class="text-red-600 hover:text-red-800 ml-1"
                               title="Remove Item"

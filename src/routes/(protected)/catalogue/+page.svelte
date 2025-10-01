@@ -11,6 +11,7 @@
     let draggedOverElement: HTMLElement | null = null;
     let skuText = '';
     let skuList: string[] = [];
+    let skuPriceData: Array<{sku: string, price: string}> = [];
 
     // Dynamic hierarchy data structure
     let hierarchy: Array<{
@@ -76,6 +77,7 @@
       }
       return false;
     }
+
 
     // Function to print catalogue with JSON data
     async function printCatalogue() {
@@ -319,32 +321,79 @@
     // Process SKUs from textarea
     function processSKUs() {
       if (skuText.trim()) {
-        // Split by newlines, commas, or spaces and filter out empty items
-        let processedSKUs = skuText
-          .split(/[\n,]+/)
-          .map(sku => sku.trim())
-          .filter(sku => sku.length > 0);
+        // Split by newlines first to get each line
+        const lines = skuText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
-        // Filter out duplicates and SKUs that already exist in catalogues
-        const uniqueSKUs: string[] = [];
-        const duplicateSKUs: string[] = [];
-        const existingSKUs: string[] = [];
+        const processedData: Array<{sku: string, price: string}> = [];
+        const errors: string[] = [];
 
-        for (const sku of processedSKUs) {
-          if (uniqueSKUs.includes(sku)) {
-            duplicateSKUs.push(sku);
-          } else if (skuExistsInCatalogue(sku)) {
-            existingSKUs.push(sku);
+        for (const line of lines) {
+          const parts = line.split(',').map(part => part.trim());
+          if (parts.length === 2) {
+            const [sku, price] = parts;
+            if (sku && price) {
+              processedData.push({ sku, price });
+            } else {
+              errors.push(`Invalid line: "${line}" - missing SKU or price`);
+            }
           } else {
-            uniqueSKUs.push(sku);
+            errors.push(`Invalid format: "${line}" - expected "SKU,price"`);
           }
         }
 
-        skuList = uniqueSKUs;
+        // Filter out duplicates based on SKU
+        const uniqueData: Array<{sku: string, price: string}> = [];
+        const duplicateSKUs: string[] = [];
+        const existingSKUs: string[] = [];
+
+        for (const item of processedData) {
+          const existingIndex = uniqueData.findIndex(d => d.sku === item.sku);
+          if (existingIndex !== -1) {
+            duplicateSKUs.push(item.sku);
+          } else if (skuExistsInCatalogue(item.sku)) {
+            existingSKUs.push(item.sku);
+          } else {
+            uniqueData.push(item);
+          }
+        }
+
+        skuPriceData = uniqueData;
+        skuList = uniqueData.map(item => item.sku); // Keep skuList for backward compatibility
         skuText = ''; // Clear the textarea after processing
 
-        if (uniqueSKUs.length > 0) {
-          toastSuccess(`Processed ${uniqueSKUs.length} SKU${uniqueSKUs.length > 1 ? 's' : ''} successfully!`, 'SKUs Processed');
+        // Build JSON structure matching catalogue-data.json format
+        const jsonData = {
+          productRanges: hierarchy.map(level1 => ({
+            title: level1.title || 'Unnamed Range',
+            categories: level1.level2Items.map(level2 => ({
+              name: level2.title || 'Unnamed Category',
+              products: level2.level3Items.flatMap(level3 =>
+                level3.items.map(item => {
+                  const skuContent = item.content.replace('📦 ', '');
+                  const skuData = uniqueData.find(d => d.sku === skuContent);
+                  return {
+                    sku: skuContent,
+                    name: skuContent.toUpperCase(),
+                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    image: null,
+                    description: '',
+                    certifications: []
+                  };
+                })
+              )
+            }))
+          }))
+        };
+
+        console.log('Catalogue JSON Data:', jsonData);
+
+        if (uniqueData.length > 0) {
+          toastSuccess(`Processed ${uniqueData.length} SKU${uniqueData.length > 1 ? 's' : ''} successfully!`, 'SKUs Processed');
+        }
+
+        // Notify about errors
+        if (errors.length > 0) {
+          toastWarning(`${errors.length} line${errors.length > 1 ? 's' : ''} had errors: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`, 'Processing Errors');
         }
 
         // Notify about duplicates and existing SKUs
@@ -423,6 +472,31 @@
 
       // Show success toast
       toastInfo(`SKU "${skuContent}" added to catalogue`, 'SKU Added');
+
+      // Log the updated JSON structure
+      const updatedJsonData = {
+        productRanges: hierarchy.map(level1 => ({
+          title: level1.title || 'Unnamed Range',
+          categories: level1.level2Items.map(level2 => ({
+            name: level2.title || 'Unnamed Category',
+            products: level2.level3Items.flatMap(level3 =>
+              level3.items.map(item => {
+                const skuContent = item.content.replace('📦 ', '');
+                const skuData = skuPriceData.find(d => d.sku === skuContent);
+                return {
+                  sku: skuContent,
+                  name: skuContent.toUpperCase(),
+                  price: skuData ? `$${skuData.price}` : '$0.00',
+                  image: null,
+                  description: '',
+                  certifications: []
+                };
+              })
+            )
+          }))
+        }))
+      };
+      console.log('Catalogue JSON Data (after adding SKU):', updatedJsonData);
     }
 
     // Move item from one catalogue to another
@@ -535,6 +609,31 @@
         });
 
         toastInfo(`Item moved to catalogue`, 'Item Moved');
+
+        // Log the updated JSON structure
+        const updatedJsonData = {
+          productRanges: hierarchy.map(level1 => ({
+            title: level1.title || 'Unnamed Range',
+            categories: level1.level2Items.map(level2 => ({
+              name: level2.title || 'Unnamed Category',
+              products: level2.level3Items.flatMap(level3 =>
+                level3.items.map(item => {
+                  const skuContent = item.content.replace('📦 ', '');
+                  const skuData = skuPriceData.find(d => d.sku === skuContent);
+                  return {
+                    sku: skuContent,
+                    name: skuContent.toUpperCase(),
+                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    image: null,
+                    description: '',
+                    certifications: []
+                  };
+                })
+              )
+            }))
+          }))
+        };
+        console.log('Catalogue JSON Data (after moving item):', updatedJsonData);
       }
     }
   </script>
@@ -554,19 +653,19 @@
               <div class="space-y-4">
                 <!-- SKUs Textarea -->
                 <div class="bg-gray-50 rounded-lg p-4">
-                  <label for="skus" class="block text-sm font-medium text-gray-700 mb-2">SKUs</label>
+                  <label for="skus" class="block text-sm font-medium text-gray-700 mb-2">SKUs & Prices</label>
                   <textarea
                     id="skus"
                     rows="8"
                     bind:value={skuText}
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgb(148,186,77)] focus:border-[rgb(148,186,77)] resize-none"
-                    placeholder="Enter SKUs here... (separate by commas or new lines)"
+                    placeholder="Enter SKUs and prices here... (format: SKU,price per line)"
                   ></textarea>
                   <button
                     on:click={processSKUs}
                     class="mt-2 w-full bg-[rgb(148,186,77)] text-white px-4 py-2 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold"
                   >
-                    Process SKUs
+                    Process SKUs & Prices
                   </button>
                 </div>
 
@@ -576,6 +675,7 @@
                     <h4 class="text-sm font-medium text-gray-700 mb-2">Available SKUs</h4>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
                       {#each skuList as sku, i (i)}
+                        {@const skuData = skuPriceData.find(d => d.sku === sku)}
                         <div
                           class="bg-orange-100 border border-orange-300 rounded p-2 text-sm cursor-move draggable flex justify-between items-center"
                           role="button"
@@ -585,7 +685,7 @@
                           on:dragstart={handleDragStart}
                           on:dragend={handleDragEnd}
                         >
-                          <span>{sku}</span>
+                          <span class="flex-1">{sku} {skuData ? `($${skuData.price})` : ''}</span>
                           <button
                             on:click={(e) => {
                               e.stopPropagation();
@@ -628,6 +728,31 @@
                         bind:value={level1.title}
                         class="flex-1 text-md font-medium text-blue-800 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-400 rounded px-2 py-1"
                         placeholder="Product Range"
+                        on:input={() => {
+                          const updatedJsonData = {
+                            productRanges: hierarchy.map(level1 => ({
+                              title: level1.title || 'Unnamed Range',
+                              categories: level1.level2Items.map(level2 => ({
+                                name: level2.title || 'Unnamed Category',
+                                products: level2.level3Items.flatMap(level3 =>
+                                  level3.items.map(item => {
+                                    const skuContent = item.content.replace('📦 ', '');
+                                    const skuData = skuPriceData.find(d => d.sku === skuContent);
+                                    return {
+                                      sku: skuContent,
+                                      name: skuContent.toUpperCase(),
+                                      price: skuData ? `$${skuData.price}` : '$0.00',
+                                      image: null,
+                                      description: '',
+                                      certifications: []
+                                    };
+                                  })
+                                )
+                              }))
+                            }))
+                          };
+                          console.log('Catalogue JSON Data (range name changed):', updatedJsonData);
+                        }}
                       />
                       <div class="flex space-x-1 ml-2">
                         <button
@@ -663,6 +788,31 @@
                             bind:value={level2.title}
                             class="flex-1 text-sm font-medium text-green-800 bg-transparent border-none outline-none focus:ring-2 focus:ring-green-400 rounded px-2 py-1"
                             placeholder="Catalogue"
+                            on:input={() => {
+                              const updatedJsonData = {
+                                productRanges: hierarchy.map(level1 => ({
+                                  title: level1.title || 'Unnamed Range',
+                                  categories: level1.level2Items.map(level2 => ({
+                                    name: level2.title || 'Unnamed Category',
+                                    products: level2.level3Items.flatMap(level3 =>
+                                      level3.items.map(item => {
+                                        const skuContent = item.content.replace('📦 ', '');
+                                        const skuData = skuPriceData.find(d => d.sku === skuContent);
+                                        return {
+                                          sku: skuContent,
+                                          name: skuContent.toUpperCase(),
+                                          price: skuData ? `$${skuData.price}` : '$0.00',
+                                          image: null,
+                                          description: '',
+                                          certifications: []
+                                        };
+                                      })
+                                    )
+                                  }))
+                                }))
+                              };
+                              console.log('Catalogue JSON Data (catalogue name changed):', updatedJsonData);
+                            }}
                           />
                           <div class="flex space-x-1">
                             <button
@@ -679,6 +829,8 @@
                         <div class="space-y-1">
                           {#each level2.level3Items as level3 (level3.id)}
                             {#each level3.items as item (item.id)}
+                              {@const skuContent = item.content.replace('📦 ', '')}
+                              {@const skuData = skuPriceData.find(d => d.sku === skuContent)}
                           <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable flex justify-between items-center"
                                role="button"
                                tabindex="0"
@@ -689,7 +841,7 @@
                                data-from-level1-id={level1.id}
                                on:dragstart={handleDragStart}
                                on:dragend={handleDragEnd}>
-                                <span>{item.content}</span>
+                                <span class="flex-1">{item.content} {skuData ? `($${skuData.price})` : ''}</span>
                             <button
                               on:click={() => {
                                 removeItem(level1.id, level2.id, level3.id, item.id);

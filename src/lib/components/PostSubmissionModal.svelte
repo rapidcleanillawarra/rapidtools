@@ -9,16 +9,16 @@
   export let isPickup: boolean = false;
 
   const dispatch = createEventDispatcher<{
-    navigateToJobStatus: void;
+    navigateToWorkshopBoard: void;
   }>();
 
   function handleClose() {
     show = false;
   }
 
-  function handleNavigateToJobStatus() {
+  function handleNavigateToWorkshopBoard() {
     show = false;
-    dispatch('navigateToJobStatus');
+    dispatch('navigateToWorkshopBoard');
   }
 </script>
 
@@ -54,9 +54,9 @@
       <button
         type="button"
         class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        on:click={handleNavigateToJobStatus}
+        on:click={handleNavigateToWorkshopBoard}
       >
-        View Job Status
+        Continue
       </button>
     </div>
   </div>

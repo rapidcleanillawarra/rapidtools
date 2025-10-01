@@ -35,6 +35,9 @@ export interface WorkshopFormData {
   startedWith: 'form' | 'camera';
   quoteOrRepaired: 'Quote' | 'Repaired';
 
+  // Docket info (for "to_be_quoted" status submissions)
+  docket_info?: any; // JSONB field for docket information
+
   // API data
   customerApiData?: any;
   orderApiData?: any;
@@ -89,6 +92,9 @@ export interface WorkshopRecord {
 
   // Order information
   order_id: string | null;
+
+  // Docket information (JSONB)
+  docket_info?: any;
 }
 
 export interface WorkshopPhoto {
@@ -427,6 +433,11 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     // Add started_with if provided
     if (data.startedWith) {
       updateData.started_with = data.startedWith;
+    }
+
+    // Add docket_info if provided (for "to_be_quoted" status submissions)
+    if (data.docket_info !== undefined) {
+      updateData.docket_info = data.docket_info;
     }
 
     // Note: We don't update created_by on updates as it should remain the original creator's name

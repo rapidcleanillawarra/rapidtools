@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
   import CustomerDropdown from '$lib/components/CustomerDropdown.svelte';
   import PhotoManager from '$lib/components/PhotoManager.svelte';
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
@@ -319,6 +320,21 @@
       quoteOrRepaired: quoteOrRepair = workshop.quote_or_repaired || 'Quote';
       startedWith = workshop.started_with || 'form';
 
+      // Load docket info if available
+      if (workshop.docket_info) {
+        quoteDescription = workshop.docket_info.quoteDescription || '';
+        additionalInformation = workshop.docket_info.additionalInformation || '';
+        stockOnHand = workshop.docket_info.stockOnHand || '';
+        labour = workshop.docket_info.labour || '';
+        travelTime = workshop.docket_info.travelTime || '';
+        callOut = workshop.docket_info.callOut || '';
+        parts = workshop.docket_info.parts || [{ sku: '', quantity: '' }];
+        // Ensure at least one empty part row
+        if (parts.length === 0) {
+          parts = [{ sku: '', quantity: '' }];
+        }
+      }
+
       // Load existing photos (they're already saved in storage)
       // Note: We can't recreate File objects from URLs, so we'll show them differently
       if (workshop.photo_urls && workshop.photo_urls.length > 0) {
@@ -600,6 +616,7 @@
     const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
     const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
 
+
     // Prepare form data
     const formData = {
       locationOfRepair,
@@ -619,6 +636,19 @@
       existingPhotoUrls,
       startedWith,
       quoteOrRepaired: quoteOrRepair,
+      // Include docket info when submitting from "to_be_quoted" status
+      ...(existingWorkshopId && workshopStatus === 'to_be_quoted' && {
+        docket_info: {
+          quoteOrRepair,
+          quoteDescription,
+          additionalInformation,
+          stockOnHand,
+          labour,
+          travelTime,
+          callOut,
+          parts: parts.filter(part => part.sku.trim() || part.quantity.trim()) // Only include non-empty parts
+        }
+      }),
       ...(existingWorkshopId && {
         customerApiData,
         orderApiData,
@@ -653,10 +683,9 @@
       wasPickupJob = true;
       console.log('Updating workshop status from pickup to to_be_quoted');
     } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
-      // For existing "to_be_quoted" jobs, change status based on Quote/Repair selection
-      const newStatus = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
-      (formData as any).status = newStatus;
-      console.log(`Updating workshop status from to_be_quoted to ${newStatus}`);
+      // For existing "to_be_quoted" jobs, change status to docket_ready
+      (formData as any).status = 'docket_ready';
+      console.log('Updating workshop status from to_be_quoted to docket_ready');
     } else {
       // Default: set to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -685,6 +714,8 @@
           successMessage = 'Workshop created successfully as a pickup job!';
         } else if (wasPickupJob) {
           successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
+        } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
+          successMessage = 'Workshop docket information saved successfully and status updated to "Docket Ready"!';
         } else {
           successMessage = isUpdate
             ? wasToBeQuoted
@@ -967,12 +998,12 @@
 
   function navigateToJobStatus() {
     // Navigate to workshop job status page (don't reset form since we're navigating away)
-    window.location.href = `${base}/workshop/job-status`;
+    goto('/workshop/job-status');
   }
 
   function navigateToWorkshopBoard() {
     // Navigate to workshop board page (don't reset form since we're navigating away)
-    window.location.href = `${base}/workshop/workshop-board`;
+    goto('/workshop/workshop-board');
   }
 
   function closePickupSubmissionModal() {
@@ -1591,7 +1622,7 @@
     message={successMessage}
     orderId={generatedOrderId}
     isPickup={isPickupSubmission}
-    on:navigateToJobStatus={navigateToJobStatus}
+    on:navigateToWorkshopBoard={navigateToWorkshopBoard}
   />
 
   <!-- Incomplete Contact Modal -->

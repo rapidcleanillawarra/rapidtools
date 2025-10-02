@@ -1,12 +1,18 @@
 import type { PageLoad } from './$types';
 import type { CatalogueData } from './types';
 
-export const load: PageLoad = async ({ url }) => {
-	const data = url.searchParams.get('data');
+export const load: PageLoad = async ({ url, data }) => {
+	// Check if data was provided via POST action
+	if (data?.catalogueData) {
+		return data;
+	}
 
-	if (data) {
+	// Check URL params for GET requests (backward compatibility)
+	const urlData = url.searchParams.get('data');
+
+	if (urlData) {
 		try {
-			const catalogueData: CatalogueData = JSON.parse(decodeURIComponent(data));
+			const catalogueData: CatalogueData = JSON.parse(decodeURIComponent(urlData));
 			return {
 				catalogueData
 			};

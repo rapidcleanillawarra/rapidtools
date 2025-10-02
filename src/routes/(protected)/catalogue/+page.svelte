@@ -11,7 +11,14 @@
     let draggedOverElement: HTMLElement | null = null;
     let skuText = '';
     let skuList: string[] = [];
-    let skuPriceData: Array<{sku: string, price: string}> = [];
+    let skuPriceData: Array<{
+      sku: string,
+      price: string,
+      name?: string,
+      description?: string,
+      image?: string | null,
+      certifications?: string[]
+    }> = [];
 
     // Dynamic hierarchy data structure
     let hierarchy: Array<{
@@ -60,6 +67,88 @@
       profile = p;
     });
 
+    // Function to fetch product data from external API
+    async function fetchProductData(sku: string): Promise<{
+      sku: string;
+      price: string;
+      name: string;
+      description: string;
+      image: string | null;
+      certifications: string[];
+    } | null> {
+      try {
+        const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            "Filter": {
+              "SKU": [sku],
+              "OutputSelector": [
+                "Model",
+                "SKU",
+                "RRP",
+                "Description",
+                "Images",
+                "Misc11"
+              ]
+            },
+            "action": "GetItem"
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.Ack !== 'Success' || !data.Item || data.Item.length === 0) {
+          throw new Error('Product not found or API returned error');
+        }
+
+        const item = data.Item[0];
+
+        // Select image: prefer "Main", then Alt 1, Alt 2, etc.
+        let selectedImage: string | null = null;
+        if (item.Images && item.Images.length > 0) {
+          // Sort images by priority: Main first, then Alt 1, Alt 2, etc.
+          const sortedImages = item.Images.sort((a: any, b: any) => {
+            if (a.Name === 'Main') return -1;
+            if (b.Name === 'Main') return 1;
+            const aNum = a.Name.startsWith('Alt ') ? parseInt(a.Name.split(' ')[1]) || 999 : 999;
+            const bNum = b.Name.startsWith('Alt ') ? parseInt(b.Name.split(' ')[1]) || 999 : 999;
+            return aNum - bNum;
+          });
+          selectedImage = sortedImages[0].URL;
+        }
+
+        // Parse certifications from Misc11
+        const certifications = item.Misc11 ? item.Misc11.split(';').filter((cert: string) => cert.trim()) : [];
+
+        return {
+          sku: item.SKU,
+          price: item.RRP || '0.00',
+          name: item.Model || sku,
+          description: item.Description || '',
+          image: selectedImage,
+          certifications
+        };
+      } catch (error) {
+        console.error(`Error fetching product data for SKU ${sku}:`, error);
+        // Return basic data if API fails
+        return {
+          sku,
+          price: '0.00',
+          name: sku,
+          description: '',
+          image: null,
+          certifications: []
+        };
+      }
+    }
+
     // Helper function to check if SKU already exists in any catalogue
     function skuExistsInCatalogue(skuContent: string): boolean {
       for (const level1 of hierarchy) {
@@ -79,19 +168,49 @@
     }
 
 
-    // Function to print catalogue with JSON data
-    async function printCatalogue() {
-      try {
-        // Fetch the catalogue data from the JSON file
-        const response = await fetch('/catalogue-data.json');
-        const catalogueData = await response.json();
-        const encodedData = encodeURIComponent(JSON.stringify(catalogueData));
-        window.open(`/catalogue/print?data=${encodedData}`, '_blank');
-      } catch (error) {
-        console.error('Error loading catalogue data:', error);
-        // Fallback: redirect without data
-        window.open('/catalogue/print', '_blank');
-      }
+    // Function to submit catalogue data via POST
+    function submitCatalogue() {
+      // Build JSON structure matching catalogue-data.json format
+      const catalogueData = {
+        productRanges: hierarchy.map(level1 => ({
+          title: level1.title || 'Unnamed Range',
+          categories: level1.level2Items.map(level2 => ({
+            name: level2.title || 'Unnamed Category',
+            products: level2.level3Items.flatMap(level3 =>
+              level3.items.map(item => {
+                const skuContent = item.content.replace('📦 ', '');
+                const skuData = skuPriceData.find(d => d.sku === skuContent);
+                return {
+                  sku: skuContent,
+                  name: skuData?.name || skuContent.toUpperCase(),
+                  price: skuData ? `$${skuData.price}` : '$0.00',
+                  image: skuData?.image || null,
+                  description: skuData?.description || '',
+                  certifications: skuData?.certifications || []
+                };
+              })
+            )
+          }))
+        }))
+      };
+
+      // Create a form and submit it
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '/catalogue/print';
+      form.target = '_blank';
+
+      // Add the data as a hidden input
+      const dataInput = document.createElement('input');
+      dataInput.type = 'hidden';
+      dataInput.name = 'catalogueData';
+      dataInput.value = JSON.stringify(catalogueData);
+      form.appendChild(dataInput);
+
+      // Submit the form
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
     }
 
     function handleDragStart(event: DragEvent) {
@@ -319,30 +438,64 @@
     }
 
     // Process SKUs from textarea
-    function processSKUs() {
+    async function processSKUs() {
       if (skuText.trim()) {
         // Split by newlines first to get each line
         const lines = skuText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
-        const processedData: Array<{sku: string, price: string}> = [];
+        const skusToProcess: string[] = [];
         const errors: string[] = [];
 
         for (const line of lines) {
+          // Accept either just SKU or SKU,price format (price will be overridden by API)
           const parts = line.split(',').map(part => part.trim());
-          if (parts.length === 2) {
-            const [sku, price] = parts;
-            if (sku && price) {
-              processedData.push({ sku, price });
-            } else {
-              errors.push(`Invalid line: "${line}" - missing SKU or price`);
-            }
+          const sku = parts[0];
+          if (sku) {
+            skusToProcess.push(sku);
           } else {
-            errors.push(`Invalid format: "${line}" - expected "SKU,price"`);
+            errors.push(`Invalid line: "${line}" - missing SKU`);
           }
         }
 
+        if (skusToProcess.length === 0) {
+          toastWarning('No valid SKUs found to process', 'No SKUs');
+          return;
+        }
+
+        // Show loading state
+        toastInfo(`Fetching product data for ${skusToProcess.length} SKU${skusToProcess.length > 1 ? 's' : ''}...`, 'Processing');
+
+        // Fetch data for all SKUs
+        const fetchPromises = skusToProcess.map(sku => fetchProductData(sku));
+        const fetchResults = await Promise.all(fetchPromises);
+
+        const processedData: Array<{
+          sku: string,
+          price: string,
+          name: string,
+          description: string,
+          image: string | null,
+          certifications: string[]
+        }> = [];
+        const apiErrors: string[] = [];
+
+        fetchResults.forEach((result, index) => {
+          if (result) {
+            processedData.push(result);
+          } else {
+            apiErrors.push(skusToProcess[index]);
+          }
+        });
+
         // Filter out duplicates based on SKU
-        const uniqueData: Array<{sku: string, price: string}> = [];
+        const uniqueData: Array<{
+          sku: string,
+          price: string,
+          name: string,
+          description: string,
+          image: string | null,
+          certifications: string[]
+        }> = [];
         const duplicateSKUs: string[] = [];
         const existingSKUs: string[] = [];
 
@@ -373,11 +526,11 @@
                   const skuData = uniqueData.find(d => d.sku === skuContent);
                   return {
                     sku: skuContent,
-                    name: skuContent.toUpperCase(),
+                    name: skuData?.name || skuContent.toUpperCase(),
                     price: skuData ? `$${skuData.price}` : '$0.00',
-                    image: null,
-                    description: '',
-                    certifications: []
+                    image: skuData?.image || null,
+                    description: skuData?.description || '',
+                    certifications: skuData?.certifications || []
                   };
                 })
               )
@@ -393,7 +546,11 @@
 
         // Notify about errors
         if (errors.length > 0) {
-          toastWarning(`${errors.length} line${errors.length > 1 ? 's' : ''} had errors: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`, 'Processing Errors');
+          toastWarning(`${errors.length} line${errors.length > 1 ? 's' : ''} had parsing errors: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`, 'Parsing Errors');
+        }
+
+        if (apiErrors.length > 0) {
+          toastWarning(`${apiErrors.length} SKU${apiErrors.length > 1 ? 's' : ''} failed to fetch from API: ${apiErrors.join(', ')}`, 'API Errors');
         }
 
         // Notify about duplicates and existing SKUs
@@ -485,11 +642,11 @@
                 const skuData = skuPriceData.find(d => d.sku === skuContent);
                 return {
                   sku: skuContent,
-                  name: skuContent.toUpperCase(),
+                  name: skuData?.name || skuContent.toUpperCase(),
                   price: skuData ? `$${skuData.price}` : '$0.00',
-                  image: null,
-                  description: '',
-                  certifications: []
+                  image: skuData?.image || null,
+                  description: skuData?.description || '',
+                  certifications: skuData?.certifications || []
                 };
               })
             )
@@ -622,11 +779,11 @@
                   const skuData = skuPriceData.find(d => d.sku === skuContent);
                   return {
                     sku: skuContent,
-                    name: skuContent.toUpperCase(),
+                    name: skuData?.name || skuContent.toUpperCase(),
                     price: skuData ? `$${skuData.price}` : '$0.00',
-                    image: null,
-                    description: '',
-                    certifications: []
+                    image: skuData?.image || null,
+                    description: skuData?.description || '',
+                    certifications: skuData?.certifications || []
                   };
                 })
               )
@@ -653,13 +810,13 @@
               <div class="space-y-4">
                 <!-- SKUs Textarea -->
                 <div class="bg-gray-50 rounded-lg p-4">
-                  <label for="skus" class="block text-sm font-medium text-gray-700 mb-2">SKUs & Prices</label>
+                  <label for="skus" class="block text-sm font-medium text-gray-700 mb-2">SKUs (API Lookup)</label>
                   <textarea
                     id="skus"
                     rows="8"
                     bind:value={skuText}
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgb(148,186,77)] focus:border-[rgb(148,186,77)] resize-none"
-                    placeholder="Enter SKUs and prices here... (format: SKU,price per line)"
+                    placeholder="Enter SKUs here... (one per line, prices and details will be fetched from API)"
                   ></textarea>
                   <button
                     on:click={processSKUs}
@@ -685,7 +842,10 @@
                           on:dragstart={handleDragStart}
                           on:dragend={handleDragEnd}
                         >
-                          <span class="flex-1">{sku} {skuData ? `($${skuData.price})` : ''}</span>
+                          <div class="flex-1">
+                            <div class="font-medium">{skuData?.name || sku}</div>
+                            <div class="text-xs text-gray-600">{sku} • ${skuData?.price || '0.00'}</div>
+                          </div>
                           <button
                             on:click={(e) => {
                               e.stopPropagation();
@@ -841,7 +1001,10 @@
                                data-from-level1-id={level1.id}
                                on:dragstart={handleDragStart}
                                on:dragend={handleDragEnd}>
-                                <span class="flex-1">{item.content} {skuData ? `($${skuData.price})` : ''}</span>
+                                <div class="flex-1">
+                                  <div class="font-medium">{skuData?.name || skuContent}</div>
+                                  <div class="text-xs text-gray-600">{item.content.replace('📦 ', '')} • ${skuData?.price || '0.00'}</div>
+                                </div>
                             <button
                               on:click={() => {
                                 removeItem(level1.id, level2.id, level3.id, item.id);
@@ -861,6 +1024,18 @@
                 {/each}
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div class="flex justify-end">
+            <button
+              on:click={submitCatalogue}
+              class="bg-[rgb(148,186,77)] text-white px-6 py-3 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold text-lg shadow-md hover:shadow-lg"
+            >
+              Submit & Print Catalogue
+            </button>
           </div>
         </div>
       </div>

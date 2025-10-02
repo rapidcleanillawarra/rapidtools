@@ -12,32 +12,12 @@
     let draggedOverElement: HTMLElement | null = null;
     let skuText = '';
     let skuList: string[] = [];
-    let skuPriceData: Array<{
-      sku: string,
-      price: string,
-      name?: string,
-      description?: string,
-      image?: string | null,
-      certifications?: string[]
-    }> = [];
+    let failedSkus: string[] = [];
+
+    let skuPriceData: any[] = [];
 
     // Dynamic hierarchy data structure
-    let hierarchy: Array<{
-      id: number;
-      title: string;
-      level2Items: Array<{
-        id: number;
-        title: string;
-        level3Items: Array<{
-          id: number;
-          title: string;
-          items: Array<{
-            id: number;
-            content: string;
-          }>;
-        }>;
-      }>;
-    }> = [
+    let hierarchy: any[] = [
       {
         id: 1,
         title: '',
@@ -219,11 +199,50 @@
     function handleDragOver(event: DragEvent) {
       event.preventDefault();
       draggedOverElement = event.currentTarget as HTMLElement;
+
+      // For sorting within the same container, show visual feedback
+      const targetElement = event.currentTarget as HTMLElement;
+      if (targetElement.classList.contains('sortable-item')) {
+        const rect = targetElement.getBoundingClientRect();
+        const y = event.clientY - rect.top;
+        const height = rect.height;
+
+        // Remove previous indicators
+        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+
+        // Create drop indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator bg-blue-500 h-1 rounded-full';
+        indicator.style.position = 'absolute';
+        indicator.style.width = 'calc(100% - 1rem)';
+        indicator.style.left = '0.5rem';
+        indicator.style.zIndex = '10';
+
+        if (y < height / 2) {
+          // Drop above
+          indicator.style.top = '-2px';
+          targetElement.style.marginTop = '4px';
+        } else {
+          // Drop below
+          indicator.style.bottom = '-2px';
+          targetElement.style.marginBottom = '4px';
+        }
+
+        targetElement.appendChild(indicator);
+        targetElement.style.position = 'relative';
+      }
     }
 
     function handleDrop(event: DragEvent) {
       event.preventDefault();
       draggedOverElement = event.currentTarget as HTMLElement;
+
+      // Clean up visual indicators
+      document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+      document.querySelectorAll('.sortable-item').forEach(el => {
+        (el as HTMLElement).style.marginTop = '';
+        (el as HTMLElement).style.marginBottom = '';
+      });
 
       if (draggedElement && draggedOverElement && draggedElement !== draggedOverElement) {
         const skuContent = draggedElement.dataset.sku;
@@ -234,15 +253,26 @@
         if (skuContent && toLevel1Id && toLevel2Id) {
           addSKUToCatalogue(toLevel1Id, toLevel2Id, skuContent);
         } else {
-          // Moving an item from one catalogue to another
+          // Check if this is an item being dragged (not a SKU from the list)
           const fromItemId = parseInt(draggedElement.dataset.itemId || '0');
           const fromLevel3Id = parseInt(draggedElement.dataset.level3Id || '0');
           const fromLevel2Id = parseInt(draggedElement.dataset.fromLevel2Id || '0');
           const fromLevel1Id = parseInt(draggedElement.dataset.fromLevel1Id || '0');
 
-          if (fromItemId && fromLevel3Id && fromLevel2Id && fromLevel1Id && toLevel1Id && toLevel2Id) {
-            // Only move if it's to a different catalogue
-            if (fromLevel1Id !== toLevel1Id || fromLevel2Id !== toLevel2Id) {
+          if (fromItemId && fromLevel3Id && fromLevel2Id && fromLevel1Id) {
+            // Check if dropping on another item for sorting within same container
+            const targetItemId = parseInt(draggedOverElement.dataset.targetItemId || '0');
+
+            if (targetItemId && fromLevel1Id === toLevel1Id && fromLevel2Id === toLevel2Id) {
+              // Sorting within the same container
+              const rect = draggedOverElement.getBoundingClientRect();
+              const y = event.clientY - rect.top;
+              const height = rect.height;
+              const insertBefore = y < height / 2;
+
+              reorderItemWithinCatalogue(fromLevel1Id, fromLevel2Id, fromLevel3Id, fromItemId, targetItemId, insertBefore);
+            } else if (toLevel1Id && toLevel2Id) {
+              // Moving to a different catalogue
               moveItemToCatalogue(fromLevel1Id, fromLevel2Id, fromLevel3Id, fromItemId, toLevel1Id, toLevel2Id);
             }
           }
@@ -502,6 +532,7 @@
 
         skuPriceData = uniqueData;
         skuList = uniqueData.map(item => item.sku); // Keep skuList for backward compatibility
+        failedSkus = apiErrors; // Store failed SKUs for display
         skuText = ''; // Clear the textarea after processing
 
         // Build JSON structure matching catalogue-data.json format
@@ -646,6 +677,47 @@
       console.log('Catalogue JSON Data (after adding SKU):', updatedJsonData);
     }
 
+    // Reorder item within the same catalogue
+    function reorderItemWithinCatalogue(level1Id: number, level2Id: number, level3Id: number, fromItemId: number, toItemId: number, insertBefore: boolean) {
+      hierarchy = hierarchy.map(level1 => {
+        if (level1.id === level1Id) {
+          return {
+            ...level1,
+            level2Items: level1.level2Items.map(level2 => {
+              if (level2.id === level2Id) {
+                return {
+                  ...level2,
+                  level3Items: level2.level3Items.map(level3 => {
+                    if (level3.id === level3Id) {
+                      const items = [...level3.items];
+                      const fromIndex = items.findIndex(item => item.id === fromItemId);
+                      const toIndex = items.findIndex(item => item.id === toItemId);
+
+                      if (fromIndex !== -1 && toIndex !== -1) {
+                        const [movedItem] = items.splice(fromIndex, 1);
+                        const targetIndex = insertBefore ? toIndex : toIndex + 1;
+                        items.splice(targetIndex, 0, movedItem);
+                      }
+
+                      return {
+                        ...level3,
+                        items
+                      };
+                    }
+                    return level3;
+                  })
+                };
+              }
+              return level2;
+            })
+          };
+        }
+        return level1;
+      });
+
+      toastInfo('Item reordered within catalogue', 'Item Reordered');
+    }
+
     // Move item from one catalogue to another
     function moveItemToCatalogue(fromLevel1Id: number, fromLevel2Id: number, fromLevel3Id: number, fromItemId: number, toLevel1Id: number, toLevel2Id: number) {
       let itemToMove: any = null;
@@ -785,6 +857,15 @@
     }
   </script>
 
+  <style>
+    .sortable-item {
+      transition: margin 0.2s ease;
+    }
+    .drop-indicator {
+      transition: all 0.2s ease;
+    }
+  </style>
+
   <div class="container mx-auto px-4 py-8" in:fade>
     <div class="max-w-4xl mx-auto">
       <div class="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -849,6 +930,37 @@
                           </button>
                         </div>
                       {/each}
+                    </div>
+                  </div>
+                {/if}
+
+                <!-- Failed SKUs List -->
+                {#if failedSkus.length > 0}
+                  <div class="bg-white border border-red-200 rounded-lg p-4">
+                    <h4 class="text-sm font-medium text-red-700 mb-2">Failed to Fetch SKUs</h4>
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                      {#each failedSkus as sku, i (i)}
+                        <div class="bg-red-50 border border-red-200 rounded p-2 text-sm flex justify-between items-center">
+                          <div class="flex-1">
+                            <div class="font-medium text-red-800">{sku}</div>
+                            <div class="text-xs text-red-600">Failed to fetch from API</div>
+                          </div>
+                          <button
+                            on:click={(e) => {
+                              e.stopPropagation();
+                              failedSkus = failedSkus.filter(s => s !== sku);
+                              toastInfo(`SKU "${sku}" removed from failed list`, 'SKU Removed');
+                            }}
+                            class="text-red-600 hover:text-red-800 ml-1"
+                            title="Remove from list"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      {/each}
+                    </div>
+                    <div class="mt-2 text-xs text-red-600">
+                      These SKUs could not be found in the product database. You can try re-entering them or contact support.
                     </div>
                   </div>
                 {/if}
@@ -981,16 +1093,19 @@
                             {#each level3.items as item (item.id)}
                               {@const skuContent = item.content.replace('📦 ', '')}
                               {@const skuData = skuPriceData.find(d => d.sku === skuContent)}
-                          <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable flex justify-between items-center"
+                          <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable sortable-item flex justify-between items-center"
                                role="button"
                                tabindex="0"
                                draggable="true"
                                data-item-id={item.id}
                                data-level3-id={level3.id}
+                               data-target-item-id={item.id}
                                data-from-level2-id={level2.id}
                                data-from-level1-id={level1.id}
                                on:dragstart={handleDragStart}
-                               on:dragend={handleDragEnd}>
+                               on:dragend={handleDragEnd}
+                               on:dragover={handleDragOver}
+                               on:drop={handleDrop}>
                                 <div class="flex-1">
                                   <div class="font-medium">{skuData?.name || skuContent}</div>
                                   <div class="text-xs text-gray-600">{item.content.replace('📦 ', '')} • ${skuData?.price || '0.00'}</div>

@@ -3,6 +3,7 @@
     import { currentUser } from '$lib/firebase';
     import { userProfile, type UserProfile } from '$lib/userProfile';
     import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
     import { toastSuccess, toastInfo, toastWarning } from '$lib/utils/toast';
 
     let user: any = null;
@@ -194,23 +195,12 @@
         }))
       };
 
-      // Create a form and submit it
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/catalogue/print';
-      form.target = '_blank';
+      // Encode the data and navigate to the print page with query parameter
+      const encodedData = encodeURIComponent(JSON.stringify(catalogueData));
+      const printUrl = `/catalogue/print?data=${encodedData}`;
 
-      // Add the data as a hidden input
-      const dataInput = document.createElement('input');
-      dataInput.type = 'hidden';
-      dataInput.name = 'catalogueData';
-      dataInput.value = JSON.stringify(catalogueData);
-      form.appendChild(dataInput);
-
-      // Submit the form
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
+      // Open in new tab
+      window.open(printUrl, '_blank');
     }
 
     function handleDragStart(event: DragEvent) {

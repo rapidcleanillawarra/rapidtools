@@ -1,7 +1,12 @@
 <script lang="ts">
-    import type { PageData } from './$types';
+    import type { CatalogueData } from './types.ts';
+
+    interface PageData {
+        catalogueData: CatalogueData;
+    }
 
     export let data: PageData;
+
 
     function printPage() {
         window.print();

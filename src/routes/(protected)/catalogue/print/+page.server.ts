@@ -8,7 +8,18 @@ export const actions: Actions = {
 
 		if (catalogueDataString) {
 			try {
-				const catalogueData: CatalogueData = JSON.parse(catalogueDataString);
+				const parsedData = JSON.parse(catalogueDataString);
+
+				// Ensure the data has the required structure
+				const catalogueData: CatalogueData = {
+					productRanges: parsedData.productRanges || [],
+					printSettings: {
+						pageSize: "A4",
+						margin: "1cm",
+						productsPerPage: 3,
+						repeatHeaderOnNewPage: true
+					}
+				};
 				return {
 					catalogueData
 				};

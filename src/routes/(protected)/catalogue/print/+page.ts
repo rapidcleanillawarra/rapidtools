@@ -1,7 +1,10 @@
-import type { PageLoad } from './$types';
-import type { CatalogueData } from './types';
+import type { CatalogueData } from './types.ts';
 
-export const load: PageLoad = async ({ url, data }) => {
+interface PageData {
+	catalogueData: CatalogueData;
+}
+
+export const load = async ({ url, data }: { url: URL; data?: PageData }) => {
 	// Check if data was provided via POST action
 	if (data?.catalogueData) {
 		return data;
@@ -12,7 +15,17 @@ export const load: PageLoad = async ({ url, data }) => {
 
 	if (urlData) {
 		try {
-			const catalogueData: CatalogueData = JSON.parse(decodeURIComponent(urlData));
+			const parsedData = JSON.parse(decodeURIComponent(urlData));
+			// Ensure the data has the required structure
+			const catalogueData: CatalogueData = {
+				productRanges: parsedData.productRanges || [],
+				printSettings: parsedData.printSettings || {
+					pageSize: "A4",
+					margin: "1cm",
+					productsPerPage: 3,
+					repeatHeaderOnNewPage: true
+				}
+			};
 			return {
 				catalogueData
 			};

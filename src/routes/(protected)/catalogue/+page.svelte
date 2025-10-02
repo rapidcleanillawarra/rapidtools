@@ -2,6 +2,7 @@
     import { fade } from 'svelte/transition';
     import { currentUser } from '$lib/firebase';
     import { userProfile, type UserProfile } from '$lib/userProfile';
+    import { supabase } from '$lib/supabase';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { toastSuccess, toastInfo, toastWarning } from '$lib/utils/toast';
@@ -15,6 +16,11 @@
     let failedSkus: string[] = [];
 
     let skuPriceData: any[] = [];
+
+    // Session management
+    let currentSessionId: string | null = null;
+    let currentSessionName: string = '';
+    let showSaveDialog: boolean = false;
 
     // Dynamic hierarchy data structure
     let hierarchy: any[] = [
@@ -47,6 +53,15 @@
     userProfile.subscribe((p) => {
       profile = p;
     });
+
+    // Focus input when dialog opens
+    $: if (showSaveDialog) {
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        const input = document.getElementById('sessionName');
+        if (input) input.focus();
+      }, 100);
+    }
 
     // Function to fetch product data from external API
     async function fetchProductData(sku: string): Promise<{
@@ -149,38 +164,175 @@
     }
 
 
-    // Function to submit catalogue data via POST
-    function submitCatalogue() {
-      // Build JSON structure matching catalogue-data.json format
-      const catalogueData = {
-        productRanges: hierarchy.map(level1 => ({
-          title: level1.title || 'Unnamed Range',
-          categories: level1.level2Items.map(level2 => ({
-            name: level2.title || 'Unnamed Category',
-            products: level2.level3Items.flatMap(level3 =>
-              level3.items.map(item => {
-                const skuContent = item.content.replace('📦 ', '');
-                const skuData = skuPriceData.find(d => d.sku === skuContent);
-                return {
-                  sku: skuContent,
-                  name: skuData?.name || skuContent.toUpperCase(),
-                  price: skuData ? `$${skuData.price}` : '$0.00',
-                  image: skuData?.image || null,
-                  description: skuData?.description || '',
-                  certifications: skuData?.certifications || []
-                };
-              })
-            )
-          }))
-        }))
-      };
+    // Save catalogue session to Supabase
+    async function saveCatalogueSession(sessionName: string, isTemplate = false) {
+      try {
+        const catalogueData = {
+          productRanges: hierarchy.map(level1 => ({
+            title: level1.title || 'Unnamed Range',
+            categories: level1.level2Items.map(level2 => ({
+              name: level2.title || 'Unnamed Category',
+              products: level2.level3Items.flatMap(level3 =>
+                level3.items.map(item => {
+                  const skuContent = item.content.replace('📦 ', '');
+                  const skuData = skuPriceData.find(d => d.sku === skuContent);
+                  return {
+                    sku: skuContent,
+                    name: skuData?.name || skuContent.toUpperCase(),
+                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    image: skuData?.image || null,
+                    description: skuData?.description || '',
+                    certifications: skuData?.certifications || []
+                  };
+                })
+              )
+            }))
+          })),
+          printSettings: {
+            pageSize: "A4",
+            margin: "1cm",
+            productsPerPage: 3,
+            repeatHeaderOnNewPage: true
+          }
+        };
 
-      // Encode the data and navigate to the print page with query parameter
-      const encodedData = encodeURIComponent(JSON.stringify(catalogueData));
-      const printUrl = `/catalogue/print?data=${encodedData}`;
+        const { data, error } = await supabase
+          .from('catalogue_sessions')
+          .insert({
+            user_id: user?.uid,
+            session_name: sessionName,
+            catalogue_data: catalogueData,
+            available_skus: skuPriceData,
+            is_template: isTemplate,
+            created_by: user?.uid
+          })
+          .select()
+          .single();
 
-      // Open in new tab
-      window.open(printUrl, '_blank');
+        if (error) throw error;
+
+        toastSuccess(`Session "${sessionName}" saved successfully!`, 'Session Saved');
+        return data;
+      } catch (error) {
+        console.error('Error saving session:', error);
+        toastWarning('Failed to save session', 'Save Error');
+        throw error;
+      }
+    }
+
+    // Load catalogue session from Supabase
+    async function loadCatalogueSession(sessionId: string) {
+      try {
+        const { data, error } = await supabase
+          .from('catalogue_sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .eq('user_id', user?.uid)
+          .single();
+
+        if (error) throw error;
+
+        // Set current session info
+        currentSessionId = data.id;
+        currentSessionName = data.session_name;
+
+        // Restore catalogue data
+        const catalogueData = data.catalogue_data;
+
+        // Restore available SKUs
+        skuPriceData = data.available_skus || [];
+        skuList = skuPriceData.map(item => item.sku);
+
+        // Reconstruct hierarchy from catalogue data
+        // This would need to be implemented based on your data structure
+        // For now, we'll log it
+        console.log('Loaded catalogue data:', catalogueData);
+
+        toastSuccess(`Session "${data.session_name}" loaded successfully!`, 'Session Loaded');
+        return data;
+      } catch (error) {
+        console.error('Error loading session:', error);
+        toastWarning('Failed to load session', 'Load Error');
+        throw error;
+      }
+    }
+
+    // Open save dialog
+    function openSaveDialog() {
+      currentSessionName = currentSessionName || `Catalogue ${new Date().toLocaleDateString()}`;
+      showSaveDialog = true;
+    }
+
+    // Close save dialog
+    function closeSaveDialog() {
+      showSaveDialog = false;
+    }
+
+    // Handle save session
+    async function handleSaveSession() {
+      if (!currentSessionName.trim()) {
+        toastWarning('Please enter a session name', 'Session Name Required');
+        return;
+      }
+
+      try {
+        const sessionData = await saveCatalogueSession(currentSessionName.trim());
+        currentSessionId = sessionData.id;
+        closeSaveDialog();
+      } catch (error) {
+        // Error handling is done in saveCatalogueSession
+      }
+    }
+
+    // Function to submit catalogue data via POST (now also saves)
+    async function submitCatalogue() {
+      try {
+        // Auto-save if not already saved
+        if (!currentSessionId) {
+          const defaultName = `Catalogue ${new Date().toLocaleDateString()}`;
+          await saveCatalogueSession(defaultName);
+        }
+
+        // Build JSON structure matching catalogue-data.json format
+        const catalogueData = {
+          productRanges: hierarchy.map(level1 => ({
+            title: level1.title || 'Unnamed Range',
+            categories: level1.level2Items.map(level2 => ({
+              name: level2.title || 'Unnamed Category',
+              products: level2.level3Items.flatMap(level3 =>
+                level3.items.map(item => {
+                  const skuContent = item.content.replace('📦 ', '');
+                  const skuData = skuPriceData.find(d => d.sku === skuContent);
+                  return {
+                    sku: skuContent,
+                    name: skuData?.name || skuContent.toUpperCase(),
+                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    image: skuData?.image || null,
+                    description: skuData?.description || '',
+                    certifications: skuData?.certifications || []
+                  };
+                })
+              )
+            }))
+          })),
+          printSettings: {
+            pageSize: "A4",
+            margin: "1cm",
+            productsPerPage: 3,
+            repeatHeaderOnNewPage: true
+          }
+        };
+
+        // Encode the data and navigate to the print page with query parameter
+        const encodedData = encodeURIComponent(JSON.stringify(catalogueData));
+        const printUrl = `/catalogue/print?data=${encodedData}`;
+
+        // Open in new tab
+        window.open(printUrl, '_blank');
+      } catch (error) {
+        console.error('Error during print process:', error);
+        toastWarning('Failed to prepare catalogue for printing', 'Print Error');
+      }
     }
 
     function handleDragStart(event: DragEvent) {
@@ -193,6 +345,14 @@
         draggedElement.style.opacity = '1';
         draggedElement = null;
       }
+
+      // Clean up visual feedback from catalogue containers
+      document.querySelectorAll('.bg-green-50').forEach(el => {
+        const element = el as HTMLElement;
+        element.style.backgroundColor = '';
+        element.style.borderColor = '';
+      });
+
       draggedOverElement = null;
     }
 
@@ -230,6 +390,10 @@
 
         targetElement.appendChild(indicator);
         targetElement.style.position = 'relative';
+      } else if (targetElement.classList.contains('bg-green-50')) {
+        // Dragging over a catalogue container - show highlight
+        targetElement.style.backgroundColor = '#dbeafe'; // blue-100
+        targetElement.style.borderColor = '#3b82f6'; // blue-500
       }
     }
 
@@ -245,6 +409,12 @@
       });
 
       if (draggedElement && draggedOverElement && draggedElement !== draggedOverElement) {
+        console.log('Drop detected:', {
+          draggedElement: draggedElement.className,
+          draggedOverElement: draggedOverElement.className,
+          draggedOverElementDataset: { ...draggedOverElement.dataset }
+        });
+
         const skuContent = draggedElement.dataset.sku;
         const toLevel1Id = parseInt(draggedOverElement.dataset.level1Id || '0');
         const toLevel2Id = parseInt(draggedOverElement.dataset.level2Id || '0');
@@ -260,19 +430,26 @@
           const fromLevel1Id = parseInt(draggedElement.dataset.fromLevel1Id || '0');
 
           if (fromItemId && fromLevel3Id && fromLevel2Id && fromLevel1Id) {
+            console.log('Item drag detected:', { fromItemId, fromLevel3Id, fromLevel2Id, fromLevel1Id, toLevel1Id, toLevel2Id });
+
             // Check if dropping on another item for sorting within same container
             const targetItemId = parseInt(draggedOverElement.dataset.targetItemId || '0');
+            const isDroppingOnItem = draggedOverElement.classList.contains('sortable-item');
 
-            if (targetItemId && fromLevel1Id === toLevel1Id && fromLevel2Id === toLevel2Id) {
+            console.log('Drop analysis:', { targetItemId, isDroppingOnItem, sameContainer: fromLevel1Id === toLevel1Id && fromLevel2Id === toLevel2Id });
+
+            if (targetItemId && isDroppingOnItem && fromLevel1Id === toLevel1Id && fromLevel2Id === toLevel2Id) {
               // Sorting within the same container
               const rect = draggedOverElement.getBoundingClientRect();
               const y = event.clientY - rect.top;
               const height = rect.height;
               const insertBefore = y < height / 2;
 
+              console.log('Reordering within same container');
               reorderItemWithinCatalogue(fromLevel1Id, fromLevel2Id, fromLevel3Id, fromItemId, targetItemId, insertBefore);
             } else if (toLevel1Id && toLevel2Id) {
-              // Moving to a different catalogue
+              // Moving to a different catalogue (either on empty area or different catalogue)
+              console.log('Moving to different catalogue');
               moveItemToCatalogue(fromLevel1Id, fromLevel2Id, fromLevel3Id, fromItemId, toLevel1Id, toLevel2Id);
             }
           }
@@ -720,28 +897,40 @@
 
     // Move item from one catalogue to another
     function moveItemToCatalogue(fromLevel1Id: number, fromLevel2Id: number, fromLevel3Id: number, fromItemId: number, toLevel1Id: number, toLevel2Id: number) {
+      console.log('=== MOVE ITEM TO CATALOGUE START ===');
+      console.log('Parameters:', { fromLevel1Id, fromLevel2Id, fromLevel3Id, fromItemId, toLevel1Id, toLevel2Id });
+      console.log('Current hierarchy before move:', JSON.stringify(hierarchy, null, 2));
+
       let itemToMove: any = null;
 
       // First, find and remove the item from the source catalogue
+      console.log(`Removing item from level1:${fromLevel1Id}, level2:${fromLevel2Id}, level3:${fromLevel3Id}`);
       hierarchy = hierarchy.map(level1 => {
         if (level1.id === fromLevel1Id) {
+          console.log(`Processing level1 ${level1.id}`);
           return {
             ...level1,
             level2Items: level1.level2Items.map(level2 => {
               if (level2.id === fromLevel2Id) {
+                console.log(`Processing level2 ${level2.id} (source)`);
                 return {
                   ...level2,
                   level3Items: level2.level3Items.map(level3 => {
                     if (level3.id === fromLevel3Id) {
                       const itemIndex = level3.items.findIndex(item => item.id === fromItemId);
+                      console.log(`Looking for item ${fromItemId} in level3 ${fromLevel3Id}, found at index:`, itemIndex);
                       if (itemIndex !== -1) {
                         itemToMove = level3.items[itemIndex];
+                        console.log('Item to move found:', itemToMove);
                         const newItems = [...level3.items];
                         newItems.splice(itemIndex, 1);
+                        console.log(`Removed item, level3 now has ${newItems.length} items`);
                         return {
                           ...level3,
                           items: newItems
                         };
+                      } else {
+                        console.log('Item not found in this level3');
                       }
                     }
                     return level3;
@@ -755,10 +944,14 @@
         return level1;
       });
 
+      console.log('Hierarchy after removal:', JSON.stringify(hierarchy, null, 2));
+
       // Then, add the item to the target catalogue
       if (itemToMove) {
+        console.log('Adding item to target catalogue...');
         // Extract SKU from the item content
         const itemSku = itemToMove.content.replace('📦 ', '');
+        console.log('Item SKU:', itemSku);
 
         // Check if this SKU already exists in the target catalogue (but not in the same location we're moving from)
         let skuExistsInTarget = false;
@@ -782,25 +975,32 @@
           toastWarning(`SKU "${itemSku}" already exists in target catalogue`, 'Duplicate SKU');
           return;
         }
+        console.log(`Adding item to level1:${toLevel1Id}, level2:${toLevel2Id}`);
         hierarchy = hierarchy.map(level1 => {
           if (level1.id === toLevel1Id) {
+            console.log(`Processing level1 ${level1.id} for addition`);
             return {
               ...level1,
               level2Items: level1.level2Items.map(level2 => {
                 if (level2.id === toLevel2Id) {
+                  console.log(`Processing level2 ${level2.id} (target) - has ${level2.level3Items.length} level3 containers`);
                   let level3Items = [...level2.level3Items];
+                  console.log(`Target level2 ${level2.id} initially has ${level3Items.length} level3 containers`);
                   // If no level 3 containers exist, create one
                   if (level3Items.length === 0) {
+                    console.log('Creating new level3 container for empty target level2');
                     level3Items = [{
                       id: nextId++,
                       title: 'Level 3',
                       items: []
                     }];
+                    console.log('Created level3 container with id:', level3Items[0].id);
                   }
 
                   // Find the last level 3 container or create a new one if the last one is full (limit to 10 items per container)
                   let targetLevel3Index = level3Items.length - 1;
-                  if (level3Items[targetLevel3Index].items.length >= 10) {
+                  console.log(`targetLevel3Index initially: ${targetLevel3Index}, level3Items.length: ${level3Items.length}`);
+                  if (level3Items.length > 0 && level3Items[targetLevel3Index].items.length >= 10) {
                     // Create a new level 3 container
                     level3Items = [...level3Items, {
                       id: nextId++,
@@ -808,13 +1008,17 @@
                       items: []
                     }];
                     targetLevel3Index = level3Items.length - 1;
+                    console.log('Created new level3 container, targetLevel3Index now:', targetLevel3Index);
                   }
 
                   // Add item to the target level 3 container
+                  console.log(`Adding item to level3 index ${targetLevel3Index}`);
+                  console.log('Target level3 container has:', level3Items[targetLevel3Index].items.length, 'items');
                   level3Items[targetLevel3Index] = {
                     ...level3Items[targetLevel3Index],
                     items: [...level3Items[targetLevel3Index].items, itemToMove]
                   };
+                  console.log('After adding:', level3Items[targetLevel3Index].items.length, 'items');
                   return {
                     ...level2,
                     level3Items
@@ -827,6 +1031,9 @@
           return level1;
         });
 
+        console.log('=== MOVE ITEM TO CATALOGUE COMPLETE ===');
+        console.log('Item to move was:', itemToMove);
+        console.log('Final hierarchy after move:', JSON.stringify(hierarchy, null, 2));
         toastInfo(`Item moved to catalogue`, 'Item Moved');
 
         // Log the updated JSON structure
@@ -1088,12 +1295,18 @@
                         </div>
 
                         <!-- Items can be added directly to level 2 containers -->
-                        <div class="space-y-1">
+                        <div class="space-y-1 min-h-[40px] relative">
+                          <!-- Drop zone for moving items to this catalogue -->
+                          <div
+                            class="absolute inset-0 opacity-0 hover:opacity-25 bg-blue-100 border-2 border-dashed border-blue-300 rounded transition-opacity duration-200"
+                            style="pointer-events: none;"
+                          ></div>
+
                           {#each level2.level3Items as level3 (level3.id)}
                             {#each level3.items as item (item.id)}
                               {@const skuContent = item.content.replace('📦 ', '')}
                               {@const skuData = skuPriceData.find(d => d.sku === skuContent)}
-                          <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable sortable-item flex justify-between items-center"
+                          <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable sortable-item flex justify-between items-center relative z-10"
                                role="button"
                                tabindex="0"
                                draggable="true"
@@ -1122,6 +1335,13 @@
                               </div>
                             {/each}
                           {/each}
+
+                          <!-- Empty state message when no items -->
+                          {#if level2.level3Items.length === 0 || level2.level3Items.every(level3 => level3.items.length === 0)}
+                            <div class="text-center py-4 text-gray-500 text-sm">
+                              Drop items here to add to this catalogue
+                            </div>
+                          {/if}
                         </div>
                       </div>
                     {/each}
@@ -1132,18 +1352,74 @@
           </div>
         </div>
 
-        <!-- Submit Button -->
+        <!-- Action Buttons -->
         <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
-          <div class="flex justify-end">
-            <button
-              on:click={submitCatalogue}
-              class="bg-[rgb(148,186,77)] text-white px-6 py-3 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold text-lg shadow-md hover:shadow-lg"
-            >
-              Submit & Print Catalogue
-            </button>
+          <div class="flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+              {#if currentSessionId}
+                <span class="text-sm text-gray-600">Current Session: <strong>{currentSessionName}</strong></span>
+              {/if}
+            </div>
+            <div class="flex space-x-3">
+              <button
+                on:click={openSaveDialog}
+                class="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold shadow-md hover:shadow-lg"
+              >
+                💾 Save Session
+              </button>
+              <button
+                on:click={submitCatalogue}
+                class="bg-[rgb(148,186,77)] text-white px-6 py-3 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold text-lg shadow-md hover:shadow-lg"
+              >
+                Print
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Save Session Dialog -->
+  {#if showSaveDialog}
+    <div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') closeSaveDialog(); }}>
+      <button class="absolute inset-0 bg-black bg-opacity-50" on:click={closeSaveDialog} aria-label="Close dialog"></button>
+      <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative z-10" role="document">
+        <h3 id="dialog-title" class="text-lg font-semibold text-gray-800 mb-4">Save Catalogue Session</h3>
+
+        <div class="mb-4">
+          <label for="sessionName" class="block text-sm font-medium text-gray-700 mb-2">
+            Session Name
+          </label>
+          <input
+            id="sessionName"
+            type="text"
+            bind:value={currentSessionName}
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Enter session name..."
+            on:keydown={(e) => {
+              if (e.key === 'Enter') {
+                handleSaveSession();
+              }
+            }}
+          />
+        </div>
+
+        <div class="flex justify-end space-x-3">
+          <button
+            on:click={closeSaveDialog}
+            class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            on:click={handleSaveSession}
+            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors font-semibold"
+          >
+            Save Session
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 

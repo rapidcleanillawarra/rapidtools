@@ -1322,6 +1322,7 @@
                         {@const apiPrice = parseFloat(skuData?.price || '0')}
                         {@const inputPriceNum = parseFloat(inputPrice || '0')}
                         {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
+                        {@const hasIncompleteData = !skuData?.image || !skuData?.description || skuData?.description?.trim() === ''}
                         <div
                           class="bg-orange-100 border border-orange-300 rounded p-2 text-sm cursor-move draggable flex justify-between items-center"
                           role="button"
@@ -1332,7 +1333,14 @@
                           on:dragend={handleDragEnd}
                         >
                           <div class="flex-1">
-                            <div class="font-medium">{skuData?.name || sku}</div>
+                            <div class="flex items-center gap-2 mb-1">
+                              <div class="font-medium">{skuData?.name || sku}</div>
+                              {#if hasIncompleteData}
+                                <span class="px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-full font-medium">
+                                  Incomplete
+                                </span>
+                              {/if}
+                            </div>
                             <div class="text-xs text-gray-600">
                               {sku} •
                               <span class={isApiHigher ? 'text-green-600 font-semibold' : ''}>
@@ -1540,6 +1548,7 @@
                               {@const apiPrice = parseFloat(skuData?.price || '0')}
                               {@const inputPriceNum = parseFloat(inputPrice || '0')}
                               {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
+                              {@const hasIncompleteData = !skuData?.image || !skuData?.description || skuData?.description?.trim() === ''}
                           <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable sortable-item flex justify-between items-center relative z-10"
                                role="button"
                                tabindex="0"
@@ -1556,7 +1565,14 @@
                                on:dragover={handleDragOver}
                                on:drop={handleDrop}>
                                 <div class="flex-1">
-                                  <div class="font-medium">{skuData?.name || skuContent}</div>
+                                  <div class="flex items-center gap-2 mb-1">
+                                    <div class="font-medium">{skuData?.name || skuContent}</div>
+                                    {#if hasIncompleteData}
+                                      <span class="px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-full font-medium">
+                                        Incomplete
+                                      </span>
+                                    {/if}
+                                  </div>
                                   <div class="text-xs text-gray-600">
                                     {item.content.replace('📦 ', '')} •
                                     <span class={isApiHigher ? 'text-green-600 font-semibold' : ''}>

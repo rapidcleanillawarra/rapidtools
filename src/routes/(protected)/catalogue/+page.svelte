@@ -223,8 +223,8 @@
             session_name: sessionName,
             catalogue_data: catalogueData,
             available_skus: skuPriceData,
+            input_prices: inputPrices,
             is_template: isTemplate
-            // Note: input_prices column needs to be added to database schema
           })
           .select()
           .single();

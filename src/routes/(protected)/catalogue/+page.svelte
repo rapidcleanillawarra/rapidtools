@@ -11,6 +11,7 @@
     let profile: UserProfile | null = null;
     let draggedElement: HTMLElement | null = null;
     let draggedOverElement: HTMLElement | null = null;
+    let isProcessingDrop: boolean = false;
     let skuText = '';
     let skuList: string[] = [];
     let failedSkus: string[] = [];
@@ -52,6 +53,15 @@
     // Subscribe to profile changes
     userProfile.subscribe((p) => {
       profile = p;
+    });
+
+    // Sessions data
+    let savedSessions: any[] = [];
+    let loadingSessions: boolean = false;
+
+    // Load sessions when component mounts
+    onMount(async () => {
+      await loadSavedSessions();
     });
 
     // Focus input when dialog opens
@@ -196,15 +206,18 @@
           }
         };
 
+        // Generate a random UUID for this session (since we can't use Firebase UID directly)
+        const sessionUserId = crypto.randomUUID();
+
         const { data, error } = await supabase
           .from('catalogue_sessions')
           .insert({
-            user_id: user?.uid,
+            user_id: sessionUserId,
             session_name: sessionName,
             catalogue_data: catalogueData,
             available_skus: skuPriceData,
-            is_template: isTemplate,
-            created_by: user?.uid
+            is_template: isTemplate
+            // created_by and updated_by are nullable, so we can omit them
           })
           .select()
           .single();
@@ -227,7 +240,7 @@
           .from('catalogue_sessions')
           .select('*')
           .eq('id', sessionId)
-          .eq('user_id', user?.uid)
+          .eq('user_id', '00000000-0000-0000-0000-000000000000')
           .single();
 
         if (error) throw error;
@@ -249,6 +262,7 @@
         console.log('Loaded catalogue data:', catalogueData);
 
         toastSuccess(`Session "${data.session_name}" loaded successfully!`, 'Session Loaded');
+        await loadSavedSessions(); // Refresh the sessions list
         return data;
       } catch (error) {
         console.error('Error loading session:', error);
@@ -259,7 +273,8 @@
 
     // Open save dialog
     function openSaveDialog() {
-      currentSessionName = currentSessionName || `Catalogue ${new Date().toLocaleDateString()}`;
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      currentSessionName = currentSessionName || `Catalogue ${timestamp}`;
       showSaveDialog = true;
     }
 
@@ -279,8 +294,56 @@
         const sessionData = await saveCatalogueSession(currentSessionName.trim());
         currentSessionId = sessionData.id;
         closeSaveDialog();
+        await loadSavedSessions(); // Refresh the sessions list
       } catch (error) {
         // Error handling is done in saveCatalogueSession
+      }
+    }
+
+    // Load saved sessions from Supabase
+    async function loadSavedSessions() {
+      if (!user?.uid) return;
+
+      loadingSessions = true;
+      try {
+        const { data, error } = await supabase
+          .from('catalogue_sessions')
+          .select('id, session_name, created_at, is_template')
+          .eq('user_id', '00000000-0000-0000-0000-000000000000')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        savedSessions = data || [];
+      } catch (error) {
+        console.error('Error loading sessions:', error);
+        toastWarning('Failed to load saved sessions', 'Load Error');
+      } finally {
+        loadingSessions = false;
+      }
+    }
+
+    // Delete a saved session
+    async function deleteSession(sessionId: string, sessionName: string) {
+      try {
+        const { error } = await supabase
+          .from('catalogue_sessions')
+          .delete()
+          .eq('id', sessionId)
+          .eq('user_id', '00000000-0000-0000-0000-000000000000');
+
+        if (error) throw error;
+
+        toastSuccess(`Session "${sessionName}" deleted successfully!`, 'Session Deleted');
+        await loadSavedSessions(); // Refresh the list
+
+        // If the deleted session was the current one, clear it
+        if (currentSessionId === sessionId) {
+          currentSessionId = null;
+          currentSessionName = '';
+        }
+      } catch (error) {
+        console.error('Error deleting session:', error);
+        toastWarning('Failed to delete session', 'Delete Error');
       }
     }
 
@@ -289,7 +352,8 @@
       try {
         // Auto-save if not already saved
         if (!currentSessionId) {
-          const defaultName = `Catalogue ${new Date().toLocaleDateString()}`;
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          const defaultName = `Catalogue ${timestamp}`;
           await saveCatalogueSession(defaultName);
         }
 
@@ -399,7 +463,14 @@
 
     function handleDrop(event: DragEvent) {
       event.preventDefault();
+      event.stopPropagation();
       draggedOverElement = event.currentTarget as HTMLElement;
+
+      // Prevent multiple drop processing
+      if (isProcessingDrop) {
+        return;
+      }
+      isProcessingDrop = true;
 
       // Clean up visual indicators
       document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
@@ -446,7 +517,7 @@
               const insertBefore = y < height / 2;
 
               console.log('Reordering within same container');
-              reorderItemWithinCatalogue(fromLevel1Id, fromLevel2Id, fromLevel3Id, fromItemId, targetItemId, insertBefore);
+              reorderItemWithinCatalogue(fromLevel1Id, fromLevel2Id, fromItemId, targetItemId, insertBefore);
             } else if (toLevel1Id && toLevel2Id) {
               // Moving to a different catalogue (either on empty area or different catalogue)
               console.log('Moving to different catalogue');
@@ -456,6 +527,7 @@
         }
       }
       draggedOverElement = null;
+      isProcessingDrop = false;
     }
 
     // Add new level 1 container
@@ -855,35 +927,44 @@
     }
 
     // Reorder item within the same catalogue
-    function reorderItemWithinCatalogue(level1Id: number, level2Id: number, level3Id: number, fromItemId: number, toItemId: number, insertBefore: boolean) {
+    function reorderItemWithinCatalogue(level1Id: number, level2Id: number, fromItemId: number, toItemId: number, insertBefore: boolean) {
       hierarchy = hierarchy.map(level1 => {
         if (level1.id === level1Id) {
           return {
             ...level1,
             level2Items: level1.level2Items.map(level2 => {
               if (level2.id === level2Id) {
-                return {
-                  ...level2,
-                  level3Items: level2.level3Items.map(level3 => {
-                    if (level3.id === level3Id) {
-                      const items = [...level3.items];
-                      const fromIndex = items.findIndex(item => item.id === fromItemId);
-                      const toIndex = items.findIndex(item => item.id === toItemId);
+                // Collect all items from all level3 containers in this level2
+                let allItems: any[] = [];
+                level2.level3Items.forEach(level3 => {
+                  allItems = [...allItems, ...level3.items];
+                });
 
-                      if (fromIndex !== -1 && toIndex !== -1) {
-                        const [movedItem] = items.splice(fromIndex, 1);
-                        const targetIndex = insertBefore ? toIndex : toIndex + 1;
-                        items.splice(targetIndex, 0, movedItem);
-                      }
+                // Find indices in the flat list
+                const fromIndex = allItems.findIndex(item => item.id === fromItemId);
+                const toIndex = allItems.findIndex(item => item.id === toItemId);
 
-                      return {
-                        ...level3,
-                        items
-                      };
-                    }
-                    return level3;
-                  })
-                };
+                if (fromIndex !== -1 && toIndex !== -1) {
+                  // Reorder the flat list
+                  const [movedItem] = allItems.splice(fromIndex, 1);
+                  const targetIndex = insertBefore ? toIndex : toIndex + 1;
+                  allItems.splice(targetIndex, 0, movedItem);
+
+                  // Redistribute items back into level3 containers (max 10 per container)
+                  const newLevel3Items: any[] = [];
+                  for (let i = 0; i < allItems.length; i += 10) {
+                    newLevel3Items.push({
+                      id: i === 0 && level2.level3Items[0] ? level2.level3Items[0].id : nextId++,
+                      title: 'Level 3',
+                      items: allItems.slice(i, i + 10)
+                    });
+                  }
+
+                  return {
+                    ...level2,
+                    level3Items: newLevel3Items
+                  };
+                }
               }
               return level2;
             })
@@ -1074,17 +1155,17 @@
   </style>
 
   <div class="container mx-auto px-4 py-8" in:fade>
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-full mx-auto">
       <div class="bg-white shadow-lg rounded-lg overflow-hidden">
         <!-- Page Header -->
-        <div class="px-6 py-6 border-b border-gray-200">
+        <div class="px-8 py-6 border-b border-gray-200">
           <h2 class="text-2xl font-bold text-gray-800">Create Product Catalogue</h2>
         </div>
 
-        <div id="page-content" class="px-6 py-8">
-          <div class="grid grid-cols-12 gap-6">
+        <div id="page-content" class="px-8 py-8">
+          <div class="grid grid-cols-12 gap-4">
             <!-- Left Column - SKUs -->
-            <div class="col-span-4">
+            <div class="col-span-3">
               <div class="space-y-4">
                 <!-- SKUs Textarea -->
                 <div class="bg-gray-50 rounded-lg p-4">
@@ -1174,8 +1255,8 @@
               </div>
             </div>
 
-            <!-- Right Column - Dynamic Draggable Multi-level Divs -->
-            <div class="col-span-8">
+            <!-- Middle Column - Dynamic Hierarchy -->
+            <div class="col-span-6">
               <div class="space-y-4">
                 <div class="flex justify-between items-center">
                   <h3 class="text-lg font-semibold text-gray-800">Dynamic Hierarchy</h3>
@@ -1315,6 +1396,8 @@
                                data-target-item-id={item.id}
                                data-from-level2-id={level2.id}
                                data-from-level1-id={level1.id}
+                               data-level1-id={level1.id}
+                               data-level2-id={level2.id}
                                on:dragstart={handleDragStart}
                                on:dragend={handleDragEnd}
                                on:dragover={handleDragOver}
@@ -1349,11 +1432,82 @@
                 {/each}
               </div>
             </div>
+
+            <!-- Right Column - Saved Sessions -->
+            <div class="col-span-3">
+              <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-lg font-semibold text-gray-800">Saved Sessions</h3>
+                  <button
+                    on:click={loadSavedSessions}
+                    disabled={loadingSessions}
+                    class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors disabled:opacity-50"
+                    title="Refresh Sessions"
+                  >
+                    🔄 {loadingSessions ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+
+                {#if loadingSessions}
+                  <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <div class="text-gray-600">Loading sessions...</div>
+                  </div>
+                {:else if savedSessions.length === 0}
+                  <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <div class="text-gray-600 mb-2">No saved sessions yet</div>
+                    <div class="text-sm text-gray-500">Save your catalogue to create sessions</div>
+                  </div>
+                {:else}
+                  <div class="bg-white border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <div class="space-y-2">
+                      {#each savedSessions as session (session.id)}
+                        <div class="border border-gray-200 rounded p-3 hover:bg-gray-50 transition-colors">
+                          <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1 min-w-0">
+                              <div class="font-medium text-gray-900 truncate" title={session.session_name}>
+                                {session.session_name}
+                              </div>
+                              <div class="text-xs text-gray-500">
+                                {new Date(session.created_at).toLocaleDateString()}
+                                {#if session.is_template}
+                                  <span class="ml-1 px-1 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">Template</span>
+                                {/if}
+                              </div>
+                            </div>
+                            <div class="flex space-x-1 ml-2">
+                              <button
+                                on:click={() => loadCatalogueSession(session.id)}
+                                class="text-blue-600 hover:text-blue-800 p-1"
+                                title="Load Session"
+                              >
+                                📂
+                              </button>
+                              <button
+                                on:click={() => deleteSession(session.id, session.session_name)}
+                                class="text-red-600 hover:text-red-800 p-1"
+                                title="Delete Session"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                          {#if currentSessionId === session.id}
+                            <div class="text-xs text-green-600 font-medium">
+                              ✓ Currently loaded
+                            </div>
+                          {/if}
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
           <div class="flex justify-between items-center">
             <div class="flex items-center space-x-2">
               {#if currentSessionId}

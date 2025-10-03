@@ -17,6 +17,8 @@
     let failedSkus: string[] = [];
 
     let skuPriceData: any[] = [];
+    let inputPrices: { [sku: string]: string } = {}; // Store prices from textarea input
+    let skuSearchTerm: string = '';
 
     // Session management
     let currentSessionId: string | null = null;
@@ -177,6 +179,10 @@
     // Save catalogue session to Supabase
     async function saveCatalogueSession(sessionName: string, isTemplate = false) {
       try {
+        if (!user?.uid) {
+          throw new Error('User not authenticated');
+        }
+
         const catalogueData = {
           productRanges: hierarchy.map(level1 => ({
             title: level1.title || 'Unnamed Range',
@@ -189,7 +195,11 @@
                   return {
                     sku: skuContent,
                     name: skuData?.name || skuContent.toUpperCase(),
-                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    price: (() => {
+                      const inputPrice = inputPrices[skuContent];
+                      const displayPrice = inputPrice || skuData?.price || '0.00';
+                      return `$${displayPrice}`;
+                    })(),
                     image: skuData?.image || null,
                     description: skuData?.description || '',
                     certifications: skuData?.certifications || []
@@ -206,18 +216,15 @@
           }
         };
 
-        // Generate a random UUID for this session (since we can't use Firebase UID directly)
-        const sessionUserId = crypto.randomUUID();
-
         const { data, error } = await supabase
           .from('catalogue_sessions')
           .insert({
-            user_id: sessionUserId,
+            user_id: user.uid, // Use Firebase UID directly
             session_name: sessionName,
             catalogue_data: catalogueData,
             available_skus: skuPriceData,
             is_template: isTemplate
-            // created_by and updated_by are nullable, so we can omit them
+            // Note: input_prices column needs to be added to database schema
           })
           .select()
           .single();
@@ -236,11 +243,15 @@
     // Load catalogue session from Supabase
     async function loadCatalogueSession(sessionId: string) {
       try {
+        if (!user?.uid) {
+          throw new Error('User not authenticated');
+        }
+
         const { data, error } = await supabase
           .from('catalogue_sessions')
           .select('*')
           .eq('id', sessionId)
-          .eq('user_id', '00000000-0000-0000-0000-000000000000')
+          .eq('user_id', user.uid)
           .single();
 
         if (error) throw error;
@@ -254,12 +265,85 @@
 
         // Restore available SKUs
         skuPriceData = data.available_skus || [];
-        skuList = skuPriceData.map(item => item.sku);
+
+        // Restore input prices
+        inputPrices = data.input_prices || {};
 
         // Reconstruct hierarchy from catalogue data
-        // This would need to be implemented based on your data structure
-        // For now, we'll log it
-        console.log('Loaded catalogue data:', catalogueData);
+        if (catalogueData && catalogueData.productRanges) {
+          hierarchy = catalogueData.productRanges.map((range, rangeIndex) => {
+            const level1Id = nextId++;
+            return {
+              id: level1Id,
+              title: range.title || 'Unnamed Range',
+              level2Items: range.categories.map((category, categoryIndex) => {
+                const level2Id = nextId++;
+                // Group products into level3 containers (max 10 per container)
+                const level3Items = [];
+                const products = category.products || [];
+                
+                for (let i = 0; i < products.length; i += 10) {
+                  const level3Id = nextId++;
+                  const productsSlice = products.slice(i, i + 10);
+                  level3Items.push({
+                    id: level3Id,
+                    title: 'Level 3',
+                    items: productsSlice.map(product => ({
+                      id: nextId++,
+                      content: `📦 ${product.sku}`
+                    }))
+                  });
+                }
+                
+                return {
+                  id: level2Id,
+                  title: category.name || 'Unnamed Category',
+                  level3Items
+                };
+              })
+            };
+          });
+        } else {
+          // If no catalogue data, reset to default hierarchy
+          hierarchy = [
+            {
+              id: nextId++,
+              title: '',
+              level2Items: [
+                {
+                  id: nextId++,
+                  title: '',
+                  level3Items: []
+                },
+                {
+                  id: nextId++,
+                  title: '',
+                  level3Items: []
+                }
+              ]
+            }
+          ];
+        }
+        
+        console.log('Reconstructed hierarchy:', hierarchy);
+
+        // Update skuList to only include SKUs that are not in the catalogue
+        const skusInCatalogue = new Set();
+        hierarchy.forEach(level1 => {
+          level1.level2Items.forEach(level2 => {
+            level2.level3Items.forEach(level3 => {
+              level3.items.forEach(item => {
+                const sku = item.content.replace('📦 ', '');
+                skusInCatalogue.add(sku);
+              });
+            });
+          });
+        });
+
+        // Filter out SKUs that are already in the catalogue
+        skuList = skuPriceData
+          .map(item => item.sku)
+          .filter(sku => !skusInCatalogue.has(sku));
 
         toastSuccess(`Session "${data.session_name}" loaded successfully!`, 'Session Loaded');
         await loadSavedSessions(); // Refresh the sessions list
@@ -309,7 +393,7 @@
         const { data, error } = await supabase
           .from('catalogue_sessions')
           .select('id, session_name, created_at, is_template')
-          .eq('user_id', '00000000-0000-0000-0000-000000000000')
+          .eq('user_id', user.uid)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -325,11 +409,15 @@
     // Delete a saved session
     async function deleteSession(sessionId: string, sessionName: string) {
       try {
+        if (!user?.uid) {
+          throw new Error('User not authenticated');
+        }
+
         const { error } = await supabase
           .from('catalogue_sessions')
           .delete()
           .eq('id', sessionId)
-          .eq('user_id', '00000000-0000-0000-0000-000000000000');
+          .eq('user_id', user.uid);
 
         if (error) throw error;
 
@@ -370,7 +458,11 @@
                   return {
                     sku: skuContent,
                     name: skuData?.name || skuContent.toUpperCase(),
-                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    price: (() => {
+                      const inputPrice = inputPrices[skuContent];
+                      const displayPrice = inputPrice || skuData?.price || '0.00';
+                      return `$${displayPrice}`;
+                    })(),
                     image: skuData?.image || null,
                     description: skuData?.description || '',
                     certifications: skuData?.certifications || []
@@ -714,13 +806,20 @@
 
         const skusToProcess: string[] = [];
         const errors: string[] = [];
+        const newInputPrices: { [sku: string]: string } = {};
 
         for (const line of lines) {
-          // Accept either just SKU or SKU,price format (price will be overridden by API)
+          // Accept either just SKU or SKU,price format
           const parts = line.split(',').map(part => part.trim());
           const sku = parts[0];
+          const price = parts[1]; // Price from textarea input
+
           if (sku) {
             skusToProcess.push(sku);
+            // Store input price if provided - this will be used instead of API price
+            if (price && !isNaN(parseFloat(price))) {
+              newInputPrices[sku] = price;
+            }
           } else {
             errors.push(`Invalid line: "${line}" - missing SKU`);
           }
@@ -734,7 +833,7 @@
         // Show loading state
         toastInfo(`Fetching product data for ${skusToProcess.length} SKU${skusToProcess.length > 1 ? 's' : ''}...`, 'Processing');
 
-        // Fetch data for all SKUs
+        // Always fetch API data for all SKUs to get accurate API prices
         const fetchPromises = skusToProcess.map(sku => fetchProductData(sku));
         const fetchResults = await Promise.all(fetchPromises);
 
@@ -750,6 +849,8 @@
 
         fetchResults.forEach((result, index) => {
           if (result) {
+            const sku = skusToProcess[index];
+            // If input price was provided, keep the API data but we'll override display price later
             processedData.push(result);
           } else {
             apiErrors.push(skusToProcess[index]);
@@ -780,6 +881,7 @@
         }
 
         skuPriceData = uniqueData;
+        inputPrices = newInputPrices; // Store the input prices
         skuList = uniqueData.map(item => item.sku); // Keep skuList for backward compatibility
         failedSkus = apiErrors; // Store failed SKUs for display
         skuText = ''; // Clear the textarea after processing
@@ -797,7 +899,11 @@
                   return {
                     sku: skuContent,
                     name: skuData?.name || skuContent.toUpperCase(),
-                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    price: (() => {
+                      const inputPrice = inputPrices[skuContent];
+                      const displayPrice = inputPrice || skuData?.price || '0.00';
+                      return `$${displayPrice}`;
+                    })(),
                     image: skuData?.image || null,
                     description: skuData?.description || '',
                     certifications: skuData?.certifications || []
@@ -1130,7 +1236,11 @@
                   return {
                     sku: skuContent,
                     name: skuData?.name || skuContent.toUpperCase(),
-                    price: skuData ? `$${skuData.price}` : '$0.00',
+                    price: (() => {
+                      const inputPrice = inputPrices[skuContent];
+                      const displayPrice = inputPrice || skuData?.price || '0.00';
+                      return `$${displayPrice}`;
+                    })(),
                     image: skuData?.image || null,
                     description: skuData?.description || '',
                     certifications: skuData?.certifications || []
@@ -1175,7 +1285,7 @@
                     rows="8"
                     bind:value={skuText}
                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[rgb(148,186,77)] focus:border-[rgb(148,186,77)] resize-none"
-                    placeholder="Enter SKUs here... (one per line, prices and details will be fetched from API)"
+                    placeholder="Enter SKUs here... (one per line, optional: SKU,price - API will fetch details, input price will override)"
                   ></textarea>
                   <button
                     on:click={processSKUs}
@@ -1188,10 +1298,30 @@
                 <!-- SKU List -->
                 {#if skuList.length > 0}
                   <div class="bg-white border border-gray-200 rounded-lg p-4">
-                    <h4 class="text-sm font-medium text-gray-700 mb-2">Available SKUs</h4>
+                    <div class="flex justify-between items-center mb-2">
+                      <h4 class="text-sm font-medium text-gray-700">Available SKUs</h4>
+                      <input
+                        type="text"
+                        bind:value={skuSearchTerm}
+                        class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Search by name or SKU..."
+                      />
+                    </div>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
-                      {#each skuList as sku, i (i)}
+                      {#each skuList.filter(sku => {
+                        if (!skuSearchTerm) return true;
+                        const skuData = skuPriceData.find(d => d.sku === sku);
+                        const searchLower = skuSearchTerm.toLowerCase();
+                        const nameMatch = skuData?.name?.toLowerCase().includes(searchLower);
+                        const skuMatch = sku.toLowerCase().includes(searchLower);
+                        return nameMatch || skuMatch;
+                      }) as sku, i (i)}
                         {@const skuData = skuPriceData.find(d => d.sku === sku)}
+                        {@const inputPrice = inputPrices[sku]}
+                        {@const displayPrice = inputPrice || skuData?.price || '0.00'}
+                        {@const apiPrice = parseFloat(skuData?.price || '0')}
+                        {@const inputPriceNum = parseFloat(inputPrice || '0')}
+                        {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
                         <div
                           class="bg-orange-100 border border-orange-300 rounded p-2 text-sm cursor-move draggable flex justify-between items-center"
                           role="button"
@@ -1203,13 +1333,23 @@
                         >
                           <div class="flex-1">
                             <div class="font-medium">{skuData?.name || sku}</div>
-                            <div class="text-xs text-gray-600">{sku} • ${skuData?.price || '0.00'}</div>
+                            <div class="text-xs text-gray-600">
+                              {sku} •
+                              <span class={isApiHigher ? 'text-green-600 font-semibold' : ''}>
+                                ${displayPrice}
+                              </span>
+                              {#if inputPrice && skuData?.price}
+                                <span class="text-gray-400">(API: ${skuData.price})</span>
+                              {/if}
+                            </div>
                           </div>
                           <button
                             on:click={(e) => {
                               e.stopPropagation();
                               toastWarning(`SKU "${sku}" removed from list`, 'SKU Removed');
                               skuList = skuList.filter(s => s !== sku);
+                              delete inputPrices[sku]; // Also remove from input prices
+                              inputPrices = { ...inputPrices }; // Trigger reactivity
                             }}
                             class="text-orange-600 hover:text-orange-800 ml-1"
                             title="Remove SKU"
@@ -1291,7 +1431,11 @@
                                     return {
                                       sku: skuContent,
                                       name: skuContent.toUpperCase(),
-                                      price: skuData ? `$${skuData.price}` : '$0.00',
+                                      price: (() => {
+                      const inputPrice = inputPrices[skuContent];
+                      const displayPrice = inputPrice || skuData?.price || '0.00';
+                      return `$${displayPrice}`;
+                    })(),
                                       image: null,
                                       description: '',
                                       certifications: []
@@ -1351,7 +1495,11 @@
                                         return {
                                           sku: skuContent,
                                           name: skuContent.toUpperCase(),
-                                          price: skuData ? `$${skuData.price}` : '$0.00',
+                                          price: (() => {
+                      const inputPrice = inputPrices[skuContent];
+                      const displayPrice = inputPrice || skuData?.price || '0.00';
+                      return `$${displayPrice}`;
+                    })(),
                                           image: null,
                                           description: '',
                                           certifications: []
@@ -1387,6 +1535,11 @@
                             {#each level3.items as item (item.id)}
                               {@const skuContent = item.content.replace('📦 ', '')}
                               {@const skuData = skuPriceData.find(d => d.sku === skuContent)}
+                              {@const inputPrice = inputPrices[skuContent]}
+                              {@const displayPrice = inputPrice || skuData?.price || '0.00'}
+                              {@const apiPrice = parseFloat(skuData?.price || '0')}
+                              {@const inputPriceNum = parseFloat(inputPrice || '0')}
+                              {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
                           <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable sortable-item flex justify-between items-center relative z-10"
                                role="button"
                                tabindex="0"
@@ -1404,7 +1557,15 @@
                                on:drop={handleDrop}>
                                 <div class="flex-1">
                                   <div class="font-medium">{skuData?.name || skuContent}</div>
-                                  <div class="text-xs text-gray-600">{item.content.replace('📦 ', '')} • ${skuData?.price || '0.00'}</div>
+                                  <div class="text-xs text-gray-600">
+                                    {item.content.replace('📦 ', '')} •
+                                    <span class={isApiHigher ? 'text-green-600 font-semibold' : ''}>
+                                      ${displayPrice}
+                                    </span>
+                                    {#if inputPrice && skuData?.price}
+                                      <span class="text-gray-400">(API: ${skuData.price})</span>
+                                    {/if}
+                                  </div>
                                 </div>
                             <button
                               on:click={() => {

@@ -153,8 +153,8 @@
             grid-template-columns: 0.6fr 2fr;
             gap: 10px;
             margin-bottom: 5px;
-            min-height: 100px;
-            max-height: 100px;
+            min-height: 125px;
+            max-height: 165px;
         }
 
         .product-image-section {
@@ -165,10 +165,10 @@
         .product-image {
             width: 100%;
             height: auto;
-            max-height: 100px;
+            min-height:125px;
+            max-height: 165px;
             object-fit: contain;
             border-radius: 8px;
-            margin-bottom: 16px;
         }
 
         .certifications {
@@ -207,8 +207,8 @@
 
         .product-description-section {
             background: #f9f9f9;
-            border-radius: 8px;
-            padding: 5px;
+            border-radius: 10px;
+            padding: 5px 10px;
         }
 
         .description-header {

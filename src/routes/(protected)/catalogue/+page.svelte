@@ -15,6 +15,7 @@
     let skuText = '';
     let skuList: string[] = [];
     let failedSkus: string[] = [];
+    let updatingApiData: boolean = false;
 
     let skuPriceData: any[] = [];
     let inputPrices: { [sku: string]: string } = {}; // Store prices from textarea input
@@ -940,6 +941,92 @@
       }
     }
 
+    // Update API data for existing SKUs
+    async function updateApiData() {
+      // Collect all unique SKUs from both available list and hierarchy
+      const allSkus = new Set([...skuList]);
+
+      // Add SKUs from hierarchy
+      hierarchy.forEach(level1 => {
+        level1.level2Items.forEach(level2 => {
+          level2.level3Items.forEach(level3 => {
+            level3.items.forEach(item => {
+              const sku = item.content.replace('📦 ', '');
+              allSkus.add(sku);
+            });
+          });
+        });
+      });
+
+      const uniqueSkus = Array.from(allSkus);
+
+      if (uniqueSkus.length === 0) {
+        toastWarning('No SKUs available to update', 'No SKUs');
+        return;
+      }
+
+      updatingApiData = true;
+      try {
+        toastInfo(`Updating API data for ${uniqueSkus.length} SKU${uniqueSkus.length > 1 ? 's' : ''}...`, 'Updating');
+
+        // Fetch updated data for all SKUs
+        const fetchPromises = uniqueSkus.map(sku => fetchProductData(sku));
+        const fetchResults = await Promise.all(fetchPromises);
+
+        const updatedData: Array<{
+          sku: string,
+          price: string,
+          name: string,
+          description: string,
+          image: string | null,
+          certifications: string[]
+        }> = [];
+        const apiErrors: string[] = [];
+
+        fetchResults.forEach((result, index) => {
+          if (result) {
+            updatedData.push(result);
+          } else {
+            apiErrors.push(uniqueSkus[index]);
+          }
+        });
+
+        // Update skuPriceData with new information
+        updatedData.forEach(newData => {
+          const existingIndex = skuPriceData.findIndex(d => d.sku === newData.sku);
+          if (existingIndex !== -1) {
+            // Preserve input prices if they exist
+            const inputPrice = inputPrices[newData.sku];
+            skuPriceData[existingIndex] = newData;
+            // Re-apply input price if it was set
+            if (inputPrice) {
+              inputPrices[newData.sku] = inputPrice;
+            }
+          } else {
+            skuPriceData.push(newData);
+          }
+        });
+
+        // Trigger reactivity
+        skuPriceData = [...skuPriceData];
+        inputPrices = { ...inputPrices };
+
+        if (updatedData.length > 0) {
+          toastSuccess(`Successfully updated API data for ${updatedData.length} SKU${updatedData.length > 1 ? 's' : ''}!`, 'API Data Updated');
+        }
+
+        if (apiErrors.length > 0) {
+          toastWarning(`${apiErrors.length} SKU${apiErrors.length > 1 ? 's' : ''} failed to update from API: ${apiErrors.join(', ')}`, 'Update Errors');
+        }
+
+      } catch (error) {
+        console.error('Error updating API data:', error);
+        toastWarning('Failed to update API data', 'Update Error');
+      } finally {
+        updatingApiData = false;
+      }
+    }
+
     // Add SKU item to a catalogue
     function addSKUToCatalogue(level1Id: number, level2Id: number, skuContent: string) {
       // Check if SKU already exists in any catalogue
@@ -1300,12 +1387,22 @@
                   <div class="bg-white border border-gray-200 rounded-lg p-4">
                     <div class="flex justify-between items-center mb-2">
                       <h4 class="text-sm font-medium text-gray-700">Available SKUs</h4>
-                      <input
-                        type="text"
-                        bind:value={skuSearchTerm}
-                        class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="Search by name or SKU..."
-                      />
+                      <div class="flex items-center space-x-2">
+                        <button
+                          on:click={updateApiData}
+                          disabled={updatingApiData}
+                          class="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Update API data for all SKUs"
+                        >
+                          {updatingApiData ? '🔄 Updating...' : '🔄 Update API Data'}
+                        </button>
+                        <input
+                          type="text"
+                          bind:value={skuSearchTerm}
+                          class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          placeholder="Search by name or SKU..."
+                        />
+                      </div>
                     </div>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
                       {#each skuList.filter(sku => {
@@ -1334,7 +1431,14 @@
                         >
                           <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
-                              <div class="font-medium">{skuData?.name || sku}</div>
+                              <a
+                                href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku={sku}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="font-medium hover:text-blue-600 hover:underline transition-colors"
+                              >
+                                {skuData?.name || sku}
+                              </a>
                               {#if hasIncompleteData}
                                 <span class="px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-full font-medium">
                                   Incomplete
@@ -1566,7 +1670,14 @@
                                on:drop={handleDrop}>
                                 <div class="flex-1">
                                   <div class="flex items-center gap-2 mb-1">
-                                    <div class="font-medium">{skuData?.name || skuContent}</div>
+                                    <a
+                                      href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku={skuContent}"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      class="font-medium hover:text-blue-600 hover:underline transition-colors"
+                                    >
+                                      {skuData?.name || skuContent}
+                                    </a>
                                     {#if hasIncompleteData}
                                       <span class="px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-full font-medium">
                                         Incomplete

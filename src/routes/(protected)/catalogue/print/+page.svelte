@@ -1,5 +1,6 @@
 <script lang="ts">
     import type { CatalogueData } from './types.ts';
+    import { goto } from '$app/navigation';
 
     interface PageData {
         catalogueData: CatalogueData;
@@ -12,6 +13,10 @@
         window.print();
     }
 
+    function goBackToCatalogue() {
+        goto('/catalogue');
+    }
+
     // Helper function to get certification icon URL
     function getCertificationIcon(certification: string): string {
         const iconMap: Record<string, string> = {
@@ -21,6 +26,7 @@
         };
         return iconMap[certification] || "";
     }
+
 </script>
 
 <svelte:head>
@@ -78,7 +84,7 @@
         }
 
         .page-header {
-            background: #000;
+            background: #272727;
             color: white;
             padding: 10px 20px;
             display: flex;
@@ -90,7 +96,7 @@
         .header-right {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 60px;
         }
 
         .logo {
@@ -115,7 +121,7 @@
         }
 
         .page-number {
-            font-size: 24pt;
+            font-size: 20pt;
             font-weight: bold;
             color: white;
         }
@@ -130,11 +136,11 @@
         }
 
         .category-header {
-            background: #1e1e1e;
+            background: #9db85e;
             color: white;
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
         }
 
         .category-title {
@@ -144,11 +150,11 @@
 
         .product-grid {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-            margin-bottom: 10px;
-            min-height: 200px;
-            max-height: 200px;
+            grid-template-columns: 0.6fr 2fr;
+            gap: 10px;
+            margin-bottom: 5px;
+            min-height: 100px;
+            max-height: 100px;
         }
 
         .product-image-section {
@@ -159,7 +165,7 @@
         .product-image {
             width: 100%;
             height: auto;
-            max-height: 200px;
+            max-height: 100px;
             object-fit: contain;
             border-radius: 8px;
             margin-bottom: 16px;
@@ -179,11 +185,11 @@
         }
 
         .product-details {
-            background: #94ba4d;
+            background: #272727;
             color: white;
             border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
+            padding: 5px 10px;
+            margin-bottom: 5px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -202,14 +208,14 @@
         .product-description-section {
             background: #f9f9f9;
             border-radius: 8px;
-            padding: 10px;
+            padding: 5px;
         }
 
         .description-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 5px;
         }
 
         .description-title {
@@ -222,9 +228,28 @@
         }
 
         .description-text {
-            font-size: 9pt;
+            font-size: 7pt;
             color: #666;
             line-height: 1.2;
+        }
+
+        .back-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: #666;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14pt;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .back-button:hover {
+            background: #555;
         }
 
         .print-button {
@@ -255,6 +280,7 @@
                 font-size: 11pt;
             }
 
+            .back-button,
             .print-button {
                 display: none;
             }
@@ -282,6 +308,7 @@
     </style>
 </svelte:head>
 
+<button class="back-button" on:click={goBackToCatalogue}>Back to Catalogue</button>
 <button class="print-button" on:click={printPage}>Print Catalogue</button>
 <div class="container">
     {#each data.catalogueData.productRanges as productRange, rangeIndex}
@@ -357,9 +384,9 @@
                                     </div>
                                 {/if}
                             </div>
-                            <p class="description-text">
-                                {product.description}
-                            </p>
+                            <div class="description-text">
+                                {@html product.description}
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -685,6 +685,29 @@
 
     // Remove page header
     function removePageHeader(pageHeaderId: number) {
+      // First, collect all SKUs from the page header being removed
+      const pageHeader = hierarchy.find(item => item.id === pageHeaderId);
+      if (pageHeader) {
+        const skusToReturn: string[] = [];
+        pageHeader.level2Items.forEach(level2 => {
+          level2.level3Items.forEach(level3 => {
+            level3.items.forEach(skuItem => {
+              const sku = skuItem.content.replace('📦 ', '');
+              if (!skuList.includes(sku)) {
+                skusToReturn.push(sku);
+              }
+            });
+          });
+        });
+        
+        // Add collected SKUs back to the available list
+        if (skusToReturn.length > 0) {
+          skuList = [...skuList, ...skusToReturn];
+          toastInfo(`${skusToReturn.length} SKU${skusToReturn.length > 1 ? 's' : ''} returned to available list`, 'SKUs Restored');
+        }
+      }
+      
+      // Then remove the page header
       hierarchy = hierarchy.filter(header => header.id !== pageHeaderId);
     }
 
@@ -701,6 +724,29 @@
 
     // Remove product range
     function removeProductRange(productRangeId: number) {
+      // First, collect all SKUs from the product range being removed
+      const productRange = hierarchy.find(item => item.id === productRangeId);
+      if (productRange) {
+        const skusToReturn: string[] = [];
+        productRange.level2Items.forEach(level2 => {
+          level2.level3Items.forEach(level3 => {
+            level3.items.forEach(skuItem => {
+              const sku = skuItem.content.replace('📦 ', '');
+              if (!skuList.includes(sku)) {
+                skusToReturn.push(sku);
+              }
+            });
+          });
+        });
+        
+        // Add collected SKUs back to the available list
+        if (skusToReturn.length > 0) {
+          skuList = [...skuList, ...skusToReturn];
+          toastInfo(`${skusToReturn.length} SKU${skusToReturn.length > 1 ? 's' : ''} returned to available list`, 'SKUs Restored');
+        }
+      }
+      
+      // Then remove the product range
       hierarchy = hierarchy.filter(item => item.id !== productRangeId);
     }
 
@@ -724,6 +770,30 @@
 
     // Remove level 2 container
     function removeLevel2(itemId: number, level2Id: number) {
+      // First, collect all SKUs from the level2 being removed
+      const parentItem = hierarchy.find(item => item.id === itemId);
+      if (parentItem) {
+        const level2ToRemove = parentItem.level2Items.find(level2 => level2.id === level2Id);
+        if (level2ToRemove) {
+          const skusToReturn: string[] = [];
+          level2ToRemove.level3Items.forEach(level3 => {
+            level3.items.forEach(skuItem => {
+              const sku = skuItem.content.replace('📦 ', '');
+              if (!skuList.includes(sku)) {
+                skusToReturn.push(sku);
+              }
+            });
+          });
+          
+          // Add collected SKUs back to the available list
+          if (skusToReturn.length > 0) {
+            skuList = [...skuList, ...skusToReturn];
+            toastInfo(`${skusToReturn.length} SKU${skusToReturn.length > 1 ? 's' : ''} returned to available list`, 'SKUs Restored');
+          }
+        }
+      }
+      
+      // Then remove the level2 container
       hierarchy = hierarchy.map(item => {
         if (item.id === itemId) {
           return {

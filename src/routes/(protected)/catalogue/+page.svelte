@@ -339,23 +339,9 @@
         
         console.log('Reconstructed hierarchy:', hierarchy);
 
-        // Update skuList to only include SKUs that are not in the catalogue
-        const skusInCatalogue = new Set();
-        hierarchy.forEach(item => {
-          item.level2Items.forEach(level2 => {
-            level2.level3Items.forEach(level3 => {
-              level3.items.forEach(skuItem => {
-                const sku = skuItem.content.replace('📦 ', '');
-                skusInCatalogue.add(sku);
-              });
-            });
-          });
-        });
-
-        // Filter out SKUs that are already in the catalogue
-        skuList = skuPriceData
-          .map(item => item.sku)
-          .filter(sku => !skusInCatalogue.has(sku));
+        // When loading a session, show all SKUs that were saved with the session
+        // (not just the ones not currently in the catalogue)
+        skuList = skuPriceData.map(item => item.sku);
 
         toastSuccess(`Session "${data.session_name}" loaded successfully!`, 'Session Loaded');
         await loadSavedSessions(); // Refresh the sessions list
@@ -1019,8 +1005,22 @@
           }
         }
 
-        skuPriceData = uniqueData;
-        inputPrices = newInputPrices; // Store the input prices
+        // Merge new SKU data with existing data - preserve existing data for SKUs not in textarea
+        const mergedSkuPriceData = [...skuPriceData];
+        uniqueData.forEach(newData => {
+          const existingIndex = mergedSkuPriceData.findIndex(d => d.sku === newData.sku);
+          if (existingIndex !== -1) {
+            // Update existing entry with new data
+            mergedSkuPriceData[existingIndex] = newData;
+          } else {
+            // Add new entry
+            mergedSkuPriceData.push(newData);
+          }
+        });
+        skuPriceData = mergedSkuPriceData;
+
+        // Merge new input prices with existing ones - preserve existing prices for SKUs not in textarea
+        inputPrices = { ...inputPrices, ...newInputPrices };
         skuList = uniqueData.map(item => item.sku); // Keep skuList for backward compatibility
         failedSkus = apiErrors; // Store failed SKUs for display
         skuText = ''; // Clear the textarea after processing
@@ -1630,6 +1630,7 @@
                               {@const inputPriceNum = parseFloat(inputPrice || '0')}
                               {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
                               {@const hasIncompleteData = !skuData?.image || !skuData?.description || skuData?.description?.trim() === ''}
+                              {@const hasImage = !!skuData?.image}
                           {@const currentIndex = level3.items.findIndex(i => i.id === skuItem.id)}
                           <div class="bg-red-100 border border-red-300 rounded p-2 text-xs flex justify-between items-center">
                                 <div class="flex-1">
@@ -1647,6 +1648,9 @@
                                         Incomplete
                                       </span>
                                     {/if}
+                                    <span class="px-1.5 py-0.5 text-xs {hasImage ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-gray-100 text-gray-800 border border-gray-300'} rounded-full font-medium">
+                                      {hasImage ? '📷 Image' : '📷 No Image'}
+                                    </span>
                                   </div>
                                   <div class="text-xs text-gray-600">
                                     {skuItem.content.replace('📦 ', '')} •

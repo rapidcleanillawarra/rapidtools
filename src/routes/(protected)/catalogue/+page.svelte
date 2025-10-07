@@ -9,9 +9,6 @@
 
     let user: any = null;
     let profile: UserProfile | null = null;
-    let draggedElement: HTMLElement | null = null;
-    let draggedOverElement: HTMLElement | null = null;
-    let isProcessingDrop: boolean = false;
     let skuText = '';
     let skuList: string[] = [];
     let failedSkus: string[] = [];
@@ -535,139 +532,74 @@
       }
     }
 
-    function handleDragStart(event: DragEvent) {
-      draggedElement = event.target as HTMLElement;
-      draggedElement.style.opacity = '0.5';
-    }
-
-    function handleDragEnd(event: DragEvent) {
-      if (draggedElement) {
-        draggedElement.style.opacity = '1';
-        draggedElement = null;
-      }
-
-      // Clean up visual feedback from catalogue containers
-      document.querySelectorAll('.bg-green-50').forEach(el => {
-        const element = el as HTMLElement;
-        element.style.backgroundColor = '';
-        element.style.borderColor = '';
-      });
-
-      draggedOverElement = null;
-    }
-
-    function handleDragOver(event: DragEvent) {
-      event.preventDefault();
-      draggedOverElement = event.currentTarget as HTMLElement;
-
-      // For sorting within the same container, show visual feedback
-      const targetElement = event.currentTarget as HTMLElement;
-      if (targetElement.classList.contains('sortable-item')) {
-        const rect = targetElement.getBoundingClientRect();
-        const y = event.clientY - rect.top;
-        const height = rect.height;
-
-        // Remove previous indicators
-        document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-
-        // Create drop indicator
-        const indicator = document.createElement('div');
-        indicator.className = 'drop-indicator bg-blue-500 h-1 rounded-full';
-        indicator.style.position = 'absolute';
-        indicator.style.width = 'calc(100% - 1rem)';
-        indicator.style.left = '0.5rem';
-        indicator.style.zIndex = '10';
-
-        if (y < height / 2) {
-          // Drop above
-          indicator.style.top = '-2px';
-          targetElement.style.marginTop = '4px';
-        } else {
-          // Drop below
-          indicator.style.bottom = '-2px';
-          targetElement.style.marginBottom = '4px';
+    // Move item up in the catalogue
+    function moveItemUp(itemId: number, level2Id: number, level3Id: number, itemToMoveId: number) {
+      hierarchy = hierarchy.map(item => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            level2Items: item.level2Items.map(level2 => {
+              if (level2.id === level2Id) {
+                return {
+                  ...level2,
+                  level3Items: level2.level3Items.map(level3 => {
+                    if (level3.id === level3Id) {
+                      const itemIndex = level3.items.findIndex(item => item.id === itemToMoveId);
+                      if (itemIndex > 0) {
+                        // Move within the same level3 container
+                        const newItems = [...level3.items];
+                        [newItems[itemIndex - 1], newItems[itemIndex]] = [newItems[itemIndex], newItems[itemIndex - 1]];
+                        return {
+                          ...level3,
+                          items: newItems
+                        };
+                      }
+                    }
+                    return level3;
+                  })
+                };
+              }
+              return level2;
+            })
+          };
         }
-
-        targetElement.appendChild(indicator);
-        targetElement.style.position = 'relative';
-      } else if (targetElement.classList.contains('bg-green-50')) {
-        // Dragging over a catalogue container - show highlight
-        targetElement.style.backgroundColor = '#dbeafe'; // blue-100
-        targetElement.style.borderColor = '#3b82f6'; // blue-500
-      }
+        return item;
+      });
     }
 
-    function handleDrop(event: DragEvent) {
-      event.preventDefault();
-      event.stopPropagation();
-      draggedOverElement = event.currentTarget as HTMLElement;
-
-      // Prevent multiple drop processing
-      if (isProcessingDrop) {
-        return;
-      }
-      isProcessingDrop = true;
-
-      // Clean up visual indicators
-      document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
-      document.querySelectorAll('.sortable-item').forEach(el => {
-        (el as HTMLElement).style.marginTop = '';
-        (el as HTMLElement).style.marginBottom = '';
-      });
-
-      if (draggedElement && draggedOverElement && draggedElement !== draggedOverElement) {
-        console.log('Drop detected:', {
-          draggedElement: draggedElement.className,
-          draggedOverElement: draggedOverElement.className,
-          draggedOverElementDataset: { ...draggedOverElement.dataset }
-        });
-
-        const skuContent = draggedElement.dataset.sku;
-        const toItemId = parseInt(draggedOverElement.dataset.itemId || '0');
-        const toLevel2Id = parseInt(draggedOverElement.dataset.level2Id || '0');
-
-        // If dropping a SKU from the list to a catalogue (only for product ranges)
-        const toItem = hierarchy.find(item => item.id === toItemId);
-        if (skuContent && toItemId && toLevel2Id && toItem?.type === 'productRange') {
-          addSKUToCatalogue(toItemId, toLevel2Id, skuContent);
-        } else {
-          // Check if this is an item being dragged (not a SKU from the list)
-          const fromItemId = parseInt(draggedElement.dataset.itemId || '0');
-          const fromLevel3Id = parseInt(draggedElement.dataset.level3Id || '0');
-          const fromLevel2Id = parseInt(draggedElement.dataset.fromLevel2Id || '0');
-          const fromParentItemId = parseInt(draggedElement.dataset.fromParentItemId || '0');
-
-          if (fromItemId && fromLevel3Id && fromLevel2Id && fromParentItemId) {
-            console.log('Item drag detected:', { fromItemId, fromLevel3Id, fromLevel2Id, fromParentItemId, toItemId, toLevel2Id });
-
-            // Check if dropping on another item for sorting within same container
-            const targetItemId = parseInt(draggedOverElement.dataset.targetItemId || '0');
-            const isDroppingOnItem = draggedOverElement.classList.contains('sortable-item');
-
-            console.log('Drop analysis:', { targetItemId, isDroppingOnItem, sameContainer: fromParentItemId === toItemId && fromLevel2Id === toLevel2Id });
-
-            const fromItem = hierarchy.find(item => item.id === fromParentItemId);
-            const toItem = hierarchy.find(item => item.id === toItemId);
-
-            if (targetItemId && isDroppingOnItem && fromParentItemId === toItemId && fromLevel2Id === toLevel2Id && fromItem?.type === 'productRange') {
-              // Sorting within the same container
-              const rect = draggedOverElement.getBoundingClientRect();
-              const y = event.clientY - rect.top;
-              const height = rect.height;
-              const insertBefore = y < height / 2;
-
-              console.log('Reordering within same container');
-              reorderItemWithinCatalogue(fromParentItemId, fromLevel2Id, fromItemId, targetItemId, insertBefore);
-            } else if (toItemId && toLevel2Id && fromItem?.type === 'productRange' && toItem?.type === 'productRange') {
-              // Moving to a different catalogue (only between product ranges)
-              console.log('Moving to different catalogue');
-              moveItemToCatalogue(fromParentItemId, fromLevel2Id, fromLevel3Id, fromItemId, toItemId, toLevel2Id);
-            }
-          }
+    // Move item down in the catalogue
+    function moveItemDown(itemId: number, level2Id: number, level3Id: number, itemToMoveId: number) {
+      hierarchy = hierarchy.map(item => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            level2Items: item.level2Items.map(level2 => {
+              if (level2.id === level2Id) {
+                return {
+                  ...level2,
+                  level3Items: level2.level3Items.map(level3 => {
+                    if (level3.id === level3Id) {
+                      const itemIndex = level3.items.findIndex(item => item.id === itemToMoveId);
+                      if (itemIndex < level3.items.length - 1) {
+                        // Move within the same level3 container
+                        const newItems = [...level3.items];
+                        [newItems[itemIndex], newItems[itemIndex + 1]] = [newItems[itemIndex + 1], newItems[itemIndex]];
+                        return {
+                          ...level3,
+                          items: newItems
+                        };
+                      }
+                    }
+                    return level3;
+                  })
+                };
+              }
+              return level2;
+            })
+          };
         }
-      }
-      draggedOverElement = null;
-      isProcessingDrop = false;
+        return item;
+      });
     }
 
     // Add new page header
@@ -1120,12 +1052,11 @@
       }
     }
 
-    // Add SKU item to a catalogue
+    // Add SKU to a catalogue
     function addSKUToCatalogue(itemId: number, level2Id: number, skuContent: string) {
       // Check if SKU already exists in any catalogue
       if (skuExistsInCatalogue(skuContent)) {
         toastWarning(`SKU "${skuContent}" already exists in catalogue`, 'Duplicate SKU');
-        // Remove from skuList if it exists there
         skuList = skuList.filter(sku => sku !== skuContent);
         return;
       }
@@ -1147,26 +1078,33 @@
                   }];
                 }
 
-                // Find the last level 3 container or create a new one if the last one is full (limit to 10 items per container)
-                let targetLevel3Index = level3Items.length - 1;
-                if (level3Items[targetLevel3Index].items.length >= 10) {
-                  // Create a new level 3 container
+                // Add to the first available level 3 container that has space
+                let added = false;
+                for (let i = 0; i < level3Items.length; i++) {
+                  if (level3Items[i].items.length < 10) {
+                    level3Items[i] = {
+                      ...level3Items[i],
+                      items: [...level3Items[i].items, {
+                        id: nextId++,
+                        content: `📦 ${skuContent}`
+                      }]
+                    };
+                    added = true;
+                    break;
+                  }
+                }
+
+                // If all containers are full, create a new one
+                if (!added) {
                   level3Items = [...level3Items, {
                     id: nextId++,
                     title: 'Level 3',
-                    items: []
+                    items: [{
+                      id: nextId++,
+                      content: `📦 ${skuContent}`
+                    }]
                   }];
-                  targetLevel3Index = level3Items.length - 1;
                 }
-
-                // Add SKU to the target level 3 container
-                level3Items[targetLevel3Index] = {
-                  ...level3Items[targetLevel3Index],
-                  items: [...level3Items[targetLevel3Index].items, {
-                    id: nextId++,
-                    content: `📦 ${skuContent}`
-                  }]
-                };
 
                 return {
                   ...level2,
@@ -1182,320 +1120,12 @@
 
       // Remove the SKU from the list
       skuList = skuList.filter(sku => sku !== skuContent);
-
-      // Show success toast
       toastInfo(`SKU "${skuContent}" added to catalogue`, 'SKU Added');
-
-      // Log the updated JSON structure
-      const pageHeaders = hierarchy.filter(item => item.type === 'pageHeader');
-      const productRanges = hierarchy.filter(item => item.type === 'productRange');
-
-      const updatedJsonData = {
-        pageHeaders: pageHeaders.map(header => ({
-          title: header.title || 'Unnamed Page Header',
-          categories: header.level2Items.map(level2 => ({
-            name: level2.title || 'Unnamed Category',
-            products: level2.level3Items.flatMap(level3 =>
-              level3.items.map(item => {
-                const skuContent = item.content.replace('📦 ', '');
-                const skuData = skuPriceData.find(d => d.sku === skuContent);
-                return {
-                  sku: skuContent,
-                  name: skuData?.name || skuContent.toUpperCase(),
-                  price: skuData ? `$${skuData.price}` : '$0.00',
-                  image: skuData?.image || null,
-                  description: skuData?.description || '',
-                  certifications: skuData?.certifications || []
-                };
-              })
-            )
-          }))
-        })),
-        productRanges: productRanges.map(range => ({
-          title: range.title || 'Unnamed Range',
-          categories: range.level2Items.map(level2 => ({
-            name: level2.title || 'Unnamed Category',
-            products: level2.level3Items.flatMap(level3 =>
-              level3.items.map(item => {
-                const skuContent = item.content.replace('📦 ', '');
-                const skuData = skuPriceData.find(d => d.sku === skuContent);
-                return {
-                  sku: skuContent,
-                  name: skuData?.name || skuContent.toUpperCase(),
-                  price: skuData ? `$${skuData.price}` : '$0.00',
-                  image: skuData?.image || null,
-                  description: skuData?.description || '',
-                  certifications: skuData?.certifications || []
-                };
-              })
-            )
-          }))
-        }))
-      };
-      console.log('Catalogue JSON Data (after adding SKU):', updatedJsonData);
     }
 
-    // Reorder item within the same catalogue
-    function reorderItemWithinCatalogue(itemId: number, level2Id: number, fromItemId: number, toItemId: number, insertBefore: boolean) {
-      hierarchy = hierarchy.map(item => {
-        if (item.id === itemId) {
-          return {
-            ...item,
-            level2Items: item.level2Items.map(level2 => {
-              if (level2.id === level2Id) {
-                // Collect all items from all level3 containers in this level2
-                let allItems: any[] = [];
-                level2.level3Items.forEach(level3 => {
-                  allItems = [...allItems, ...level3.items];
-                });
-
-                // Find indices in the flat list
-                const fromIndex = allItems.findIndex(item => item.id === fromItemId);
-                const toIndex = allItems.findIndex(item => item.id === toItemId);
-
-                if (fromIndex !== -1 && toIndex !== -1) {
-                  // Reorder the flat list
-                  const [movedItem] = allItems.splice(fromIndex, 1);
-                  const targetIndex = insertBefore ? toIndex : toIndex + 1;
-                  allItems.splice(targetIndex, 0, movedItem);
-
-                  // Redistribute items back into level3 containers (max 10 per container)
-                  const newLevel3Items: any[] = [];
-                  for (let i = 0; i < allItems.length; i += 10) {
-                    newLevel3Items.push({
-                      id: i === 0 && level2.level3Items[0] ? level2.level3Items[0].id : nextId++,
-                      title: 'Level 3',
-                      items: allItems.slice(i, i + 10)
-                    });
-                  }
-
-                  return {
-                    ...level2,
-                    level3Items: newLevel3Items
-                  };
-                }
-              }
-              return level2;
-            })
-          };
-        }
-        return item;
-      });
-
-      toastInfo('Item reordered within catalogue', 'Item Reordered');
-    }
-
-    // Move item from one catalogue to another
-    function moveItemToCatalogue(fromParentItemId: number, fromLevel2Id: number, fromLevel3Id: number, fromItemId: number, toItemId: number, toLevel2Id: number) {
-      console.log('=== MOVE ITEM TO CATALOGUE START ===');
-      console.log('Parameters:', { fromParentItemId, fromLevel2Id, fromLevel3Id, fromItemId, toItemId, toLevel2Id });
-      console.log('Current hierarchy before move:', JSON.stringify(hierarchy, null, 2));
-
-      let itemToMove: any = null;
-
-      // First, find and remove the item from the source catalogue
-      console.log(`Removing item from item:${fromParentItemId}, level2:${fromLevel2Id}, level3:${fromLevel3Id}`);
-      hierarchy = hierarchy.map(item => {
-        if (item.id === fromParentItemId) {
-          console.log(`Processing item ${item.id}`);
-          return {
-            ...item,
-            level2Items: item.level2Items.map(level2 => {
-              if (level2.id === fromLevel2Id) {
-                console.log(`Processing level2 ${level2.id} (source)`);
-                return {
-                  ...level2,
-                  level3Items: level2.level3Items.map(level3 => {
-                    if (level3.id === fromLevel3Id) {
-                      const itemIndex = level3.items.findIndex(item => item.id === fromItemId);
-                      console.log(`Looking for item ${fromItemId} in level3 ${fromLevel3Id}, found at index:`, itemIndex);
-                      if (itemIndex !== -1) {
-                        itemToMove = level3.items[itemIndex];
-                        console.log('Item to move found:', itemToMove);
-                        const newItems = [...level3.items];
-                        newItems.splice(itemIndex, 1);
-                        console.log(`Removed item, level3 now has ${newItems.length} items`);
-                        return {
-                          ...level3,
-                          items: newItems
-                        };
-                      } else {
-                        console.log('Item not found in this level3');
-                      }
-                    }
-                    return level3;
-                  })
-                };
-              }
-              return level2;
-            })
-          };
-        }
-        return item;
-      });
-
-      console.log('Hierarchy after removal:', JSON.stringify(hierarchy, null, 2));
-
-      // Then, add the item to the target catalogue
-      if (itemToMove) {
-        console.log('Adding item to target catalogue...');
-        // Extract SKU from the item content
-        const itemSku = itemToMove.content.replace('📦 ', '');
-        console.log('Item SKU:', itemSku);
-
-        // Check if this SKU already exists in the target catalogue (but not in the same location we're moving from)
-        let skuExistsInTarget = false;
-        hierarchy.forEach(item => {
-          item.level2Items.forEach(level2 => {
-            // Skip the source catalogue if it's the same one
-            if (!(item.id === fromParentItemId && level2.id === fromLevel2Id)) {
-              level2.level3Items.forEach(level3 => {
-                level3.items.forEach(skuItem => {
-                  const existingSku = skuItem.content.replace('📦 ', '');
-                  if (existingSku === itemSku) {
-                    skuExistsInTarget = true;
-                  }
-                });
-              });
-            }
-          });
-        });
-
-        if (skuExistsInTarget) {
-          toastWarning(`SKU "${itemSku}" already exists in target catalogue`, 'Duplicate SKU');
-          return;
-        }
-        console.log(`Adding item to item:${toItemId}, level2:${toLevel2Id}`);
-        hierarchy = hierarchy.map(item => {
-          if (item.id === toItemId) {
-            console.log(`Processing item ${item.id} for addition`);
-            return {
-              ...item,
-              level2Items: item.level2Items.map(level2 => {
-                if (level2.id === toLevel2Id) {
-                  console.log(`Processing level2 ${level2.id} (target) - has ${level2.level3Items.length} level3 containers`);
-                  let level3Items = [...level2.level3Items];
-                  console.log(`Target level2 ${level2.id} initially has ${level3Items.length} level3 containers`);
-                  // If no level 3 containers exist, create one
-                  if (level3Items.length === 0) {
-                    console.log('Creating new level3 container for empty target level2');
-                    level3Items = [{
-                      id: nextId++,
-                      title: 'Level 3',
-                      items: []
-                    }];
-                    console.log('Created level3 container with id:', level3Items[0].id);
-                  }
-
-                  // Find the last level 3 container or create a new one if the last one is full (limit to 10 items per container)
-                  let targetLevel3Index = level3Items.length - 1;
-                  console.log(`targetLevel3Index initially: ${targetLevel3Index}, level3Items.length: ${level3Items.length}`);
-                  if (level3Items.length > 0 && level3Items[targetLevel3Index].items.length >= 10) {
-                    // Create a new level 3 container
-                    level3Items = [...level3Items, {
-                      id: nextId++,
-                      title: 'Level 3',
-                      items: []
-                    }];
-                    targetLevel3Index = level3Items.length - 1;
-                    console.log('Created new level3 container, targetLevel3Index now:', targetLevel3Index);
-                  }
-
-                  // Add item to the target level 3 container (with regenerated ID)
-                  console.log(`Adding item to level3 index ${targetLevel3Index}`);
-                  console.log('Target level3 container has:', level3Items[targetLevel3Index].items.length, 'items');
-                  const newItem = {
-                    id: nextId++,
-                    content: itemToMove.content
-                  };
-                  level3Items[targetLevel3Index] = {
-                    ...level3Items[targetLevel3Index],
-                    items: [...level3Items[targetLevel3Index].items, newItem]
-                  };
-                  console.log('After adding:', level3Items[targetLevel3Index].items.length, 'items');
-                  return {
-                    ...level2,
-                    level3Items
-                  };
-                }
-                return level2;
-              })
-            };
-          }
-          return item;
-        });
-
-        console.log('=== MOVE ITEM TO CATALOGUE COMPLETE ===');
-        console.log('Item to move was:', itemToMove);
-        console.log('Final hierarchy after move:', JSON.stringify(hierarchy, null, 2));
-        toastInfo(`Item moved to catalogue`, 'Item Moved');
-
-        // Log the updated JSON structure
-        const pageHeaders = hierarchy.filter(item => item.type === 'pageHeader');
-        const productRanges = hierarchy.filter(item => item.type === 'productRange');
-
-        const updatedJsonData = {
-          pageHeaders: pageHeaders.map(header => ({
-            title: header.title || 'Unnamed Page Header',
-            categories: header.level2Items.map(level2 => ({
-              name: level2.title || 'Unnamed Category',
-              products: level2.level3Items.flatMap(level3 =>
-                level3.items.map(item => {
-                  const skuContent = item.content.replace('📦 ', '');
-                  const skuData = skuPriceData.find(d => d.sku === skuContent);
-                  return {
-                    sku: skuContent,
-                    name: skuData?.name || skuContent.toUpperCase(),
-                    price: (() => {
-                      const inputPrice = inputPrices[skuContent];
-                      const displayPrice = inputPrice || skuData?.price || '0.00';
-                      return `$${displayPrice}`;
-                    })(),
-                    image: skuData?.image || null,
-                    description: skuData?.description || '',
-                    certifications: skuData?.certifications || []
-                  };
-                })
-              )
-            }))
-          })),
-          productRanges: productRanges.map(range => ({
-            title: range.title || 'Unnamed Range',
-            categories: range.level2Items.map(level2 => ({
-              name: level2.title || 'Unnamed Category',
-              products: level2.level3Items.flatMap(level3 =>
-                level3.items.map(item => {
-                  const skuContent = item.content.replace('📦 ', '');
-                  const skuData = skuPriceData.find(d => d.sku === skuContent);
-                  return {
-                    sku: skuContent,
-                    name: skuData?.name || skuContent.toUpperCase(),
-                    price: (() => {
-                      const inputPrice = inputPrices[skuContent];
-                      const displayPrice = inputPrice || skuData?.price || '0.00';
-                      return `$${displayPrice}`;
-                    })(),
-                    image: skuData?.image || null,
-                    description: skuData?.description || '',
-                    certifications: skuData?.certifications || []
-                  };
-                })
-              )
-            }))
-          }))
-        };
-        console.log('Catalogue JSON Data (after moving item):', updatedJsonData);
-      }
-    }
   </script>
 
   <style>
-    .sortable-item {
-      transition: margin 0.2s ease;
-    }
-    .drop-indicator {
-      transition: all 0.2s ease;
-    }
   </style>
 
   <div class="container mx-auto px-4 py-8" in:fade>
@@ -1568,13 +1198,7 @@
                         {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
                         {@const hasIncompleteData = !skuData?.image || !skuData?.description || skuData?.description?.trim() === ''}
                         <div
-                          class="bg-orange-100 border border-orange-300 rounded p-2 text-sm cursor-move draggable flex justify-between items-center"
-                          role="button"
-                          tabindex="0"
-                          draggable="true"
-                          data-sku={sku}
-                          on:dragstart={handleDragStart}
-                          on:dragend={handleDragEnd}
+                          class="bg-orange-100 border border-orange-300 rounded p-2 text-sm flex justify-between items-center"
                         >
                           <div class="flex-1">
                             <div class="flex items-center gap-2 mb-1">
@@ -1602,19 +1226,45 @@
                               {/if}
                             </div>
                           </div>
-                          <button
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              toastWarning(`SKU "${sku}" removed from list`, 'SKU Removed');
-                              skuList = skuList.filter(s => s !== sku);
-                              delete inputPrices[sku]; // Also remove from input prices
-                              inputPrices = { ...inputPrices }; // Trigger reactivity
-                            }}
-                            class="text-orange-600 hover:text-orange-800 ml-1"
-                            title="Remove SKU"
-                          >
-                            ×
-                          </button>
+                          <div class="flex items-center gap-1 ml-2">
+                            <select
+                              class="text-xs px-2 py-1 border border-gray-300 rounded"
+                              on:change={(e) => {
+                                const target = e.target as HTMLSelectElement;
+                                const catalogueId = parseInt(target.value);
+                                if (catalogueId) {
+                                  const productRange = hierarchy.find(item => item.type === 'productRange');
+                                  if (productRange) {
+                                    const catalogue = productRange.level2Items.find(l2 => l2.id === catalogueId);
+                                    if (catalogue) {
+                                      addSKUToCatalogue(productRange.id, catalogueId, sku);
+                                      target.value = ''; // Reset dropdown
+                                    }
+                                  }
+                                }
+                              }}
+                            >
+                              <option value="">Add to...</option>
+                              {#each hierarchy.filter(item => item.type === 'productRange') as productRange}
+                                {#each productRange.level2Items as level2}
+                                  <option value={level2.id}>{level2.title || 'Unnamed Catalogue'}</option>
+                                {/each}
+                              {/each}
+                            </select>
+                            <button
+                              on:click={(e) => {
+                                e.stopPropagation();
+                                toastWarning(`SKU "${sku}" removed from list`, 'SKU Removed');
+                                skuList = skuList.filter(s => s !== sku);
+                                delete inputPrices[sku]; // Also remove from input prices
+                                inputPrices = { ...inputPrices }; // Trigger reactivity
+                              }}
+                              class="text-orange-600 hover:text-orange-800"
+                              title="Remove SKU"
+                            >
+                              ×
+                            </button>
+                          </div>
                         </div>
                       {/each}
                     </div>
@@ -1695,10 +1345,6 @@
                       <div
                         class="bg-green-50 border-2 border-green-200 rounded-lg p-3 mb-3 min-h-[120px]"
                         role="region"
-                        data-item-id={item.id}
-                        data-level2-id={level2.id}
-                        on:dragover={handleDragOver}
-                        on:drop={handleDrop}
                       >
 
                         <div class="flex justify-between items-center mb-2">
@@ -1748,13 +1394,8 @@
                           </div>
                         </div>
 
-                        <!-- Items can be added directly to level 2 containers -->
-                        <div class="space-y-1 min-h-[40px] relative">
-                          <!-- Drop zone for moving items to this catalogue -->
-                          <div
-                            class="absolute inset-0 opacity-0 hover:opacity-25 bg-blue-100 border-2 border-dashed border-blue-300 rounded transition-opacity duration-200"
-                            style="pointer-events: none;"
-                          ></div>
+                        <!-- Items in this catalogue -->
+                        <div class="space-y-1 min-h-[40px]">
 
                           {#each level2.level3Items as level3 (level3.id)}
                             {#each level3.items as skuItem (skuItem.id)}
@@ -1766,19 +1407,8 @@
                               {@const inputPriceNum = parseFloat(inputPrice || '0')}
                               {@const isApiHigher = apiPrice > inputPriceNum && inputPrice}
                               {@const hasIncompleteData = !skuData?.image || !skuData?.description || skuData?.description?.trim() === ''}
-                          <div class="bg-red-100 border border-red-300 rounded p-2 text-xs cursor-move draggable sortable-item flex justify-between items-center relative z-10"
-                               role="button"
-                               tabindex="0"
-                               draggable="true"
-                               data-item-id={skuItem.id}
-                               data-level3-id={level3.id}
-                               data-target-item-id={skuItem.id}
-                               data-from-parent-item-id={item.id}
-                               data-from-level2-id={level2.id}
-                               on:dragstart={handleDragStart}
-                               on:dragend={handleDragEnd}
-                               on:dragover={handleDragOver}
-                               on:drop={handleDrop}>
+                          {@const currentIndex = level3.items.findIndex(i => i.id === skuItem.id)}
+                          <div class="bg-red-100 border border-red-300 rounded p-2 text-xs flex justify-between items-center">
                                 <div class="flex-1">
                                   <div class="flex items-center gap-2 mb-1">
                                     <a
@@ -1805,15 +1435,33 @@
                                     {/if}
                                   </div>
                                 </div>
-                            <button
-                              on:click={() => {
-                                removeItem(item.id, level2.id, level3.id, skuItem.id);
-                              }}
-                              class="text-red-600 hover:text-red-800 ml-1"
-                              title="Remove Item"
-                            >
-                              ×
-                            </button>
+                            <div class="flex flex-col gap-1 ml-2">
+                              <button
+                                on:click={() => moveItemUp(item.id, level2.id, level3.id, skuItem.id)}
+                                class="text-gray-600 hover:text-gray-800 text-xs px-1"
+                                title="Move Up"
+                                disabled={currentIndex === 0}
+                              >
+                                ▲
+                              </button>
+                              <button
+                                on:click={() => moveItemDown(item.id, level2.id, level3.id, skuItem.id)}
+                                class="text-gray-600 hover:text-gray-800 text-xs px-1"
+                                title="Move Down"
+                                disabled={currentIndex === level3.items.length - 1}
+                              >
+                                ▼
+                              </button>
+                              <button
+                                on:click={() => {
+                                  removeItem(item.id, level2.id, level3.id, skuItem.id);
+                                }}
+                                class="text-red-600 hover:text-red-800 text-xs px-1"
+                                title="Remove Item"
+                              >
+                                ×
+                              </button>
+                            </div>
                               </div>
                             {/each}
                           {/each}

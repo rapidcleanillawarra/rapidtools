@@ -4,6 +4,7 @@
 
     interface PageData {
         catalogueData: CatalogueData;
+        sessionName?: string;
     }
 
     export let data: PageData;
@@ -30,7 +31,7 @@
 </script>
 
 <svelte:head>
-    <title>Cleaning and Laundry Solutions Catalogue - Print</title>
+    <title>{data.sessionName ? `${data.sessionName} - Print` : 'Cleaning and Laundry Solutions Catalogue - Print'}</title>
     <style>
         @page {
             size: A4;

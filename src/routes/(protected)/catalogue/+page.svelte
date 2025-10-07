@@ -436,7 +436,7 @@
       }
     }
 
-    // Function to submit catalogue data via POST (now also saves)
+    // Function to submit catalogue data for printing
     async function submitCatalogue() {
       try {
         // Auto-save if not already saved
@@ -446,45 +446,8 @@
           await saveCatalogueSession(defaultName);
         }
 
-        // Build JSON structure matching catalogue-data.json format
-        const catalogueData = {
-          productRanges: hierarchy.map(level1 => ({
-            title: level1.title || 'Unnamed Range',
-            categories: level1.level2Items.map(level2 => ({
-              name: level2.title || 'Unnamed Category',
-              products: level2.level3Items.flatMap(level3 =>
-                level3.items.map(item => {
-                  const skuContent = item.content.replace('📦 ', '');
-                  const skuData = skuPriceData.find(d => d.sku === skuContent);
-                  return {
-                    sku: skuContent,
-                    name: skuData?.name || skuContent.toUpperCase(),
-                    price: (() => {
-                      const inputPrice = inputPrices[skuContent];
-                      const displayPrice = inputPrice || skuData?.price || '0.00';
-                      return `$${displayPrice}`;
-                    })(),
-                    image: skuData?.image || null,
-                    description: skuData?.description || '',
-                    certifications: skuData?.certifications || []
-                  };
-                })
-              )
-            }))
-          })),
-          printSettings: {
-            pageSize: "A4",
-            margin: "1cm",
-            productsPerPage: 3,
-            repeatHeaderOnNewPage: true
-          }
-        };
-
-        // Encode the data and navigate to the print page with query parameter
-        const encodedData = encodeURIComponent(JSON.stringify(catalogueData));
-        const printUrl = `/catalogue/print?data=${encodedData}`;
-
-        // Open in new tab
+        // Navigate to print page with session ID
+        const printUrl = `/catalogue/print?sessionId=${currentSessionId}`;
         window.open(printUrl, '_blank');
       } catch (error) {
         console.error('Error during print process:', error);

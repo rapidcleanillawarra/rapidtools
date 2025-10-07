@@ -1,16 +1,51 @@
 import type { CatalogueData } from './types.ts';
+import { supabase } from '$lib/supabase';
+import { error } from '@sveltejs/kit';
 
 interface PageData {
 	catalogueData: CatalogueData;
 }
 
-export const load = async ({ url, data }: { url: URL; data?: PageData }) => {
-	// Check if data was provided via POST action
-	if (data?.catalogueData) {
-		return data;
+export const load = async ({ url }: { url: URL }) => {
+	// Check for session ID in URL params
+	const sessionId = url.searchParams.get('sessionId');
+
+	if (sessionId) {
+		try {
+			// Load session data from database
+			const { data: sessionData, error: sessionError } = await supabase
+				.from('catalogue_sessions')
+				.select('catalogue_data, session_name')
+				.eq('id', sessionId)
+				.single();
+
+			if (sessionError || !sessionData) {
+				console.error('Error loading session:', sessionError);
+				throw error(404, 'Session not found');
+			}
+
+			// Extract catalogue data from session
+			const catalogueData: CatalogueData = {
+				productRanges: sessionData.catalogue_data?.productRanges || [],
+				printSettings: sessionData.catalogue_data?.printSettings || {
+					pageSize: "A4",
+					margin: "1cm",
+					productsPerPage: 3,
+					repeatHeaderOnNewPage: true
+				}
+			};
+
+			return {
+				catalogueData,
+				sessionName: sessionData.session_name
+			};
+		} catch (err) {
+			console.error('Error loading session data:', err);
+			throw error(500, 'Failed to load session data');
+		}
 	}
 
-	// Check URL params for GET requests (backward compatibility)
+	// Check URL params for backward compatibility with old data format
 	const urlData = url.searchParams.get('data');
 
 	if (urlData) {

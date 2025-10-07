@@ -1366,7 +1366,17 @@
               <div class="space-y-4">
                 <!-- SKUs Textarea -->
                 <div class="bg-gray-50 rounded-lg p-4">
-                  <label for="skus" class="block text-sm font-medium text-gray-700 mb-2">SKUs (API Lookup)</label>
+                  <div class="flex justify-between items-center mb-2">
+                    <label for="skus" class="block text-sm font-medium text-gray-700">SKUs (API Lookup)</label>
+                    <button
+                      on:click={updateApiData}
+                      disabled={updatingApiData}
+                      class="px-3 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="Update API data for all SKUs"
+                    >
+                      {updatingApiData ? '🔄 Updating...' : '🔄 Update API Data'}
+                    </button>
+                  </div>
                   <textarea
                     id="skus"
                     rows="8"
@@ -1387,22 +1397,12 @@
                   <div class="bg-white border border-gray-200 rounded-lg p-4">
                     <div class="flex justify-between items-center mb-2">
                       <h4 class="text-sm font-medium text-gray-700">Available SKUs</h4>
-                      <div class="flex items-center space-x-2">
-                        <button
-                          on:click={updateApiData}
-                          disabled={updatingApiData}
-                          class="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          title="Update API data for all SKUs"
-                        >
-                          {updatingApiData ? '🔄 Updating...' : '🔄 Update API Data'}
-                        </button>
-                        <input
-                          type="text"
-                          bind:value={skuSearchTerm}
-                          class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          placeholder="Search by name or SKU..."
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        bind:value={skuSearchTerm}
+                        class="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Search by name or SKU..."
+                      />
                     </div>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
                       {#each skuList.filter(sku => {
@@ -1509,15 +1509,9 @@
 
             <!-- Middle Column - Dynamic Hierarchy -->
             <div class="col-span-6">
-              <div class="space-y-4">
+              <div class="space-y-4 max-h-[70vh] overflow-y-auto">
                 <div class="flex justify-between items-center">
                   <h3 class="text-lg font-semibold text-gray-800">Dynamic Hierarchy</h3>
-                  <button
-                    on:click={addLevel1}
-                    class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600 transition-colors"
-                  >
-                    + Add Range
-                  </button>
                 </div>
 
                 {#each hierarchy as level1 (level1.id)}
@@ -1561,13 +1555,6 @@
                         }}
                       />
                       <div class="flex space-x-1 ml-2">
-                        <button
-                          on:click={() => addLevel2(level1.id)}
-                          class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600 transition-colors"
-                          title="Add Catalogue"
-                        >
-                          + Catalogue
-                        </button>
                         <button
                           on:click={() => removeLevel1(level1.id)}
                           class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
@@ -1716,8 +1703,29 @@
                         </div>
                       </div>
                     {/each}
+
+                    <!-- Add Catalogue button at the bottom -->
+                    <div class="mt-3 text-center">
+                      <button
+                        on:click={() => addLevel2(level1.id)}
+                        class="bg-green-500 text-white px-3 py-2 rounded text-sm hover:bg-green-600 transition-colors font-medium"
+                        title="Add Catalogue"
+                      >
+                        + Add Catalogue
+                      </button>
+                    </div>
                   </div>
                 {/each}
+
+                <!-- Add Range button at the bottom -->
+                <div class="text-center pt-4 border-t border-gray-200">
+                  <button
+                    on:click={addLevel1}
+                    class="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold"
+                  >
+                    + Add Range
+                  </button>
+                </div>
               </div>
             </div>
 

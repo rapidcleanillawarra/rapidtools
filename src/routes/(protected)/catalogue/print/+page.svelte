@@ -1,6 +1,7 @@
 <script lang="ts">
     import type { CatalogueData } from './types.ts';
     import { goto } from '$app/navigation';
+    import { onMount } from 'svelte';
 
     interface PageData {
         catalogueData: CatalogueData;
@@ -11,7 +12,12 @@
 
 
     function printPage() {
-        window.print();
+        // Recalculate page headers before printing to ensure accuracy
+        createPageHeaders();
+        // Small delay to ensure headers are created before printing
+        setTimeout(() => {
+            window.print();
+        }, 200);
     }
 
     function goBackToCatalogue() {
@@ -27,6 +33,55 @@
         };
         return iconMap[certification] || "";
     }
+
+    // Create multiple page headers for proper page numbering
+    function createPageHeaders() {
+        // Remove existing print headers
+        const existingHeaders = document.querySelectorAll('.print-header');
+        existingHeaders.forEach(header => header.remove());
+
+        const container = document.querySelector('.container');
+        if (!container) return;
+
+        // A4 page height at 96dpi is approximately 1123px, minus margins (1cm = ~38px)
+        const pageHeight = 1123 - 76; // 1123px - 2cm margins
+        const headerHeight = 60; // Approximate header height
+        const contentHeight = container.scrollHeight;
+
+        // Calculate number of pages needed
+        const pagesNeeded = Math.ceil(contentHeight / pageHeight);
+
+        // Create a header for each page
+        for (let page = 1; page <= pagesNeeded; page++) {
+            const header = document.createElement('div');
+            header.className = 'print-header';
+            header.innerHTML = `
+                <img src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png" alt="Rapid Supplies Logo" class="logo">
+                <div class="header-right">
+                    <div class="contact-info">
+                        <div class="contact-item"><span>📞</span> <span>4227 2833</span></div>
+                        <div class="contact-item"><span>📧</span> <span>orders@rapidcleanillawarra.com.au</span></div>
+                    </div>
+                    <span class="page-number">${page}</span>
+                </div>
+            `;
+
+            // Position the header at the top of each page
+            header.style.position = 'fixed';
+            header.style.top = `${(page - 1) * pageHeight}px`;
+            header.style.left = '0';
+            header.style.right = '0';
+            header.style.zIndex = '1000';
+
+            document.body.appendChild(header);
+        }
+    }
+
+    // Initialize page headers when component mounts
+    onMount(() => {
+        // Small delay to ensure DOM is fully rendered
+        setTimeout(createPageHeaders, 100);
+    });
 
 </script>
 
@@ -93,6 +148,7 @@
             align-items: center;
             margin-bottom: 20px;
         }
+
 
         .header-right {
             display: flex;
@@ -286,9 +342,31 @@
                 display: none;
             }
 
+            /* Hide the original page headers in print */
             .page-header {
+                display: none;
+            }
+
+            /* Show and position the repeating header */
+            .print-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: #272727;
+                color: white;
+                padding: 10px 20px;
+                z-index: 1000;
                 -webkit-print-color-adjust: exact;
                 color-adjust: exact;
+            }
+
+            /* Add top margin to container to account for fixed header */
+            .container {
+                margin-top: 60px;
             }
 
             .category-header {
@@ -311,6 +389,7 @@
 
 <button class="back-button" on:click={goBackToCatalogue}>Back to Catalogue</button>
 <button class="print-button" on:click={printPage}>Print Catalogue</button>
+
 <div class="container">
     {#each data.catalogueData.productRanges as productRange, rangeIndex}
         <!-- Page Header -->

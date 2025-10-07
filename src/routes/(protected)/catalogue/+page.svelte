@@ -188,37 +188,11 @@
           throw new Error('User not authenticated');
         }
 
-        const pageHeaders = hierarchy.filter(item => item.type === 'pageHeader');
-        const productRanges = hierarchy.filter(item => item.type === 'productRange');
-
         const catalogueData = {
-          pageHeaders: pageHeaders.map(header => ({
-            title: header.title || 'Unnamed Page Header',
-            categories: header.level2Items.map(level2 => ({
-              name: level2.title || 'Unnamed Category',
-              products: level2.level3Items.flatMap(level3 =>
-                level3.items.map(item => {
-                  const skuContent = item.content.replace('📦 ', '');
-                  const skuData = skuPriceData.find(d => d.sku === skuContent);
-                  return {
-                    sku: skuContent,
-                    name: skuData?.name || skuContent.toUpperCase(),
-                    price: (() => {
-                      const inputPrice = inputPrices[skuContent];
-                      const displayPrice = inputPrice || skuData?.price || '0.00';
-                      return `$${displayPrice}`;
-                    })(),
-                    image: skuData?.image || null,
-                    description: skuData?.description || '',
-                    certifications: skuData?.certifications || []
-                  };
-                })
-              )
-            }))
-          })),
-          productRanges: productRanges.map(range => ({
-            title: range.title || 'Unnamed Range',
-            categories: range.level2Items.map(level2 => ({
+          hierarchy: hierarchy.map(item => ({
+            type: item.type,
+            title: item.title || (item.type === 'pageHeader' ? 'Unnamed Page Header' : 'Unnamed Range'),
+            categories: item.level2Items.map(level2 => ({
               name: level2.title || 'Unnamed Category',
               products: level2.level3Items.flatMap(level3 =>
                 level3.items.map(item => {
@@ -296,82 +270,42 @@
         inputPrices = data.input_prices || {};
 
         // Reconstruct hierarchy from catalogue data
-        if (catalogueData && (catalogueData.pageHeaders || catalogueData.productRanges)) {
+        if (catalogueData && catalogueData.hierarchy) {
           const newHierarchy = [];
 
-          // Add page headers
-          if (catalogueData.pageHeaders) {
-            catalogueData.pageHeaders.forEach((pageHeader, headerIndex) => {
-              const pageHeaderId = nextId++;
-              newHierarchy.push({
-                id: pageHeaderId,
-                type: 'pageHeader',
-                title: pageHeader.title || `Page Header ${headerIndex + 1}`,
-                level2Items: pageHeader.categories.map((category, categoryIndex) => {
-                  const level2Id = nextId++;
-                  // Group products into level3 containers (max 10 per container)
-                  const level3Items = [];
-                  const products = category.products || [];
+          catalogueData.hierarchy.forEach((item) => {
+            const itemId = nextId++;
+            newHierarchy.push({
+              id: itemId,
+              type: item.type,
+              title: item.title || (item.type === 'pageHeader' ? 'Unnamed Page Header' : 'Unnamed Range'),
+              level2Items: item.categories.map((category) => {
+                const level2Id = nextId++;
+                // Group products into level3 containers (max 10 per container)
+                const level3Items = [];
+                const products = category.products || [];
 
-                  for (let i = 0; i < products.length; i += 10) {
-                    const level3Id = nextId++;
-                    const productsSlice = products.slice(i, i + 10);
-                    level3Items.push({
-                      id: level3Id,
-                      title: 'Level 3',
-                      items: productsSlice.map(product => ({
-                        id: nextId++,
-                        content: `📦 ${product.sku}`
-                      }))
-                    });
-                  }
+                for (let i = 0; i < products.length; i += 10) {
+                  const level3Id = nextId++;
+                  const productsSlice = products.slice(i, i + 10);
+                  level3Items.push({
+                    id: level3Id,
+                    title: 'Level 3',
+                    items: productsSlice.map(product => ({
+                      id: nextId++,
+                      content: `📦 ${product.sku}`
+                    }))
+                  });
+                }
 
-                  return {
-                    id: level2Id,
-                    title: category.name || 'Unnamed Category',
-                    level3Items
-                  };
-                })
-              });
+                return {
+                  id: level2Id,
+                  title: category.name || 'Unnamed Category',
+                  level3Items
+                };
+              })
             });
-          }
-
-          // Add product ranges
-          if (catalogueData.productRanges) {
-            catalogueData.productRanges.forEach((range, rangeIndex) => {
-              const productRangeId = nextId++;
-              newHierarchy.push({
-                id: productRangeId,
-                type: 'productRange',
-                title: range.title || 'Unnamed Range',
-                level2Items: range.categories.map((category, categoryIndex) => {
-                  const level2Id = nextId++;
-                  // Group products into level3 containers (max 10 per container)
-                  const level3Items = [];
-                  const products = category.products || [];
-
-                  for (let i = 0; i < products.length; i += 10) {
-                    const level3Id = nextId++;
-                    const productsSlice = products.slice(i, i + 10);
-                    level3Items.push({
-                      id: level3Id,
-                      title: 'Level 3',
-                      items: productsSlice.map(product => ({
-                        id: nextId++,
-                        content: `📦 ${product.sku}`
-                      }))
-                    });
-                  }
-
-                  return {
-                    id: level2Id,
-                    title: category.name || 'Unnamed Category',
-                    level3Items
-                  };
-                })
-              });
-            });
-          }
+          });
 
           hierarchy = newHierarchy;
         } else {
@@ -459,38 +393,11 @@
           .from('catalogue_sessions')
           .update({
             catalogue_data: (() => {
-              // Build JSON structure matching catalogue-data.json format
-              const pageHeaders = hierarchy.filter(item => item.type === 'pageHeader');
-              const productRanges = hierarchy.filter(item => item.type === 'productRange');
-
               return {
-                pageHeaders: pageHeaders.map(header => ({
-                  title: header.title || 'Unnamed Page Header',
-                  categories: header.level2Items.map(level2 => ({
-                    name: level2.title || 'Unnamed Category',
-                    products: level2.level3Items.flatMap(level3 =>
-                      level3.items.map(item => {
-                        const skuContent = item.content.replace('📦 ', '');
-                        const skuData = skuPriceData.find(d => d.sku === skuContent);
-                        return {
-                          sku: skuContent,
-                          name: skuData?.name || skuContent.toUpperCase(),
-                          price: (() => {
-                            const inputPrice = inputPrices[skuContent];
-                            const displayPrice = inputPrice || skuData?.price || '0.00';
-                            return `$${displayPrice}`;
-                          })(),
-                          image: skuData?.image || null,
-                          description: skuData?.description || '',
-                          certifications: skuData?.certifications || []
-                        };
-                      })
-                    )
-                  }))
-                })),
-                productRanges: productRanges.map(range => ({
-                  title: range.title || 'Unnamed Range',
-                  categories: range.level2Items.map(level2 => ({
+                hierarchy: hierarchy.map(item => ({
+                  type: item.type,
+                  title: item.title || (item.type === 'pageHeader' ? 'Unnamed Page Header' : 'Unnamed Range'),
+                  categories: item.level2Items.map(level2 => ({
                     name: level2.title || 'Unnamed Category',
                     products: level2.level3Items.flatMap(level3 =>
                       level3.items.map(item => {
@@ -1217,19 +1124,33 @@
 
     // Add SKU to a catalogue
     function addSKUToCatalogue(itemId: number, level2Id: number, skuContent: string) {
+      console.log('addSKUToCatalogue called:', { itemId, level2Id, skuContent });
+
       // Check if SKU already exists in any catalogue
       if (skuExistsInCatalogue(skuContent)) {
+        console.log('SKU already exists in catalogue, skipping');
         toastWarning(`SKU "${skuContent}" already exists in catalogue`, 'Duplicate SKU');
         skuList = skuList.filter(sku => sku !== skuContent);
         return;
       }
 
+      console.log('Adding SKU to catalogue, current hierarchy:', hierarchy.map(item => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        level2Count: item.level2Items?.length || 0
+      })));
+
       hierarchy = hierarchy.map(item => {
+        console.log('Checking item:', { itemId: item.id, itemType: item.type, itemTitle: item.title, targetItemId: itemId });
         if (item.id === itemId) {
+          console.log('Found matching item:', item.id);
           return {
             ...item,
             level2Items: item.level2Items.map(level2 => {
+              console.log('Checking level2:', { level2Id: level2.id, level2Title: level2.title, targetLevel2Id: level2Id });
               if (level2.id === level2Id) {
+                console.log('Found matching level2:', level2.id);
                 let level3Items = [...level2.level3Items];
 
                 // If no level 3 containers exist, create one
@@ -1283,6 +1204,7 @@
 
       // Remove the SKU from the list
       skuList = skuList.filter(sku => sku !== skuContent);
+      console.log('SKU successfully added to catalogue:', skuContent);
       toastInfo(`SKU "${skuContent}" added to catalogue`, 'SKU Added');
     }
 
@@ -1393,16 +1315,43 @@
                             <select
                               class="text-xs px-2 py-1 border border-gray-300 rounded"
                               on:change={(e) => {
+                                console.log('Dropdown change event for SKU:', sku);
                                 const target = e.target as HTMLSelectElement;
                                 const catalogueId = parseInt(target.value);
                                 if (catalogueId) {
-                                  const productRange = hierarchy.find(item => item.type === 'productRange');
-                                  if (productRange) {
-                                    const catalogue = productRange.level2Items.find(l2 => l2.id === catalogueId);
-                                    if (catalogue) {
-                                      addSKUToCatalogue(productRange.id, catalogueId, sku);
-                                      target.value = ''; // Reset dropdown
+                                  console.log('Adding SKU to catalogue:', { sku, catalogueId });
+
+                                  // Find the product range that contains this catalogue
+                                  let foundProductRange = null;
+                                  let foundCatalogue = null;
+
+                                  for (const item of hierarchy) {
+                                    if (item.type === 'productRange') {
+                                      const catalogue = item.level2Items.find(l2 => l2.id === catalogueId);
+                                      if (catalogue) {
+                                        foundProductRange = item;
+                                        foundCatalogue = catalogue;
+                                        break;
+                                      }
                                     }
+                                  }
+
+                                  if (foundProductRange && foundCatalogue) {
+                                    console.log('Found product range and catalogue:', {
+                                      productRangeId: foundProductRange.id,
+                                      productRangeTitle: foundProductRange.title,
+                                      catalogueId: foundCatalogue.id,
+                                      catalogueTitle: foundCatalogue.title
+                                    });
+                                    addSKUToCatalogue(foundProductRange.id, catalogueId, sku);
+                                    target.value = ''; // Reset dropdown
+                                  } else {
+                                    console.error('Could not find product range or catalogue for catalogueId:', catalogueId);
+                                    console.log('Available product ranges:', hierarchy.filter(item => item.type === 'productRange').map(pr => ({
+                                      id: pr.id,
+                                      title: pr.title,
+                                      catalogues: pr.level2Items.map(l2 => ({ id: l2.id, title: l2.title }))
+                                    })));
                                   }
                                 }
                               }}
@@ -1790,7 +1739,14 @@
         <!-- Action Buttons -->
         <div class="px-8 py-4 border-t border-gray-200 bg-gray-50">
           <div class="flex justify-between items-center">
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-3">
+              <button
+                on:click={openSaveDialog}
+                class="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold shadow-md hover:shadow-lg"
+                title="Save as new session"
+              >
+                💾 Save as
+              </button>
               {#if currentSessionId}
                 <span class="text-sm text-gray-600">Current Session: <strong>{currentSessionName}</strong></span>
               {/if}
@@ -1810,13 +1766,6 @@
                 class="bg-[rgb(148,186,77)] text-white px-6 py-3 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold text-lg shadow-md hover:shadow-lg"
               >
                 Print
-              </button>
-              <button
-                on:click={openSaveDialog}
-                class="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold shadow-md hover:shadow-lg"
-                title="Save as new session"
-              >
-                💾 Save as
               </button>
             </div>
           </div>

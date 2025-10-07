@@ -1,7 +1,6 @@
 <script lang="ts">
     import type { CatalogueData } from './types.ts';
     import { goto } from '$app/navigation';
-    import { onMount } from 'svelte';
 
     interface PageData {
         catalogueData: CatalogueData;
@@ -12,12 +11,7 @@
 
 
     function printPage() {
-        // Recalculate page headers before printing to ensure accuracy
-        createPageHeaders();
-        // Small delay to ensure headers are created before printing
-        setTimeout(() => {
-            window.print();
-        }, 200);
+        window.print();
     }
 
     function goBackToCatalogue() {
@@ -34,54 +28,6 @@
         return iconMap[certification] || "";
     }
 
-    // Create multiple page headers for proper page numbering
-    function createPageHeaders() {
-        // Remove existing print headers
-        const existingHeaders = document.querySelectorAll('.print-header');
-        existingHeaders.forEach(header => header.remove());
-
-        const container = document.querySelector('.container');
-        if (!container) return;
-
-        // A4 page height at 96dpi is approximately 1123px, minus margins (1cm = ~38px)
-        const pageHeight = 1123 - 76; // 1123px - 2cm margins
-        const headerHeight = 60; // Approximate header height
-        const contentHeight = container.scrollHeight;
-
-        // Calculate number of pages needed
-        const pagesNeeded = Math.ceil(contentHeight / pageHeight);
-
-        // Create a header for each page
-        for (let page = 1; page <= pagesNeeded; page++) {
-            const header = document.createElement('div');
-            header.className = 'print-header';
-            header.innerHTML = `
-                <img src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png" alt="Rapid Supplies Logo" class="logo">
-                <div class="header-right">
-                    <div class="contact-info">
-                        <div class="contact-item"><span>📞</span> <span>4227 2833</span></div>
-                        <div class="contact-item"><span>📧</span> <span>orders@rapidcleanillawarra.com.au</span></div>
-                    </div>
-                    <span class="page-number">${page}</span>
-                </div>
-            `;
-
-            // Position the header at the top of each page
-            header.style.position = 'fixed';
-            header.style.top = `${(page - 1) * pageHeight}px`;
-            header.style.left = '0';
-            header.style.right = '0';
-            header.style.zIndex = '1000';
-
-            document.body.appendChild(header);
-        }
-    }
-
-    // Initialize page headers when component mounts
-    onMount(() => {
-        // Small delay to ensure DOM is fully rendered
-        setTimeout(createPageHeaders, 100);
-    });
 
 </script>
 
@@ -91,36 +37,6 @@
         @page {
             size: A4;
             margin: 1cm;
-        }
-
-        /* Repeating headers for each page */
-        .page-header-content {
-            page-break-inside: avoid;
-        }
-
-        .repeat-header {
-            margin-top: 30px;
-        }
-
-        .repeat-header:first-child {
-            margin-top: 0;
-        }
-
-        /* Print-specific header repetition - let content flow naturally */
-        @media print {
-            .page-header-content {
-                position: relative;
-                z-index: 1;
-                page-break-inside: avoid;
-            }
-
-            .repeat-header {
-                page-break-before: auto; /* Allow natural page breaks */
-                page-break-inside: avoid;
-            }
-
-            /* CSS page counters work in @page margin boxes, not content */
-            /* For dynamic page numbering in content, JavaScript would be needed */
         }
 
         body {
@@ -147,6 +63,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            page-break-inside: avoid;
+            page-break-after: avoid;
         }
 
 
@@ -342,31 +260,10 @@
                 display: none;
             }
 
-            /* Hide the original page headers in print */
+            /* Show the page headers in print */
             .page-header {
-                display: none;
-            }
-
-            /* Show and position the repeating header */
-            .print-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                background: #272727;
-                color: white;
-                padding: 10px 20px;
-                z-index: 1000;
                 -webkit-print-color-adjust: exact;
                 color-adjust: exact;
-            }
-
-            /* Add top margin to container to account for fixed header */
-            .container {
-                margin-top: 60px;
             }
 
             .category-header {
@@ -391,91 +288,93 @@
 <button class="print-button" on:click={printPage}>Print Catalogue</button>
 
 <div class="container">
-    {#each data.catalogueData.productRanges as productRange, rangeIndex}
-        <!-- Page Header -->
-        <div class="page-header">
-            <img
-                src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-                alt="Rapid Supplies Logo"
-                class="logo"
-            />
-            <div class="header-right">
-                <div class="contact-info">
-                    <div class="contact-item">
-                        <span>📞</span>
-                        <span>4227 2833</span>
-                    </div>
-                    <div class="contact-item">
-                        <span>📧</span>
-                        <span>orders@rapidcleanillawarra.com.au</span>
-                    </div>
-                </div>
-                <span class="page-number">{rangeIndex + 1}</span>
-            </div>
-        </div>
-
-        <div class="page-header-content">
-            <h2 class="product-range-title">{productRange.title}</h2>
-        </div>
-
-        {#each productRange.categories as category}
-            <div class="category-header">
-                <h3 class="category-title">{category.name}</h3>
-            </div>
-
-            {#each category.products as product, productIndex}
-                <!-- Product Grid -->
-                <div class="product-grid">
-                    <div class="product-image-section">
-                        {#if product.image}
-                            <img
-                                src={product.image}
-                                alt="{product.name} Product"
-                                class="product-image"
-                            />
-                        {:else}
-                            <div class="image-placeholder">
-                                Product Image
-                            </div>
-                        {/if}
-                    </div>
-
-                    <div>
-                        <!-- Product Name and Price -->
-                        <div class="product-details">
-                            <h4 class="product-name">{product.name}</h4>
-                            <div class="product-price">{product.price}</div>
-                        </div>
-
-                        <!-- Product Description -->
-                        <div class="product-description-section">
-                            <div class="description-header">
-                                <h5 class="description-title">Product Description</h5>
-                                <!-- Tags and Certifications -->
-                                {#if product.certifications && product.certifications.length > 0}
-                                    <div class="certifications">
-                                        {#each product.certifications as certification}
-                                            <img
-                                                src={getCertificationIcon(certification)}
-                                                alt={certification.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                class="certification-img"
-                                            />
-                                        {/each}
-                                    </div>
-                                {/if}
-                            </div>
-                            <div class="description-text">
-                                {@html product.description}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            {/each}
-        {/each}
-
-        <!-- Add page break for next product range if not the last one -->
-        {#if rangeIndex < data.catalogueData.productRanges.length - 1}
+    {#each data.catalogueData.hierarchy as hierarchyItem, hierarchyIndex}
+        {#if hierarchyIndex > 0 && hierarchyItem.type === 'pageHeader'}
             <div class="page-break"></div>
+        {/if}
+
+        {#if hierarchyItem.type === 'pageHeader'}
+            <!-- Page Header -->
+            {@const pageNumber = data.catalogueData.hierarchy.slice(0, hierarchyIndex + 1).filter(item => item.type === 'pageHeader').length}
+            <div class="page-header">
+                <img
+                    src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+                    alt="Rapid Supplies Logo"
+                    class="logo"
+                />
+                <div class="header-right">
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <span>📞</span>
+                            <span>4227 2833</span>
+                        </div>
+                        <div class="contact-item">
+                            <span>📧</span>
+                            <span>orders@rapidcleanillawarra.com.au</span>
+                        </div>
+                    </div>
+                    <span class="page-number">{pageNumber}</span>
+                </div>
+            </div>
+        {:else if hierarchyItem.type === 'productRange'}
+            <div class="page-header-content">
+                <h2 class="product-range-title">{hierarchyItem.title}</h2>
+            </div>
+
+            {#each hierarchyItem.categories as category}
+                <div class="category-header">
+                    <h3 class="category-title">{category.name}</h3>
+                </div>
+
+                {#each category.products as product, productIndex}
+                    <!-- Product Grid -->
+                    <div class="product-grid">
+                        <div class="product-image-section">
+                            {#if product.image}
+                                <img
+                                    src={product.image}
+                                    alt="{product.name} Product"
+                                    class="product-image"
+                                />
+                            {:else}
+                                <div class="image-placeholder">
+                                    Product Image
+                                </div>
+                            {/if}
+                        </div>
+
+                        <div>
+                            <!-- Product Name and Price -->
+                            <div class="product-details">
+                                <h4 class="product-name">{product.name}</h4>
+                                <div class="product-price">{product.price}</div>
+                            </div>
+
+                            <!-- Product Description -->
+                            <div class="product-description-section">
+                                <div class="description-header">
+                                    <h5 class="description-title">Product Description</h5>
+                                    <!-- Tags and Certifications -->
+                                    {#if product.certifications && product.certifications.length > 0}
+                                        <div class="certifications">
+                                            {#each product.certifications as certification}
+                                                <img
+                                                    src={getCertificationIcon(certification)}
+                                                    alt={certification.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                    class="certification-img"
+                                                />
+                                            {/each}
+                                        </div>
+                                    {/if}
+                                </div>
+                                <div class="description-text">
+                                    {@html product.description}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {/each}
+            {/each}
         {/if}
     {/each}
 </div>

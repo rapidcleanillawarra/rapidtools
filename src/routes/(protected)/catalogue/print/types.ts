@@ -13,9 +13,18 @@ export interface Category {
 }
 
 export interface ProductRange {
+	type: 'productRange';
 	title: string;
 	categories: Category[];
 }
+
+export interface PageHeader {
+	type: 'pageHeader';
+	title: string;
+	categories: []; // Empty array as per user requirement
+}
+
+export type HierarchyItem = ProductRange | PageHeader;
 
 export interface PrintSettings {
 	pageSize: string;
@@ -25,6 +34,6 @@ export interface PrintSettings {
 }
 
 export interface CatalogueData {
-	productRanges: ProductRange[];
+	hierarchy: HierarchyItem[];
 	printSettings: PrintSettings;
 }

@@ -26,7 +26,7 @@ export const load = async ({ url }: { url: URL }) => {
 
 			// Extract catalogue data from session
 			const catalogueData: CatalogueData = {
-				productRanges: sessionData.catalogue_data?.productRanges || [],
+				hierarchy: sessionData.catalogue_data?.hierarchy || sessionData.catalogue_data?.productRanges || [],
 				printSettings: sessionData.catalogue_data?.printSettings || {
 					pageSize: "A4",
 					margin: "1cm",
@@ -53,7 +53,7 @@ export const load = async ({ url }: { url: URL }) => {
 			const parsedData = JSON.parse(decodeURIComponent(urlData));
 			// Ensure the data has the required structure
 			const catalogueData: CatalogueData = {
-				productRanges: parsedData.productRanges || [],
+				hierarchy: parsedData.hierarchy || parsedData.productRanges || [],
 				printSettings: parsedData.printSettings || {
 					pageSize: "A4",
 					margin: "1cm",
@@ -71,8 +71,9 @@ export const load = async ({ url }: { url: URL }) => {
 
 	// Fallback to default static data
 	const defaultCatalogueData: CatalogueData = {
-		productRanges: [
+		hierarchy: [
 			{
+				type: 'productRange',
 				title: "CLEANING AND LAUNDRY SOLUTIONS",
 				categories: [
 					{

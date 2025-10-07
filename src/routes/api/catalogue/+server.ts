@@ -5,9 +5,21 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const catalogueData = await request.json();
 
-		// Validate the structure
-		if (!catalogueData.productRanges || !Array.isArray(catalogueData.productRanges)) {
-			return json({ error: 'Invalid data structure. Expected productRanges array.' }, { status: 400 });
+		// Validate the structure - support both old and new formats
+		if (!catalogueData.hierarchy && !catalogueData.productRanges) {
+			return json({ error: 'Invalid data structure. Expected hierarchy or productRanges array.' }, { status: 400 });
+		}
+
+		// Ensure we have a hierarchy array (convert old format if needed)
+		if (catalogueData.productRanges && !catalogueData.hierarchy) {
+			catalogueData.hierarchy = catalogueData.productRanges.map(range => ({
+				type: 'productRange',
+				...range
+			}));
+		}
+
+		if (!Array.isArray(catalogueData.hierarchy)) {
+			return json({ error: 'Invalid data structure. Hierarchy must be an array.' }, { status: 400 });
 		}
 
 		// Store the data temporarily (in a real app, you might use a database or session)

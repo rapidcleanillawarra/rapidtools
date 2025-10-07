@@ -208,13 +208,7 @@
                 })
               )
             }))
-          })),
-          printSettings: {
-            pageSize: "A4",
-            margin: "1cm",
-            productsPerPage: 3,
-            repeatHeaderOnNewPage: true
-          }
+          }))
         };
 
         const { data, error } = await supabase
@@ -1248,12 +1242,16 @@
                     console.log('Created new level3 container, targetLevel3Index now:', targetLevel3Index);
                   }
 
-                  // Add item to the target level 3 container
+                  // Add item to the target level 3 container (with regenerated ID)
                   console.log(`Adding item to level3 index ${targetLevel3Index}`);
                   console.log('Target level3 container has:', level3Items[targetLevel3Index].items.length, 'items');
+                  const newItem = {
+                    id: nextId++,
+                    content: itemToMove.content
+                  };
                   level3Items[targetLevel3Index] = {
                     ...level3Items[targetLevel3Index],
-                    items: [...level3Items[targetLevel3Index].items, itemToMove]
+                    items: [...level3Items[targetLevel3Index].items, newItem]
                   };
                   console.log('After adding:', level3Items[targetLevel3Index].items.length, 'items');
                   return {

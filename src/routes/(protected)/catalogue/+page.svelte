@@ -436,13 +436,100 @@
     // Open save dialog
     function openSaveDialog() {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      currentSessionName = currentSessionName || `Catalogue ${timestamp}`;
+      // Don't pre-fill with current session name for "Save as" functionality
+      currentSessionName = `Catalogue ${timestamp}`;
       showSaveDialog = true;
     }
 
     // Close save dialog
     function closeSaveDialog() {
       showSaveDialog = false;
+    }
+
+    // Handle update current session
+    async function handleUpdateSession() {
+      if (!currentSessionId) {
+        toastWarning('No current session to update', 'No Session');
+        return;
+      }
+
+      try {
+        // Update the existing session with current data
+        const { data, error } = await supabase
+          .from('catalogue_sessions')
+          .update({
+            catalogue_data: (() => {
+              // Build JSON structure matching catalogue-data.json format
+              const pageHeaders = hierarchy.filter(item => item.type === 'pageHeader');
+              const productRanges = hierarchy.filter(item => item.type === 'productRange');
+
+              return {
+                pageHeaders: pageHeaders.map(header => ({
+                  title: header.title || 'Unnamed Page Header',
+                  categories: header.level2Items.map(level2 => ({
+                    name: level2.title || 'Unnamed Category',
+                    products: level2.level3Items.flatMap(level3 =>
+                      level3.items.map(item => {
+                        const skuContent = item.content.replace('📦 ', '');
+                        const skuData = skuPriceData.find(d => d.sku === skuContent);
+                        return {
+                          sku: skuContent,
+                          name: skuData?.name || skuContent.toUpperCase(),
+                          price: (() => {
+                            const inputPrice = inputPrices[skuContent];
+                            const displayPrice = inputPrice || skuData?.price || '0.00';
+                            return `$${displayPrice}`;
+                          })(),
+                          image: skuData?.image || null,
+                          description: skuData?.description || '',
+                          certifications: skuData?.certifications || []
+                        };
+                      })
+                    )
+                  }))
+                })),
+                productRanges: productRanges.map(range => ({
+                  title: range.title || 'Unnamed Range',
+                  categories: range.level2Items.map(level2 => ({
+                    name: level2.title || 'Unnamed Category',
+                    products: level2.level3Items.flatMap(level3 =>
+                      level3.items.map(item => {
+                        const skuContent = item.content.replace('📦 ', '');
+                        const skuData = skuPriceData.find(d => d.sku === skuContent);
+                        return {
+                          sku: skuContent,
+                          name: skuData?.name || skuContent.toUpperCase(),
+                          price: (() => {
+                            const inputPrice = inputPrices[skuContent];
+                            const displayPrice = inputPrice || skuData?.price || '0.00';
+                            return `$${displayPrice}`;
+                          })(),
+                          image: skuData?.image || null,
+                          description: skuData?.description || '',
+                          certifications: skuData?.certifications || []
+                        };
+                      })
+                    )
+                  }))
+                }))
+              };
+            })(),
+            available_skus: skuPriceData,
+            input_prices: inputPrices,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentSessionId)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        toastSuccess(`Session "${currentSessionName}" updated successfully!`, 'Session Updated');
+        await loadSavedSessions(); // Refresh the sessions list
+      } catch (error) {
+        console.error('Error updating session:', error);
+        toastWarning('Failed to update session', 'Update Error');
+      }
     }
 
     // Handle save session
@@ -562,6 +649,82 @@
               return level2;
             })
           };
+        }
+        return item;
+      });
+    }
+
+    // Move page header up
+    function movePageHeaderUp(pageHeaderId: number) {
+      const headerIndex = hierarchy.findIndex(item => item.id === pageHeaderId && item.type === 'pageHeader');
+      if (headerIndex > 0) {
+        const newHierarchy = [...hierarchy];
+        [newHierarchy[headerIndex - 1], newHierarchy[headerIndex]] = [newHierarchy[headerIndex], newHierarchy[headerIndex - 1]];
+        hierarchy = newHierarchy;
+      }
+    }
+
+    // Move page header down
+    function movePageHeaderDown(pageHeaderId: number) {
+      const headerIndex = hierarchy.findIndex(item => item.id === pageHeaderId && item.type === 'pageHeader');
+      if (headerIndex < hierarchy.length - 1) {
+        const newHierarchy = [...hierarchy];
+        [newHierarchy[headerIndex], newHierarchy[headerIndex + 1]] = [newHierarchy[headerIndex + 1], newHierarchy[headerIndex]];
+        hierarchy = newHierarchy;
+      }
+    }
+
+    // Move product range up
+    function moveProductRangeUp(productRangeId: number) {
+      const rangeIndex = hierarchy.findIndex(item => item.id === productRangeId && item.type === 'productRange');
+      if (rangeIndex > 0) {
+        const newHierarchy = [...hierarchy];
+        [newHierarchy[rangeIndex - 1], newHierarchy[rangeIndex]] = [newHierarchy[rangeIndex], newHierarchy[rangeIndex - 1]];
+        hierarchy = newHierarchy;
+      }
+    }
+
+    // Move product range down
+    function moveProductRangeDown(productRangeId: number) {
+      const rangeIndex = hierarchy.findIndex(item => item.id === productRangeId && item.type === 'productRange');
+      if (rangeIndex < hierarchy.length - 1) {
+        const newHierarchy = [...hierarchy];
+        [newHierarchy[rangeIndex], newHierarchy[rangeIndex + 1]] = [newHierarchy[rangeIndex + 1], newHierarchy[rangeIndex]];
+        hierarchy = newHierarchy;
+      }
+    }
+
+    // Move level2 item up within a product range
+    function moveLevel2Up(itemId: number, level2Id: number) {
+      hierarchy = hierarchy.map(item => {
+        if (item.id === itemId) {
+          const level2Index = item.level2Items.findIndex(level2 => level2.id === level2Id);
+          if (level2Index > 0) {
+            const newLevel2Items = [...item.level2Items];
+            [newLevel2Items[level2Index - 1], newLevel2Items[level2Index]] = [newLevel2Items[level2Index], newLevel2Items[level2Index - 1]];
+            return {
+              ...item,
+              level2Items: newLevel2Items
+            };
+          }
+        }
+        return item;
+      });
+    }
+
+    // Move level2 item down within a product range
+    function moveLevel2Down(itemId: number, level2Id: number) {
+      hierarchy = hierarchy.map(item => {
+        if (item.id === itemId) {
+          const level2Index = item.level2Items.findIndex(level2 => level2.id === level2Id);
+          if (level2Index < item.level2Items.length - 1) {
+            const newLevel2Items = [...item.level2Items];
+            [newLevel2Items[level2Index], newLevel2Items[level2Index + 1]] = [newLevel2Items[level2Index + 1], newLevel2Items[level2Index]];
+            return {
+              ...item,
+              level2Items: newLevel2Items
+            };
+          }
         }
         return item;
       });
@@ -1311,25 +1474,50 @@
                   <h3 class="text-lg font-semibold text-gray-800">Dynamic Hierarchy</h3>
                 </div>
 
-                {#each hierarchy as item (item.id)}
+                {#each hierarchy as item, itemIndex (item.id)}
                   {@const isPageHeader = item.type === 'pageHeader'}
                   {@const isProductRange = item.type === 'productRange'}
-                  <div class="{isPageHeader ? 'bg-purple-50 border-purple-200' : 'bg-blue-50 border-blue-200'} border-2 rounded-lg p-4 min-h-[150px]"
+                  {@const pageHeaderCount = hierarchy.slice(0, itemIndex + 1).filter(h => h.type === 'pageHeader').length}
+                  <div class="{isPageHeader ? 'bg-purple-50 border-purple-200 min-h-[80px]' : 'bg-blue-50 border-blue-200 min-h-[150px]'} border-2 rounded-lg p-4"
                        role="region">
 
                     <div class="flex justify-between items-center mb-3">
-                      <div class="flex items-center gap-2">
-                        <span class="text-xs font-medium px-2 py-1 rounded {isPageHeader ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">
-                          {isPageHeader ? 'Page Header' : 'Product Range'}
-                        </span>
-                        <input
-                          type="text"
-                          bind:value={item.title}
-                          class="flex-1 {isPageHeader ? 'text-lg font-bold text-purple-800' : 'text-md font-medium text-blue-800'} bg-transparent border-none outline-none focus:ring-2 focus:ring-{isPageHeader ? 'purple' : 'blue'}-400 rounded px-2 py-1"
-                          placeholder={isPageHeader ? 'Page Header' : 'Product Range'}
-                        />
-                      </div>
+                      {#if isPageHeader}
+                        <div class="flex items-center gap-2">
+                          <span class="text-lg font-bold text-purple-800">
+                            Page {pageHeaderCount}
+                          </span>
+                        </div>
+                      {:else}
+                        <div class="flex items-center gap-2">
+                          <span class="text-xs font-medium px-2 py-1 rounded bg-blue-100 text-blue-800">
+                            Product Range
+                          </span>
+                          <input
+                            type="text"
+                            bind:value={item.title}
+                            class="flex-1 text-md font-medium text-blue-800 bg-transparent border-none outline-none focus:ring-2 focus:ring-blue-400 rounded px-2 py-1"
+                            placeholder="Product Range"
+                          />
+                        </div>
+                      {/if}
                       <div class="flex space-x-1 ml-2">
+                        <button
+                          on:click={() => isPageHeader ? movePageHeaderUp(item.id) : moveProductRangeUp(item.id)}
+                          class="text-gray-600 hover:text-gray-800 text-xs px-1"
+                          title="Move Up"
+                          disabled={hierarchy.findIndex(h => h.id === item.id) === 0}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          on:click={() => isPageHeader ? movePageHeaderDown(item.id) : moveProductRangeDown(item.id)}
+                          class="text-gray-600 hover:text-gray-800 text-xs px-1"
+                          title="Move Down"
+                          disabled={hierarchy.findIndex(h => h.id === item.id) === hierarchy.length - 1}
+                        >
+                          ▼
+                        </button>
                         <button
                           on:click={() => isPageHeader ? removePageHeader(item.id) : removeProductRange(item.id)}
                           class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
@@ -1384,6 +1572,22 @@
                             }}
                           />
                           <div class="flex space-x-1">
+                            <button
+                              on:click={() => moveLevel2Up(item.id, level2.id)}
+                              class="text-gray-600 hover:text-gray-800 text-xs px-1"
+                              title="Move Up"
+                              disabled={item.level2Items.findIndex(l2 => l2.id === level2.id) === 0}
+                            >
+                              ▲
+                            </button>
+                            <button
+                              on:click={() => moveLevel2Down(item.id, level2.id)}
+                              class="text-gray-600 hover:text-gray-800 text-xs px-1"
+                              title="Move Down"
+                              disabled={item.level2Items.findIndex(l2 => l2.id === level2.id) === item.level2Items.length - 1}
+                            >
+                              ▼
+                            </button>
                             <button
                               on:click={() => removeLevel2(item.id, level2.id)}
                               class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600 transition-colors"
@@ -1592,17 +1796,27 @@
               {/if}
             </div>
             <div class="flex space-x-3">
-              <button
-                on:click={openSaveDialog}
-                class="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold shadow-md hover:shadow-lg"
-              >
-                💾 Save Session
-              </button>
+              {#if currentSessionId}
+                <button
+                  on:click={handleUpdateSession}
+                  class="bg-green-500 text-white px-4 py-3 rounded-lg hover:bg-green-600 transition-colors font-semibold shadow-md hover:shadow-lg"
+                  title="Update the current session"
+                >
+                  🔄 Update Session
+                </button>
+              {/if}
               <button
                 on:click={submitCatalogue}
                 class="bg-[rgb(148,186,77)] text-white px-6 py-3 rounded-lg hover:bg-[rgb(122,157,61)] transition-colors font-semibold text-lg shadow-md hover:shadow-lg"
               >
                 Print
+              </button>
+              <button
+                on:click={openSaveDialog}
+                class="bg-blue-500 text-white px-4 py-3 rounded-lg hover:bg-blue-600 transition-colors font-semibold shadow-md hover:shadow-lg"
+                title="Save as new session"
+              >
+                💾 Save as
               </button>
             </div>
           </div>
@@ -1616,7 +1830,7 @@
     <div class="fixed inset-0 flex items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1" on:keydown={(e) => { if (e.key === 'Escape') closeSaveDialog(); }}>
       <button class="absolute inset-0 bg-black bg-opacity-50" on:click={closeSaveDialog} aria-label="Close dialog"></button>
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 relative z-10" role="document">
-        <h3 id="dialog-title" class="text-lg font-semibold text-gray-800 mb-4">Save Catalogue Session</h3>
+        <h3 id="dialog-title" class="text-lg font-semibold text-gray-800 mb-4">Save Catalogue Session As</h3>
 
         <div class="mb-4">
           <label for="sessionName" class="block text-sm font-medium text-gray-700 mb-2">

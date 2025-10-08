@@ -52,7 +52,7 @@
         .container {
             max-width: 800px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0 20px 20px 20px;
         }
 
         .page-header {
@@ -62,7 +62,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin: 20px 0 20px 0;
             page-break-inside: avoid;
             page-break-after: avoid;
         }
@@ -105,7 +105,6 @@
             font-size: 18pt;
             font-weight: bold;
             color: #94ba4d;
-            text-decoration: underline;
             text-align: center;
             margin: 10px 0;
         }
@@ -114,7 +113,7 @@
             background: #9db85e;
             color: white;
             padding: 10px;
-            border-radius: 8px;
+            border-radius: 10px 10px 0px 0px;
             margin-bottom: 10px;
         }
 
@@ -129,7 +128,7 @@
             gap: 10px;
             margin-bottom: 5px;
             min-height: 125px;
-            max-height: 165px;
+            max-height: 200px;
         }
 
         .product-image-section {
@@ -162,7 +161,7 @@
         .product-details {
             background: #272727;
             color: white;
-            border-radius: 8px;
+            border-radius: 10px 10px 0px 0px;
             padding: 5px 10px;
             margin-bottom: 5px;
             display: flex;
@@ -181,9 +180,9 @@
         }
 
         .product-description-section {
-            background: #f9f9f9;
-            border-radius: 10px;
-            padding: 5px 10px;
+            background: #f4f4f4;
+            border-radius: 0px 0px 10px 10px;
+            padding: 10px 10px;
         }
 
         .description-header {
@@ -346,7 +345,7 @@
                         <div>
                             <!-- Product Name and Price -->
                             <div class="product-details">
-                                <h4 class="product-name">{product.name}</h4>
+                                <h4 class="product-name">{product.name} ({product.sku})</h4>
                                 <div class="product-price">{product.price}</div>
                             </div>
 

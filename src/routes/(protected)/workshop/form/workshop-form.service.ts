@@ -27,6 +27,14 @@ export interface WorkshopFormData {
   existingPhotoUrls: string[];
   startedWith: 'form' | 'camera';
   quoteOrRepaired: 'Quote' | 'Repaired';
+  status?: string;
+  quoteDescription?: string;
+  additionalInformation?: string;
+  stockOnHand?: string;
+  labour?: string;
+  travelTime?: string;
+  callOut?: string;
+  parts?: Array<{ sku: string; quantity: string }>;
   docket_info?: {
     quoteOrRepair: 'Quote' | 'Repair';
     quoteDescription: string;

@@ -3,8 +3,10 @@
   import ContactsManager from '$lib/components/ContactsManager.svelte';
   import type { Contact } from '$lib/types/workshop';
   import type { JobStatusResult } from '../workshop-status.service';
+  import type { JobStatus } from '../workshop-status.service';
 
   export let currentJobStatus: JobStatusResult;
+  export let workshopStatus: JobStatus = null;
   export let optionalContacts: Contact[] = [];
   export let contactError = '';
   export let isExpanded = false;
@@ -31,6 +33,27 @@
 
   // Only show this section if there are contacts or if it's a quotable job
   $: shouldShowSection = optionalContacts.length > 0 || currentJobStatus.canEditContacts;
+
+  // Summary items for collapsed view
+  $: optionalContactsSummaryItems = (() => {
+    const items: Array<{
+      label: string;
+      value: string;
+      phone: string;
+      email: string;
+      priority: number;
+    }> = [];
+    optionalContacts.forEach((contact, index) => {
+      if (contact.name.trim()) items.push({
+        label: `Contact ${index + 1}`,
+        value: contact.name,
+        phone: contact.number,
+        email: contact.email,
+        priority: index + 1
+      });
+    });
+    return items.sort((a, b) => a.priority - b.priority);
+  })();
 </script>
 
 {#if shouldShowSection}
@@ -91,33 +114,10 @@
         bind:this={contactsManager}
         bind:contacts={optionalContacts}
         bind:error={contactError}
-        workshopStatus={null}  // We'll pass the actual status from parent
+        {workshopStatus}
         on:contactsUpdated={handleContactsUpdated}
         on:error={handleContactError}
       />
     </div>
   {/if}
 {/if}
-
-<script lang="ts">
-  // Summary items for collapsed view
-  $: optionalContactsSummaryItems = (() => {
-    const items: Array<{
-      label: string;
-      value: string;
-      phone: string;
-      email: string;
-      priority: number;
-    }> = [];
-    optionalContacts.forEach((contact, index) => {
-      if (contact.name.trim()) items.push({
-        label: `Contact ${index + 1}`,
-        value: contact.name,
-        phone: contact.number,
-        email: contact.email,
-        priority: index + 1
-      });
-    });
-    return items.sort((a, b) => a.priority - b.priority);
-  })();
-</script>

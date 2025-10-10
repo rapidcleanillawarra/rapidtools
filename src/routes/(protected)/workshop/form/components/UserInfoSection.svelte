@@ -3,6 +3,7 @@
   import CustomerDropdown from '$lib/components/CustomerDropdown.svelte';
   import type { Customer } from '$lib/services/customers';
   import type { JobStatusResult } from '../workshop-status.service';
+  import { getCustomerDisplayName } from '$lib/services/customers';
 
   export let currentJobStatus: JobStatusResult;
   export let customerName = '';
@@ -35,6 +36,15 @@
   function toggleExpanded() {
     isExpanded = !isExpanded;
   }
+
+  // Summary items for collapsed view
+  $: userInfoSummaryItems = (() => {
+    const items = [];
+    if (customerName.trim()) items.push({ label: 'Customer', value: customerName, priority: 1 });
+    if (contactEmail.trim()) items.push({ label: 'Email', value: contactEmail, priority: 2 });
+    if (contactNumber.trim()) items.push({ label: 'Phone', value: contactNumber, priority: 3 });
+    return items.sort((a, b) => a.priority - b.priority);
+  })();
 </script>
 
 <div
@@ -166,16 +176,3 @@
     </div>
   </div>
 {/if}
-
-<script lang="ts">
-  import { getCustomerDisplayName } from '$lib/services/customers';
-
-  // Summary items for collapsed view
-  $: userInfoSummaryItems = (() => {
-    const items = [];
-    if (customerName.trim()) items.push({ label: 'Customer', value: customerName, priority: 1 });
-    if (contactEmail.trim()) items.push({ label: 'Email', value: contactEmail, priority: 2 });
-    if (contactNumber.trim()) items.push({ label: 'Phone', value: contactNumber, priority: 3 });
-    return items.sort((a, b) => a.priority - b.priority);
-  })();
-</script>

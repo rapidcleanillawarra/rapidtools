@@ -23,7 +23,7 @@
     hasIncompleteContacts,
     validateAndPrepareSubmission
   } from './workshop-form.service';
-  import { formStores, resetForm } from './workshop-form.store';
+  import { resetForm } from './workshop-form.store';
 
   // Import extracted components
   import MachineInfoSection from './components/MachineInfoSection.svelte';
@@ -37,78 +37,79 @@
   import { fetchCustomerData, createOrder } from '$lib/services/maropost';
   import { getCustomerDisplayName } from '$lib/services/customers';
 
-  // Import all stores directly - we'll access them through formStores object
+  // Import formStores object and individual stores for reactive access
+  import { 
+    formStores,
+    locationOfRepair,
+    productName,
+    clientsWorkOrder,
+    makeModel,
+    serialNumber,
+    siteLocation,
+    faultDescription,
+    schedules,
+    pickupSchedule,
+    customerName,
+    contactEmail,
+    contactNumber,
+    selectedCustomer,
+    optionalContacts,
+    contactError,
+    photos,
+    photoError,
+    quoteDescription,
+    stockOnHand,
+    travelTime,
+    callOut,
+    additionalInformation,
+    labour,
+    parts,
+    quoteOrRepair,
+    isMachineInfoExpanded,
+    isUserInfoExpanded,
+    isOptionalContactsExpanded,
+    isSubmitting,
+    showSuccessModal,
+    showPostSubmissionModal,
+    showIncompleteContactModal,
+    showPickupSubmissionModal,
+    showPickupStatusChangeModal,
+    successMessage,
+    generatedOrderId,
+    showPhotoViewer,
+    currentPhotoIndex,
+    existingWorkshopId,
+    workshopStatus,
+    existingOrderId,
+    wasPickupJob,
+    customerApiData,
+    orderApiData,
+    minDateTime,
+    photoUrls,
+    startedWith
+  } from './workshop-form.store';
 
   // Local state not in store
   let loadedPhotos: string[] = [];
   let failedPhotos: string[] = [];
   let pendingAction: (() => void) | null = null;
+  let contactsManager: any = null;
 
-  // Reactive statements to sync store values to component props
-  $: locationOfRepair = $formStores.locationOfRepair;
-  $: productName = $formStores.productName;
-  $: clientsWorkOrder = $formStores.clientsWorkOrder;
-  $: makeModel = $formStores.makeModel;
-  $: serialNumber = $formStores.serialNumber;
-  $: siteLocation = $formStores.siteLocation;
-  $: faultDescription = $formStores.faultDescription;
-  $: schedules = $formStores.schedules;
-  $: pickupSchedule = $formStores.pickupSchedule;
-  $: customerName = $formStores.customerName;
-  $: contactEmail = $formStores.contactEmail;
-  $: contactNumber = $formStores.contactNumber;
-  $: selectedCustomer = $formStores.selectedCustomer;
-  $: optionalContacts = $formStores.optionalContacts;
-  $: contactError = $formStores.contactError;
-  $: photos = $formStores.photos;
-  $: photoError = $formStores.photoError;
-  $: quoteDescription = $formStores.quoteDescription;
-  $: stockOnHand = $formStores.stockOnHand;
-  $: travelTime = $formStores.travelTime;
-  $: callOut = $formStores.callOut;
-  $: additionalInformation = $formStores.additionalInformation;
-  $: labour = $formStores.labour;
-  $: parts = $formStores.parts;
-  $: quoteOrRepair = $formStores.quoteOrRepair;
-  $: isMachineInfoExpanded = $formStores.isMachineInfoExpanded;
-  $: isUserInfoExpanded = $formStores.isUserInfoExpanded;
-  $: isOptionalContactsExpanded = $formStores.isOptionalContactsExpanded;
-  $: isSubmitting = $formStores.isSubmitting;
-  $: showSuccessModal = $formStores.showSuccessModal;
-  $: showPostSubmissionModal = $formStores.showPostSubmissionModal;
-  $: showIncompleteContactModal = $formStores.showIncompleteContactModal;
-  $: showPickupSubmissionModal = $formStores.showPickupSubmissionModal;
-  $: showPickupStatusChangeModal = $formStores.showPickupStatusChangeModal;
-  $: successMessage = $formStores.successMessage;
-  $: generatedOrderId = $formStores.generatedOrderId;
-  $: showPhotoViewer = $formStores.showPhotoViewer;
-  $: currentPhotoIndex = $formStores.currentPhotoIndex;
-  $: existingWorkshopId = $formStores.existingWorkshopId;
-  $: workshopStatus = $formStores.workshopStatus;
-  $: existingOrderId = $formStores.existingOrderId;
-  $: wasPickupJob = $formStores.wasPickupJob;
-  $: customerApiData = $formStores.customerApiData;
-  $: orderApiData = $formStores.orderApiData;
-  $: minDateTime = $formStores.minDateTime;
-  $: machineInfoSummaryItems = $formStores.machineInfoSummaryItems;
-  $: userInfoSummaryItems = $formStores.userInfoSummaryItems;
-  $: optionalContactsSummaryItems = $formStores.optionalContactsSummaryItems;
-
-  // Photo URLs for PhotoViewer component
-  $: photoUrls = photos.map(p => p.url);
+  // Reactive photo URLs - using the derived store
+  $: photoUrlsArray = $photoUrls;
 
   // Determine docket info background color based on quote or repair selection
-  $: docketInfoBackgroundClass = quoteOrRepair === 'Quote'
+  $: docketInfoBackgroundClass = $quoteOrRepair === 'Quote'
     ? 'bg-purple-100 text-purple-800'
     : 'bg-green-100 text-green-800';
 
   // Get current job status evaluation using the service
   $: currentJobStatus = evaluateJobStatus({
-    existingWorkshopId,
-    workshopStatus,
-    existingOrderId,
-    locationOfRepair,
-    siteLocation
+    existingWorkshopId: $existingWorkshopId,
+    workshopStatus: $workshopStatus,
+    existingOrderId: $existingOrderId,
+    locationOfRepair: $locationOfRepair,
+    siteLocation: $siteLocation
   });
 
 
@@ -121,17 +122,17 @@
     if (referrer.includes('/workshop/camera') ||
         currentUrl.includes('from=camera') ||
         $page.url.searchParams.get('from') === 'camera') {
-      startedWith = 'camera';
+      formStores.startedWith.set('camera');
     } else {
-      startedWith = 'form';
+      formStores.startedWith.set('form');
     }
 
     // Check if we have a workshop_id parameter to load existing workshop (regardless of entry point)
     const workshopId = $page.url.searchParams.get('workshop_id');
     console.log('Workshop ID from URL:', workshopId);
     if (workshopId) {
-      existingWorkshopId = workshopId;
-      console.log('Setting existingWorkshopId:', existingWorkshopId);
+      formStores.existingWorkshopId.set(workshopId);
+      console.log('Setting existingWorkshopId:', workshopId);
       loadExistingWorkshop(workshopId);
     }
   }
@@ -150,40 +151,40 @@
       console.log('Workshop loaded successfully:', workshop);
 
       // Set workshop status and order_id
-      workshopStatus = workshop.status;
-      existingOrderId = workshop.order_id || null;
-      console.log('Workshop status set to:', workshopStatus);
-      console.log('Existing order ID set to:', existingOrderId);
+      formStores.workshopStatus.set(workshop.status);
+      formStores.existingOrderId.set(workshop.order_id || null);
+      console.log('Workshop status set to:', workshop.status);
+      console.log('Existing order ID set to:', workshop.order_id);
 
       // Populate form with existing workshop data
-      locationOfRepair = workshop.location_of_repair || 'Site';
-      productName = workshop.product_name || '';
-      clientsWorkOrder = workshop.clients_work_order || '';
-      makeModel = workshop.make_model || '';
-      serialNumber = workshop.serial_number || '';
-      siteLocation = workshop.site_location || '';
-      schedules = workshop.schedules || null;
-      faultDescription = workshop.fault_description || '';
-      customerName = workshop.customer_name || '';
-      contactEmail = workshop.contact_email || '';
-      contactNumber = workshop.contact_number || '';
-      selectedCustomer = workshop.customer_data;
-      optionalContacts = workshop.optional_contacts || [];
-      quoteOrRepaired: quoteOrRepair = workshop.quote_or_repaired || 'Quote';
-      startedWith = workshop.started_with || 'form';
+      formStores.locationOfRepair.set(workshop.location_of_repair || 'Site');
+      formStores.productName.set(workshop.product_name || '');
+      formStores.clientsWorkOrder.set(workshop.clients_work_order || '');
+      formStores.makeModel.set(workshop.make_model || '');
+      formStores.serialNumber.set(workshop.serial_number || '');
+      formStores.siteLocation.set(workshop.site_location || '');
+      formStores.schedules.set(workshop.schedules || null);
+      formStores.faultDescription.set(workshop.fault_description || '');
+      formStores.customerName.set(workshop.customer_name || '');
+      formStores.contactEmail.set(workshop.contact_email || '');
+      formStores.contactNumber.set(workshop.contact_number || '');
+      formStores.selectedCustomer.set(workshop.customer_data);
+      formStores.optionalContacts.set(workshop.optional_contacts || []);
+      formStores.quoteOrRepair.set(workshop.quote_or_repaired || 'Quote');
+      formStores.startedWith.set(workshop.started_with || 'form');
 
       // Load docket info if available
       if (workshop.docket_info) {
-        quoteDescription = workshop.docket_info.quoteDescription || '';
-        additionalInformation = workshop.docket_info.additionalInformation || '';
-        stockOnHand = workshop.docket_info.stockOnHand || '';
-        labour = workshop.docket_info.labour || '';
-        travelTime = workshop.docket_info.travelTime || '';
-        callOut = workshop.docket_info.callOut || '';
-        parts = workshop.docket_info.parts || [{ sku: '', quantity: '' }];
+        formStores.quoteDescription.set(workshop.docket_info.quoteDescription || '');
+        formStores.additionalInformation.set(workshop.docket_info.additionalInformation || '');
+        formStores.stockOnHand.set(workshop.docket_info.stockOnHand || '');
+        formStores.labour.set(workshop.docket_info.labour || '');
+        formStores.travelTime.set(workshop.docket_info.travelTime || '');
+        formStores.callOut.set(workshop.docket_info.callOut || '');
+        formStores.parts.set(workshop.docket_info.parts || [{ sku: '', quantity: '' }]);
         // Ensure at least one empty part row
-        if (parts.length === 0) {
-          parts = [{ sku: '', quantity: '' }];
+        if ((workshop.docket_info.parts || []).length === 0) {
+          formStores.parts.set([{ sku: '', quantity: '' }]);
         }
       }
 
@@ -191,21 +192,21 @@
       // Note: We can't recreate File objects from URLs, so we'll show them differently
       if (workshop.photo_urls && workshop.photo_urls.length > 0) {
         // Create PhotoItem entries with the existing photo URLs
-        photos = workshop.photo_urls.map(url => ({
+        formStores.photos.set(workshop.photo_urls.map(url => ({
           file: new File([], 'existing-photo.jpg', { type: 'image/jpeg' }), // Dummy file
           url: url,
           isExisting: true // Mark as existing photo
-        }));
+        })));
       }
 
       console.log('Loaded existing workshop:', workshop);
       console.log('Form populated with data:', {
-        locationOfRepair,
-        productName,
-        customerName,
-        contactEmail,
-        workshopStatus,
-        selectedCustomer: selectedCustomer ? 'Customer selected' : 'No customer selected'
+        locationOfRepair: workshop.location_of_repair,
+        productName: workshop.product_name,
+        customerName: workshop.customer_name,
+        contactEmail: workshop.contact_email,
+        workshopStatus: workshop.status,
+        selectedCustomer: workshop.customer_data ? 'Customer selected' : 'No customer selected'
       });
     } catch (error) {
       console.error('Error loading workshop:', error);
@@ -217,14 +218,14 @@
 
   // Event handlers for ContactsManager component
   function handleContactsUpdated(event: CustomEvent) {
-    optionalContacts = event.detail.contacts;
+    formStores.optionalContacts.set(event.detail.contacts);
   }
 
   function handleContactError(event: CustomEvent) {
-    contactError = event.detail.message;
+    formStores.contactError.set(event.detail.message);
   }
 
-  function handleCustomerSelect(event: CustomEvent) {
+  function onCustomerSelect(event: CustomEvent) {
     const { customer } = event.detail;
     const result = handleCustomerSelect(customer);
     formStores.selectedCustomer.set(result.selectedCustomer);
@@ -233,7 +234,7 @@
     formStores.contactNumber.set(result.contactNumber);
   }
 
-  function handleCustomerClear() {
+  function onCustomerClear() {
     const result = handleCustomerClear();
     formStores.selectedCustomer.set(result.selectedCustomer);
     formStores.customerName.set(result.customerName);
@@ -268,25 +269,42 @@
   async function handleUpdateJob(event: Event) {
     event.preventDefault();
 
+    // Get current values from stores
+    const currentExistingWorkshopId = get(formStores.existingWorkshopId);
+    const currentWorkshopStatus = get(formStores.workshopStatus);
+    const currentExistingOrderId = get(formStores.existingOrderId);
+    const currentLocationOfRepair = get(formStores.locationOfRepair);
+    const currentSiteLocation = get(formStores.siteLocation);
+    const currentPickupSchedule = get(formStores.pickupSchedule);
+    const currentProductName = get(formStores.productName);
+    const currentCustomerName = get(formStores.customerName);
+    const currentSchedules = get(formStores.schedules);
+    const currentPhotos = get(formStores.photos);
+    const currentSelectedCustomer = get(formStores.selectedCustomer);
+    const currentOptionalContacts = get(formStores.optionalContacts);
+    const currentQuoteOrRepair = get(formStores.quoteOrRepair);
+    const currentCustomerApiData = get(formStores.customerApiData);
+    const currentOrderApiData = get(formStores.orderApiData);
+
     // Validate and prepare submission using the service
     const validationResult = validateAndPrepareSubmission({
-      existingWorkshopId,
-      workshopStatus,
-      existingOrderId,
-      locationOfRepair,
-      siteLocation,
-      pickupSchedule,
-      isPickupScheduleRequired,
-      productName,
-      customerName,
-      schedules,
-      photos,
-      selectedCustomer,
-      optionalContacts,
-      startedWith,
-      quoteOrRepair,
-      customerApiData,
-      orderApiData
+      existingWorkshopId: currentExistingWorkshopId,
+      workshopStatus: currentWorkshopStatus,
+      existingOrderId: currentExistingOrderId,
+      locationOfRepair: currentLocationOfRepair,
+      siteLocation: currentSiteLocation,
+      pickupSchedule: currentPickupSchedule,
+      isPickupScheduleRequired: isPickupScheduleRequired(currentWorkshopStatus, currentExistingWorkshopId, currentLocationOfRepair),
+      productName: currentProductName,
+      customerName: currentCustomerName,
+      schedules: currentSchedules,
+      photos: currentPhotos,
+      selectedCustomer: currentSelectedCustomer,
+      optionalContacts: currentOptionalContacts,
+      startedWith: get(startedWith),
+      quoteOrRepair: currentQuoteOrRepair,
+      customerApiData: currentCustomerApiData,
+      orderApiData: currentOrderApiData
     }, contactsManager);
 
     // Check for incomplete contacts modal
@@ -311,39 +329,38 @@
     try {
       // Prepare form data using the service
       const formData = prepareFormData({
-      locationOfRepair,
-      productName,
-      clientsWorkOrder,
-      makeModel,
-      serialNumber,
-      siteLocation,
-      schedules,
-      faultDescription,
-      customerName,
-      contactEmail,
-      contactNumber,
-      selectedCustomer,
-        optionalContacts,
-        photos,
+        locationOfRepair: currentLocationOfRepair,
+        productName: currentProductName,
+        clientsWorkOrder: get(formStores.clientsWorkOrder),
+        makeModel: get(formStores.makeModel),
+        serialNumber: get(formStores.serialNumber),
+        siteLocation: currentSiteLocation,
+        schedules: currentSchedules,
+        faultDescription: get(formStores.faultDescription),
+        customerName: currentCustomerName,
+        contactEmail: get(formStores.contactEmail),
+        contactNumber: get(formStores.contactNumber),
+        selectedCustomer: currentSelectedCustomer,
+        optionalContacts: currentOptionalContacts,
         existingPhotoUrls: [],
-      startedWith,
-        quoteOrRepair,
-        customerApiData,
-        orderApiData
-      }, photos, existingWorkshopId, workshopStatus);
+        startedWith: get(startedWith),
+        quoteOrRepaired: currentQuoteOrRepair,
+        customerApiData: currentCustomerApiData,
+        orderApiData: currentOrderApiData
+      }, currentPhotos, currentExistingWorkshopId, currentWorkshopStatus);
 
-    console.log('Update job form data:', formData);
+      console.log('Update job form data:', formData);
 
-    // Get current user
-    const user = get(currentUser);
-    if (!user) {
-      throw new Error('You must be logged in to update a workshop');
-    }
+      // Get current user
+      const user = get(currentUser);
+      if (!user) {
+        throw new Error('You must be logged in to update a workshop');
+      }
 
       let workshop;
-      if (existingWorkshopId) {
+      if (currentExistingWorkshopId) {
         // Update existing workshop
-        workshop = await updateWorkshop(existingWorkshopId, formData);
+        workshop = await updateWorkshop(currentExistingWorkshopId, formData);
         console.log('Workshop updated successfully:', workshop);
       } else {
         // Create new workshop
@@ -352,14 +369,15 @@
       }
 
       // Set success message
-      formStores.successMessage.set(existingWorkshopId
+      const successMsg = currentExistingWorkshopId
         ? 'Workshop job updated successfully!'
-        : 'Workshop created successfully and ready to be quoted!');
+        : 'Workshop created successfully and ready to be quoted!';
+      formStores.successMessage.set(successMsg);
 
       // Show toast notification
-      toastSuccess(formStores.successMessage);
+      toastSuccess(successMsg);
 
-      if (existingWorkshopId) {
+      if (currentExistingWorkshopId) {
         // For updates, show the regular success modal
         formStores.showSuccessModal.set(true);
       } else {
@@ -379,32 +397,56 @@
   async function handleSubmit(event: Event) {
     event.preventDefault();
 
+    // Get current values from stores
+    const currentExistingWorkshopId = get(formStores.existingWorkshopId);
+    const currentWorkshopStatus = get(formStores.workshopStatus);
+    const currentExistingOrderId = get(formStores.existingOrderId);
+    const currentLocationOfRepair = get(formStores.locationOfRepair);
+    const currentSiteLocation = get(formStores.siteLocation);
+    const currentPickupSchedule = get(formStores.pickupSchedule);
+    const currentProductName = get(formStores.productName);
+    const currentCustomerName = get(formStores.customerName);
+    const currentSchedules = get(formStores.schedules);
+    const currentPhotos = get(formStores.photos);
+    const currentSelectedCustomer = get(formStores.selectedCustomer);
+    const currentOptionalContacts = get(formStores.optionalContacts);
+    const currentQuoteOrRepair = get(formStores.quoteOrRepair);
+    const currentQuoteDescription = get(formStores.quoteDescription);
+    const currentAdditionalInformation = get(formStores.additionalInformation);
+    const currentStockOnHand = get(formStores.stockOnHand);
+    const currentLabour = get(formStores.labour);
+    const currentTravelTime = get(formStores.travelTime);
+    const currentCallOut = get(formStores.callOut);
+    const currentParts = get(formStores.parts);
+    const currentCustomerApiData = get(formStores.customerApiData);
+    const currentOrderApiData = get(formStores.orderApiData);
+
     // Validate and prepare submission using the service
     const validationResult = validateAndPrepareSubmission({
-      existingWorkshopId,
-      workshopStatus,
-      existingOrderId,
-      locationOfRepair,
-      siteLocation,
-      pickupSchedule,
-      isPickupScheduleRequired,
-      productName,
-      customerName,
-      schedules,
-      photos,
-      selectedCustomer,
-      optionalContacts,
-      startedWith,
-      quoteOrRepair,
-      quoteDescription,
-      additionalInformation,
-      stockOnHand,
-      labour,
-      travelTime,
-      callOut,
-      parts,
-      customerApiData,
-      orderApiData
+      existingWorkshopId: currentExistingWorkshopId,
+      workshopStatus: currentWorkshopStatus,
+      existingOrderId: currentExistingOrderId,
+      locationOfRepair: currentLocationOfRepair,
+      siteLocation: currentSiteLocation,
+      pickupSchedule: currentPickupSchedule,
+      isPickupScheduleRequired: isPickupScheduleRequired(currentWorkshopStatus, currentExistingWorkshopId, currentLocationOfRepair),
+      productName: currentProductName,
+      customerName: currentCustomerName,
+      schedules: currentSchedules,
+      photos: currentPhotos,
+      selectedCustomer: currentSelectedCustomer,
+      optionalContacts: currentOptionalContacts,
+      startedWith: get(startedWith),
+      quoteOrRepair: currentQuoteOrRepair,
+      quoteDescription: currentQuoteDescription,
+      additionalInformation: currentAdditionalInformation,
+      stockOnHand: currentStockOnHand,
+      labour: currentLabour,
+      travelTime: currentTravelTime,
+      callOut: currentCallOut,
+      parts: currentParts,
+      customerApiData: currentCustomerApiData,
+      orderApiData: currentOrderApiData
     }, contactsManager);
 
     // Check for incomplete contacts modal
@@ -427,7 +469,7 @@
     formStores.isSubmitting.set(true);
 
     // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
-    const isPickupSubmission = !existingWorkshopId && locationOfRepair === 'Site' && siteLocation.trim() !== '';
+    const isPickupSubmission = !currentExistingWorkshopId && currentLocationOfRepair === 'Site' && currentSiteLocation.trim() !== '';
 
     let shouldCreateOrder = false;
     let generatedOrderId: string | null = null;
@@ -436,13 +478,13 @@
     // New forms should never create Maropost orders
     // Pickup submissions should never create Maropost orders
     // Explicit check: if this is a brand new form with no existing data, never create order
-    const isNewForm = !existingWorkshopId && !workshopStatus && !existingOrderId;
+    const isNewForm = !currentExistingWorkshopId && !currentWorkshopStatus && !currentExistingOrderId;
 
     if (isPickupSubmission) {
       console.log('This is a pickup submission - skipping Maropost order creation');
     } else if (isNewForm) {
       console.log('This is a new form with no existing data - skipping Maropost order creation');
-    } else if (existingWorkshopId) {
+    } else if (currentExistingWorkshopId) {
       // Fetch customer data from API first
       try {
         console.log('Fetching customer data from API...');
@@ -460,7 +502,7 @@
       shouldCreateOrder = currentJobStatus.canCreateOrder;
       try {
         console.log('Checking if workshop already has order_id...');
-        const existingWorkshop = await getWorkshop(existingWorkshopId);
+        const existingWorkshop = await getWorkshop(currentExistingWorkshopId);
 
         if (existingWorkshop && existingWorkshop.order_id) {
           shouldCreateOrder = false;
@@ -478,7 +520,7 @@
       if (shouldCreateOrder) {
         try {
           console.log('Creating order with customer data...');
-          const orderData = await createOrder(formStores.customerApiData);
+          const orderData = await createOrder(get(formStores.customerApiData));
           formStores.orderApiData.set(orderData);
           console.log('Order created successfully');
 
@@ -497,37 +539,36 @@
     }
 
     // Log optional contacts before form submission
-    console.log('Optional contacts before submission:', optionalContacts);
+    console.log('Optional contacts before submission:', currentOptionalContacts);
 
     // Prepare form data using the service
     const formData = prepareFormData({
-      locationOfRepair,
-      productName,
-      clientsWorkOrder,
-      makeModel,
-      serialNumber,
-      siteLocation,
-      schedules,
-      faultDescription,
-      customerName,
-      contactEmail,
-      contactNumber,
-      selectedCustomer,
-      optionalContacts,
-      photos,
+      locationOfRepair: currentLocationOfRepair,
+      productName: currentProductName,
+      clientsWorkOrder: get(formStores.clientsWorkOrder),
+      makeModel: get(formStores.makeModel),
+      serialNumber: get(formStores.serialNumber),
+      siteLocation: currentSiteLocation,
+      schedules: currentSchedules,
+      faultDescription: get(formStores.faultDescription),
+      customerName: currentCustomerName,
+      contactEmail: get(formStores.contactEmail),
+      contactNumber: get(formStores.contactNumber),
+      selectedCustomer: currentSelectedCustomer,
+      optionalContacts: currentOptionalContacts,
       existingPhotoUrls: [],
-      startedWith,
-          quoteOrRepair,
-          quoteDescription,
-          additionalInformation,
-          stockOnHand,
-          labour,
-          travelTime,
-          callOut,
-      parts,
-        customerApiData,
-      orderApiData
-    }, photos, existingWorkshopId, workshopStatus, generatedOrderId);
+      startedWith: get(startedWith),
+      quoteOrRepaired: currentQuoteOrRepair,
+      quoteDescription: currentQuoteDescription,
+      additionalInformation: currentAdditionalInformation,
+      stockOnHand: currentStockOnHand,
+      labour: currentLabour,
+      travelTime: currentTravelTime,
+      callOut: currentCallOut,
+      parts: currentParts,
+      customerApiData: currentCustomerApiData,
+      orderApiData: currentOrderApiData
+    }, currentPhotos, currentExistingWorkshopId, currentWorkshopStatus, generatedOrderId || undefined);
 
     console.log('Submit form data:', formData);
 
@@ -539,25 +580,25 @@
 
     // Determine and set status based on submission type
     const newStatus = determineSubmissionStatus(
-      existingWorkshopId,
-      workshopStatus,
-      locationOfRepair,
-      formStores.wasPickupJob
+      currentExistingWorkshopId,
+      currentWorkshopStatus,
+      currentLocationOfRepair,
+      get(formStores.wasPickupJob)
     );
 
     // Set the status in form data
     (formData as any).status = newStatus;
 
     // Update wasPickupJob flag if this was a pickup job transition
-    if (existingWorkshopId && workshopStatus === 'pickup') {
+    if (currentExistingWorkshopId && currentWorkshopStatus === 'pickup') {
       formStores.wasPickupJob.set(true);
     }
 
     console.log('Final formData status:', (formData as any).status);
 
     // Submit to Supabase - either create new or update existing
-    const submitPromise = existingWorkshopId
-      ? updateWorkshop(existingWorkshopId, formData)
+    const submitPromise = currentExistingWorkshopId
+      ? updateWorkshop(currentExistingWorkshopId, formData)
       : createWorkshop(formData, user.uid);
 
     submitPromise
@@ -566,23 +607,23 @@
 
         // Determine success message and modal type using services
         const successMessage = getSuccessMessage(
-          existingWorkshopId,
-          workshopStatus,
-          locationOfRepair,
-          formStores.wasPickupJob,
-          quoteOrRepair
+          currentExistingWorkshopId,
+          currentWorkshopStatus,
+          currentLocationOfRepair,
+          get(formStores.wasPickupJob),
+          currentQuoteOrRepair
         );
 
         const modalType = determineSuccessModal(
-          existingWorkshopId,
-          workshopStatus,
-          locationOfRepair,
-          formStores.wasPickupJob
+          currentExistingWorkshopId,
+          currentWorkshopStatus,
+          currentLocationOfRepair,
+          get(formStores.wasPickupJob)
         );
 
         // Set success message and show appropriate modal
         formStores.successMessage.set(successMessage);
-        formStores.generatedOrderId.set(generatedOrderId);
+        formStores.generatedOrderId.set(generatedOrderId || '');
 
         // Show toast notification
         toastSuccess(successMessage);
@@ -618,7 +659,7 @@
 
   // Button text function using the service
   function getSubmitButtonText(): string {
-    return getSubmitButtonLoadingText(currentJobStatus, existingWorkshopId, workshopStatus);
+    return getSubmitButtonLoadingText(currentJobStatus, get(formStores.existingWorkshopId), get(formStores.workshopStatus));
   }
 
 
@@ -656,7 +697,7 @@
 
   // Photo viewer functions
   function openPhotoViewer(photoIndex: number = 0) {
-    if (photos.length === 0) return;
+    if (get(formStores.photos).length === 0) return;
     formStores.currentPhotoIndex.set(photoIndex);
     formStores.showPhotoViewer.set(true);
   }
@@ -694,9 +735,9 @@
     <div class="px-6 py-4 border-b border-gray-200">
       <div class="flex flex-col items-center space-y-3">
         <h1 class="text-2xl font-bold text-center">
-          {#if existingWorkshopId && workshopStatus && workshopStatus !== 'new' && existingOrderId}
-            Order #{existingOrderId}
-          {:else if existingWorkshopId}
+          {#if $existingWorkshopId && $workshopStatus && $workshopStatus !== 'new' && $existingOrderId}
+            Order #{$existingOrderId}
+          {:else if $existingWorkshopId}
             Edit Workshop Job
           {:else}
             Create Workshop Job
@@ -710,8 +751,8 @@
 
           <!-- Started Via Pill -->
           <div class="text-sm text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-            Started via: <span class="font-medium capitalize">{startedWith}</span>
-            {#if startedWith === 'camera'}
+            Started via: <span class="font-medium capitalize">{$startedWith}</span>
+            {#if $startedWith === 'camera'}
               📷
             {:else}
               📝
@@ -731,17 +772,17 @@
         <!-- Machine Information -->
         <MachineInfoSection
           {currentJobStatus}
-          bind:locationOfRepair={$formStores.locationOfRepair}
-          bind:productName={$formStores.productName}
-          bind:clientsWorkOrder={$formStores.clientsWorkOrder}
-          bind:makeModel={$formStores.makeModel}
-          bind:serialNumber={$formStores.serialNumber}
-          bind:siteLocation={$formStores.siteLocation}
-          bind:faultDescription={$formStores.faultDescription}
-          bind:pickupSchedule={$formStores.pickupSchedule}
-          {minDateTime}
-          bind:isExpanded={$formStores.isMachineInfoExpanded}
-          startedWith={$formStores.startedWith}
+          bind:locationOfRepair={$locationOfRepair}
+          bind:productName={$productName}
+          bind:clientsWorkOrder={$clientsWorkOrder}
+          bind:makeModel={$makeModel}
+          bind:serialNumber={$serialNumber}
+          bind:siteLocation={$siteLocation}
+          bind:faultDescription={$faultDescription}
+          bind:pickupSchedule={$pickupSchedule}
+          minDateTime={$minDateTime}
+          bind:isExpanded={$isMachineInfoExpanded}
+          startedWith={$startedWith}
           on:pickupScheduleUpdate={(e) => {
             formStores.schedules.update(schedules => ({
               ...schedules,
@@ -753,17 +794,12 @@
         <!-- User Information -->
         <UserInfoSection
           {currentJobStatus}
-          bind:customerName={$formStores.customerName}
-          bind:contactEmail={$formStores.contactEmail}
-          bind:contactNumber={$formStores.contactNumber}
-          bind:selectedCustomer={$formStores.selectedCustomer}
-          bind:isExpanded={$formStores.isUserInfoExpanded}
-          on:customerSelect={(e) => {
-            formStores.selectedCustomer.set(e.detail.customer);
-            formStores.customerName.set(e.detail.customerName);
-            formStores.contactEmail.set(e.detail.contactEmail);
-            formStores.contactNumber.set(e.detail.contactNumber);
-          }}
+          bind:customerName={$customerName}
+          bind:contactEmail={$contactEmail}
+          bind:contactNumber={$contactNumber}
+          bind:selectedCustomer={$selectedCustomer}
+          bind:isExpanded={$isUserInfoExpanded}
+          on:customerSelect={onCustomerSelect}
           on:customerClear={() => {
             formStores.selectedCustomer.set(null);
             formStores.customerName.set('');
@@ -777,9 +813,9 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Photos -->
         <PhotoSection
-          bind:photos={$formStores.photos}
-          bind:photoError={$formStores.photoError}
-            workshopStatus={workshopStatus}
+          bind:photos={$photos}
+          bind:photoError={$photoError}
+          workshopStatus={$workshopStatus}
           on:photosUpdated={(e) => formStores.photos.set(e.detail.photos)}
           on:photoError={(e) => formStores.photoError.set(e.detail.message)}
           on:photoClick={(e) => openPhotoViewer(e.detail.photoIndex)}
@@ -788,9 +824,10 @@
         <!-- Optional Contacts -->
         <ContactsSection
           {currentJobStatus}
-          bind:optionalContacts={$formStores.optionalContacts}
-          bind:contactError={$formStores.contactError}
-          bind:isExpanded={$formStores.isOptionalContactsExpanded}
+          workshopStatus={$workshopStatus}
+          bind:optionalContacts={$optionalContacts}
+          bind:contactError={$contactError}
+          bind:isExpanded={$isOptionalContactsExpanded}
           on:contactsUpdated={(e) => formStores.optionalContacts.set(e.detail.contacts)}
           on:contactError={(e) => formStores.contactError.set(e.detail.message)}
         />
@@ -798,15 +835,15 @@
 
       <!-- Docket Info - Only show for non-new and non-pickup workshops -->
       <DocketInfoSection
-        {workshopStatus}
-        bind:quoteOrRepair={$formStores.quoteOrRepair}
-        bind:quoteDescription={$formStores.quoteDescription}
-        bind:additionalInformation={$formStores.additionalInformation}
-        bind:stockOnHand={$formStores.stockOnHand}
-        bind:labour={$formStores.labour}
-        bind:travelTime={$formStores.travelTime}
-        bind:callOut={$formStores.callOut}
-        bind:parts={$formStores.parts}
+        workshopStatus={$workshopStatus}
+        bind:quoteOrRepair={$quoteOrRepair}
+        bind:quoteDescription={$quoteDescription}
+        bind:additionalInformation={$additionalInformation}
+        bind:stockOnHand={$stockOnHand}
+        bind:labour={$labour}
+        bind:travelTime={$travelTime}
+        bind:callOut={$callOut}
+        bind:parts={$parts}
       />
 
       <div class="flex justify-end gap-3">
@@ -816,34 +853,34 @@
         <button
           type="button"
           on:click={handleUpdateJob}
-          disabled={isSubmitting}
+          disabled={$isSubmitting}
           class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          {#if isSubmitting}
+          {#if $isSubmitting}
             <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
             Updating Job...
           {:else}
-            {existingWorkshopId ? 'Update Job' : 'Create Job'}
+            {$existingWorkshopId ? 'Update Job' : 'Create Job'}
           {/if}
         </button>
 
         <!-- Submit Button - for order creation, status transitions, and updates -->
-        {#if existingWorkshopId}
+        {#if $existingWorkshopId}
           <button
             type="button"
             on:click={handleSubmit}
-            disabled={isSubmitting}
+            disabled={$isSubmitting}
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {#if isSubmitting}
+            {#if $isSubmitting}
               <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 718-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              {getSubmitButtonLoadingText()}
+              Loading...
             {:else}
               {getSubmitButtonText()}
             {/if}
@@ -855,23 +892,23 @@
 
   <!-- Success Modal -->
   <SuccessModal
-    show={showSuccessModal}
-    message={successMessage}
-    orderId={generatedOrderId}
+    show={$showSuccessModal}
+    message={$successMessage}
+    orderId={$generatedOrderId}
     on:close={closeSuccessModal}
   />
 
   <!-- Post-Submission Modal -->
   <PostSubmissionModal
-    show={showPostSubmissionModal}
-    message={successMessage}
-    orderId={generatedOrderId}
-    isPickup={isPickupSubmission}
+    show={$showPostSubmissionModal}
+    message={$successMessage}
+    orderId={$generatedOrderId}
+    isPickup={false}
     on:navigateToWorkshopBoard={navigateToWorkshopBoard}
   />
 
   <!-- Incomplete Contact Modal -->
-  {#if showIncompleteContactModal}
+  {#if $showIncompleteContactModal}
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -903,7 +940,7 @@
           </button>
           <button
             type="button"
-            on:click={() => showIncompleteContactModal = false}
+            on:click={() => formStores.showIncompleteContactModal.set(false)}
             class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             Go Back
@@ -915,17 +952,17 @@
 
   <!-- Photo Viewer Modal -->
   <PhotoViewer
-    {showPhotoViewer}
-    {photoUrls}
-    {currentPhotoIndex}
+    showPhotoViewer={$showPhotoViewer}
+    photoUrls={photoUrlsArray}
+    currentPhotoIndex={$currentPhotoIndex}
     {loadedPhotos}
     {failedPhotos}
     on:close={closePhotoViewer}
-    on:photoIndexChanged={({ detail }) => currentPhotoIndex = detail.index}
+    on:photoIndexChanged={({ detail }) => formStores.currentPhotoIndex.set(detail.index)}
   />
 
   <!-- Pickup Submission Modal -->
-  {#if showPickupSubmissionModal}
+  {#if $showPickupSubmissionModal}
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="px-6 py-4 border-b border-gray-200">
@@ -961,7 +998,7 @@
   {/if}
 
   <!-- Pickup Status Change Modal (for new pickup jobs) -->
-  {#if showPickupStatusChangeModal}
+  {#if $showPickupStatusChangeModal}
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
         <div class="px-6 py-4 border-b border-gray-200">

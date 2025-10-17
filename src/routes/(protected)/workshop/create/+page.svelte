@@ -563,20 +563,7 @@
     } else if (isNewForm) {
       console.log('This is a new form with no existing data - skipping Maropost order creation');
     } else if (existingWorkshopId) {
-      // Fetch customer data from API first
-      try {
-        console.log('Fetching customer data from API...');
-        customerApiData = await fetchCustomerData();
-        console.log('Customer data fetched successfully');
-      } catch (error) {
-        console.error('Failed to fetch customer data:', error);
-        toastError('Failed to fetch customer data. Please try again.');
-        isSubmitting = false;
-        return;
-      }
-
-      // Check if this workshop already has an order_id
-      shouldCreateOrder = currentJobStatus.canCreateOrder;
+      // ALWAYS check if workshop already has an order_id to prevent duplicates
       try {
         console.log('Checking if workshop already has order_id...');
         const existingWorkshop = await getWorkshop(existingWorkshopId);
@@ -584,13 +571,30 @@
         if (existingWorkshop && existingWorkshop.order_id) {
           shouldCreateOrder = false;
           generatedOrderId = existingWorkshop.order_id;
-          console.log('Workshop already has order_id:', generatedOrderId);
+          console.log('Workshop already has order_id - skipping order creation:', generatedOrderId);
         } else {
-          console.log('Workshop does not have an order_id, will create new order');
+          // Only create order if workshop doesn't have one AND status allows it
+          shouldCreateOrder = currentJobStatus.canCreateOrder;
+          console.log('Workshop does not have an order_id, checking if status allows creation:', shouldCreateOrder);
         }
       } catch (error) {
         console.error('Error checking existing workshop order_id:', error);
-        // Continue with order creation if we can't check
+        // If we can't check, err on the side of caution and don't create order
+        shouldCreateOrder = false;
+      }
+
+      // Only fetch customer data if we're actually going to create an order
+      if (shouldCreateOrder) {
+        try {
+          console.log('Fetching customer data for order creation...');
+          customerApiData = await fetchCustomerData();
+          console.log('Customer data fetched successfully');
+        } catch (error) {
+          console.error('Failed to fetch customer data:', error);
+          toastError('Failed to fetch customer data. Please try again.');
+          isSubmitting = false;
+          return;
+        }
       }
 
       if (shouldCreateOrder) {

@@ -296,7 +296,7 @@
   }
 
   function handleWorkshopClick(workshop: WorkshopRecord) {
-    goto(`/workshop/create`);
+    goto(`/workshop/create?workshop_id=${workshop.id}`);
   }
 
   onMount(() => {

@@ -162,6 +162,9 @@
   // Pickup status change modal state (for new pickup jobs)
   let showPickupStatusChangeModal = false;
 
+  // Docket ready modal state (for to_be_quoted submissions)
+  let showDocketReadyModal = false;
+
   // Customer data from API
   let customerApiData: any = null;
   // Order data from API
@@ -735,6 +738,9 @@
         } else if (wasPickupJob) {
           // For pickup job submissions, show the pickup submission modal
           showPickupSubmissionModal = true;
+        } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
+          // For existing "to_be_quoted" jobs submitted, show the docket ready modal
+          showDocketReadyModal = true;
         } else if (isUpdate) {
           // For regular updates, show the regular success modal
           showSuccessModal = true;
@@ -1013,6 +1019,12 @@
   function closePickupStatusChangeModal() {
     showPickupStatusChangeModal = false;
     // Force navigation to workshop board
+    navigateToWorkshopBoard();
+  }
+
+  function closeDocketReadyModal() {
+    showDocketReadyModal = false;
+    // Navigate to workshop board
     navigateToWorkshopBoard();
   }
 
@@ -1759,6 +1771,56 @@
             class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             Go to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Docket Ready Modal (for to_be_quoted submissions) -->
+  {#if showDocketReadyModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Docket Information Saved</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            Your workshop docket information has been successfully saved and the job status has been updated to "Docket Ready".
+          </p>
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-green-700">
+                  <strong>Job Status:</strong> Updated to "Docket Ready"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closeDocketReadyModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
           </button>
         </div>
       </div>

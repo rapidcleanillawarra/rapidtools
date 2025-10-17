@@ -689,6 +689,10 @@
       // For existing "to_be_quoted" jobs, change status to docket_ready
       (formData as any).status = 'docket_ready';
       console.log('Updating workshop status from to_be_quoted to docket_ready');
+    } else if (existingWorkshopId && workshopStatus === 'docket_ready') {
+      // For existing "docket_ready" jobs, change status to quoted or repaired based on quoteOrRepair field
+      (formData as any).status = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
+      console.log(`Updating workshop status from docket_ready to ${quoteOrRepair === 'Quote' ? 'quoted' : 'repaired'}`);
     } else {
       // Default: set to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -719,6 +723,8 @@
           successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
         } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
           successMessage = 'Workshop docket information saved successfully and status updated to "Docket Ready"!';
+        } else if (existingWorkshopId && workshopStatus === 'docket_ready') {
+          successMessage = `Workshop successfully marked as ${quoteOrRepair === 'Quote' ? 'Quoted' : 'Repaired'}!`;
         } else {
           successMessage = isUpdate
             ? wasToBeQuoted
@@ -744,8 +750,11 @@
         } else if (isUpdate) {
           // For regular updates, show the regular success modal
           showSuccessModal = true;
+        } else if (!existingWorkshopId && locationOfRepair !== 'Site') {
+          // For new non-pickup job creation, navigate directly to workshop board
+          navigateToWorkshopBoard();
         } else {
-          // For new job creation, show the post-submission modal
+          // For new job creation (fallback), show the post-submission modal
           showPostSubmissionModal = true;
         }
 
@@ -777,6 +786,7 @@
     existingOrderId: string | null;
     locationOfRepair: 'Site' | 'Workshop';
     siteLocation: string;
+    quoteOrRepair: QuoteOrRepairType;
   }
 
   interface JobStatusResult {
@@ -796,7 +806,7 @@
    * All status-dependent behavior should derive from this single source of truth.
    */
   function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
-    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfRepair, siteLocation } = context;
+    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfRepair, siteLocation, quoteOrRepair } = context;
 
     console.log('Evaluating job status:', context);
 
@@ -876,6 +886,23 @@
     }
 
     // ============================================
+    // PRIORITY 4.1: DOCKET READY STATUS
+    // ============================================
+    // Jobs that have docket information ready
+    if (existingWorkshopId && workshopStatus === 'docket_ready') {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info once docket is ready
+        canEditUserInfo: false,     // Cannot edit user info once docket is ready
+        canEditContacts: false,     // Cannot edit contacts once docket is ready
+        canCreateOrder: false,      // Docket ready jobs don't create new orders
+        canPickup: false,          // Docket ready jobs aren't pickups
+        buttonText: quoteOrRepair === 'Quote' ? 'Quoted' : 'Repaired',
+        statusDisplay: 'Docket Ready',
+        priority: 4.1
+      };
+    }
+
+    // ============================================
     // PRIORITY 4.5: COMPLETED JOBS (Quoted or Repaired)
     // ============================================
     // Jobs that have been quoted or repaired (final statuses)
@@ -916,7 +943,8 @@
     workshopStatus,
     existingOrderId,
     locationOfRepair,
-    siteLocation
+    siteLocation,
+    quoteOrRepair
   });
 
   function getSubmitButtonText(): string {

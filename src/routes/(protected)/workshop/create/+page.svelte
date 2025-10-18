@@ -165,6 +165,21 @@
   // Docket ready modal state (for to_be_quoted submissions)
   let showDocketReadyModal = false;
 
+  // Waiting approval PO modal state (for quoted submissions)
+  let showWaitingApprovalModal = false;
+
+  // Waiting for parts modal state (for waiting_approval_po submissions)
+  let showWaitingForPartsModal = false;
+
+  // Booked in for repair modal state (for waiting_for_parts submissions)
+  let showBookedInRepairModal = false;
+
+  // Repaired modal state (for booked_in_for_repair_service submissions)
+  let showRepairedModal = false;
+
+  // Return modal state (for repaired submissions)
+  let showReturnModal = false;
+
   // Customer data from API
   let customerApiData: any = null;
   // Order data from API
@@ -697,6 +712,26 @@
       // For existing "docket_ready" jobs, change status to quoted or repaired based on quoteOrRepair field
       (formData as any).status = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
       console.log(`Updating workshop status from docket_ready to ${quoteOrRepair === 'Quote' ? 'quoted' : 'repaired'}`);
+    } else if (existingWorkshopId && workshopStatus === 'quoted') {
+      // For existing "quoted" jobs, change status to waiting_approval_po
+      (formData as any).status = 'waiting_approval_po';
+      console.log('Updating workshop status from quoted to waiting_approval_po');
+    } else if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
+      // For existing "waiting_approval_po" jobs, change status to waiting_for_parts
+      (formData as any).status = 'waiting_for_parts';
+      console.log('Updating workshop status from waiting_approval_po to waiting_for_parts');
+    } else if (existingWorkshopId && workshopStatus === 'waiting_for_parts') {
+      // For existing "waiting_for_parts" jobs, change status to booked_in_for_repair_service
+      (formData as any).status = 'booked_in_for_repair_service';
+      console.log('Updating workshop status from waiting_for_parts to booked_in_for_repair_service');
+    } else if (existingWorkshopId && workshopStatus === 'booked_in_for_repair_service') {
+      // For existing "booked_in_for_repair_service" jobs, change status to repaired
+      (formData as any).status = 'repaired';
+      console.log('Updating workshop status from booked_in_for_repair_service to repaired');
+    } else if (existingWorkshopId && workshopStatus === 'repaired') {
+      // For existing "repaired" jobs, change status to return
+      (formData as any).status = 'return';
+      console.log('Updating workshop status from repaired to return');
     } else {
       // Default: set to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -729,6 +764,16 @@
           successMessage = 'Workshop docket information saved successfully and status updated to "Docket Ready"!';
         } else if (existingWorkshopId && workshopStatus === 'docket_ready') {
           successMessage = `Workshop successfully marked as ${quoteOrRepair === 'Quote' ? 'Quoted' : 'Repaired'}!`;
+        } else if (existingWorkshopId && workshopStatus === 'quoted') {
+          successMessage = 'Workshop successfully moved to "Waiting Approval PO" status!';
+        } else if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
+          successMessage = 'Workshop successfully moved to "Waiting For Parts" status!';
+        } else if (existingWorkshopId && workshopStatus === 'waiting_for_parts') {
+          successMessage = 'Workshop successfully booked in for repair service!';
+        } else if (existingWorkshopId && workshopStatus === 'booked_in_for_repair_service') {
+          successMessage = 'Workshop successfully marked as repaired!';
+        } else if (existingWorkshopId && workshopStatus === 'repaired') {
+          successMessage = 'Workshop successfully prepared for return to customer!';
         } else {
           successMessage = isUpdate
             ? wasToBeQuoted
@@ -751,6 +796,21 @@
         } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
           // For existing "to_be_quoted" jobs submitted, show the docket ready modal
           showDocketReadyModal = true;
+        } else if (existingWorkshopId && workshopStatus === 'quoted') {
+          // For existing "quoted" jobs submitted, show the waiting approval modal
+          showWaitingApprovalModal = true;
+        } else if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
+          // For existing "waiting_approval_po" jobs submitted, show the waiting for parts modal
+          showWaitingForPartsModal = true;
+        } else if (existingWorkshopId && workshopStatus === 'waiting_for_parts') {
+          // For existing "waiting_for_parts" jobs submitted, show the booked in repair modal
+          showBookedInRepairModal = true;
+        } else if (existingWorkshopId && workshopStatus === 'booked_in_for_repair_service') {
+          // For existing "booked_in_for_repair_service" jobs submitted, show the repaired modal
+          showRepairedModal = true;
+        } else if (existingWorkshopId && workshopStatus === 'repaired') {
+          // For existing "repaired" jobs submitted, show the return modal
+          showReturnModal = true;
         } else if (isUpdate) {
           // For regular updates, show the regular success modal
           showSuccessModal = true;
@@ -917,9 +977,77 @@
         canEditContacts: false,     // Cannot edit contacts for completed jobs
         canCreateOrder: false,      // Completed jobs don't create new orders
         canPickup: false,          // Completed jobs aren't pickups
-        buttonText: 'Update Job',
+        buttonText: workshopStatus === 'quoted' ? 'Waiting Approval PO' : 'Update Job',
         statusDisplay: workshopStatus === 'quoted' ? 'Quoted' : 'Repaired',
         priority: 4.5
+      };
+    }
+
+    // ============================================
+    // PRIORITY 4.6: WAITING APPROVAL PO STATUS
+    // ============================================
+    // Jobs that are waiting for PO approval
+    if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info while waiting for approval
+        canEditUserInfo: false,     // Cannot edit user info while waiting for approval
+        canEditContacts: false,     // Cannot edit contacts while waiting for approval
+        canCreateOrder: false,      // Already processed for approval
+        canPickup: false,          // Not a pickup job
+        buttonText: 'Waiting For Parts',
+        statusDisplay: 'Waiting Approval PO',
+        priority: 4.6
+      };
+    }
+
+    // ============================================
+    // PRIORITY 4.6.5: WAITING FOR PARTS STATUS
+    // ============================================
+    // Jobs that are waiting for parts
+    if (existingWorkshopId && workshopStatus === 'waiting_for_parts') {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info while waiting for parts
+        canEditUserInfo: false,     // Cannot edit user info while waiting for parts
+        canEditContacts: false,     // Cannot edit contacts while waiting for parts
+        canCreateOrder: false,      // Already processed
+        canPickup: false,          // Not a pickup job
+        buttonText: 'Booked In For Repair',
+        statusDisplay: 'Waiting For Parts',
+        priority: 4.65
+      };
+    }
+
+    // ============================================
+    // PRIORITY 4.7: BOOKED IN FOR REPAIR SERVICE STATUS
+    // ============================================
+    // Jobs that are booked in for repair service
+    if (existingWorkshopId && workshopStatus === 'booked_in_for_repair_service') {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info while in repair
+        canEditUserInfo: false,     // Cannot edit user info while in repair
+        canEditContacts: false,     // Cannot edit contacts while in repair
+        canCreateOrder: false,      // Already processed
+        canPickup: false,          // Not a pickup job
+        buttonText: 'Repaired',
+        statusDisplay: 'Booked In For Repair Service',
+        priority: 4.7
+      };
+    }
+
+    // ============================================
+    // PRIORITY 4.8: REPAIRED STATUS
+    // ============================================
+    // Jobs that have been repaired
+    if (existingWorkshopId && workshopStatus === 'repaired') {
+      return {
+        canEditMachineInfo: false,  // Cannot edit machine info for repaired jobs
+        canEditUserInfo: false,     // Cannot edit user info for repaired jobs
+        canEditContacts: false,     // Cannot edit contacts for repaired jobs
+        canCreateOrder: false,      // Already processed
+        canPickup: false,          // Not a pickup job
+        buttonText: 'Return',
+        statusDisplay: 'Repaired',
+        priority: 4.8
       };
     }
 
@@ -1056,6 +1184,36 @@
 
   function closeDocketReadyModal() {
     showDocketReadyModal = false;
+    // Navigate to workshop board
+    navigateToWorkshopBoard();
+  }
+
+  function closeWaitingApprovalModal() {
+    showWaitingApprovalModal = false;
+    // Navigate to workshop board
+    navigateToWorkshopBoard();
+  }
+
+  function closeWaitingForPartsModal() {
+    showWaitingForPartsModal = false;
+    // Navigate to workshop board
+    navigateToWorkshopBoard();
+  }
+
+  function closeBookedInRepairModal() {
+    showBookedInRepairModal = false;
+    // Navigate to workshop board
+    navigateToWorkshopBoard();
+  }
+
+  function closeRepairedModal() {
+    showRepairedModal = false;
+    // Navigate to workshop board
+    navigateToWorkshopBoard();
+  }
+
+  function closeReturnModal() {
+    showReturnModal = false;
     // Navigate to workshop board
     navigateToWorkshopBoard();
   }
@@ -1850,6 +2008,259 @@
           <button
             type="button"
             on:click={closeDocketReadyModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Waiting Approval PO Modal (for quoted submissions) -->
+  {#if showWaitingApprovalModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Waiting for PO Approval</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            The workshop job has been successfully moved to "Waiting Approval PO" status. The job is now awaiting purchase order approval.
+          </p>
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                  <strong>Job Status:</strong> Updated to "Waiting Approval PO"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closeWaitingApprovalModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Waiting For Parts Modal (for waiting_approval_po submissions) -->
+  {#if showWaitingForPartsModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Waiting For Parts</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            The workshop job has been successfully moved to "Waiting For Parts" status. The job is now waiting for required parts to arrive before repair work can begin.
+          </p>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-yellow-700">
+                  <strong>Job Status:</strong> Updated to "Waiting For Parts"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closeWaitingForPartsModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Booked In For Repair Modal (for waiting_for_parts submissions) -->
+  {#if showBookedInRepairModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Booked In For Repair</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            The workshop job has been successfully booked in for repair service. The equipment is now scheduled for maintenance and repair work.
+          </p>
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-green-700">
+                  <strong>Job Status:</strong> Updated to "Booked In For Repair Service"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closeBookedInRepairModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Repaired Modal (for booked_in_for_repair_service submissions) -->
+  {#if showRepairedModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Repair Completed</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            The workshop job has been successfully completed and marked as repaired. The equipment is now ready for return to the customer.
+          </p>
+          <div class="bg-green-50 border border-green-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-green-700">
+                  <strong>Job Status:</strong> Updated to "Repaired"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closeRepairedModal}
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            Return to Workshop Board
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Return Modal (for repaired submissions) -->
+  {#if showReturnModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h2a2 2 0 012 2v2H8V5z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Equipment Ready for Return</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            The workshop job has been successfully prepared for return to the customer. The equipment is now ready for pickup or delivery.
+          </p>
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h2a2 2 0 012 2v2H8V5z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                  <strong>Job Status:</strong> Updated to "Return"
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg">
+          <button
+            type="button"
+            on:click={closeReturnModal}
             class="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
           >
             Return to Workshop Board

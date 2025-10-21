@@ -10,6 +10,10 @@
   let takePhotoInput: HTMLInputElement | null = null;
   let uploadPhotoInput: HTMLInputElement | null = null;
 
+  // Photo loading states
+  let loadedPhotos: string[] = [];
+  let failedPhotos: string[] = [];
+
   const dispatch = createEventDispatcher<{
     photosUpdated: { photos: PhotoItem[] };
     error: { message: string };
@@ -62,6 +66,28 @@
     dispatch('photoClick', { photoIndex: index });
   }
 
+  function isPhotoReady(photoUrl: string) {
+    return loadedPhotos.includes(photoUrl) && !failedPhotos.includes(photoUrl);
+  }
+
+  function handlePhotoLoad(photoUrl: string) {
+    // Remove from failed if it was there
+    failedPhotos = failedPhotos.filter(url => url !== photoUrl);
+    // Add to loaded if not already there
+    if (!loadedPhotos.includes(photoUrl)) {
+      loadedPhotos = [...loadedPhotos, photoUrl];
+    }
+  }
+
+  function handlePhotoError(photoUrl: string) {
+    // Remove from loaded if it was there
+    loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
+    // Add to failed if not already there
+    if (!failedPhotos.includes(photoUrl)) {
+      failedPhotos = [...failedPhotos, photoUrl];
+    }
+  }
+
   onDestroy(() => {
     photos.forEach((p) => {
       if (!p.isExisting) {
@@ -109,7 +135,36 @@
             on:click={(e) => handlePhotoClick(i, e)}
             aria-label="View photo {i + 1} of {photos.length}"
           >
-            <img src={p.url} alt="" class="w-full h-full object-cover rounded-md" />
+            <div class="w-full h-full relative">
+              <!-- Loading skeleton -->
+              {#if !isPhotoReady(p.url) && !failedPhotos.includes(p.url)}
+                <div class="w-full h-full bg-gray-200 rounded-md animate-pulse flex items-center justify-center">
+                  <div class="text-gray-500 text-sm">Loading...</div>
+                </div>
+              {/if}
+
+              <!-- Photo -->
+              <img
+                src={p.url}
+                alt=""
+                class="w-full h-full object-cover rounded-md {isPhotoReady(p.url) ? 'opacity-100' : 'opacity-0'}"
+                on:load={() => handlePhotoLoad(p.url)}
+                on:error={() => handlePhotoError(p.url)}
+              />
+
+              <!-- Error indicator -->
+              {#if failedPhotos.includes(p.url)}
+                <div class="w-full h-full bg-gray-100 rounded-md flex flex-col items-center justify-center border border-gray-300">
+                  <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                  </svg>
+                  <div class="text-xs text-gray-600 text-center">
+                    <div class="font-medium">Failed to load</div>
+                    <div class="text-gray-500">Try re-uploading</div>
+                  </div>
+                </div>
+              {/if}
+            </div>
           </button>
           {#if workshopStatus !== 'pickup'}
             <button type="button" class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 text-xs opacity-90 group-hover:opacity-100" aria-label="Remove photo" on:click={() => removePhoto(i)}>×</button>

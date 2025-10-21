@@ -1,13 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { base } from '$app/paths';
   import type { WorkshopRecord } from '$lib/services/workshop';
-  import { getProxyImageUrl } from '$lib/utils/imageProxy';
 
   export let workshop: WorkshopRecord;
   export let viewMode: 'table' | 'board' = 'table';
-  export let loadedPhotos: string[] = [];
-  export let failedPhotos: string[] = [];
   export let draggable: boolean = true;
   export let draggedWorkshopId: string | null = null;
   export let recentlyMovedWorkshopId: string | null = null;
@@ -53,13 +49,6 @@
   }
 
 
-  function getImageUrl(photoUrl: string) {
-    // Use proxy URL for production deployments to avoid CORS issues with Supabase Storage
-    // Images remain stored on Supabase - this just routes them through our app
-    const isProduction = base !== '/'; // Production builds have base='/rapidtools'
-
-    return isProduction ? getProxyImageUrl(photoUrl) : photoUrl;
-  }
 
   function handleClick() {
     dispatch('click', { workshop });
@@ -111,7 +100,7 @@
                 on:click={(e) => handlePhotoClick(index, e)}
                 aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
               >
-                <img src={getImageUrl(photoUrl)} alt="" class="w-full h-full object-cover rounded-md" />
+                <img src={photoUrl} alt="" class="w-full h-full object-cover rounded-md" />
               </button>
             </div>
           {/each}
@@ -216,7 +205,7 @@
               on:click={(e) => handlePhotoClick(0, e)}
               aria-label="View photo for {workshop.product_name} workshop"
             >
-              <img src={getImageUrl(workshop.photo_urls[0])} alt="" class="w-full h-full object-cover rounded-md" />
+              <img src={workshop.photo_urls[0]} alt="" class="w-full h-full object-cover rounded-md" />
             </button>
           </div>
         {:else}
@@ -231,7 +220,7 @@
                   on:click={(e) => handlePhotoClick(index, e)}
                   aria-label="View photo {index + 1} of {workshop.photo_urls.length}"
                 >
-                  <img src={getImageUrl(photoUrl)} alt="" class="w-full h-full object-cover rounded-md" />
+                  <img src={photoUrl} alt="" class="w-full h-full object-cover rounded-md" />
                 </button>
 
                 <!-- Photo number indicator for first photo -->

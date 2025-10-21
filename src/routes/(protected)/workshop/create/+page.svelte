@@ -130,9 +130,6 @@
   let showPhotoViewer = false;
   let currentPhotoIndex = 0;
 
-  // Photo loading states
-  let loadedPhotos: string[] = [];
-  let failedPhotos: string[] = [];
 
 
   // Form submission state
@@ -1230,27 +1227,6 @@
     currentPhotoIndex = 0;
   }
 
-  function handlePhotoLoad(photoUrl: string) {
-    // Remove from failed if it was there
-    failedPhotos = failedPhotos.filter(url => url !== photoUrl);
-    // Add to loaded if not already there
-    if (!loadedPhotos.includes(photoUrl)) {
-      loadedPhotos = [...loadedPhotos, photoUrl];
-    }
-  }
-
-  function handlePhotoError(photoUrl: string) {
-    // Remove from loaded if it was there
-    loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
-    // Add to failed if not already there
-    if (!failedPhotos.includes(photoUrl)) {
-      failedPhotos = [...failedPhotos, photoUrl];
-    }
-  }
-
-  function isPhotoReady(photoUrl: string) {
-    return loadedPhotos.includes(photoUrl) && !failedPhotos.includes(photoUrl);
-  }
 </script>
 
   <div class="container mx-auto px-4 py-8" in:fade>
@@ -1875,8 +1851,6 @@
     {showPhotoViewer}
     {photoUrls}
     {currentPhotoIndex}
-    {loadedPhotos}
-    {failedPhotos}
     on:close={closePhotoViewer}
     on:photoIndexChanged={({ detail }) => currentPhotoIndex = detail.index}
   />

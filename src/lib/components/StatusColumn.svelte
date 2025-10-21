@@ -6,8 +6,6 @@
   export let status: string;
   export let title: string;
   export let workshops: WorkshopRecord[] = [];
-  export let loadedPhotos: string[] = [];
-  export let failedPhotos: string[] = [];
   export let draggedWorkshopId: string | null = null;
   export let recentlyMovedWorkshopId: string | null = null;
 
@@ -120,8 +118,6 @@
           <WorkshopCard
             {workshop}
             viewMode="board"
-            {loadedPhotos}
-            {failedPhotos}
             {draggedWorkshopId}
             {recentlyMovedWorkshopId}
             on:click

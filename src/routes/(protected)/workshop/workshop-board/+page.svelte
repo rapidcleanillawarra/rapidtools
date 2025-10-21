@@ -27,9 +27,6 @@
   let workshopToDelete: WorkshopRecord | null = null;
   let isDeletingWorkshop = false;
 
-  // Photo loading states (using arrays for better reactivity)
-  let loadedPhotos: string[] = [];
-  let failedPhotos: string[] = [];
 
   // Drag states
   let draggedWorkshopId: string | null = null;
@@ -136,33 +133,7 @@
     currentPhotoIndex = 0;
   }
 
-  function handlePhotoLoad(photoUrl: string) {
-    // Remove from failed if it was there
-    failedPhotos = failedPhotos.filter(url => url !== photoUrl);
-    // Add to loaded if not already there
-    if (!loadedPhotos.includes(photoUrl)) {
-      loadedPhotos = [...loadedPhotos, photoUrl];
-    }
-    console.log('✅ Photo loaded successfully:', photoUrl);
-    console.log('Current loaded photos count:', loadedPhotos.length);
-    console.log('Current failed photos count:', failedPhotos.length);
-  }
 
-  function handlePhotoError(photoUrl: string) {
-    // Remove from loaded if it was there
-    loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
-    // Add to failed if not already there
-    if (!failedPhotos.includes(photoUrl)) {
-      failedPhotos = [...failedPhotos, photoUrl];
-    }
-    console.error('❌ Photo failed to load:', photoUrl);
-    console.log('Current loaded photos count:', loadedPhotos.length);
-    console.log('Current failed photos count:', failedPhotos.length);
-  }
-
-  function isPhotoReady(photoUrl: string) {
-    return loadedPhotos.includes(photoUrl) && !failedPhotos.includes(photoUrl);
-  }
 
   // Debug function to test image URLs (callable from browser console)
   function testImageUrl(url: string) {
@@ -309,8 +280,6 @@
     applyFilters();
   }
 
-  // Reactive statement to trigger updates when photo loading states change
-  $: photoStatesChanged = loadedPhotos.length + failedPhotos.length;
 </script>
 
 <svelte:head>
@@ -397,8 +366,6 @@
               status="new"
               title="New"
               workshops={workshopsByStatus.new}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -412,8 +379,6 @@
               status="pickup"
               title="Pickup"
               workshops={workshopsByStatus.pickup}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -427,8 +392,6 @@
               status="to_be_quoted"
               title="To be Quoted"
               workshops={workshopsByStatus.to_be_quoted}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -442,8 +405,6 @@
               status="docket_ready"
               title="Docket Ready"
               workshops={workshopsByStatus.docket_ready}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -457,8 +418,6 @@
               status="quoted"
               title="Quoted"
               workshops={workshopsByStatus.quoted}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -472,8 +431,6 @@
               status="waiting_approval_po"
               title="WAITING APPROVAL PO"
               workshops={workshopsByStatus.waiting_approval_po}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -487,8 +444,6 @@
               status="waiting_for_parts"
               title="Waiting for Parts"
               workshops={workshopsByStatus.waiting_for_parts}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -502,8 +457,6 @@
               status="booked_in_for_repair_service"
               title="BOOKED IN FOR REPAIR/ SERVICE"
               workshops={workshopsByStatus.booked_in_for_repair_service}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -517,8 +470,6 @@
               status="repaired"
               title="Repaired"
               workshops={workshopsByStatus.repaired}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -532,8 +483,6 @@
               status="return"
               title="Return"
               workshops={workshopsByStatus.return}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -547,8 +496,6 @@
               status="pending_jobs"
               title="PENDING JOBS"
               workshops={workshopsByStatus.pending_jobs}
-              {loadedPhotos}
-              {failedPhotos}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
@@ -577,8 +524,6 @@
   {showPhotoViewer}
   workshop={currentWorkshop}
   {currentPhotoIndex}
-  {loadedPhotos}
-  {failedPhotos}
   on:close={closePhotoViewer}
   on:photoIndexChanged={({ detail }) => currentPhotoIndex = detail.index}
 />

@@ -1054,20 +1054,22 @@
       };
     }
 
-    // ============================================
-    // PRIORITY 5: OTHER EXISTING JOBS (Default)
-    // ============================================
-    // Unknown status jobs (fallback for any unhandled statuses)
-    return {
-      canEditMachineInfo: false,  // Cannot edit machine info for active jobs
-      canEditUserInfo: false,     // Cannot edit user info for active jobs
-      canEditContacts: false,     // Cannot edit contacts for active jobs
-      canCreateOrder: false,      // Active jobs shouldn't create new orders
-      canPickup: false,          // Active jobs aren't pickups
-      buttonText: 'Update Job',
-      statusDisplay: workshopStatus?.replace('_', ' ') || 'Unknown',
-      priority: 5
-    };
+  // ============================================
+  // PRIORITY 5: OTHER EXISTING JOBS (Default)
+  // ============================================
+  // Unknown status jobs (fallback for any unhandled statuses)
+  // Special case: If workshop exists but status is null, we're still loading
+  const isLoadingWorkshop = existingWorkshopId && workshopStatus === null;
+  return {
+    canEditMachineInfo: false,  // Cannot edit machine info for active jobs
+    canEditUserInfo: false,     // Cannot edit user info for active jobs
+    canEditContacts: false,     // Cannot edit contacts for active jobs
+    canCreateOrder: false,      // Active jobs shouldn't create new orders
+    canPickup: false,          // Active jobs aren't pickups
+    buttonText: isLoadingWorkshop ? 'Loading...' : 'Update Job',
+    statusDisplay: isLoadingWorkshop ? 'Loading...' : (workshopStatus?.replace('_', ' ') || 'Unknown'),
+    priority: 5
+  };
   }
 
   // ============================================
@@ -1778,7 +1780,7 @@
           <button
             type="button"
             on:click={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (existingWorkshopId !== null && workshopStatus === null)}
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {#if isSubmitting}

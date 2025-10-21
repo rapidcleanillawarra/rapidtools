@@ -188,6 +188,9 @@
   let workshopStatus: JobStatus = null;
   let existingOrderId: string | null = null;
 
+  // Trigger to force reactive statement re-evaluation after async data loading
+  let workshopDataLoadedTrigger = 0;
+
   // Debug modal state
   $: console.log('Modal state changed:', { showSuccessModal, successMessage, generatedOrderId });
 
@@ -370,6 +373,9 @@
         workshopStatus,
         selectedCustomer: selectedCustomer ? 'Customer selected' : 'No customer selected'
       });
+
+      // Force reactive statement re-evaluation now that workshop data is loaded
+      workshopDataLoadedTrigger += 1;
     } catch (error) {
       console.error('Error loading workshop:', error);
       toastError('Failed to load existing workshop. Please try again.');
@@ -1067,14 +1073,18 @@
   // ============================================
   // PUBLIC API: Get current job status evaluation
   // ============================================
-  $: currentJobStatus = evaluateJobStatus({
-    existingWorkshopId,
-    workshopStatus,
-    existingOrderId,
-    locationOfRepair,
-    siteLocation,
-    quoteOrRepair
-  });
+  $: currentJobStatus = (() => {
+    // Force dependency on workshopDataLoadedTrigger
+    workshopDataLoadedTrigger;
+    return evaluateJobStatus({
+      existingWorkshopId,
+      workshopStatus,
+      existingOrderId,
+      locationOfRepair,
+      siteLocation,
+      quoteOrRepair
+    });
+  })();
 
   function getSubmitButtonText(): string {
     console.log('getSubmitButtonText called with:', {

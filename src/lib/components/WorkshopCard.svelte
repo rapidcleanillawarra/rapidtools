@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { WorkshopRecord } from '$lib/services/workshop';
+  import { getProxyImageUrl } from '$lib/utils/imageProxy';
 
   export let workshop: WorkshopRecord;
   export let viewMode: 'table' | 'board' = 'table';
@@ -52,6 +53,13 @@
 
   function isPhotoReady(photoUrl: string) {
     return loadedPhotos.includes(photoUrl) && !failedPhotos.includes(photoUrl);
+  }
+
+  function getImageUrl(photoUrl: string) {
+    // For production/GitHub Pages, try proxy URL first
+    // For development, use direct URL
+    const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+    return isProduction ? getProxyImageUrl(photoUrl) : photoUrl;
   }
 
   function handleClick() {
@@ -111,27 +119,27 @@
               >
                 <div class="w-full h-full relative">
                   <!-- Always render img to trigger load/error events -->
-                  <img
-                    src={photoUrl}
-                    alt="Photo {index + 1}"
-                    class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
-                    on:load={() => {
-                      // Remove from failed if it was there
-                      failedPhotos = failedPhotos.filter(url => url !== photoUrl);
-                      // Add to loaded if not already there
-                      if (!loadedPhotos.includes(photoUrl)) {
-                        loadedPhotos = [...loadedPhotos, photoUrl];
-                      }
-                    }}
-                    on:error={() => {
-                      // Remove from loaded if it was there
-                      loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
-                      // Add to failed if not already there
-                      if (!failedPhotos.includes(photoUrl)) {
-                        failedPhotos = [...failedPhotos, photoUrl];
-                      }
-                    }}
-                  />
+              <img
+                src={getImageUrl(photoUrl)}
+                alt="Photo {index + 1}"
+                class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
+                on:load={() => {
+                  // Remove from failed if it was there
+                  failedPhotos = failedPhotos.filter(url => url !== photoUrl);
+                  // Add to loaded if not already there
+                  if (!loadedPhotos.includes(photoUrl)) {
+                    loadedPhotos = [...loadedPhotos, photoUrl];
+                  }
+                }}
+                on:error={() => {
+                  // Remove from loaded if it was there
+                  loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
+                  // Add to failed if not already there
+                  if (!failedPhotos.includes(photoUrl)) {
+                    failedPhotos = [...failedPhotos, photoUrl];
+                  }
+                }}
+              />
                 </div>
               </button>
 
@@ -252,7 +260,7 @@
             <div class="w-full h-full relative">
               <!-- Always render img to trigger load/error events -->
               <img
-                src={workshop.photo_urls[0]}
+                src={getImageUrl(workshop.photo_urls[0])}
                 alt="Photo for {workshop.product_name}"
                 class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
                 on:load={() => {

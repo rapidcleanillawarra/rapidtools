@@ -677,12 +677,12 @@
 
   function navigateToJobStatus() {
     // Navigate to workshop job status page (don't reset form since we're navigating away)
-    goto('/workshop/job-status');
+    goto(`${base}/workshop/job-status`);
   }
 
   function navigateToWorkshopBoard() {
     // Navigate to workshop board page (don't reset form since we're navigating away)
-    goto('/workshop/workshop-board');
+    goto(`${base}/workshop/workshop-board`);
   }
 
   function closePickupSubmissionModal() {

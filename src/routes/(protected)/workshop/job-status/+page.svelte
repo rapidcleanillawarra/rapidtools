@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import { getWorkshops, deleteWorkshop as deleteWorkshopService, updateWorkshopStatus, type WorkshopRecord } from '$lib/services/workshop';
   import { toastSuccess } from '$lib/utils/toast';
 
@@ -323,7 +324,7 @@
   }
 
   function handleRowClick(workshop: WorkshopRecord) {
-    goto(`/workshop/create?workshop_id=${workshop.id}`);
+    goto(`${base}/workshop/create?workshop_id=${workshop.id}`);
   }
 
   onMount(() => {

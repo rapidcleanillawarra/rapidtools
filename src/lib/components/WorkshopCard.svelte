@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { base } from '$app/paths';
   import type { WorkshopRecord } from '$lib/services/workshop';
   import { getProxyImageUrl } from '$lib/utils/imageProxy';
 
@@ -56,9 +57,10 @@
   }
 
   function getImageUrl(photoUrl: string) {
-    // For production/GitHub Pages, try proxy URL first
-    // For development, use direct URL
-    const isProduction = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+    // Use proxy URL for production deployments to avoid CORS issues with Supabase Storage
+    // Images remain stored on Supabase - this just routes them through our app
+    const isProduction = base !== '/'; // Production builds have base='/rapidtools'
+
     return isProduction ? getProxyImageUrl(photoUrl) : photoUrl;
   }
 

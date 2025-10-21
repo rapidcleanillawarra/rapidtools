@@ -52,9 +52,6 @@
     }
   }
 
-  function isPhotoReady(photoUrl: string) {
-    return loadedPhotos.includes(photoUrl) && !failedPhotos.includes(photoUrl);
-  }
 
   function getImageUrl(photoUrl: string) {
     // Use proxy URL for production deployments to avoid CORS issues with Supabase Storage
@@ -107,11 +104,6 @@
         <div class="flex items-center space-x-1">
           {#each workshop.photo_urls.slice(0, 3) as photoUrl, index}
             <div class="relative group">
-              <!-- Skeleton loader -->
-              {#if !isPhotoReady(photoUrl) && !failedPhotos.includes(photoUrl)}
-                <div class="w-28 h-28 bg-gray-200 rounded animate-pulse"></div>
-              {/if}
-
               <!-- Photo thumbnail -->
               <button
                 type="button"
@@ -119,40 +111,8 @@
                 on:click={(e) => handlePhotoClick(index, e)}
                 aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
               >
-                <div class="w-full h-full relative">
-                  <!-- Always render img to trigger load/error events -->
-              <img
-                src={getImageUrl(photoUrl)}
-                alt="Photo {index + 1}"
-                class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
-                on:load={() => {
-                  // Remove from failed if it was there
-                  failedPhotos = failedPhotos.filter(url => url !== photoUrl);
-                  // Add to loaded if not already there
-                  if (!loadedPhotos.includes(photoUrl)) {
-                    loadedPhotos = [...loadedPhotos, photoUrl];
-                  }
-                }}
-                on:error={() => {
-                  // Remove from loaded if it was there
-                  loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
-                  // Add to failed if not already there
-                  if (!failedPhotos.includes(photoUrl)) {
-                    failedPhotos = [...failedPhotos, photoUrl];
-                  }
-                }}
-              />
-                </div>
+                <img src={getImageUrl(photoUrl)} alt="" class="w-full h-full object-cover rounded-md" />
               </button>
-
-              <!-- Error indicator -->
-              {#if failedPhotos.includes(photoUrl)}
-                <div class="w-28 h-28 bg-gray-100 rounded flex items-center justify-center text-base text-gray-500 border border-gray-300">
-                  <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                  </svg>
-                </div>
-              {/if}
             </div>
           {/each}
 
@@ -249,11 +209,6 @@
         {#if workshop.photo_urls.length === 1}
           <!-- Single photo display -->
           <div class="relative">
-            <!-- Skeleton loader -->
-            {#if !isPhotoReady(workshop.photo_urls[0]) && !failedPhotos.includes(workshop.photo_urls[0])}
-              <div class="w-full h-40 bg-gray-200 rounded animate-pulse"></div>
-            {/if}
-
             <!-- Photo thumbnail -->
             <button
               type="button"
@@ -261,51 +216,14 @@
               on:click={(e) => handlePhotoClick(0, e)}
               aria-label="View photo for {workshop.product_name} workshop"
             >
-              <div class="w-full h-full relative">
-                <!-- Always render img to trigger load/error events -->
-                <img
-                  src={getImageUrl(workshop.photo_urls[0])}
-                  alt="Photo for {workshop.product_name}"
-                  class="w-full h-full object-cover {isPhotoReady(workshop.photo_urls[0]) ? 'opacity-100' : 'opacity-0'}"
-                  on:load={() => {
-                    // Remove from failed if it was there
-                    failedPhotos = failedPhotos.filter(url => url !== workshop.photo_urls[0]);
-                    // Add to loaded if not already there
-                    if (!loadedPhotos.includes(workshop.photo_urls[0])) {
-                      loadedPhotos = [...loadedPhotos, workshop.photo_urls[0]];
-                    }
-                  }}
-                  on:error={() => {
-                    // Remove from loaded if it was there
-                    loadedPhotos = loadedPhotos.filter(url => url !== workshop.photo_urls[0]);
-                    // Add to failed if not already there
-                    if (!failedPhotos.includes(workshop.photo_urls[0])) {
-                      failedPhotos = [...failedPhotos, workshop.photo_urls[0]];
-                    }
-                  }}
-                />
-              </div>
+              <img src={getImageUrl(workshop.photo_urls[0])} alt="" class="w-full h-full object-cover rounded-md" />
             </button>
-
-            <!-- Error indicator -->
-            {#if failedPhotos.includes(workshop.photo_urls[0])}
-              <div class="w-full h-40 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                </svg>
-              </div>
-            {/if}
           </div>
         {:else}
           <!-- Multiple photos display -->
           <div class="grid grid-cols-2 gap-1">
             {#each workshop.photo_urls.slice(0, 4) as photoUrl, index}
               <div class="relative">
-                <!-- Skeleton loader -->
-                {#if !isPhotoReady(photoUrl) && !failedPhotos.includes(photoUrl)}
-                  <div class="w-full h-20 bg-gray-200 rounded animate-pulse"></div>
-                {/if}
-
                 <!-- Photo thumbnail -->
                 <button
                   type="button"
@@ -313,40 +231,8 @@
                   on:click={(e) => handlePhotoClick(index, e)}
                   aria-label="View photo {index + 1} of {workshop.photo_urls.length}"
                 >
-                  <div class="w-full h-full relative">
-                    <!-- Always render img to trigger load/error events -->
-                    <img
-                      src={getImageUrl(photoUrl)}
-                      alt="Photo {index + 1} for {workshop.product_name}"
-                      class="w-full h-full object-cover {isPhotoReady(photoUrl) ? 'opacity-100' : 'opacity-0'}"
-                      on:load={() => {
-                        // Remove from failed if it was there
-                        failedPhotos = failedPhotos.filter(url => url !== photoUrl);
-                        // Add to loaded if not already there
-                        if (!loadedPhotos.includes(photoUrl)) {
-                          loadedPhotos = [...loadedPhotos, photoUrl];
-                        }
-                      }}
-                      on:error={() => {
-                        // Remove from loaded if it was there
-                        loadedPhotos = loadedPhotos.filter(url => url !== photoUrl);
-                        // Add to failed if not already there
-                        if (!failedPhotos.includes(photoUrl)) {
-                          failedPhotos = [...failedPhotos, photoUrl];
-                        }
-                      }}
-                    />
-                  </div>
+                  <img src={getImageUrl(photoUrl)} alt="" class="w-full h-full object-cover rounded-md" />
                 </button>
-
-                <!-- Error indicator -->
-                {#if failedPhotos.includes(photoUrl)}
-                  <div class="w-full h-20 bg-gray-100 rounded flex items-center justify-center text-xs text-gray-500 border border-gray-300">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>
-                  </div>
-                {/if}
 
                 <!-- Photo number indicator for first photo -->
                 {#if index === 0 && workshop.photo_urls.length > 4}

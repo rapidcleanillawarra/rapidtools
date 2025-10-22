@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
   import { getWorkshops, deleteWorkshop as deleteWorkshopService, updateWorkshopStatus, type WorkshopRecord } from '$lib/services/workshop';
@@ -251,6 +251,10 @@
       workshops = updatedWorkshops;
       console.log('[LOCAL_UPDATE] Workshops array assigned, length:', workshops.length);
 
+      // Ensure UI has a chance to update before continuing
+      await tick();
+      console.log('[LOCAL_UPDATE] Tick completed, UI should be updated');
+
       // Don't call applyFilters() manually - let the reactive statement handle it
       // applyFilters(); // Update filtered workshops
 
@@ -292,6 +296,7 @@
             : w
         );
         workshops = revertedWorkshops;
+        await tick(); // Ensure UI updates with reverted state
         // applyFilters() will be called by the reactive statement
       }
     } finally {

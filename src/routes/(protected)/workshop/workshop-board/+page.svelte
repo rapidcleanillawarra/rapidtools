@@ -45,26 +45,34 @@
       workshops = await getWorkshops();
       applyFilters();
     } catch (err) {
+      console.error('[LOAD_ERROR] Failed to load workshops:', err);
       error = err instanceof Error ? err.message : 'Failed to load workshops';
-      console.error('Error loading workshops:', err);
     } finally {
       loading = false;
     }
   }
 
   function applyFilters() {
+    console.log('[APPLY_FILTERS] Starting applyFilters. Current filters:', { statusFilter, customerFilter, sortBy, sortOrder });
+    console.log('[APPLY_FILTERS] Workshops array length:', workshops.length);
+
     let filtered = [...workshops];
+    console.log('[APPLY_FILTERS] After copying workshops:', filtered.length);
 
     // Apply status filter
     if (statusFilter) {
+      const beforeStatus = filtered.length;
       filtered = filtered.filter(workshop => workshop.status === statusFilter);
+      console.log('[APPLY_FILTERS] Status filter applied:', statusFilter, 'Before:', beforeStatus, 'After:', filtered.length);
     }
 
     // Apply customer filter
     if (customerFilter) {
+      const beforeCustomer = filtered.length;
       filtered = filtered.filter(workshop =>
         workshop.customer_name?.toLowerCase().includes(customerFilter.toLowerCase())
       );
+      console.log('[APPLY_FILTERS] Customer filter applied:', customerFilter, 'Before:', beforeCustomer, 'After:', filtered.length);
     }
 
     // Apply sorting
@@ -82,7 +90,9 @@
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
+    console.log('[APPLY_FILTERS] After sorting, filtered length:', filtered.length);
     filteredWorkshops = filtered;
+    console.log('[APPLY_FILTERS] Assigned to filteredWorkshops, new length:', filteredWorkshops.length);
   }
 
   function getWorkshopsByStatus() {
@@ -140,12 +150,11 @@
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
-        console.log('✅ Image loaded successfully:', url);
-        console.log('Image dimensions:', img.naturalWidth, 'x', img.naturalHeight);
+        console.log('[IMAGE_TEST] ✅ Image loaded successfully:', url, 'Dimensions:', img.naturalWidth, 'x', img.naturalHeight);
         resolve({ success: true, width: img.naturalWidth, height: img.naturalHeight });
       };
       img.onerror = (error) => {
-        console.error('❌ Image failed to load:', url, error);
+        console.error('[IMAGE_TEST] ❌ Image failed to load:', url, 'Error:', error);
         reject({ success: false, error });
       };
       img.src = url;
@@ -197,9 +206,9 @@
       );
 
       closeDeleteModal();
-      console.log('Workshop deleted:', workshopId);
+      // Workshop deleted successfully
     } catch (err) {
-      console.error('Error deleting workshop:', err);
+      console.error('[DELETE_ERROR] Failed to delete workshop:', workshopId, 'Error:', err);
       error = 'Failed to delete workshop';
     } finally {
       isDeletingWorkshop = false;
@@ -208,30 +217,60 @@
 
   function handleWorkshopDragStart(event: CustomEvent<{ workshop: WorkshopRecord; event: DragEvent }>) {
     draggedWorkshopId = event.detail.workshop.id;
-    console.log('Started dragging workshop:', draggedWorkshopId);
+    console.log('[DRAG_START] Workshop ID:', draggedWorkshopId, 'Status:', event.detail.workshop.status, 'Timestamp:', Date.now());
   }
 
   function handleWorkshopDragEnd() {
+    console.log('[DRAG_END] Workshop ID:', draggedWorkshopId, 'Timestamp:', Date.now());
     draggedWorkshopId = null;
-    console.log('Finished dragging workshop');
   }
 
   async function handleWorkshopDrop(event: CustomEvent<{ workshopId: string; newStatus: string }>) {
     const { workshopId, newStatus } = event.detail;
+    console.log('[DRAG_DROP] Workshop ID:', workshopId, 'New Status:', newStatus, 'Timestamp:', Date.now());
 
     // Immediately update local state for smooth UI
     const workshopIndex = workshops.findIndex(w => w.id === workshopId);
+    console.log('[LOCAL_UPDATE] Workshop found at index:', workshopIndex);
+    console.log('[LOCAL_UPDATE] Filtered workshops before:', filteredWorkshops.length, 'items');
+
     if (workshopIndex !== -1) {
-      workshops[workshopIndex] = { ...workshops[workshopIndex], status: newStatus as WorkshopRecord['status'] };
-      workshops = [...workshops]; // Trigger reactivity
-      applyFilters(); // Update filtered workshops
+      const oldStatus = workshops[workshopIndex].status;
+      console.log('[LOCAL_UPDATE] Old workshop object:', { id: workshops[workshopIndex].id, status: oldStatus });
+
+      // Create a completely new workshops array to ensure proper reactivity
+      const updatedWorkshops = workshops.map((workshop, index) =>
+        index === workshopIndex
+          ? { ...workshop, status: newStatus as WorkshopRecord['status'] }
+          : workshop
+      );
+
+      console.log('[LOCAL_UPDATE] Created new workshops array, updating workshop:', updatedWorkshops[workshopIndex].id, 'status to:', updatedWorkshops[workshopIndex].status);
+
+      // Force reactivity by assigning the new array
+      workshops = updatedWorkshops;
+      console.log('[LOCAL_UPDATE] Workshops array assigned, length:', workshops.length);
+
+      // Don't call applyFilters() manually - let the reactive statement handle it
+      // applyFilters(); // Update filtered workshops
+
+      console.log('[LOCAL_UPDATE] Status changed from', oldStatus, 'to', newStatus);
+
+      // Log the workshops grouped by status to see if the UI update is working
+      const groupedAfter = getWorkshopsByStatus();
+      console.log('[LOCAL_UPDATE] Workshops by status after update:', Object.keys(groupedAfter).reduce((acc, status) => {
+        acc[status] = groupedAfter[status].length;
+        return acc;
+      }, {} as Record<string, number>));
     }
 
     const workshop = workshops.find(w => w.id === workshopId);
+    console.log('[BACKEND_UPDATE] Starting backend update for workshop:', workshopId);
 
     try {
       // Update the workshop status in the backend
       await updateWorkshopStatus(workshopId, newStatus as WorkshopRecord['status']);
+      console.log('[BACKEND_UPDATE] Backend update successful for workshop:', workshopId);
 
       // Show success message
       if (workshop) {
@@ -240,20 +279,24 @@
           'Status Updated'
         );
       }
-
-      console.log('Workshop status updated:', workshopId, '->', newStatus);
     } catch (err) {
-      console.error('Error updating workshop status:', err);
+      console.error('[BACKEND_UPDATE_ERROR] Failed to update workshop status:', workshopId, 'Error:', err);
       error = 'Failed to update workshop status';
 
       // Revert the local change on error
       if (workshopIndex !== -1 && workshop?.status) {
-        workshops[workshopIndex] = { ...workshops[workshopIndex], status: workshop.status };
-        workshops = [...workshops];
-        applyFilters();
+        console.log('[LOCAL_REVERT] Reverting local status back to:', workshop.status);
+        const revertedWorkshops = workshops.map((w, index) =>
+          index === workshopIndex
+            ? { ...w, status: workshop.status }
+            : w
+        );
+        workshops = revertedWorkshops;
+        // applyFilters() will be called by the reactive statement
       }
     } finally {
       // Reset drag state
+      console.log('[DRAG_RESET] Resetting drag state');
       draggedWorkshopId = null;
     }
 
@@ -272,13 +315,20 @@
   }
 
   onMount(() => {
+    console.log('[WORKSHOP_BOARD_INIT] Initializing workshop board, Timestamp:', Date.now());
     loadWorkshops();
   });
 
-  // Reactive statements for filters
-  $: if (workshops.length > 0) {
-    applyFilters();
-  }
+  // Reactive statements for filters - trigger on any workshops change
+  $: workshops, (() => {
+    if (workshops.length > 0) {
+      console.log('[REACTIVE] Workshops array changed, triggering applyFilters. Length:', workshops.length);
+      applyFilters();
+    }
+  })();
+
+  // Log when filteredWorkshops changes
+  $: console.log('[REACTIVE] filteredWorkshops changed. Length:', filteredWorkshops.length, 'Timestamp:', Date.now());
 
 </script>
 

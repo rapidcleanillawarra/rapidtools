@@ -66,16 +66,23 @@
 
   function handleDragStart(event: DragEvent) {
     if (!draggable) {
+      console.log('[CARD_DRAG_BLOCKED] Drag not allowed for workshop:', workshop.id);
       event.preventDefault();
       return;
     }
-    // Set the drag data to include the workshop ID
-    event.dataTransfer!.setData('application/json', JSON.stringify({
+
+    const dragData = {
       workshopId: workshop.id,
       currentStatus: workshop.status
-    }));
+    };
+    console.log('[CARD_DRAG_START] Starting drag - Data:', dragData, 'Timestamp:', Date.now());
+
+    // Set the drag data to include the workshop ID
+    event.dataTransfer!.setData('application/json', JSON.stringify(dragData));
     // Set drag effect
     event.dataTransfer!.effectAllowed = 'move';
+
+    console.log('[CARD_DRAG_DISPATCH] Dispatching dragstart event for workshop:', workshop.id);
     dispatch('dragstart', { workshop, event });
   }
 </script>

@@ -52,6 +52,7 @@
 
   function handleDragEnter(event: DragEvent) {
     event.preventDefault();
+    console.log('[COLUMN_DRAG_ENTER] Column:', status, 'Timestamp:', Date.now());
     isDragOver = true;
   }
 
@@ -59,24 +60,33 @@
     event.preventDefault();
     // Only set isDragOver to false if we're actually leaving the column (not entering a child element)
     if (event.currentTarget === event.target) {
+      console.log('[COLUMN_DRAG_LEAVE] Column:', status, 'Timestamp:', Date.now());
       isDragOver = false;
     }
   }
 
   function handleDrop(event: DragEvent) {
     event.preventDefault();
+    console.log('[COLUMN_DROP] Column:', status, 'Timestamp:', Date.now());
     isDragOver = false;
 
     try {
-      const data = JSON.parse(event.dataTransfer!.getData('application/json'));
+      const rawData = event.dataTransfer!.getData('application/json');
+      console.log('[COLUMN_DROP_DATA] Raw data:', rawData);
+      const data = JSON.parse(rawData);
+      console.log('[COLUMN_DROP_PARSED] Parsed data:', data);
+
       if (data.workshopId && data.currentStatus !== status) {
+        console.log('[COLUMN_DROP_DISPATCH] Dispatching drop event - Workshop:', data.workshopId, 'From:', data.currentStatus, 'To:', status);
         dispatch('drop', {
           workshopId: data.workshopId,
           newStatus: status
         });
+      } else {
+        console.log('[COLUMN_DROP_SKIP] Drop skipped - Workshop:', data.workshopId, 'Same status:', data.currentStatus === status);
       }
     } catch (error) {
-      console.error('Error parsing drag data:', error);
+      console.error('[COLUMN_DROP_ERROR] Error parsing drag data:', error, 'Raw data:', event.dataTransfer!.getData('application/json'));
     }
   }
 </script>

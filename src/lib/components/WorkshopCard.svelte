@@ -247,7 +247,13 @@
 
     <div class="flex items-start justify-between mb-2">
       <div class="flex-1 min-w-0">
-        <h4 class="text-xs font-medium text-gray-900 truncate">{workshop.product_name}</h4>
+        <h4 class="text-xs font-medium text-gray-900 truncate">
+          {#if workshop.order_id && workshop.order_id.trim()}
+            {workshop.order_id}
+          {:else}
+            {workshop.product_name}
+          {/if}
+        </h4>
         <p class="text-xs text-gray-500 truncate">{workshop.customer_name}</p>
       </div>
     </div>

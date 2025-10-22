@@ -191,22 +191,28 @@
   // Store for submit button text to ensure reactivity
   const submitButtonTextStore = writable('Loading...');
 
-  // Debug modal state
-  $: console.log('Modal state changed:', { showSuccessModal, successMessage, generatedOrderId });
+  // Debug submit button text updates
+  $: {
+    const newButtonText = currentJobStatus.buttonText;
+    const currentStoreValue = get(submitButtonTextStore);
+    console.log('Submit button text evaluation:', {
+      existingWorkshopId,
+      workshopStatus,
+      currentJobStatus,
+      newButtonText,
+      currentStoreValue,
+      isDifferent: newButtonText !== currentStoreValue,
+      timestamp: new Date().toISOString()
+    });
+    if (newButtonText !== currentStoreValue) {
+      console.log('Updating submit button text from', currentStoreValue, 'to', newButtonText);
+      submitButtonTextStore.set(newButtonText);
+    }
+  }
 
   // Photo URLs for PhotoViewer component
   $: photoUrls = photos.map(p => p.url);
 
-  // Debug button text
-  $: if (existingWorkshopId && workshopStatus) {
-    const buttonText = getSubmitButtonText();
-    console.log('Button text calculation:', {
-      existingWorkshopId,
-      workshopStatus,
-      existingOrderId,
-      buttonText
-    });
-  }
 
   // Machine Information section state
   let isMachineInfoExpanded = true;
@@ -294,17 +300,14 @@
 
     // Check if we have a workshop_id parameter to load existing workshop (regardless of entry point)
     const workshopId = $page.url.searchParams.get('workshop_id');
-    console.log('Workshop ID from URL:', workshopId);
     if (workshopId) {
       existingWorkshopId = workshopId;
-      console.log('Setting existingWorkshopId:', existingWorkshopId);
       loadExistingWorkshop(workshopId);
     }
   }
 
   async function loadExistingWorkshop(workshopId: string) {
     try {
-      console.log('Loading workshop with ID:', workshopId);
       const workshop = await getWorkshop(workshopId);
 
       if (!workshop) {
@@ -313,13 +316,9 @@
         return;
       }
 
-      console.log('Workshop loaded successfully:', workshop);
-
       // Set workshop status and order_id
       workshopStatus = workshop.status;
       existingOrderId = workshop.order_id || null;
-      console.log('Workshop status set to:', workshopStatus);
-      console.log('Existing order ID set to:', existingOrderId);
 
       // Populate form with existing workshop data
       locationOfRepair = workshop.location_of_repair || 'Site';
@@ -364,15 +363,6 @@
         }));
       }
 
-      console.log('Loaded existing workshop:', workshop);
-      console.log('Form populated with data:', {
-        locationOfRepair,
-        productName,
-        customerName,
-        contactEmail,
-        workshopStatus,
-        selectedCustomer: selectedCustomer ? 'Customer selected' : 'No customer selected'
-      });
     } catch (error) {
       console.error('Error loading workshop:', error);
       toastError('Failed to load existing workshop. Please try again.');
@@ -487,8 +477,6 @@
       // Note: No status changes, no order creation for update job
     };
 
-    console.log('Update job form data:', formData);
-
     // Get current user
     const user = get(currentUser);
     if (!user) {
@@ -500,11 +488,9 @@
       if (existingWorkshopId) {
         // Update existing workshop
         workshop = await updateWorkshop(existingWorkshopId, formData);
-        console.log('Workshop updated successfully:', workshop);
       } else {
         // Create new workshop
         workshop = await createWorkshop(formData, user.uid);
-        console.log('Workshop created successfully:', workshop);
       }
 
       successMessage = existingWorkshopId
@@ -574,23 +560,20 @@
     // Explicit check: if this is a brand new form with no existing data, never create order
     const isNewForm = !existingWorkshopId && !workshopStatus && !existingOrderId;
     if (isPickupSubmission) {
-      console.log('This is a pickup submission - skipping Maropost order creation');
+      // This is a pickup submission - skipping Maropost order creation
     } else if (isNewForm) {
-      console.log('This is a new form with no existing data - skipping Maropost order creation');
+      // This is a new form with no existing data - skipping Maropost order creation
     } else if (existingWorkshopId) {
       // ALWAYS check if workshop already has an order_id to prevent duplicates
       try {
-        console.log('Checking if workshop already has order_id...');
         const existingWorkshop = await getWorkshop(existingWorkshopId);
 
         if (existingWorkshop && existingWorkshop.order_id) {
           shouldCreateOrder = false;
           generatedOrderId = existingWorkshop.order_id;
-          console.log('Workshop already has order_id - skipping order creation:', generatedOrderId);
         } else {
           // Only create order if workshop doesn't have one AND status allows it
           shouldCreateOrder = currentJobStatus.canCreateOrder;
-          console.log('Workshop does not have an order_id, checking if status allows creation:', shouldCreateOrder);
         }
       } catch (error) {
         console.error('Error checking existing workshop order_id:', error);
@@ -601,9 +584,7 @@
       // Only fetch customer data if we're actually going to create an order
       if (shouldCreateOrder) {
         try {
-          console.log('Fetching customer data for order creation...');
           customerApiData = await fetchCustomerData();
-          console.log('Customer data fetched successfully');
         } catch (error) {
           console.error('Failed to fetch customer data:', error);
           toastError('Failed to fetch customer data. Please try again.');
@@ -614,9 +595,7 @@
 
       if (shouldCreateOrder) {
         try {
-          console.log('Creating order with customer data...');
           orderApiData = await createOrder(customerApiData);
-          console.log('Order created successfully');
 
           // Store the generated order ID for the success message
           if (orderApiData && orderApiData.Order && orderApiData.Order.OrderID) {
@@ -630,9 +609,6 @@
         }
       }
     }
-
-    // Log optional contacts before form submission
-    console.log('Optional contacts before submission:', optionalContacts);
 
     // Separate new photos from existing photos
     const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
@@ -678,8 +654,6 @@
       })
     };
 
-    console.log('Submit form data:', formData);
-
     // Get current user
     const user = get(currentUser);
     if (!user) {
@@ -687,58 +661,39 @@
     }
 
     // Set status based on submission type - using centralized job status logic
-    console.log('Status setting debug:', {
-      isPickupSubmission,
-      existingWorkshopId,
-      workshopStatus,
-      locationOfRepair,
-      currentJobStatus: currentJobStatus.buttonText
-    });
 
     // Simple logic: if current status is new and location is Site, set to pickup
     if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
       (formData as any).status = 'pickup';
-      console.log('Setting workshop status to pickup for new Site job');
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
       wasPickupJob = true;
-      console.log('Updating workshop status from pickup to to_be_quoted');
     } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
       // For existing "to_be_quoted" jobs, change status to docket_ready
       (formData as any).status = 'docket_ready';
-      console.log('Updating workshop status from to_be_quoted to docket_ready');
     } else if (existingWorkshopId && workshopStatus === 'docket_ready') {
       // For existing "docket_ready" jobs, change status to quoted or repaired based on quoteOrRepair field
       (formData as any).status = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
-      console.log(`Updating workshop status from docket_ready to ${quoteOrRepair === 'Quote' ? 'quoted' : 'repaired'}`);
     } else if (existingWorkshopId && workshopStatus === 'quoted') {
       // For existing "quoted" jobs, change status to waiting_approval_po
       (formData as any).status = 'waiting_approval_po';
-      console.log('Updating workshop status from quoted to waiting_approval_po');
     } else if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
       // For existing "waiting_approval_po" jobs, change status to waiting_for_parts
       (formData as any).status = 'waiting_for_parts';
-      console.log('Updating workshop status from waiting_approval_po to waiting_for_parts');
     } else if (existingWorkshopId && workshopStatus === 'waiting_for_parts') {
       // For existing "waiting_for_parts" jobs, change status to booked_in_for_repair_service
       (formData as any).status = 'booked_in_for_repair_service';
-      console.log('Updating workshop status from waiting_for_parts to booked_in_for_repair_service');
     } else if (existingWorkshopId && workshopStatus === 'booked_in_for_repair_service') {
       // For existing "booked_in_for_repair_service" jobs, change status to repaired
       (formData as any).status = 'repaired';
-      console.log('Updating workshop status from booked_in_for_repair_service to repaired');
     } else if (existingWorkshopId && workshopStatus === 'repaired') {
       // For existing "repaired" jobs, change status to return
       (formData as any).status = 'return';
-      console.log('Updating workshop status from repaired to return');
     } else {
       // Default: set to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
-      console.log('Setting workshop status to to_be_quoted (default)');
     }
-
-    console.log('Final formData status:', (formData as any).status);
 
     // Submit to Supabase - either create new or update existing
     const submitPromise = existingWorkshopId
@@ -747,7 +702,6 @@
 
     submitPromise
       .then((workshop) => {
-        console.log('Workshop saved successfully:', workshop);
 
         // Show success modal with appropriate message
         const isUpdate = !!existingWorkshopId;
@@ -872,7 +826,6 @@
   function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
     const { existingWorkshopId, workshopStatus, existingOrderId, locationOfRepair, siteLocation, quoteOrRepair } = context;
 
-    console.log('Evaluating job status:', context);
 
     // ============================================
     // PRIORITY 1: PICKUP STATUS JOBS (Highest Priority)
@@ -1081,11 +1034,11 @@
     quoteOrRepair
   });
 
-  $: submitButtonTextStore.set(currentJobStatus.buttonText);
+  // Reactive store subscription for button text
+  $: submitButtonText = $submitButtonTextStore;
 
-  function getSubmitButtonText(): string {
-    return get(submitButtonTextStore);
-  }
+  // Debug reactive store subscription
+  $: console.log('Store subscription updated - submitButtonText:', submitButtonText, 'timestamp:', new Date().toISOString());
 
   function getSubmitButtonLoadingText() {
     // Use centralized job status logic
@@ -1776,7 +1729,7 @@
               </svg>
               {getSubmitButtonLoadingText()}
             {:else}
-              {getSubmitButtonText()}
+              {submitButtonText}
             {/if}
           </button>
         {/if}

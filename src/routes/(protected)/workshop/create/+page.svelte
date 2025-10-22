@@ -1694,7 +1694,7 @@
       {/if}
 
       <div class="flex justify-end gap-3">
-        <a href="{base}/workshop/job-status" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>
+        <a href="{base}/workshop/workshop-board" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>
 
         <!-- Update Job Button - always visible for data updates only -->
         <button

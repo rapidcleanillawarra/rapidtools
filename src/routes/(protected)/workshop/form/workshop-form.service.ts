@@ -298,7 +298,7 @@ export interface SubmissionOptions {
   existingWorkshopId: string | null;
   workshopStatus: JobStatus;
   existingOrderId: string | null;
-  locationOfRepair: 'Site' | 'Workshop';
+  locationOfMachine: 'Site' | 'Workshop';
   siteLocation: string;
   pickupSchedule: string;
   isPickupScheduleRequired: boolean;

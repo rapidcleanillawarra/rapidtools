@@ -23,7 +23,7 @@
 
   // Machine Information
   let locationOfMachine: LocationType = 'Site';
-  let isPickup = false;
+  let action = 'Pickup';
   let productName = '';
   let clientsWorkOrder = '';
   let makeModel = '';
@@ -32,14 +32,19 @@
   let faultDescription = '';
   let schedules: any = null;
 
-  // Computed property for pickup schedule
-  $: pickupSchedule = schedules?.pickup_schedule || '';
+  // Dynamic schedule key based on action
+  $: scheduleKey = action === 'Pickup' ? 'pickup_schedule' :
+                   action === 'Repair' ? 'repair_schedule' :
+                   action === 'Deliver to Workshop' ? 'delivery_schedule' : 'pickup_schedule';
 
-  // Function to update pickup schedule
+  // Computed property for schedule (dynamically named based on action)
+  $: pickupSchedule = schedules?.[scheduleKey] || '';
+
+  // Function to update schedule (key depends on action)
   function updatePickupSchedule(value: string) {
     schedules = {
       ...schedules,
-      pickup_schedule: value
+      [scheduleKey]: value
     };
   }
 
@@ -240,7 +245,7 @@
     if (makeModel.trim()) items.push({ label: 'Make/Model', value: makeModel, priority: 3 });
     if (serialNumber.trim()) items.push({ label: 'Serial', value: serialNumber, priority: 4 });
     if (siteLocation.trim()) items.push({ label: 'Site', value: siteLocation, priority: 5 });
-    if (pickupSchedule.trim()) items.push({ label: 'Pickup Schedule', value: formatPickupSchedule(pickupSchedule), priority: 6 });
+    if (pickupSchedule.trim()) items.push({ label: scheduleLabel, value: formatPickupSchedule(pickupSchedule), priority: 6 });
     if (faultDescription.trim()) items.push({ label: 'Fault Description', value: faultDescription, priority: 7 });
     return items.sort((a, b) => a.priority - b.priority);
   })();
@@ -281,8 +286,13 @@
     ? 'bg-purple-100 text-purple-800'
     : 'bg-green-100 text-green-800';
 
-  // Determine if pickup schedule is required (new jobs with Site location)
-  $: isPickupScheduleRequired = (workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site';
+  // Determine if pickup schedule is required (new jobs with Pickup action)
+  $: isPickupScheduleRequired = (workshopStatus === 'new' || !existingWorkshopId) && action === 'Pickup';
+
+  // Dynamic schedule label based on action
+  $: scheduleLabel = action === 'Pickup' ? 'Pickup Schedule' :
+                     action === 'Repair' ? 'Repair Schedule' :
+                     action === 'Deliver to Workshop' ? 'Delivery Schedule' : 'Schedule';
 
 
   // Check referrer to determine if user came from camera page
@@ -322,7 +332,8 @@
       existingOrderId = workshop.order_id || null;
 
       // Populate form with existing workshop data
-      locationOfMachine = workshop.location_of_repair || 'Site';
+      locationOfMachine = workshop.location_of_machine || 'Site';
+      action = workshop.action || 'Pickup';
       productName = workshop.product_name || '';
       clientsWorkOrder = workshop.clients_work_order || '';
       makeModel = workshop.make_model || '';
@@ -335,7 +346,7 @@
       contactNumber = workshop.contact_number || '';
       selectedCustomer = workshop.customer_data;
       optionalContacts = workshop.optional_contacts || [];
-      quoteOrRepaired: quoteOrRepair = workshop.quote_or_repaired || 'Quote';
+      quoteOrRepair = workshop.quote_or_repaired || 'Quote';
       startedWith = workshop.started_with || 'form';
 
       // Load docket info if available
@@ -436,6 +447,7 @@
       productName,
       customerName,
       locationOfMachine,
+      action,
       siteLocation,
       pickupSchedule,
       isNewPickupJob
@@ -459,7 +471,7 @@
     // Prepare form data for update only (no status changes, no order creation)
     const formData = {
       locationOfMachine,
-      isPickup,
+      action,
       productName,
       clientsWorkOrder,
       makeModel,
@@ -535,6 +547,7 @@
       productName,
       customerName,
       locationOfMachine,
+      action,
       siteLocation,
       pickupSchedule,
       isNewPickupJob
@@ -552,7 +565,7 @@
     isSubmitting = true;
 
     // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
-    isPickupSubmission = !existingWorkshopId && locationOfMachine === 'Site' && siteLocation.trim() !== '';
+    isPickupSubmission = !existingWorkshopId && action === 'Pickup' && siteLocation.trim() !== '';
 
     let shouldCreateOrder = false;
 
@@ -620,7 +633,7 @@
     // Prepare form data
     const formData = {
       locationOfMachine,
-      isPickup,
+      action,
       productName,
       clientsWorkOrder,
       makeModel,
@@ -665,9 +678,15 @@
 
     // Set status based on submission type - using centralized job status logic
 
-    // Simple logic: if current status is new and location is Site, set to pickup
-    if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site') {
-      (formData as any).status = 'pickup';
+    // Set status based on action for new jobs
+    if (workshopStatus === 'new' || !existingWorkshopId) {
+      if (action === 'Pickup') {
+        (formData as any).status = 'pickup';
+      } else if (action === 'Repair') {
+        (formData as any).status = 'booked_in_for_repair_service';
+      } else if (action === 'Deliver to Workshop') {
+        (formData as any).status = 'deliver_to_workshop';
+      }
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
@@ -713,8 +732,12 @@
         const hadExistingOrder = !shouldCreateOrder && isUpdate;
 
         // Set success message based on status change
-        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site') {
+        if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Pickup') {
           successMessage = 'Workshop created successfully as a pickup job!';
+        } else if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Repair') {
+          successMessage = 'Workshop created successfully and booked in for repair service!';
+        } else if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Deliver to Workshop') {
+          successMessage = 'Workshop created successfully and scheduled for delivery to workshop!';
         } else if (wasPickupJob) {
           successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
         } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
@@ -744,7 +767,7 @@
         // Show toast notification
         toastSuccess(successMessage);
 
-        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site') {
+        if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Pickup') {
           // For new pickup submissions, show the pickup status change modal that forces workshop board navigation
           showPickupStatusChangeModal = true;
         } else if (wasPickupJob) {
@@ -771,7 +794,7 @@
         } else if (isUpdate) {
           // For regular updates, show the regular success modal
           showSuccessModal = true;
-        } else if (!existingWorkshopId && locationOfMachine !== 'Site') {
+        } else if (!existingWorkshopId && action !== 'Pickup') {
           // For new non-pickup job creation, navigate directly to workshop board
           navigateToWorkshopBoard();
         } else {
@@ -799,7 +822,7 @@
   // what actions are allowed based on the current state.
   // DO NOT MODIFY THIS WITHOUT CAREFUL CONSIDERATION OF BUSINESS IMPACT
 
-  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'pending_jobs' | null;
+  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'deliver_to_workshop' | 'pending_jobs' | null;
 
   interface JobStatusContext {
     existingWorkshopId: string | null;
@@ -808,6 +831,7 @@
     locationOfMachine: 'Site' | 'Workshop';
     siteLocation: string;
     quoteOrRepair: QuoteOrRepairType;
+    action: string;
   }
 
   interface JobStatusResult {
@@ -827,7 +851,7 @@
    * All status-dependent behavior should derive from this single source of truth.
    */
   function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
-    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfMachine, siteLocation, quoteOrRepair } = context;
+    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfMachine, siteLocation, quoteOrRepair, action } = context;
 
 
     // ============================================
@@ -841,7 +865,9 @@
         canEditContacts: false,     // Pickup jobs cannot modify contacts
         canCreateOrder: false,      // Pickup jobs never create Maropost orders
         canPickup: false,          // Already picked up
-        buttonText: 'Delivered/To Be Quoted',
+        buttonText: action === 'Pickup' ? 'Pickup Delivered' :
+                     action === 'Repair' ? 'Repair Delivered' :
+                     'Delivered to Workshop',
         statusDisplay: 'Pickup',
         priority: 1
       };
@@ -853,16 +879,18 @@
     // ============================================
     // Brand new jobs that haven't been saved yet
     if (workshopStatus === 'new') {
-      // Special case: If location is Site, this becomes a pickup job
-      const isPickupJob = locationOfMachine === 'Site';
+      // Special case: If action is Pickup, this becomes a pickup job
+      const isPickupJob = action === 'Pickup';
 
       return {
         canEditMachineInfo: true,   // Can edit everything for new jobs
         canEditUserInfo: true,
         canEditContacts: true,
         canCreateOrder: false,      // New jobs don't create orders until submitted
-        canPickup: isPickupJob,     // Site repairs are pickup jobs
-        buttonText: isPickupJob ? 'Pickup →' : 'To be Quoted',
+        canPickup: isPickupJob,     // Pickup action means pickup jobs
+        buttonText: action === 'Pickup' ? 'Schedule Pickup' :
+                     action === 'Repair' ? 'Schedule Repair' :
+                     'Schedule Delivery',
         statusDisplay: 'New',
         priority: 2
       };
@@ -873,16 +901,18 @@
   // ============================================
   // Forms that are being created from scratch (no workshop_id in URL)
   if (!existingWorkshopId) {
-    // Special case: If location is Site, this becomes a pickup job
-    const isPickupJob = locationOfMachine === 'Site';
+    // Special case: If action is Pickup, this becomes a pickup job
+    const isPickupJob = action === 'Pickup';
 
     return {
       canEditMachineInfo: true,   // Can edit everything for new forms
       canEditUserInfo: true,
       canEditContacts: true,
       canCreateOrder: false,      // New forms don't create orders until submitted
-      canPickup: isPickupJob,     // Site repairs are pickup jobs
-      buttonText: isPickupJob ? 'Pickup →' : 'Create Job',
+      canPickup: isPickupJob,     // Pickup action means pickup jobs
+        buttonText: action === 'Pickup' ? 'Schedule Pickup' :
+                     action === 'Repair' ? 'Schedule Repair' :
+                     'Schedule Delivery',
       statusDisplay: 'New',
       priority: 3
     };
@@ -1034,7 +1064,8 @@
     existingOrderId,
     locationOfMachine,
     siteLocation,
-    quoteOrRepair
+    quoteOrRepair,
+    action
   });
 
   // Reactive store subscription for button text
@@ -1073,7 +1104,7 @@
   function resetForm() {
     // Reset all form fields
     locationOfMachine = 'Site';
-    isPickup = false;
+    action = 'Pickup';
     productName = '';
     clientsWorkOrder = '';
     makeModel = '';
@@ -1291,21 +1322,17 @@
             </div>
 
             <div>
-              <fieldset class="bg-white border border-gray-300 rounded-lg px-4 py-3">
-                <legend class="block text-sm font-medium text-gray-700 mb-1">Pickup?</legend>
-                <div class="flex items-center">
-                  <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
-                    <input
-                      id="pickup-checkbox"
-                      type="checkbox"
-                      bind:checked={isPickup}
-                      class="h-4 w-4 text-blue-600"
-                      disabled={!currentJobStatus.canEditMachineInfo}
-                    />
-                    <span>Yes</span>
-                  </label>
-                </div>
-              </fieldset>
+              <label class="block text-sm font-medium text-gray-700 mb-1" for="action-dropdown">Action <span class="text-red-500">*</span></label>
+              <select
+                id="action-dropdown"
+                bind:value={action}
+                class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
+                disabled={!currentJobStatus.canEditMachineInfo}
+              >
+                <option value="Pickup">Pickup</option>
+                <option value="Repair">Repair</option>
+                <option value="Deliver to Workshop">Deliver to Workshop</option>
+              </select>
             </div>
 
             <div>
@@ -1340,11 +1367,6 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="site-location">
                 Site/Location
-                {#if locationOfMachine === 'Site'}
-                  <span class="text-red-500 text-xs">* Required</span>
-                {:else}
-                  <span class="text-gray-500 text-xs">(Optional)</span>
-                {/if}
               </label>
               <input
                 id="site-location"
@@ -1363,10 +1385,7 @@
 
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-gray-700 mb-1" for="pickup-schedule">
-                Pickup Schedule
-                {#if isPickupScheduleRequired}
-                  <span class="text-red-500">*</span>
-                {/if}
+                {scheduleLabel}
               </label>
               <input
                 id="pickup-schedule"
@@ -1772,7 +1791,7 @@
     show={showPostSubmissionModal}
     message={successMessage}
     orderId={generatedOrderId}
-    isPickup={isPickupSubmission}
+    isPickup={action === 'Pickup'}
     on:navigateToWorkshopBoard={navigateToWorkshopBoard}
   />
 

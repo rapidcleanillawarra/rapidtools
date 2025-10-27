@@ -186,7 +186,7 @@
                   <div class="flex-1">
                     <div class="font-medium text-gray-900">{workshop.customer_name}</div>
                     <div class="text-sm text-gray-600">
-                      {workshop.product_name} • {workshop.location_of_repair}
+                      {workshop.product_name} • {workshop.location_of_machine}
                       {#if workshop.photo_urls && workshop.photo_urls.length > 0}
                         • 📷 {workshop.photo_urls.length} photos
                       {/if}

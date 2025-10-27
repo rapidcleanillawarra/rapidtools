@@ -11,7 +11,7 @@ import type { Customer } from '$lib/services/customers';
 import type { JobStatus } from './workshop-status.service';
 
 // Form data stores
-export const locationOfRepair = writable<'Site' | 'Workshop'>('Site');
+export const locationOfMachine = writable<'Site' | 'Workshop'>('Site');
 export const productName = writable('');
 export const clientsWorkOrder = writable('');
 export const makeModel = writable('');
@@ -89,11 +89,11 @@ export const minDateTime = derived([], () => {
 
 // Summary items for collapsed sections
 export const machineInfoSummaryItems = derived(
-  [productName, locationOfRepair, makeModel, serialNumber, siteLocation, pickupSchedule, faultDescription],
-  ([$productName, $locationOfRepair, $makeModel, $serialNumber, $siteLocation, $pickupSchedule, $faultDescription]) => {
+  [productName, locationOfMachine, makeModel, serialNumber, siteLocation, pickupSchedule, faultDescription],
+  ([$productName, $locationOfMachine, $makeModel, $serialNumber, $siteLocation, $pickupSchedule, $faultDescription]) => {
     const items = [];
     if ($productName.trim()) items.push({ label: 'Product', value: $productName, priority: 1 });
-    if ($locationOfRepair) items.push({ label: 'Location', value: $locationOfRepair, priority: 2 });
+    if ($locationOfMachine) items.push({ label: 'Location', value: $locationOfMachine, priority: 2 });
     if ($makeModel.trim()) items.push({ label: 'Make/Model', value: $makeModel, priority: 3 });
     if ($serialNumber.trim()) items.push({ label: 'Serial', value: $serialNumber, priority: 4 });
     if ($siteLocation.trim()) items.push({ label: 'Site', value: $siteLocation, priority: 5 });
@@ -157,7 +157,7 @@ function formatPickupSchedule(datetimeString: string): string {
 // Form reset function
 export function resetForm() {
   // Reset all form fields
-  locationOfRepair.set('Site');
+  locationOfMachine.set('Site');
   productName.set('');
   clientsWorkOrder.set('');
   makeModel.set('');
@@ -196,7 +196,7 @@ export function resetForm() {
 // Export all stores for easy access
 export const formStores = {
   // Form data
-  locationOfRepair,
+  locationOfMachine,
   productName,
   clientsWorkOrder,
   makeModel,

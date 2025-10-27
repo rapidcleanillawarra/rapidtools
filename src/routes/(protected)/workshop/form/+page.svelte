@@ -23,7 +23,7 @@
     hasIncompleteContacts,
     validateAndPrepareSubmission
   } from './workshop-form.service';
-  import { resetForm } from './workshop-form.store';
+  import { resetForm, machineInfoSummaryItems } from './workshop-form.store';
 
   // Import extracted components
   import MachineInfoSection from './components/MachineInfoSection.svelte';
@@ -40,7 +40,7 @@
   // Import formStores object and individual stores for reactive access
   import { 
     formStores,
-    locationOfRepair,
+    locationOfMachine,
     productName,
     clientsWorkOrder,
     makeModel,
@@ -108,7 +108,7 @@
     existingWorkshopId: $existingWorkshopId,
     workshopStatus: $workshopStatus,
     existingOrderId: $existingOrderId,
-    locationOfRepair: $locationOfRepair,
+    locationOfMachine: $locationOfMachine,
     siteLocation: $siteLocation
   });
 
@@ -157,7 +157,7 @@
       console.log('Existing order ID set to:', workshop.order_id);
 
       // Populate form with existing workshop data
-      formStores.locationOfRepair.set(workshop.location_of_repair || 'Site');
+      formStores.locationOfMachine.set(workshop.location_of_machine || 'Site');
       formStores.productName.set(workshop.product_name || '');
       formStores.clientsWorkOrder.set(workshop.clients_work_order || '');
       formStores.makeModel.set(workshop.make_model || '');
@@ -201,7 +201,7 @@
 
       console.log('Loaded existing workshop:', workshop);
       console.log('Form populated with data:', {
-        locationOfRepair: workshop.location_of_repair,
+        locationOfMachine: workshop.location_of_machine,
         productName: workshop.product_name,
         customerName: workshop.customer_name,
         contactEmail: workshop.contact_email,
@@ -273,7 +273,7 @@
     const currentExistingWorkshopId = get(formStores.existingWorkshopId);
     const currentWorkshopStatus = get(formStores.workshopStatus);
     const currentExistingOrderId = get(formStores.existingOrderId);
-    const currentLocationOfRepair = get(formStores.locationOfRepair);
+    const currentLocationOfMachine = get(formStores.locationOfMachine);
     const currentSiteLocation = get(formStores.siteLocation);
     const currentPickupSchedule = get(formStores.pickupSchedule);
     const currentProductName = get(formStores.productName);
@@ -291,10 +291,10 @@
       existingWorkshopId: currentExistingWorkshopId,
       workshopStatus: currentWorkshopStatus,
       existingOrderId: currentExistingOrderId,
-      locationOfRepair: currentLocationOfRepair,
+      locationOfMachine: currentLocationOfMachine,
       siteLocation: currentSiteLocation,
       pickupSchedule: currentPickupSchedule,
-      isPickupScheduleRequired: isPickupScheduleRequired(currentWorkshopStatus, currentExistingWorkshopId, currentLocationOfRepair),
+      isPickupScheduleRequired: isPickupScheduleRequired(currentWorkshopStatus, currentExistingWorkshopId, currentLocationOfMachine),
       productName: currentProductName,
       customerName: currentCustomerName,
       schedules: currentSchedules,
@@ -329,7 +329,7 @@
     try {
       // Prepare form data using the service
       const formData = prepareFormData({
-        locationOfRepair: currentLocationOfRepair,
+        locationOfMachine: currentLocationOfMachine,
         productName: currentProductName,
         clientsWorkOrder: get(formStores.clientsWorkOrder),
         makeModel: get(formStores.makeModel),
@@ -401,7 +401,7 @@
     const currentExistingWorkshopId = get(formStores.existingWorkshopId);
     const currentWorkshopStatus = get(formStores.workshopStatus);
     const currentExistingOrderId = get(formStores.existingOrderId);
-    const currentLocationOfRepair = get(formStores.locationOfRepair);
+    const currentLocationOfMachine = get(formStores.locationOfMachine);
     const currentSiteLocation = get(formStores.siteLocation);
     const currentPickupSchedule = get(formStores.pickupSchedule);
     const currentProductName = get(formStores.productName);
@@ -426,10 +426,10 @@
       existingWorkshopId: currentExistingWorkshopId,
       workshopStatus: currentWorkshopStatus,
       existingOrderId: currentExistingOrderId,
-      locationOfRepair: currentLocationOfRepair,
+      locationOfMachine: currentLocationOfMachine,
       siteLocation: currentSiteLocation,
       pickupSchedule: currentPickupSchedule,
-      isPickupScheduleRequired: isPickupScheduleRequired(currentWorkshopStatus, currentExistingWorkshopId, currentLocationOfRepair),
+      isPickupScheduleRequired: isPickupScheduleRequired(currentWorkshopStatus, currentExistingWorkshopId, currentLocationOfMachine),
       productName: currentProductName,
       customerName: currentCustomerName,
       schedules: currentSchedules,
@@ -469,7 +469,7 @@
     formStores.isSubmitting.set(true);
 
     // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
-    const isPickupSubmission = !currentExistingWorkshopId && currentLocationOfRepair === 'Site' && currentSiteLocation.trim() !== '';
+    const isPickupSubmission = !currentExistingWorkshopId && currentLocationOfMachine === 'Site' && currentSiteLocation.trim() !== '';
 
     let shouldCreateOrder = false;
     let generatedOrderId: string | null = null;
@@ -543,7 +543,7 @@
 
     // Prepare form data using the service
     const formData = prepareFormData({
-      locationOfRepair: currentLocationOfRepair,
+      locationOfMachine: currentLocationOfMachine,
       productName: currentProductName,
       clientsWorkOrder: get(formStores.clientsWorkOrder),
       makeModel: get(formStores.makeModel),
@@ -582,7 +582,7 @@
     const newStatus = determineSubmissionStatus(
       currentExistingWorkshopId,
       currentWorkshopStatus,
-      currentLocationOfRepair,
+      currentLocationOfMachine,
       get(formStores.wasPickupJob)
     );
 
@@ -609,7 +609,7 @@
         const successMessage = getSuccessMessage(
           currentExistingWorkshopId,
           currentWorkshopStatus,
-          currentLocationOfRepair,
+          currentLocationOfMachine,
           get(formStores.wasPickupJob),
           currentQuoteOrRepair
         );
@@ -617,7 +617,7 @@
         const modalType = determineSuccessModal(
           currentExistingWorkshopId,
           currentWorkshopStatus,
-          currentLocationOfRepair,
+          currentLocationOfMachine,
           get(formStores.wasPickupJob)
         );
 
@@ -772,7 +772,7 @@
         <!-- Machine Information -->
         <MachineInfoSection
           {currentJobStatus}
-          bind:locationOfRepair={$locationOfRepair}
+          bind:locationOfMachine={$locationOfMachine}
           bind:productName={$productName}
           bind:clientsWorkOrder={$clientsWorkOrder}
           bind:makeModel={$makeModel}
@@ -783,6 +783,7 @@
           minDateTime={$minDateTime}
           bind:isExpanded={$isMachineInfoExpanded}
           startedWith={$startedWith}
+          machineInfoSummaryItems={$machineInfoSummaryItems}
           on:pickupScheduleUpdate={(e) => {
             formStores.schedules.update(schedules => ({
               ...schedules,
@@ -955,8 +956,6 @@
     showPhotoViewer={$showPhotoViewer}
     photoUrls={photoUrlsArray}
     currentPhotoIndex={$currentPhotoIndex}
-    {loadedPhotos}
-    {failedPhotos}
     on:close={closePhotoViewer}
     on:photoIndexChanged={({ detail }) => formStores.currentPhotoIndex.set(detail.index)}
   />

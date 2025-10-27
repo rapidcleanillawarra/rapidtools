@@ -55,7 +55,8 @@ export interface WorkshopRecord {
   updated_at: string;
 
   // Machine Information
-  location_of_repair: 'Site' | 'Workshop' | null;
+  location_of_machine: 'Site' | 'Workshop' | null;
+  action: string | null;
   product_name: string | null;
   clients_work_order: string;
   make_model: string;
@@ -167,7 +168,8 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
     
     // Prepare workshop data
     const workshopData = {
-      location_of_repair: data.locationOfRepair || null,
+      location_of_machine: data.locationOfMachine || null,
+      action: data.action || null,
       product_name: data.productName || null,
       clients_work_order: data.clientsWorkOrder,
       make_model: data.makeModel,
@@ -401,7 +403,8 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     
     // Prepare update data
     const updateData: any = {
-      location_of_repair: data.locationOfRepair || null,
+      location_of_machine: data.locationOfMachine || null,
+      action: data.action || null,
       product_name: data.productName || null,
       clients_work_order: data.clientsWorkOrder,
       make_model: data.makeModel,

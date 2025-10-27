@@ -11,6 +11,7 @@ export interface WorkshopFormData {
   productName: string;
   customerName: string;
   locationOfMachine: string;
+  action: string;
   siteLocation?: string;
   pickupSchedule?: string;
   isNewPickupJob?: boolean;
@@ -30,6 +31,10 @@ export function validateRequiredFields(formData: WorkshopFormData): ValidationRe
     errors.push('Customer Name is required');
   }
 
+  if (!formData.action || !formData.action.trim()) {
+    errors.push('Action is required');
+  }
+
   return {
     isValid: errors.length === 0,
     errors
@@ -42,9 +47,10 @@ export function validateRequiredFields(formData: WorkshopFormData): ValidationRe
 export function validateSiteLocation(locationOfRepair: string, siteLocation?: string): ValidationResult {
   const errors: string[] = [];
 
-  if (locationOfRepair === 'Site' && (!siteLocation || !siteLocation.trim())) {
-    errors.push('Site Location is required when Location of Repair is Site');
-  }
+  // Site Location is now optional
+  // if (locationOfRepair === 'Site' && (!siteLocation || !siteLocation.trim())) {
+  //   errors.push('Site Location is required when Location of Repair is Site');
+  // }
 
   return {
     isValid: errors.length === 0,
@@ -58,9 +64,10 @@ export function validateSiteLocation(locationOfRepair: string, siteLocation?: st
 export function validatePickupSchedule(isNewPickupJob: boolean, pickupSchedule?: string): ValidationResult {
   const errors: string[] = [];
 
-  if (isNewPickupJob && (!pickupSchedule || !pickupSchedule.trim())) {
-    errors.push('Pickup Schedule is required for new pickup jobs');
-  }
+  // Pickup Schedule is now optional
+  // if (isNewPickupJob && (!pickupSchedule || !pickupSchedule.trim())) {
+  //   errors.push('Pickup Schedule is required for new pickup jobs');
+  // }
 
   return {
     isValid: errors.length === 0,

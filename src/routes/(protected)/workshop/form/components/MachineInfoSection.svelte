@@ -3,7 +3,7 @@
   import type { JobStatusResult } from '../workshop-status.service';
 
   export let currentJobStatus: JobStatusResult;
-  export let locationOfRepair: 'Site' | 'Workshop' = 'Site';
+  export let locationOfMachine: 'Site' | 'Workshop' = 'Site';
   export let productName = '';
   export let clientsWorkOrder = '';
   export let makeModel = '';
@@ -14,6 +14,7 @@
   export let minDateTime = '';
   export let isExpanded = true;
   export let startedWith: 'form' | 'camera' = 'form';
+  export let machineInfoSummaryItems: any[] = [];
 
   const dispatch = createEventDispatcher();
 
@@ -80,11 +81,11 @@
         <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
         <div class="flex items-center gap-6">
           <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
-            <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
+            <input id="loc-site" type="radio" name="locationOfMachine" value="Site" bind:group={locationOfMachine} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
             <span>Site</span>
           </label>
           <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
-            <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
+            <input id="loc-workshop" type="radio" name="locationOfMachine" value="Workshop" bind:group={locationOfMachine} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
             <span>Workshop</span>
           </label>
         </div>
@@ -123,7 +124,7 @@
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1" for="site-location">
         Site/Location
-        {#if locationOfRepair === 'Site'}
+        {#if locationOfMachine === 'Site'}
           <span class="text-red-500 text-xs">* Required</span>
         {:else}
           <span class="text-gray-500 text-xs">(Optional)</span>
@@ -134,10 +135,10 @@
         type="text"
         bind:value={siteLocation}
         class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
-        placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
+        placeholder={locationOfMachine === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
         disabled={!currentJobStatus.canEditMachineInfo}
       />
-      {#if startedWith === 'camera' && locationOfRepair === 'Site'}
+      {#if startedWith === 'camera' && locationOfMachine === 'Site'}
         <div class="mt-2 p-2 bg-blue-100 border border-blue-200 text-blue-700 rounded text-sm">
           💡 Tip: You can add site location details later if needed
         </div>

@@ -10,7 +10,7 @@ import type { Customer } from '$lib/services/customers';
 import type { JobStatus, JobStatusContext } from './workshop-status.service';
 
 export interface WorkshopFormData {
-  locationOfRepair: 'Site' | 'Workshop';
+  locationOfMachine: 'Site' | 'Workshop';
   productName: string;
   clientsWorkOrder: string;
   makeModel: string;

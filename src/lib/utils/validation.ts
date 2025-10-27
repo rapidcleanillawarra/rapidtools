@@ -10,7 +10,7 @@ export interface ValidationResult {
 export interface WorkshopFormData {
   productName: string;
   customerName: string;
-  locationOfRepair: string;
+  locationOfMachine: string;
   siteLocation?: string;
   pickupSchedule?: string;
   isNewPickupJob?: boolean;

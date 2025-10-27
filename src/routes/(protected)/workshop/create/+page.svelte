@@ -22,7 +22,8 @@
   type LocationType = 'Site' | 'Workshop';
 
   // Machine Information
-  let locationOfRepair: LocationType = 'Site';
+  let locationOfMachine: LocationType = 'Site';
+  let isPickup = false;
   let productName = '';
   let clientsWorkOrder = '';
   let makeModel = '';
@@ -235,7 +236,7 @@
   $: machineInfoSummaryItems = (() => {
     const items = [];
     if (productName.trim()) items.push({ label: 'Product', value: productName, priority: 1 });
-    if (locationOfRepair) items.push({ label: 'Location', value: locationOfRepair, priority: 2 });
+    if (locationOfMachine) items.push({ label: 'Location', value: locationOfMachine, priority: 2 });
     if (makeModel.trim()) items.push({ label: 'Make/Model', value: makeModel, priority: 3 });
     if (serialNumber.trim()) items.push({ label: 'Serial', value: serialNumber, priority: 4 });
     if (siteLocation.trim()) items.push({ label: 'Site', value: siteLocation, priority: 5 });
@@ -281,7 +282,7 @@
     : 'bg-green-100 text-green-800';
 
   // Determine if pickup schedule is required (new jobs with Site location)
-  $: isPickupScheduleRequired = (workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site';
+  $: isPickupScheduleRequired = (workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site';
 
 
   // Check referrer to determine if user came from camera page
@@ -321,7 +322,7 @@
       existingOrderId = workshop.order_id || null;
 
       // Populate form with existing workshop data
-      locationOfRepair = workshop.location_of_repair || 'Site';
+      locationOfMachine = workshop.location_of_repair || 'Site';
       productName = workshop.product_name || '';
       clientsWorkOrder = workshop.clients_work_order || '';
       makeModel = workshop.make_model || '';
@@ -430,11 +431,11 @@
     // Reset previous states
 
     // Validate required fields using validation utility
-    const isNewPickupJob = (workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site';
+    const isNewPickupJob = (workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site';
     const validation = validateWorkshopForm({
       productName,
       customerName,
-      locationOfRepair,
+      locationOfMachine,
       siteLocation,
       pickupSchedule,
       isNewPickupJob
@@ -457,7 +458,8 @@
 
     // Prepare form data for update only (no status changes, no order creation)
     const formData = {
-      locationOfRepair,
+      locationOfMachine,
+      isPickup,
       productName,
       clientsWorkOrder,
       makeModel,
@@ -528,11 +530,11 @@
     // Reset previous states
 
     // Validate required fields using validation utility
-    const isNewPickupJob = (workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site';
+    const isNewPickupJob = (workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site';
     const validation = validateWorkshopForm({
       productName,
       customerName,
-      locationOfRepair,
+      locationOfMachine,
       siteLocation,
       pickupSchedule,
       isNewPickupJob
@@ -550,7 +552,7 @@
     isSubmitting = true;
 
     // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
-    isPickupSubmission = !existingWorkshopId && locationOfRepair === 'Site' && siteLocation.trim() !== '';
+    isPickupSubmission = !existingWorkshopId && locationOfMachine === 'Site' && siteLocation.trim() !== '';
 
     let shouldCreateOrder = false;
 
@@ -617,7 +619,8 @@
 
     // Prepare form data
     const formData = {
-      locationOfRepair,
+      locationOfMachine,
+      isPickup,
       productName,
       clientsWorkOrder,
       makeModel,
@@ -663,7 +666,7 @@
     // Set status based on submission type - using centralized job status logic
 
     // Simple logic: if current status is new and location is Site, set to pickup
-    if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
+    if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site') {
       (formData as any).status = 'pickup';
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
@@ -710,7 +713,7 @@
         const hadExistingOrder = !shouldCreateOrder && isUpdate;
 
         // Set success message based on status change
-        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
+        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site') {
           successMessage = 'Workshop created successfully as a pickup job!';
         } else if (wasPickupJob) {
           successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
@@ -741,7 +744,7 @@
         // Show toast notification
         toastSuccess(successMessage);
 
-        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfRepair === 'Site') {
+        if ((workshopStatus === 'new' || !existingWorkshopId) && locationOfMachine === 'Site') {
           // For new pickup submissions, show the pickup status change modal that forces workshop board navigation
           showPickupStatusChangeModal = true;
         } else if (wasPickupJob) {
@@ -768,7 +771,7 @@
         } else if (isUpdate) {
           // For regular updates, show the regular success modal
           showSuccessModal = true;
-        } else if (!existingWorkshopId && locationOfRepair !== 'Site') {
+        } else if (!existingWorkshopId && locationOfMachine !== 'Site') {
           // For new non-pickup job creation, navigate directly to workshop board
           navigateToWorkshopBoard();
         } else {
@@ -802,7 +805,7 @@
     existingWorkshopId: string | null;
     workshopStatus: JobStatus;
     existingOrderId: string | null;
-    locationOfRepair: 'Site' | 'Workshop';
+    locationOfMachine: 'Site' | 'Workshop';
     siteLocation: string;
     quoteOrRepair: QuoteOrRepairType;
   }
@@ -824,7 +827,7 @@
    * All status-dependent behavior should derive from this single source of truth.
    */
   function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
-    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfRepair, siteLocation, quoteOrRepair } = context;
+    const { existingWorkshopId, workshopStatus, existingOrderId, locationOfMachine, siteLocation, quoteOrRepair } = context;
 
 
     // ============================================
@@ -851,7 +854,7 @@
     // Brand new jobs that haven't been saved yet
     if (workshopStatus === 'new') {
       // Special case: If location is Site, this becomes a pickup job
-      const isPickupJob = locationOfRepair === 'Site';
+      const isPickupJob = locationOfMachine === 'Site';
 
       return {
         canEditMachineInfo: true,   // Can edit everything for new jobs
@@ -871,7 +874,7 @@
   // Forms that are being created from scratch (no workshop_id in URL)
   if (!existingWorkshopId) {
     // Special case: If location is Site, this becomes a pickup job
-    const isPickupJob = locationOfRepair === 'Site';
+    const isPickupJob = locationOfMachine === 'Site';
 
     return {
       canEditMachineInfo: true,   // Can edit everything for new forms
@@ -1029,7 +1032,7 @@
     existingWorkshopId,
     workshopStatus,
     existingOrderId,
-    locationOfRepair,
+    locationOfMachine,
     siteLocation,
     quoteOrRepair
   });
@@ -1069,7 +1072,8 @@
 
   function resetForm() {
     // Reset all form fields
-    locationOfRepair = 'Site';
+    locationOfMachine = 'Site';
+    isPickup = false;
     productName = '';
     clientsWorkOrder = '';
     makeModel = '';
@@ -1272,15 +1276,33 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
             <div>
               <fieldset class="bg-white border border-gray-300 rounded-lg px-4 py-3">
-                <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Repair</legend>
+                <legend class="block text-sm font-medium text-gray-700 mb-1">Location of Machine</legend>
                 <div class="flex items-center gap-6">
                   <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
-                    <input id="loc-site" type="radio" name="locationOfRepair" value="Site" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
+                    <input id="loc-site" type="radio" name="locationOfMachine" value="Site" bind:group={locationOfMachine} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
                     <span>Site</span>
                   </label>
                   <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
-                    <input id="loc-workshop" type="radio" name="locationOfRepair" value="Workshop" bind:group={locationOfRepair} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
+                    <input id="loc-workshop" type="radio" name="locationOfMachine" value="Workshop" bind:group={locationOfMachine} class="h-4 w-4 text-blue-600" disabled={!currentJobStatus.canEditMachineInfo} />
                     <span>Workshop</span>
+                  </label>
+                </div>
+              </fieldset>
+            </div>
+
+            <div>
+              <fieldset class="bg-white border border-gray-300 rounded-lg px-4 py-3">
+                <legend class="block text-sm font-medium text-gray-700 mb-1">Pickup?</legend>
+                <div class="flex items-center">
+                  <label class="inline-flex items-center gap-2 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed' : 'cursor-pointer'}">
+                    <input
+                      id="pickup-checkbox"
+                      type="checkbox"
+                      bind:checked={isPickup}
+                      class="h-4 w-4 text-blue-600"
+                      disabled={!currentJobStatus.canEditMachineInfo}
+                    />
+                    <span>Yes</span>
                   </label>
                 </div>
               </fieldset>
@@ -1318,7 +1340,7 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1" for="site-location">
                 Site/Location
-                {#if locationOfRepair === 'Site'}
+                {#if locationOfMachine === 'Site'}
                   <span class="text-red-500 text-xs">* Required</span>
                 {:else}
                   <span class="text-gray-500 text-xs">(Optional)</span>
@@ -1329,10 +1351,10 @@
                 type="text"
                 bind:value={siteLocation}
                 class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
-                placeholder={locationOfRepair === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
+                placeholder={locationOfMachine === 'Site' ? 'Enter site location *' : 'Enter location details (optional)'}
                 disabled={!currentJobStatus.canEditMachineInfo}
               />
-              {#if startedWith === 'camera' && locationOfRepair === 'Site'}
+              {#if startedWith === 'camera' && locationOfMachine === 'Site'}
                 <div class="mt-2 p-2 bg-blue-100 border border-blue-200 text-blue-700 rounded text-sm">
                   💡 Tip: You can add site location details later if needed
                 </div>

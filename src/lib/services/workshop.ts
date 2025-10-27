@@ -8,7 +8,7 @@ import { fetchUserProfile } from '$lib/userProfile';
 // Workshop form data interface
 export interface WorkshopFormData {
   // Machine Information
-  locationOfRepair: 'Site' | 'Workshop' | null;
+  locationOfMachine: 'Site' | 'Workshop' | null;
   productName: string | null;
   clientsWorkOrder: string;
   makeModel: string;

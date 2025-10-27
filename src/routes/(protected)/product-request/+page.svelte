@@ -580,6 +580,8 @@ For any questions or concerns, please contact the system administrator.`;
           ? { ...row, listPrice: calculatedListPrice }
           : row
       );
+      // Update GPM after list price calculation
+      setTimeout(() => updateGPM(rowIndex), 0);
     }
   }
 
@@ -594,6 +596,29 @@ For any questions or concerns, please contact the system administrator.`;
           ? { ...row, listPrice: '' }
           : row
       );
+    }
+  }
+
+  // Handle GPM change - calculate List Price and RRP from GPM and Purchase Price
+  function handleGPMChange(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    const gpm = parseFloat(target.value);
+    const row = rows[rowIndex];
+
+    if (!isNaN(gpm) && gpm >= 0 && gpm < 100 && row.purchasePrice) {
+      const purchasePrice = parseFloat(row.purchasePrice);
+      if (purchasePrice > 0) {
+        // Calculate List Price: listPrice = purchasePrice / (1 - GPM/100)
+        const calculatedListPrice = (purchasePrice / (1 - gpm / 100)).toFixed(2);
+        // Calculate RRP: rrp = listPrice * 1.10
+        const calculatedRRP = (parseFloat(calculatedListPrice) * 1.10).toFixed(2);
+
+        rows = rows.map((r, index) =>
+          index === rowIndex
+            ? { ...r, listPrice: calculatedListPrice, rrp: calculatedRRP }
+            : r
+        );
+      }
     }
   }
 
@@ -649,7 +674,7 @@ For any questions or concerns, please contact the system administrator.`;
         const value = pastedRows[0][0];
         console.log('Single cell paste:', { value, field, rowIndex });
 
-        if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') {
+        if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp' || field === 'gpm') {
           // Use reactive assignment to ensure UI updates
           rows = rows.map((row, index) =>
             index === rowIndex
@@ -685,6 +710,23 @@ For any questions or concerns, please contact the system administrator.`;
             }
             // Update GPM after calculations
             setTimeout(() => updateGPM(rowIndex), 0);
+          } else if (field === 'gpm') {
+            const gpm = parseFloat(value);
+            const row = rows[rowIndex];
+            if (!isNaN(gpm) && gpm >= 0 && gpm < 100 && row.purchasePrice) {
+              const purchasePrice = parseFloat(row.purchasePrice);
+              if (purchasePrice > 0) {
+                // Calculate List Price: listPrice = purchasePrice / (1 - GPM/100)
+                const calculatedListPrice = (purchasePrice / (1 - gpm / 100)).toFixed(2);
+                // Calculate RRP: rrp = listPrice * 1.10
+                const calculatedRRP = (parseFloat(calculatedListPrice) * 1.10).toFixed(2);
+                rows = rows.map((r, index) =>
+                  index === rowIndex
+                    ? { ...r, listPrice: calculatedListPrice, rrp: calculatedRRP }
+                    : r
+                );
+              }
+            }
           }
         }
         return;
@@ -702,7 +744,7 @@ For any questions or concerns, please contact the system administrator.`;
       
       // Update the specific column for each row
       values.forEach((value, index) => {
-        if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') {
+        if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp' || field === 'gpm') {
           newRows[rowIndex + index] = { ...newRows[rowIndex + index], [field]: value };
 
           // Trigger calculations for price fields
@@ -718,10 +760,23 @@ For any questions or concerns, please contact the system administrator.`;
               const calculatedListPrice = (rrp / 1.10).toFixed(2);
               newRows[rowIndex + index] = { ...newRows[rowIndex + index], listPrice: calculatedListPrice };
             }
+          } else if (field === 'gpm') {
+            const gpm = parseFloat(value);
+            const row = newRows[rowIndex + index];
+            if (!isNaN(gpm) && gpm >= 0 && gpm < 100 && row.purchasePrice) {
+              const purchasePrice = parseFloat(row.purchasePrice);
+              if (purchasePrice > 0) {
+                // Calculate List Price: listPrice = purchasePrice / (1 - GPM/100)
+                const calculatedListPrice = (purchasePrice / (1 - gpm / 100)).toFixed(2);
+                // Calculate RRP: rrp = listPrice * 1.10
+                const calculatedRRP = (parseFloat(calculatedListPrice) * 1.10).toFixed(2);
+                newRows[rowIndex + index] = { ...newRows[rowIndex + index], listPrice: calculatedListPrice, rrp: calculatedRRP };
+              }
+            }
           }
         }
 
-        // Update GPM for price-related fields
+        // Update GPM for price-related fields (but not for GPM itself since we just set it)
         if (field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') {
           const updatedRow = newRows[rowIndex + index];
           const gpm = calculateGPM(updatedRow.purchasePrice, updatedRow.listPrice);
@@ -950,11 +1005,13 @@ For any questions or concerns, please contact the system administrator.`;
                 <div class="mb-4 md:mb-0">
                   <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">GPM (%)</label>
                   <input
-                    type="text"
-                    readonly
+                    type="number"
                     bind:value={row.gpm}
-                    class="block w-full border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700 sm:text-sm"
+                    on:input={(e) => handleGPMChange(e, i)}
+                    on:paste={(e) => handlePaste(e, i, 'gpm')}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="GPM (%)"
+                    step="0.01"
                   />
                 </div>
 

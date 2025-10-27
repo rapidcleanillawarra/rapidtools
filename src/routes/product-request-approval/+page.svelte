@@ -99,19 +99,75 @@
     Ack: string;
   }
 
-  // Function to calculate list price from retail MUP
-  function calculatePrices(request: ProductRequest) {
+  // Function to calculate prices with full bidirectional relationships
+  function calculatePrices(request: ProductRequest, changedField?: 'retail_mup' | 'list_price' | 'rrp') {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
-    const retailMup = parseFloat(request.retail_mup?.toString() || '0');
 
-    // Calculate list_price: purchase price * retail MUP
-    if (purchasePrice && retailMup) {
-      request.list_price = parseFloat((purchasePrice * retailMup).toFixed(2));
-      // Client price and client MUP always follow list price and retail MUP
-      request.client_price = request.list_price;
-      request.client_mup = request.retail_mup;
-      // Force Svelte reactivity
-      productRequests = productRequests;
+    // Handle full bidirectional relationships between retail_mup, list_price, and rrp
+    if (changedField === 'retail_mup' && request.retail_mup !== undefined && request.retail_mup !== null) {
+      // When retail MUP changes, update list_price and RRP
+      console.log('=== RETAIL MUP CHANGE DETECTED ===');
+      console.log('Raw request.retail_mup:', request.retail_mup, typeof request.retail_mup);
+      console.log('Parsed purchasePrice:', purchasePrice, typeof purchasePrice);
+      console.log('Before calculation - list_price:', request.list_price);
+      console.log('Calculation:', `${purchasePrice} * ${request.retail_mup} = ${purchasePrice * request.retail_mup}`);
+
+      if (purchasePrice > 0) {
+        const newListPrice = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
+        const newRRP = parseFloat((newListPrice * 1.1).toFixed(2));
+
+        console.log('New values calculated:');
+        console.log('- list_price:', newListPrice);
+        console.log('- rrp:', newRRP);
+
+        request.list_price = newListPrice;
+        request.rrp = newRRP;
+        // Update client fields
+        request.client_price = request.list_price;
+        request.client_mup = request.retail_mup;
+
+        console.log('After assignment:');
+        console.log('- request.list_price:', request.list_price);
+        console.log('- request.rrp:', request.rrp);
+        console.log('- request.client_price:', request.client_price);
+        console.log('- request.client_mup:', request.client_mup);
+        console.log('=====================================');
+
+        // Force Svelte reactivity
+        productRequests = productRequests;
+      } else {
+        console.log('Purchase price is 0 or invalid, skipping calculation');
+      }
+    } else if (changedField === 'list_price' && request.list_price !== undefined && request.list_price !== null) {
+      // When list price changes, update retail MUP and RRP
+      if (purchasePrice > 0) {
+        request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
+        request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
+        // Update client fields
+        request.client_price = request.list_price;
+        request.client_mup = request.retail_mup;
+      }
+    } else if (changedField === 'rrp' && request.rrp !== undefined && request.rrp !== null) {
+      // When RRP changes, update list_price and retail MUP
+      request.list_price = parseFloat((request.rrp / 1.1).toFixed(2));
+      if (purchasePrice > 0) {
+        request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
+        // Update client fields
+        request.client_price = request.list_price;
+        request.client_mup = request.retail_mup;
+      }
+    } else {
+      // Default behavior: Calculate from purchase price and retail MUP if available
+      const retailMup = parseFloat(request.retail_mup?.toString() || '0');
+      if (purchasePrice && retailMup) {
+        request.list_price = parseFloat((purchasePrice * retailMup).toFixed(2));
+        request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
+        // Client price and client MUP always follow list price and retail MUP
+        request.client_price = request.list_price;
+        request.client_mup = request.retail_mup;
+        // Force Svelte reactivity
+        productRequests = productRequests;
+      }
     }
 
     // Ensure all values are properly formatted to 2 decimal places
@@ -119,7 +175,8 @@
     if (request.list_price !== undefined && request.list_price !== null) request.list_price = parseFloat(request.list_price.toFixed(2));
     if (request.rrp !== undefined && request.rrp !== null) request.rrp = parseFloat(request.rrp.toFixed(2));
     if (request.client_mup) request.client_mup = parseFloat(request.client_mup.toFixed(2));
-    if (request.retail_mup) request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
+    // Don't round retail_mup to preserve decimal precision for calculations
+    // if (request.retail_mup) request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
   }
 
 
@@ -842,7 +899,7 @@
 
         // Ensure rrp has a default value if not present
         if (request.rrp === undefined || request.rrp === null) {
-          request.rrp = request.list_price || 0; // Use list_price as fallback, or 0 if that's also missing
+          request.rrp = request.list_price ? parseFloat((request.list_price * 1.1).toFixed(2)) : 0; // Use list_price * 1.1, or 0 if that's also missing
         }
       });
 
@@ -1198,7 +1255,7 @@
                   <input
                     type="number"
                     bind:value={request.retail_mup}
-                    on:input={() => calculatePrices(request)}
+                    on:input={() => calculatePrices(request, 'retail_mup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1211,7 +1268,7 @@
                   <input
                     type="number"
                     bind:value={request.list_price}
-                    on:input={() => calculatePrices(request)}
+                    on:input={() => calculatePrices(request, 'list_price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1224,6 +1281,7 @@
                   <input
                     type="number"
                     bind:value={request.rrp}
+                    on:input={() => calculatePrices(request, 'rrp')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1358,7 +1416,7 @@
                   <input
                     type="number"
                     bind:value={request.retail_mup}
-                    on:input={() => calculatePrices(request)}
+                    on:input={() => calculatePrices(request, 'retail_mup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1372,7 +1430,7 @@
                   <input
                     type="number"
                     bind:value={request.list_price}
-                    on:input={() => calculatePrices(request)}
+                    on:input={() => calculatePrices(request, 'list_price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1386,6 +1444,7 @@
                   <input
                     type="number"
                     bind:value={request.rrp}
+                    on:input={() => calculatePrices(request, 'rrp')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"

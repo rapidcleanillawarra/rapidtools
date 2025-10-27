@@ -18,6 +18,7 @@
     brand: SelectOption | null;
     supplier: SelectOption | null;
     purchasePrice: string;
+    gpm: string;
     listPrice: string;
     rrp: string;
     taxIncluded: boolean;
@@ -71,6 +72,7 @@
       brand: null,
       supplier: null,
       purchasePrice: '',
+      gpm: '',
       listPrice: '',
       rrp: '',
       taxIncluded: false,
@@ -88,6 +90,7 @@
           brand: row.brand,
           supplier: row.supplier,
           purchasePrice: row.purchasePrice,
+          gpm: row.gpm,
           listPrice: row.listPrice,
           rrp: row.rrp,
           taxIncluded: row.taxIncluded
@@ -131,10 +134,15 @@
         );
         
         if (validRows.length > 0) {
-          rows = validRows.map((row: any) => ({
-            ...row,
-            exists: false // Reset exists flag
-          }));
+          rows = validRows.map((row: any) => {
+            const processedRow = {
+              ...row,
+              exists: false // Reset exists flag
+            };
+            // Recalculate GPM for loaded data
+            processedRow.gpm = calculateGPM(processedRow.purchasePrice, processedRow.listPrice);
+            return processedRow;
+          });
           console.log('Loaded data from local storage:', validRows.length, 'rows');
           return true;
         }
@@ -496,6 +504,99 @@ For any questions or concerns, please contact the system administrator.`;
     }, 3000);
   }
 
+  // Handle Purchase Price change - update GPM
+  function handlePurchasePriceChange(event: Event, rowIndex: number) {
+    // Update GPM after a short delay to ensure the value is updated
+    setTimeout(() => updateGPM(rowIndex), 0);
+  }
+
+  // Handle List Price change - calculate RRP as List Price + 10% and update GPM
+  function handleListPriceChange(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    const listPrice = parseFloat(target.value);
+
+    if (!isNaN(listPrice) && listPrice > 0) {
+      const calculatedRRP = (listPrice * 1.10).toFixed(2);
+      rows = rows.map((row, index) =>
+        index === rowIndex
+          ? { ...row, rrp: calculatedRRP }
+          : row
+      );
+    }
+
+    // Update GPM after RRP calculation
+    setTimeout(() => updateGPM(rowIndex), 0);
+  }
+
+  // Handle List Price blur - clear RRP if List Price is empty/null
+  function handleListPriceBlur(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    const listPrice = target.value.trim();
+
+    if (!listPrice || listPrice === '') {
+      rows = rows.map((row, index) =>
+        index === rowIndex
+          ? { ...row, rrp: '' }
+          : row
+      );
+    }
+  }
+
+  // Calculate GPM (Gross Profit Margin)
+  function calculateGPM(purchasePrice: string, listPrice: string): string {
+    const purchase = parseFloat(purchasePrice);
+    const list = parseFloat(listPrice);
+
+    if (isNaN(purchase) || isNaN(list) || purchase <= 0 || list <= 0) {
+      return '';
+    }
+
+    const gpm = ((list - purchase) / list) * 100;
+    return gpm.toFixed(2);
+  }
+
+  // Update GPM for a specific row
+  function updateGPM(rowIndex: number) {
+    const row = rows[rowIndex];
+    if (row) {
+      const gpm = calculateGPM(row.purchasePrice, row.listPrice);
+      rows = rows.map((r, index) =>
+        index === rowIndex
+          ? { ...r, gpm }
+          : r
+      );
+    }
+  }
+
+  // Handle RRP change - calculate List Price as RRP - 10%
+  function handleRRPChange(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    const rrp = parseFloat(target.value);
+
+    if (!isNaN(rrp) && rrp > 0) {
+      const calculatedListPrice = (rrp / 1.10).toFixed(2);
+      rows = rows.map((row, index) =>
+        index === rowIndex
+          ? { ...row, listPrice: calculatedListPrice }
+          : row
+      );
+    }
+  }
+
+  // Handle RRP blur - clear list price if RRP is empty/null
+  function handleRRPBlur(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    const rrp = target.value.trim();
+
+    if (!rrp || rrp === '') {
+      rows = rows.map((row, index) =>
+        index === rowIndex
+          ? { ...row, listPrice: '' }
+          : row
+      );
+    }
+  }
+
   // SVG icon for delete button
   const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-5 h-5">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -547,7 +648,7 @@ For any questions or concerns, please contact the system administrator.`;
       if (pastedRows.length === 1 && pastedRows[0].length === 1) {
         const value = pastedRows[0][0];
         console.log('Single cell paste:', { value, field, rowIndex });
-        
+
         if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') {
           // Use reactive assignment to ensure UI updates
           rows = rows.map((row, index) =>
@@ -555,6 +656,36 @@ For any questions or concerns, please contact the system administrator.`;
               ? { ...row, [field]: value }
               : row
           );
+
+          // Trigger calculations for price fields
+          if (field === 'listPrice') {
+            const listPrice = parseFloat(value);
+            if (!isNaN(listPrice) && listPrice > 0) {
+              const calculatedRRP = (listPrice * 1.10).toFixed(2);
+              rows = rows.map((row, index) =>
+                index === rowIndex
+                  ? { ...row, rrp: calculatedRRP }
+                  : row
+              );
+            }
+            // Update GPM after calculations
+            setTimeout(() => updateGPM(rowIndex), 0);
+          } else if (field === 'purchasePrice') {
+            // Update GPM after purchase price change
+            setTimeout(() => updateGPM(rowIndex), 0);
+          } else if (field === 'rrp') {
+            const rrp = parseFloat(value);
+            if (!isNaN(rrp) && rrp > 0) {
+              const calculatedListPrice = (rrp / 1.10).toFixed(2);
+              rows = rows.map((row, index) =>
+                index === rowIndex
+                  ? { ...row, listPrice: calculatedListPrice }
+                  : row
+              );
+            }
+            // Update GPM after calculations
+            setTimeout(() => updateGPM(rowIndex), 0);
+          }
         }
         return;
       }
@@ -573,6 +704,28 @@ For any questions or concerns, please contact the system administrator.`;
       values.forEach((value, index) => {
         if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') {
           newRows[rowIndex + index] = { ...newRows[rowIndex + index], [field]: value };
+
+          // Trigger calculations for price fields
+          if (field === 'listPrice') {
+            const listPrice = parseFloat(value);
+            if (!isNaN(listPrice) && listPrice > 0) {
+              const calculatedRRP = (listPrice * 1.10).toFixed(2);
+              newRows[rowIndex + index] = { ...newRows[rowIndex + index], rrp: calculatedRRP };
+            }
+          } else if (field === 'rrp') {
+            const rrp = parseFloat(value);
+            if (!isNaN(rrp) && rrp > 0) {
+              const calculatedListPrice = (rrp / 1.10).toFixed(2);
+              newRows[rowIndex + index] = { ...newRows[rowIndex + index], listPrice: calculatedListPrice };
+            }
+          }
+        }
+
+        // Update GPM for price-related fields
+        if (field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') {
+          const updatedRow = newRows[rowIndex + index];
+          const gpm = calculateGPM(updatedRow.purchasePrice, updatedRow.listPrice);
+          newRows[rowIndex + index] = { ...newRows[rowIndex + index], gpm };
         }
       });
       
@@ -667,7 +820,7 @@ For any questions or concerns, please contact the system administrator.`;
       <!-- Product Rows -->
       <div class="overflow-visible">
         <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>#</div>
           <div>SKU</div>
           <div>Product Name</div>
@@ -694,6 +847,7 @@ For any questions or concerns, please contact the system administrator.`;
             </div>
           </div>
           <div>Purchase Price</div>
+          <div>GPM (%)</div>
           <div>List Price</div>
           <div>RRP</div>
           <div>
@@ -714,7 +868,7 @@ For any questions or concerns, please contact the system administrator.`;
         <div class="divide-y divide-gray-200">
           {#each rows as row, i}
             <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Row Number -->
                 <div class="mb-4 md:mb-0 flex items-center justify-center">
                   <span class="text-sm font-medium text-gray-500">{i + 1}</span>
@@ -784,10 +938,23 @@ For any questions or concerns, please contact the system administrator.`;
                   <input
                     type="number"
                     bind:value={row.purchasePrice}
+                    on:input={(e) => handlePurchasePriceChange(e, i)}
                     on:paste={(e) => handlePaste(e, i, 'purchasePrice')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="Purchase Price"
                     step="0.01"
+                  />
+                </div>
+
+                <!-- GPM -->
+                <div class="mb-4 md:mb-0">
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">GPM (%)</label>
+                  <input
+                    type="text"
+                    readonly
+                    bind:value={row.gpm}
+                    class="block w-full border-gray-300 rounded-md shadow-sm bg-gray-50 text-gray-700 sm:text-sm"
+                    placeholder="GPM (%)"
                   />
                 </div>
 
@@ -797,6 +964,8 @@ For any questions or concerns, please contact the system administrator.`;
                   <input
                     type="number"
                     bind:value={row.listPrice}
+                    on:input={(e) => handleListPriceChange(e, i)}
+                    on:blur={(e) => handleListPriceBlur(e, i)}
                     on:paste={(e) => handlePaste(e, i, 'listPrice')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="List Price"
@@ -810,6 +979,8 @@ For any questions or concerns, please contact the system administrator.`;
                   <input
                     type="number"
                     bind:value={row.rrp}
+                    on:input={(e) => handleRRPChange(e, i)}
+                    on:blur={(e) => handleRRPBlur(e, i)}
                     on:paste={(e) => handlePaste(e, i, 'rrp')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                     placeholder="RRP"

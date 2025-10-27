@@ -12,7 +12,8 @@ export interface ProductRequest {
   client_mup: number;
   retail_mup: number;
   client_price: number;
-  rrp: number;
+  list_price?: number;
+  rrp?: number;
   status: 'request' | 'approved' | 'rejected' | 'delete' | 'product_created';
   tax_included?: boolean;
   product_creation_date?: string;

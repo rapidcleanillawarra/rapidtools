@@ -99,70 +99,29 @@
     Ack: string;
   }
 
-  // Function to calculate client price and RRP
-  function calculatePrices(request: ProductRequest, source: 'mup' | 'price' = 'mup') {
+  // Function to calculate list price from retail MUP
+  function calculatePrices(request: ProductRequest) {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
+    const retailMup = parseFloat(request.retail_mup?.toString() || '0');
 
-    if (source === 'mup') {
-      // Calculate prices from MUPs
-      const clientMup = parseFloat(request.client_mup?.toString() || '0');
-      const retailMup = parseFloat(request.retail_mup?.toString() || '0');
-
-      // Calculate client price: purchase price * client MUP
-      if (purchasePrice && clientMup) {
-        request.client_price = parseFloat((purchasePrice * clientMup).toFixed(2));
-        // Force Svelte reactivity
-        productRequests = productRequests;
-      }
-
-      // Calculate RRP: purchase price * retail MUP
-      if (purchasePrice && retailMup) {
-        request.rrp = parseFloat((purchasePrice * retailMup).toFixed(2));
-        // Force Svelte reactivity
-        productRequests = productRequests;
-      }
-    } else {
-      // Calculate MUPs from prices
-      const clientPrice = parseFloat(request.client_price?.toString() || '0');
-      const rrp = parseFloat(request.rrp?.toString() || '0');
-
-      // Calculate client MUP: client price / purchase price
-      if (purchasePrice && clientPrice) {
-        request.client_mup = parseFloat((clientPrice / purchasePrice).toFixed(2));
-        // Force Svelte reactivity
-        productRequests = productRequests;
-      }
-
-      // Calculate retail MUP: RRP / purchase price
-      if (purchasePrice && rrp) {
-        request.retail_mup = parseFloat((rrp / purchasePrice).toFixed(2));
-        // Force Svelte reactivity
-        productRequests = productRequests;
-      }
+    // Calculate list_price: purchase price * retail MUP
+    if (purchasePrice && retailMup) {
+      request.list_price = parseFloat((purchasePrice * retailMup).toFixed(2));
+      // Client price and client MUP always follow list price and retail MUP
+      request.client_price = request.list_price;
+      request.client_mup = request.retail_mup;
+      // Force Svelte reactivity
+      productRequests = productRequests;
     }
 
     // Ensure all values are properly formatted to 2 decimal places
     if (request.client_price) request.client_price = parseFloat(request.client_price.toFixed(2));
-    if (request.rrp) request.rrp = parseFloat(request.rrp.toFixed(2));
+    if (request.list_price !== undefined && request.list_price !== null) request.list_price = parseFloat(request.list_price.toFixed(2));
+    if (request.rrp !== undefined && request.rrp !== null) request.rrp = parseFloat(request.rrp.toFixed(2));
     if (request.client_mup) request.client_mup = parseFloat(request.client_mup.toFixed(2));
     if (request.retail_mup) request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
   }
 
-  // Function to apply client MUP to all rows
-  function applyClientMupToAll() {
-    if (productRequests.length === 0) {
-      toastError('No data rows available');
-      return;
-    }
-    
-    productRequests = productRequests.map((req) => {
-      if (req.retail_mup && req.retail_mup > 0) {
-        req.client_mup = parseFloat((req.retail_mup - 0.05).toFixed(2));
-        calculatePrices(req);
-      }
-      return req;
-    });
-  }
 
   // Function to apply retail MUP to all rows
   function applyRetailMupToAll() {
@@ -370,6 +329,7 @@
           client_mup: request.client_mup,
           retail_mup: request.retail_mup,
           client_price: request.client_price,
+          list_price: request.list_price,
           rrp: request.rrp,
           tax_included: request.tax_included,
           requestor_email: request.requestor_email,
@@ -434,11 +394,11 @@
       const createProductUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
       // Validate all requests first
-      const invalidRequests = selectedRequests.filter(request => 
-        !request.sku || !request.product_name || !request.brand || 
-        !request.primary_supplier || !request.category || 
-        !request.purchase_price || !request.client_mup || 
-        !request.retail_mup || !request.rrp
+      const invalidRequests = selectedRequests.filter(request =>
+        !request.sku || !request.product_name || !request.brand ||
+        !request.primary_supplier || !request.category ||
+        !request.purchase_price || !request.client_mup ||
+        !request.retail_mup
       );
 
       if (invalidRequests.length > 0) {
@@ -458,10 +418,12 @@
                   Price: parseFloat(request.client_price.toString())
                 };
               } else if (group.GroupID === "1") {
-                // List Price group - use rrp
+                // List Price group - use list_price, fallback to calculated price if missing
+                const listPrice = request.list_price || (request.purchase_price && request.retail_mup ?
+                  parseFloat((request.purchase_price * request.retail_mup).toFixed(2)) : 0);
                 return {
                   Group: group.GroupID,
-                  Price: parseFloat(request.rrp.toString())
+                  Price: parseFloat(listPrice.toString())
                 };
               } else {
                 // All other groups - use client_price
@@ -479,7 +441,10 @@
               PrimarySupplier: request.primary_supplier,
               DefaultPurchasePrice: parseFloat(request.purchase_price.toString()),
               Category: parseInt(request.category, 10),
-              RRP: parseFloat(request.rrp.toString()),
+              RRP: request.rrp ? parseFloat(request.rrp.toString()) :
+                    (request.list_price ? parseFloat(request.list_price.toString()) :
+                     (request.purchase_price && request.retail_mup ?
+                       parseFloat((request.purchase_price * request.retail_mup).toFixed(2)) : 0)),
               Misc02: parseFloat(request.client_mup.toString()),
               Misc09: parseFloat(request.retail_mup.toString()),
               Active: true,
@@ -601,20 +566,31 @@
             
             // Enable Firestore update
             const docRef = doc(db, 'product_requests', request.id);
-            await updateDoc(docRef, {
+            const updateData: any = {
               status: 'product_created',
               product_creation_date: new Date().toISOString(),
               category: request.category,
               client_mup: request.client_mup,
               retail_mup: request.retail_mup,
               client_price: request.client_price,
-              rrp: request.rrp,
               tax_included: request.tax_included || false,
               approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
               approved_by_email: profile?.email || 'Unknown Email',
               inventory_id: inventoryId,
               product_already_existed: isExistingProduct
-            });
+            };
+
+            // Only include list_price if it exists
+            if (request.list_price !== undefined && request.list_price !== null) {
+              updateData.list_price = request.list_price;
+            }
+
+            // Only include rrp if it exists
+            if (request.rrp !== undefined && request.rrp !== null) {
+              updateData.rrp = request.rrp;
+            }
+
+            await updateDoc(docRef, updateData);
 
             successfulSubmits.push(isExistingProduct ? `${request.sku} (already existed)` : request.sku);
           }
@@ -848,10 +824,25 @@
       loadProductRequests(),
       searchMarkups()
     ]).then(() => {
-      // Calculate retail MUP for any requests that have RRP but no retail MUP
+      // Ensure client_mup and client_price match retail_mup and list_price for all requests
       productRequests.forEach(request => {
-        if (request.rrp && (!request.retail_mup || request.retail_mup === 0)) {
-          calculatePrices(request, 'price');
+        // Calculate list_price if it's missing but we have purchase_price and retail_mup
+        if ((request.list_price === undefined || request.list_price === null) &&
+            request.purchase_price && request.retail_mup) {
+          request.list_price = parseFloat((request.purchase_price * request.retail_mup).toFixed(2));
+        }
+
+        request.client_mup = request.retail_mup;
+        request.client_price = request.list_price || 0;
+
+        // Calculate retail MUP for any requests that have list_price but no retail MUP
+        if (request.list_price && (!request.retail_mup || request.retail_mup === 0)) {
+          calculatePrices(request);
+        }
+
+        // Ensure rrp has a default value if not present
+        if (request.rrp === undefined || request.rrp === null) {
+          request.rrp = request.list_price || 0; // Use list_price as fallback, or 0 if that's also missing
         }
       });
 
@@ -1056,7 +1047,7 @@
       <!-- Product Requests Table -->
       <div class="overflow-visible">
         <!-- Desktop Headers -->
-        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg" style="font-size: 0.7rem;">
+        <div class="hidden md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3 text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg" style="font-size: 0.7rem;">
           <div>
             <input
               type="checkbox"
@@ -1079,21 +1070,14 @@
           </div>
           <div class="table-cell price-cell">Price</div>
           <div class="table-cell price-cell">
-            Client MUP
-            <button 
-              class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
-              on:click={applyClientMupToAll}
-            >Adjust</button>
-          </div>
-          <div class="table-cell price-cell">
             Retail MUP
-            <button 
+            <button
               class="ml-2 text-blue-600 hover:text-blue-800 text-xs"
               on:click={applyRetailMupToAll}
             >Apply All</button>
           </div>
-          <div class="table-cell price-cell">Client Price</div>
           <div class="table-cell price-cell">List Price</div>
+          <div class="table-cell price-cell">RRP</div>
           <div class="table-cell">Tax Free</div>
         </div>
 
@@ -1102,7 +1086,7 @@
           {#each productRequests as request}
             <!-- Desktop View -->
             <div class="bg-white md:hover:bg-gray-50 transition-colors hidden md:block">
-              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_100px_80px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_80px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Checkbox -->
                 <div class="mb-4 md:mb-0">
                   <input
@@ -1201,20 +1185,7 @@
                   <input
                     type="number"
                     bind:value={request.purchase_price}
-                    on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    style="font-size: 0.7rem !important;"
-                    step="0.01"
-                  />
-                </div>
-
-                <!-- Client MUP -->
-                <div class="mb-4 md:mb-0 table-cell price-cell">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Client MUP</label>
-                  <input
-                    type="number"
-                    bind:value={request.client_mup}
-                    on:input={() => calculatePrices(request, 'mup')}
+                    on:input={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1227,20 +1198,20 @@
                   <input
                     type="number"
                     bind:value={request.retail_mup}
-                    on:input={() => calculatePrices(request, 'mup')}
+                    on:input={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
                   />
                 </div>
 
-                <!-- Client Price -->
+                <!-- List Price -->
                 <div class="mb-4 md:mb-0 table-cell price-cell">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Client Price</label>
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">List Price</label>
                   <input
                     type="number"
-                    bind:value={request.client_price}
-                    on:input={() => calculatePrices(request, 'price')}
+                    bind:value={request.list_price}
+                    on:input={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1249,11 +1220,10 @@
 
                 <!-- RRP -->
                 <div class="mb-4 md:mb-0 table-cell price-cell">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">List Price</label>
+                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">RRP</label>
                   <input
                     type="number"
                     bind:value={request.rrp}
-                    on:input={() => calculatePrices(request, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1266,7 +1236,7 @@
                   <input
                     type="checkbox"
                     bind:checked={request.tax_included}
-                    on:change={() => calculatePrices(request, 'mup')}
+                    on:change={() => calculatePrices(request)}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>
@@ -1374,21 +1344,7 @@
                   <input
                     type="number"
                     bind:value={request.purchase_price}
-                    on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    style="font-size: 0.7rem !important;"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div class="mobile-field">
-                <span class="mobile-label">Client MUP</span>
-                <div class="mobile-value">
-                  <input
-                    type="number"
-                    bind:value={request.client_mup}
-                    on:input={() => calculatePrices(request, 'mup')}
+                    on:input={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1402,21 +1358,7 @@
                   <input
                     type="number"
                     bind:value={request.retail_mup}
-                    on:input={() => calculatePrices(request, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                    style="font-size: 0.7rem !important;"
-                    step="0.01"
-                  />
-                </div>
-              </div>
-
-              <div class="mobile-field">
-                <span class="mobile-label">Client Price</span>
-                <div class="mobile-value">
-                  <input
-                    type="number"
-                    bind:value={request.client_price}
-                    on:input={() => calculatePrices(request, 'price')}
+                    on:input={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1429,8 +1371,21 @@
                 <div class="mobile-value">
                   <input
                     type="number"
+                    bind:value={request.list_price}
+                    on:input={() => calculatePrices(request)}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    style="font-size: 0.7rem !important;"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div class="mobile-field">
+                <span class="mobile-label">RRP</span>
+                <div class="mobile-value">
+                  <input
+                    type="number"
                     bind:value={request.rrp}
-                    on:input={() => calculatePrices(request, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1444,7 +1399,7 @@
                   <input
                     type="checkbox"
                     bind:checked={request.tax_included}
-                    on:change={() => calculatePrices(request, 'mup')}
+                    on:change={() => calculatePrices(request)}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </div>

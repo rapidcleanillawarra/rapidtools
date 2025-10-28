@@ -31,6 +31,9 @@ export interface WorkshopFormData {
   // Photos (File objects)
   photos: File[];
 
+  // Files (File objects)
+  files: File[];
+
   // Workflow tracking
   startedWith: 'form' | 'camera';
   quoteOrRepaired: 'Quote' | 'Repaired';
@@ -46,6 +49,9 @@ export interface WorkshopFormData {
 
   // Photo handling
   existingPhotoUrls?: string[];
+
+  // File handling
+  existingFileUrls?: string[];
 }
 
 // Database record interfaces
@@ -87,6 +93,9 @@ export interface WorkshopRecord {
 
   // Photo references
   photo_urls: string[];
+
+  // File references
+  file_urls: string[] | string;
 
   // Quote or Repaired
   quote_or_repaired: 'Quote' | 'Repaired';
@@ -144,8 +153,9 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       }
     }
 
-    // Upload photos first
+    // Upload photos and files first
     const photoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
+    const fileUrls = await uploadWorkshopFiles(data.files, data.clientsWorkOrder || 'workshop');
 
     // Debug optional contacts
     console.log('Optional contacts before formatting:', data.optionalContacts);
@@ -186,6 +196,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       created_by: createdByName,
       started_with: data.startedWith,
       photo_urls: photoUrls,
+      file_urls: fileUrls,
       order_id: data.order_id || null
     };
 
@@ -272,6 +283,67 @@ export async function uploadWorkshopPhotos(photos: File[], workOrder: string): P
     return uploadedUrls;
   } catch (error) {
     console.error('Error uploading photos:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload files to Supabase storage
+ */
+export async function uploadWorkshopFiles(files: File[], workOrder: string): Promise<string[]> {
+  // Make workOrder more dynamic if it's the default
+  const dynamicWorkOrder = workOrder === 'workshop'
+    ? `workshop_${Date.now().toString().slice(-6)}` // Add timestamp suffix for uniqueness
+    : workOrder;
+
+  console.log('uploadWorkshopFiles called with:', {
+    fileCount: files?.length,
+    originalWorkOrder: workOrder,
+    dynamicWorkOrder
+  });
+
+  if (!files || files.length === 0) {
+    console.log('No files to upload, returning empty array');
+    return [];
+  }
+
+  try {
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      console.log(`Uploading file ${i + 1}:`, { name: file.name, size: file.size, type: file.type });
+
+      // Generate unique filename with timestamp for each file
+      const timestamp = Date.now() + Math.random() * 1000; // Add randomness to avoid collisions
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_'); // Sanitize filename
+      const fileName = `${dynamicWorkOrder}_${timestamp}_${i + 1}_${sanitizedFileName}`;
+
+      console.log(`Generated filename for file ${i + 1}:`, fileName);
+      console.log(`Filename breakdown: workOrder=${dynamicWorkOrder}, timestamp=${Math.floor(timestamp)}, index=${i + 1}, originalName=${file.name}`);
+
+      const { data, error } = await supabase.storage
+        .from('workshop-files')
+        .upload(fileName, file);
+
+      if (error) {
+        console.error(`Error uploading file ${i + 1}:`, error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('workshop-files')
+        .getPublicUrl(fileName);
+
+      console.log(`File ${i + 1} uploaded successfully:`, urlData.publicUrl);
+      uploadedUrls.push(urlData.publicUrl);
+    }
+
+    console.log('All files uploaded successfully:', uploadedUrls);
+    return uploadedUrls;
+  } catch (error) {
+    console.error('Error uploading files:', error);
     throw error;
   }
 }
@@ -365,11 +437,17 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
  */
 export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>): Promise<WorkshopRecord> {
   try {
-    // Handle photo uploads if new photos are provided
+    // Handle photo and file uploads if new files are provided
     let photoUrls: string[] = [];
     if (data.photos && data.photos.length > 0) {
       const newPhotoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
       photoUrls = newPhotoUrls;
+    }
+
+    let fileUrls: string[] = [];
+    if (data.files && data.files.length > 0) {
+      const newFileUrls = await uploadWorkshopFiles(data.files, data.clientsWorkOrder || 'workshop');
+      fileUrls = newFileUrls;
     }
 
     // Merge with existing photo URLs if provided
@@ -379,6 +457,16 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
         existing: data.existingPhotoUrls,
         new: photoUrls.slice(data.existingPhotoUrls.length),
         merged: photoUrls
+      });
+    }
+
+    // Merge with existing file URLs if provided
+    if (data.existingFileUrls && data.existingFileUrls.length > 0) {
+      fileUrls = [...data.existingFileUrls, ...fileUrls];
+      console.log('Merged file URLs:', {
+        existing: data.existingFileUrls,
+        new: fileUrls.slice(data.existingFileUrls.length),
+        merged: fileUrls
       });
     }
 
@@ -445,11 +533,34 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
     // Note: We don't update created_by on updates as it should remain the original creator's name
 
-    // Update photo_urls if we have photos (existing or new)
-    if (photoUrls.length > 0 || (data.existingPhotoUrls && data.existingPhotoUrls.length > 0)) {
-      const finalPhotoUrls = photoUrls.length > 0 ? photoUrls : data.existingPhotoUrls || [];
+    // Update photo_urls - always update if we have existingPhotoUrls data or new photos
+    // This ensures that removed photos are properly reflected in the database
+    const hasExistingPhotos = data.existingPhotoUrls && data.existingPhotoUrls.length > 0;
+    const hasNewPhotos = photoUrls.length > 0;
+
+    if (hasNewPhotos || hasExistingPhotos || data.existingPhotoUrls !== undefined) {
+      // If we have existingPhotoUrls passed (even if empty), use the merged result
+      // If we don't have existingPhotoUrls but have new photos, use just new photos
+      // If neither, set to empty array (for when all photos are removed)
+      const finalPhotoUrls = hasExistingPhotos ? [...data.existingPhotoUrls, ...photoUrls] :
+                            hasNewPhotos ? photoUrls : [];
       updateData.photo_urls = finalPhotoUrls;
       console.log('Updating photo_urls with:', finalPhotoUrls);
+    }
+
+    // Update file_urls - always update if we have existingFileUrls data or new files
+    // This ensures that removed files are properly reflected in the database
+    const hasExistingFiles = data.existingFileUrls && data.existingFileUrls.length > 0;
+    const hasNewFiles = fileUrls.length > 0;
+
+    if (hasNewFiles || hasExistingFiles || data.existingFileUrls !== undefined) {
+      // If we have existingFileUrls passed (even if empty), use the merged result
+      // If we don't have existingFileUrls but have new files, use just new files
+      // If neither, set to empty array (for when all files are removed)
+      const finalFileUrls = hasExistingFiles ? [...data.existingFileUrls, ...fileUrls] :
+                          hasNewFiles ? fileUrls : [];
+      updateData.file_urls = finalFileUrls;
+      console.log('Updating file_urls with:', finalFileUrls);
     }
 
     const { data: workshop, error } = await supabase

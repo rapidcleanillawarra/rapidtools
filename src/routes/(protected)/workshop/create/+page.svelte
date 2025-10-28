@@ -4,9 +4,10 @@
   import { goto } from '$app/navigation';
   import CustomerDropdown from '$lib/components/CustomerDropdown.svelte';
   import PhotoManager from '$lib/components/PhotoManager.svelte';
+  import FileManager from '$lib/components/FileManager.svelte';
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
   import ContactsManager from '$lib/components/ContactsManager.svelte';
-  import type { PhotoItem, Contact } from '$lib/types/workshop';
+  import type { PhotoItem, FileItem, Contact } from '$lib/types/workshop';
   import SuccessModal from '$lib/components/SuccessModal.svelte';
   import PostSubmissionModal from '$lib/components/PostSubmissionModal.svelte';
   import type { Customer } from '$lib/services/customers';
@@ -97,6 +98,11 @@
   let photos: PhotoItem[] = [];
   let photoError = '';
   const MIN_PHOTOS_REQUIRED = 0; // Photos are now optional
+
+  // Files (always visible Files section)
+  let files: FileItem[] = [];
+  let fileError = '';
+  const MIN_FILES_REQUIRED = 0; // Files are now optional
 
   // Docket Info (new section)
   let quoteDescription: string = '';
@@ -375,6 +381,35 @@
         }));
       }
 
+      // Load existing files (they're already saved in storage)
+      // Note: We can't recreate File objects from URLs, so we'll show them differently
+      if (workshop.file_urls) {
+        // Handle both array format and JSON string format
+        let fileUrlsArray: string[] = [];
+        if (Array.isArray(workshop.file_urls)) {
+          fileUrlsArray = workshop.file_urls;
+        } else if (typeof workshop.file_urls === 'string') {
+          try {
+            fileUrlsArray = JSON.parse(workshop.file_urls);
+          } catch (error) {
+            console.warn('Failed to parse file_urls JSON:', error);
+            fileUrlsArray = [];
+          }
+        }
+
+        if (fileUrlsArray.length > 0) {
+          // Create FileItem entries with the existing file URLs
+          files = fileUrlsArray.map(url => ({
+            file: new File([], 'existing-file', { type: 'application/octet-stream' }), // Dummy file
+            url: url,
+            name: url.split('/').pop() || 'Unknown File',
+            size: 0, // We don't have the size info
+            type: 'application/octet-stream', // Default type
+            isExisting: true // Mark as existing file
+          }));
+        }
+      }
+
     } catch (error) {
       console.error('Error loading workshop:', error);
       toastError('Failed to load existing workshop. Please try again.');
@@ -468,6 +503,10 @@
     const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
     const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
 
+    // Separate new files from existing files
+    const newFiles = files.filter(f => !f.isExisting).map(f => f.file);
+    const existingFileUrls = files.filter(f => f.isExisting).map(f => f.url);
+
     // Prepare form data for update only (no status changes, no order creation)
     const formData = {
       locationOfMachine,
@@ -485,7 +524,9 @@
       selectedCustomer,
       optionalContacts: optionalContacts || [],
       photos: newPhotos,
+      files: newFiles,
       existingPhotoUrls,
+      existingFileUrls,
       startedWith,
       quoteOrRepaired: quoteOrRepair
       // Note: No status changes, no order creation for update job
@@ -629,6 +670,9 @@
     const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
     const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
 
+    // Separate new files from existing files
+    const newFiles = files.filter(f => !f.isExisting).map(f => f.file);
+    const existingFileUrls = files.filter(f => f.isExisting).map(f => f.url);
 
     // Prepare form data
     const formData = {
@@ -647,7 +691,9 @@
       selectedCustomer,
       optionalContacts: optionalContacts || [],
       photos: newPhotos,
+      files: newFiles,
       existingPhotoUrls,
+      existingFileUrls,
       startedWith,
       quoteOrRepaired: quoteOrRepair,
       // Include docket info when submitting from "to_be_quoted" status
@@ -1128,8 +1174,17 @@
     });
     photos = [];
 
+    // Clear files - only revoke URLs for new files created with URL.createObjectURL
+    files.forEach(f => {
+      if (!f.isExisting) {
+        URL.revokeObjectURL(f.url);
+      }
+    });
+    files = [];
+
     // Clear errors
     photoError = '';
+    fileError = '';
     contactError = '';
 
     // Clear success modal state
@@ -1542,8 +1597,8 @@
         </div>
       </div>
 
-      <!-- Two Column Layout for Photos and Optional Contacts -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- Single Column Layout for Photos -->
+      <div class="grid grid-cols-1 gap-6">
         <!-- Photos -->
         <div>
           <PhotoManager
@@ -1556,6 +1611,48 @@
             on:photoClick={event => openPhotoViewer(event.detail.photoIndex)}
           />
         </div>
+      </div>
+
+      <!-- Single Column Layout for Files -->
+      <div class="grid grid-cols-1 gap-6">
+        <!-- Files -->
+        <div>
+          <FileManager
+            bind:files
+            bind:error={fileError}
+            minFilesRequired={MIN_FILES_REQUIRED}
+            workshopStatus={workshopStatus}
+            on:filesUpdated={event => files = event.detail.files}
+            on:error={event => fileError = event.detail.message}
+            on:fileClick={async (event) => {
+              const file = files[event.detail.fileIndex];
+              if (file.url) {
+                // For private buckets, get a signed URL
+                try {
+                  const fileName = file.url.split('/storage/v1/object/public/workshop-files/')[1];
+                  if (fileName) {
+                    const { supabase } = await import('$lib/supabase');
+                    const { data, error } = await supabase.storage
+                      .from('workshop-files')
+                      .createSignedUrl(fileName, 3600); // 1 hour expiry
+
+                    if (error) throw error;
+                    window.open(data.signedUrl, '_blank');
+                    return;
+                  }
+                } catch (error) {
+                  console.error('Failed to create signed URL:', error);
+                }
+              }
+              // Fallback to direct URL
+              window.open(file.url, '_blank');
+            }}
+          />
+        </div>
+      </div>
+
+      <!-- Two Column Layout for Optional Contacts -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- Optional Contacts -->
         {#if optionalContacts.length > 0 || workshopStatus === 'to_be_quoted' || workshopStatus === 'new'}

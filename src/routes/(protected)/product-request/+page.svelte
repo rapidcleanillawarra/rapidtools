@@ -276,7 +276,6 @@
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Supplier</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Purchase Price</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">List Price</th>
-      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">RRP</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Tax</th>
     </tr>
   </thead>
@@ -290,7 +289,6 @@
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.supplier?.label || '-'}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.purchasePrice).toFixed(2)}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.listPrice).toFixed(2)}</td>
-      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.rrp).toFixed(2)}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">${product.taxIncluded ? 'Yes' : 'No'}</td>
     </tr>
     `).join('')}
@@ -299,7 +297,7 @@
 
       // For Teams, create a simplified ASCII table
       const teamsTable = products.map((product, index) => `
-${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(product.purchasePrice).toFixed(2)} | $${parseFloat(product.listPrice).toFixed(2)} | $${parseFloat(product.rrp).toFixed(2)} | ${product.taxIncluded ? 'Yes' : 'No'}`).join('\n');
+${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(product.purchasePrice).toFixed(2)} | $${parseFloat(product.listPrice).toFixed(2)} | ${product.taxIncluded ? 'Yes' : 'No'}`).join('\n');
 
       // Create email body with HTML formatting
       const emailBody = `
@@ -875,7 +873,7 @@ For any questions or concerns, please contact the system administrator.`;
       <!-- Product Rows -->
       <div class="overflow-visible">
         <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
+        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
           <div>#</div>
           <div>SKU</div>
           <div>Product Name</div>
@@ -904,7 +902,6 @@ For any questions or concerns, please contact the system administrator.`;
           <div>Purchase Price</div>
           <div>GPM (%)</div>
           <div>List Price</div>
-          <div>RRP</div>
           <div>
             Tax Free
             <div class="mt-1">
@@ -923,7 +920,7 @@ For any questions or concerns, please contact the system administrator.`;
         <div class="divide-y divide-gray-200">
           {#each rows as row, i}
             <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
+              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
                 <!-- Row Number -->
                 <div class="mb-4 md:mb-0 flex items-center justify-center">
                   <span class="text-sm font-medium text-gray-500">{i + 1}</span>
@@ -1030,20 +1027,6 @@ For any questions or concerns, please contact the system administrator.`;
                   />
                 </div>
 
-                <!-- RRP -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">RRP</label>
-                  <input
-                    type="number"
-                    bind:value={row.rrp}
-                    on:input={(e) => handleRRPChange(e, i)}
-                    on:blur={(e) => handleRRPBlur(e, i)}
-                    on:paste={(e) => handlePaste(e, i, 'rrp')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="RRP"
-                    step="0.01"
-                  />
-                </div>
 
                 <!-- Tax Column -->
                 <label class="mb-4 md:mb-0 flex items-center cursor-pointer">

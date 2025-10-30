@@ -99,84 +99,116 @@
     Ack: string;
   }
 
-  // Function to calculate prices with full bidirectional relationships
+  // Function to calculate prices - prioritizes the field that was changed
   function calculatePrices(request: ProductRequest, changedField?: 'retail_mup' | 'list_price' | 'rrp') {
     const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
 
-    // Handle full bidirectional relationships between retail_mup, list_price, and rrp
+    console.log(`=== CALCULATING PRICES - prioritizing ${changedField || 'general change'} ===`);
+    console.log('Input values:', {
+      purchase_price: request.purchase_price,
+      retail_mup: request.retail_mup,
+      list_price: request.list_price,
+      rrp: request.rrp
+    });
+
+    // Prioritize the field that was changed by the user
     if (changedField === 'retail_mup' && request.retail_mup !== undefined && request.retail_mup !== null) {
-      // When retail MUP changes, update list_price and RRP
-      console.log('=== RETAIL MUP CHANGE DETECTED ===');
-      console.log('Raw request.retail_mup:', request.retail_mup, typeof request.retail_mup);
-      console.log('Parsed purchasePrice:', purchasePrice, typeof purchasePrice);
-      console.log('Before calculation - list_price:', request.list_price);
-      console.log('Calculation:', `${purchasePrice} * ${request.retail_mup} = ${purchasePrice * request.retail_mup}`);
-
+      // User changed retail MUP - use it to calculate list_price and RRP
       if (purchasePrice > 0) {
-        const newListPrice = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
-        const newRRP = parseFloat((newListPrice * 1.1).toFixed(2));
-
-        console.log('New values calculated:');
-        console.log('- list_price:', newListPrice);
-        console.log('- rrp:', newRRP);
-
-        request.list_price = newListPrice;
-        request.rrp = newRRP;
-        // Update client fields
-        request.client_price = request.list_price;
-        request.client_mup = request.retail_mup;
-
-        console.log('After assignment:');
-        console.log('- request.list_price:', request.list_price);
-        console.log('- request.rrp:', request.rrp);
-        console.log('- request.client_price:', request.client_price);
-        console.log('- request.client_mup:', request.client_mup);
-        console.log('=====================================');
-
-        // Force Svelte reactivity
-        productRequests = productRequests;
-      } else {
-        console.log('Purchase price is 0 or invalid, skipping calculation');
+        request.list_price = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
+        request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
+        console.log('Prioritized retail_mup change - calculated list_price and rrp');
       }
-    } else if (changedField === 'list_price' && request.list_price !== undefined && request.list_price !== null) {
-      // When list price changes, update retail MUP and RRP
+    }
+    else if (changedField === 'list_price' && request.list_price !== undefined && request.list_price !== null) {
+      // User changed list price - use it to calculate retail MUP and RRP
       if (purchasePrice > 0) {
         request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
         request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-        // Update client fields
-        request.client_price = request.list_price;
-        request.client_mup = request.retail_mup;
+        console.log('Prioritized list_price change - calculated retail_mup and rrp');
       }
-    } else if (changedField === 'rrp' && request.rrp !== undefined && request.rrp !== null) {
-      // When RRP changes, update list_price and retail MUP
+    }
+    else if (changedField === 'rrp' && request.rrp !== undefined && request.rrp !== null) {
+      // User changed RRP - use it to calculate list_price, then retail MUP
       request.list_price = parseFloat((request.rrp / 1.1).toFixed(2));
       if (purchasePrice > 0) {
         request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
-        // Update client fields
-        request.client_price = request.list_price;
-        request.client_mup = request.retail_mup;
+        console.log('Prioritized rrp change - calculated list_price and retail_mup');
+      } else {
+        console.log('Prioritized rrp change - calculated list_price (no purchase_price for retail_mup)');
       }
-    } else {
-      // Default behavior: Calculate from purchase price and retail MUP if available
-      const retailMup = parseFloat(request.retail_mup?.toString() || '0');
-      if (purchasePrice && retailMup) {
-        request.list_price = parseFloat((purchasePrice * retailMup).toFixed(2));
-        request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-        // Client price and client MUP always follow list price and retail MUP
-        request.client_price = request.list_price;
-        request.client_mup = request.retail_mup;
-        // Force Svelte reactivity
-        productRequests = productRequests;
+    }
+    else {
+      // General change (like purchase_price) or no specific field - recalculate based on available data
+      if (purchasePrice > 0) {
+        // If we have purchase_price and retail_mup, calculate others
+        if (request.retail_mup && request.retail_mup > 0) {
+          request.list_price = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
+          request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
+          console.log('General calc: used purchase_price + retail_mup');
+        }
+        // If we have purchase_price and list_price, calculate others
+        else if (request.list_price && request.list_price > 0) {
+          request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
+          request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
+          console.log('General calc: used purchase_price + list_price');
+        }
+        // Default case with purchase_price
+        else {
+          request.retail_mup = 1.0; // Default markup
+          request.list_price = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
+          request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
+          console.log('General calc: set defaults with purchase_price');
+        }
+      }
+      // If no purchase_price but we have RRP, calculate backwards
+      else if (request.rrp && request.rrp > 0) {
+        request.list_price = parseFloat((request.rrp / 1.1).toFixed(2));
+        console.log('General calc: calculated list_price from rrp (no purchase_price)');
       }
     }
 
+    // Always update client fields to match the main fields
+    request.client_price = request.list_price || 0.00;
+    request.client_mup = request.retail_mup || 1.0;
+
+    console.log('Final calculated values:', {
+      retail_mup: request.retail_mup,
+      list_price: request.list_price,
+      rrp: request.rrp,
+      client_price: request.client_price,
+      client_mup: request.client_mup
+    });
+    console.log('=====================================');
+
+    // Force Svelte reactivity
+    productRequests = productRequests;
+
     // Ensure all values are properly formatted to 2 decimal places
-    if (request.client_price) request.client_price = parseFloat(request.client_price.toFixed(2));
-    if (request.list_price !== undefined && request.list_price !== null) request.list_price = parseFloat(request.list_price.toFixed(2));
-    if (request.rrp !== undefined && request.rrp !== null) request.rrp = parseFloat(request.rrp.toFixed(2));
-    if (request.client_mup) request.client_mup = parseFloat(request.client_mup.toFixed(2));
-    // Don't round retail_mup to preserve decimal precision for calculations
-    // if (request.retail_mup) request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
+    if (request.purchase_price !== undefined && request.purchase_price !== null) {
+      request.purchase_price = parseFloat(request.purchase_price.toFixed(2));
+    }
+    if (request.retail_mup !== undefined && request.retail_mup !== null) {
+      request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
+    }
+    if (request.list_price !== undefined && request.list_price !== null) {
+      request.list_price = parseFloat(request.list_price.toFixed(2));
+    } else {
+      request.list_price = 0.00;
+    }
+    if (request.rrp !== undefined && request.rrp !== null) {
+      request.rrp = parseFloat(request.rrp.toFixed(2));
+    } else {
+      request.rrp = 0.00;
+    }
+    if (request.client_price !== undefined && request.client_price !== null) {
+      request.client_price = parseFloat(request.client_price.toFixed(2));
+    } else {
+      request.client_price = 0.00;
+    }
+    if (request.client_mup !== undefined && request.client_mup !== null) {
+      request.client_mup = parseFloat(request.client_mup.toFixed(2));
+    }
   }
 
 
@@ -901,6 +933,9 @@
         if (request.rrp === undefined || request.rrp === null) {
           request.rrp = request.list_price ? parseFloat((request.list_price * 1.1).toFixed(2)) : 0; // Use list_price * 1.1, or 0 if that's also missing
         }
+
+        // Ensure all price fields are properly formatted to 2 decimal places
+        calculatePrices(request);
       });
 
       loading = false;
@@ -1242,7 +1277,7 @@
                   <input
                     type="number"
                     bind:value={request.purchase_price}
-                    on:input={() => calculatePrices(request)}
+                    on:blur={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1255,7 +1290,7 @@
                   <input
                     type="number"
                     bind:value={request.retail_mup}
-                    on:input={() => calculatePrices(request, 'retail_mup')}
+                    on:blur={() => calculatePrices(request, 'retail_mup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1268,7 +1303,7 @@
                   <input
                     type="number"
                     bind:value={request.list_price}
-                    on:input={() => calculatePrices(request, 'list_price')}
+                    on:blur={() => calculatePrices(request, 'list_price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1281,7 +1316,7 @@
                   <input
                     type="number"
                     bind:value={request.rrp}
-                    on:input={() => calculatePrices(request, 'rrp')}
+                    on:blur={() => calculatePrices(request, 'rrp')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1402,7 +1437,7 @@
                   <input
                     type="number"
                     bind:value={request.purchase_price}
-                    on:input={() => calculatePrices(request)}
+                    on:blur={() => calculatePrices(request)}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1416,7 +1451,7 @@
                   <input
                     type="number"
                     bind:value={request.retail_mup}
-                    on:input={() => calculatePrices(request, 'retail_mup')}
+                    on:blur={() => calculatePrices(request, 'retail_mup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1430,7 +1465,7 @@
                   <input
                     type="number"
                     bind:value={request.list_price}
-                    on:input={() => calculatePrices(request, 'list_price')}
+                    on:blur={() => calculatePrices(request, 'list_price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"
@@ -1444,7 +1479,7 @@
                   <input
                     type="number"
                     bind:value={request.rrp}
-                    on:input={() => calculatePrices(request, 'rrp')}
+                    on:blur={() => calculatePrices(request, 'rrp')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     style="font-size: 0.7rem !important;"
                     step="0.01"

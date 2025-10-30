@@ -455,36 +455,14 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
 export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>): Promise<WorkshopRecord> {
   try {
     // Handle photo and file uploads if new files are provided
-    let photoUrls: string[] = [];
+    let newPhotoUrls: string[] = [];
     if (data.photos && data.photos.length > 0) {
-      const newPhotoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
-      photoUrls = newPhotoUrls;
+      newPhotoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
     }
 
-    let fileUrls: string[] = [];
+    let newFileUrls: string[] = [];
     if (data.files && data.files.length > 0) {
-      const newFileUrls = await uploadWorkshopFiles(data.files, data.clientsWorkOrder || 'workshop');
-      fileUrls = newFileUrls;
-    }
-
-    // Merge with existing photo URLs if provided
-    if (data.existingPhotoUrls && data.existingPhotoUrls.length > 0) {
-      photoUrls = [...data.existingPhotoUrls, ...photoUrls];
-      console.log('Merged photo URLs:', {
-        existing: data.existingPhotoUrls,
-        new: photoUrls.slice(data.existingPhotoUrls.length),
-        merged: photoUrls
-      });
-    }
-
-    // Merge with existing file URLs if provided
-    if (data.existingFileUrls && data.existingFileUrls.length > 0) {
-      fileUrls = [...data.existingFileUrls, ...fileUrls];
-      console.log('Merged file URLs:', {
-        existing: data.existingFileUrls,
-        new: fileUrls.slice(data.existingFileUrls.length),
-        merged: fileUrls
-      });
+      newFileUrls = await uploadWorkshopFiles(data.files, data.clientsWorkOrder || 'workshop');
     }
 
     // Debug optional contacts
@@ -557,7 +535,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
     // Update photo_urls - only update when there are actual changes
     const hasExistingPhotos = data.existingPhotoUrls && data.existingPhotoUrls.length > 0;
-    const hasNewPhotos = photoUrls.length > 0;
+    const hasNewPhotos = newPhotoUrls.length > 0;
 
     // Only update photo_urls if:
     // 1. There are new photos to upload (merge with existing)
@@ -567,10 +545,10 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
       if (hasNewPhotos && hasExistingPhotos) {
         // Merge new photos with existing photos
-        finalPhotoUrls = [...data.existingPhotoUrls, ...photoUrls];
+        finalPhotoUrls = [...data.existingPhotoUrls, ...newPhotoUrls];
       } else if (hasNewPhotos && !hasExistingPhotos) {
         // Only new photos
-        finalPhotoUrls = photoUrls;
+        finalPhotoUrls = newPhotoUrls;
       } else if (!hasNewPhotos && data.existingPhotoUrls !== undefined) {
         // No new photos, use existing photos as-is (or empty if clearing)
         finalPhotoUrls = data.existingPhotoUrls || [];
@@ -581,13 +559,13 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
         hasNewPhotos,
         hasExistingPhotos,
         existingPhotoUrlsLength: data.existingPhotoUrls?.length || 0,
-        newPhotoUrlsLength: photoUrls.length
+        newPhotoUrlsLength: newPhotoUrls.length
       });
     }
 
     // Update file_urls - only update when there are actual changes
     const hasExistingFiles = data.existingFileUrls && data.existingFileUrls.length > 0;
-    const hasNewFiles = fileUrls.length > 0;
+    const hasNewFiles = newFileUrls.length > 0;
 
     // Only update file_urls if:
     // 1. There are new files to upload (merge with existing)
@@ -597,10 +575,10 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
       if (hasNewFiles && hasExistingFiles) {
         // Merge new files with existing files
-        finalFileUrls = [...data.existingFileUrls, ...fileUrls];
+        finalFileUrls = [...data.existingFileUrls, ...newFileUrls];
       } else if (hasNewFiles && !hasExistingFiles) {
         // Only new files
-        finalFileUrls = fileUrls;
+        finalFileUrls = newFileUrls;
       } else if (!hasNewFiles && data.existingFileUrls !== undefined) {
         // No new files, use existing files as-is (or empty if clearing)
         finalFileUrls = data.existingFileUrls || [];
@@ -611,7 +589,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
         hasNewFiles,
         hasExistingFiles,
         existingFileUrlsLength: data.existingFileUrls?.length || 0,
-        newFileUrlsLength: fileUrls.length
+        newFileUrlsLength: newFileUrls.length
       });
     }
 

@@ -41,6 +41,14 @@ export interface WorkshopFormData {
   // Docket info (for "to_be_quoted" status submissions)
   docket_info?: any; // JSONB field for docket information
 
+  // Comments
+  comments?: Array<{
+    id: string;
+    text: string;
+    author: string;
+    created_at: string;
+  }>;
+
   // API data
   customerApiData?: any;
   orderApiData?: any;
@@ -105,6 +113,14 @@ export interface WorkshopRecord {
 
   // Docket information (JSONB)
   docket_info?: any;
+
+  // Comments (JSONB)
+  comments?: Array<{
+    id: string;
+    text: string;
+    author: string;
+    created_at: string;
+  }> | any;
 }
 
 export interface WorkshopPhoto {
@@ -197,7 +213,8 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       started_with: data.startedWith,
       photo_urls: photoUrls,
       file_urls: fileUrls,
-      order_id: data.order_id || null
+      order_id: data.order_id || null,
+      comments: data.comments || []
     };
 
     console.log('Inserting workshop data:', JSON.stringify(workshopData, null, 2));
@@ -508,6 +525,11 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       updated_at: new Date().toISOString()
     };
 
+    // Add comments if provided
+    if (data.comments !== undefined) {
+      updateData.comments = data.comments;
+    }
+
     // Add order_id if provided
     if (data.order_id !== undefined) {
       updateData.order_id = data.order_id;
@@ -533,34 +555,64 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
     // Note: We don't update created_by on updates as it should remain the original creator's name
 
-    // Update photo_urls - always update if we have existingPhotoUrls data or new photos
-    // This ensures that removed photos are properly reflected in the database
+    // Update photo_urls - only update when there are actual changes
     const hasExistingPhotos = data.existingPhotoUrls && data.existingPhotoUrls.length > 0;
     const hasNewPhotos = photoUrls.length > 0;
 
-    if (hasNewPhotos || hasExistingPhotos || data.existingPhotoUrls !== undefined) {
-      // If we have existingPhotoUrls passed (even if empty), use the merged result
-      // If we don't have existingPhotoUrls but have new photos, use just new photos
-      // If neither, set to empty array (for when all photos are removed)
-      const finalPhotoUrls = hasExistingPhotos ? [...data.existingPhotoUrls, ...photoUrls] :
-                            hasNewPhotos ? photoUrls : [];
+    // Only update photo_urls if:
+    // 1. There are new photos to upload (merge with existing)
+    // 2. existingPhotoUrls is explicitly provided (even if empty, to allow clearing photos)
+    if (hasNewPhotos || data.existingPhotoUrls !== undefined) {
+      let finalPhotoUrls: string[] = [];
+
+      if (hasNewPhotos && hasExistingPhotos) {
+        // Merge new photos with existing photos
+        finalPhotoUrls = [...data.existingPhotoUrls, ...photoUrls];
+      } else if (hasNewPhotos && !hasExistingPhotos) {
+        // Only new photos
+        finalPhotoUrls = photoUrls;
+      } else if (!hasNewPhotos && data.existingPhotoUrls !== undefined) {
+        // No new photos, use existing photos as-is (or empty if clearing)
+        finalPhotoUrls = data.existingPhotoUrls || [];
+      }
+
       updateData.photo_urls = finalPhotoUrls;
-      console.log('Updating photo_urls with:', finalPhotoUrls);
+      console.log('Updating photo_urls with:', finalPhotoUrls, {
+        hasNewPhotos,
+        hasExistingPhotos,
+        existingPhotoUrlsLength: data.existingPhotoUrls?.length || 0,
+        newPhotoUrlsLength: photoUrls.length
+      });
     }
 
-    // Update file_urls - always update if we have existingFileUrls data or new files
-    // This ensures that removed files are properly reflected in the database
+    // Update file_urls - only update when there are actual changes
     const hasExistingFiles = data.existingFileUrls && data.existingFileUrls.length > 0;
     const hasNewFiles = fileUrls.length > 0;
 
-    if (hasNewFiles || hasExistingFiles || data.existingFileUrls !== undefined) {
-      // If we have existingFileUrls passed (even if empty), use the merged result
-      // If we don't have existingFileUrls but have new files, use just new files
-      // If neither, set to empty array (for when all files are removed)
-      const finalFileUrls = hasExistingFiles ? [...data.existingFileUrls, ...fileUrls] :
-                          hasNewFiles ? fileUrls : [];
+    // Only update file_urls if:
+    // 1. There are new files to upload (merge with existing)
+    // 2. existingFileUrls is explicitly provided (even if empty, to allow clearing files)
+    if (hasNewFiles || data.existingFileUrls !== undefined) {
+      let finalFileUrls: string[] = [];
+
+      if (hasNewFiles && hasExistingFiles) {
+        // Merge new files with existing files
+        finalFileUrls = [...data.existingFileUrls, ...fileUrls];
+      } else if (hasNewFiles && !hasExistingFiles) {
+        // Only new files
+        finalFileUrls = fileUrls;
+      } else if (!hasNewFiles && data.existingFileUrls !== undefined) {
+        // No new files, use existing files as-is (or empty if clearing)
+        finalFileUrls = data.existingFileUrls || [];
+      }
+
       updateData.file_urls = finalFileUrls;
-      console.log('Updating file_urls with:', finalFileUrls);
+      console.log('Updating file_urls with:', finalFileUrls, {
+        hasNewFiles,
+        hasExistingFiles,
+        existingFileUrlsLength: data.existingFileUrls?.length || 0,
+        newFileUrlsLength: fileUrls.length
+      });
     }
 
     const { data: workshop, error } = await supabase

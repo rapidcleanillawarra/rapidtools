@@ -49,6 +49,12 @@ export interface WorkshopFormData {
   orderApiData?: any;
   order_id?: string | null;
   status?: JobStatus;
+  comments?: Array<{
+    id: string;
+    text: string;
+    author: string;
+    created_at: string;
+  }>;
 }
 
 export interface ValidationResult {

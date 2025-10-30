@@ -14,9 +14,11 @@
   import { getCustomerDisplayName } from '$lib/services/customers';
   import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop } from '$lib/services/workshop';
   import { fetchCustomerData, createOrder } from '$lib/services/maropost';
+  import { onMount, onDestroy } from 'svelte';
   import { validateWorkshopForm } from '$lib/utils/validation';
   import { page } from '$app/stores';
   import { currentUser } from '$lib/firebase';
+  import { userProfile, fetchUserProfile } from '$lib/userProfile';
   import { get, writable } from 'svelte/store';
   import { toastError, toastSuccess, toastInfo } from '$lib/utils/toast';
 
@@ -138,6 +140,15 @@
   let additionalInformation: string = '';
   let labour: string = '';
 
+  // Comments
+  let comments: Array<{
+    id: string;
+    text: string;
+    author: string;
+    created_at: string;
+  }> = [];
+  let newComment: string = '';
+
   // Photo viewer modal state
   let showPhotoViewer = false;
   let currentPhotoIndex = 0;
@@ -202,6 +213,33 @@
 
   // Store for submit button text to ensure reactivity
   const submitButtonTextStore = writable('Loading...');
+
+  // Subscribe to user profile
+  let profile: import('$lib/userProfile').UserProfile | null = null;
+  const unsubUserProfile = userProfile.subscribe(value => {
+    profile = value;
+  });
+
+  // Load user profile on mount
+  onMount(() => {
+    const user = get(currentUser);
+    if (user) {
+      loadUserProfile(user.uid);
+    }
+  });
+
+  // Cleanup subscriptions on destroy
+  onDestroy(() => {
+    unsubUserProfile();
+  });
+
+  async function loadUserProfile(uid: string) {
+    try {
+      await fetchUserProfile(uid);
+    } catch (error) {
+      console.error('Error loading profile:', error);
+    }
+  }
 
   // Debug submit button text updates
   $: {
@@ -355,7 +393,7 @@
       quoteOrRepair = workshop.quote_or_repaired || 'Quote';
       startedWith = workshop.started_with || 'form';
 
-      // Load docket info if available
+        // Load docket info if available
       if (workshop.docket_info) {
         quoteDescription = workshop.docket_info.quoteDescription || '';
         additionalInformation = workshop.docket_info.additionalInformation || '';
@@ -368,6 +406,25 @@
         if (parts.length === 0) {
           parts = [{ sku: '', quantity: '' }];
         }
+      }
+
+      // Load comments if available
+      if (workshop.comments) {
+        // Handle both array format and JSON string format
+        if (Array.isArray(workshop.comments)) {
+          comments = workshop.comments;
+        } else if (typeof workshop.comments === 'string') {
+          try {
+            comments = JSON.parse(workshop.comments);
+          } catch (error) {
+            console.warn('Failed to parse comments JSON:', error);
+            comments = [];
+          }
+        } else {
+          comments = [];
+        }
+      } else {
+        comments = [];
       }
 
       // Load existing photos (they're already saved in storage)
@@ -528,7 +585,8 @@
       existingPhotoUrls,
       existingFileUrls,
       startedWith,
-      quoteOrRepaired: quoteOrRepair
+      quoteOrRepaired: quoteOrRepair,
+      comments
       // Note: No status changes, no order creation for update job
     };
 
@@ -696,6 +754,7 @@
       existingFileUrls,
       startedWith,
       quoteOrRepaired: quoteOrRepair,
+      comments,
       // Include docket info when submitting from "to_be_quoted" status
       ...(existingWorkshopId && workshopStatus === 'to_be_quoted' && {
         docket_info: {
@@ -1120,6 +1179,32 @@
   // Debug reactive store subscription
   $: console.log('Store subscription updated - submitButtonText:', submitButtonText, 'timestamp:', new Date().toISOString());
 
+  function addComment() {
+    if (!newComment.trim()) return;
+
+    // Get current user
+    const user = get(currentUser);
+    if (!user) {
+      toastError('You must be logged in to add comments');
+      return;
+    }
+
+    // Use profile name if available, otherwise fallback to email or display name
+    const authorName = profile
+      ? `${profile.firstName} ${profile.lastName}`.trim()
+      : user.displayName || user.email?.split('@')[0] || 'Unknown User';
+
+    const comment = {
+      id: Date.now().toString(), // Simple ID based on timestamp
+      text: newComment.trim(),
+      author: authorName,
+      created_at: new Date().toISOString()
+    };
+
+    comments = [...comments, comment];
+    newComment = ''; // Clear the input
+  }
+
   function getSubmitButtonLoadingText() {
     // Use centralized job status logic
     if (currentJobStatus.canPickup) {
@@ -1186,6 +1271,10 @@
     photoError = '';
     fileError = '';
     contactError = '';
+
+    // Clear comments
+    comments = [];
+    newComment = '';
 
     // Clear success modal state
     showSuccessModal = false;
@@ -1830,6 +1919,78 @@
 
         </div>
       {/if}
+
+      <!-- Comments Section -->
+      <div class="grid grid-cols-1 gap-6">
+        <div>
+          <div
+            class="flex items-center justify-between px-4 py-3 rounded"
+            style="background-color: rgb(30, 30, 30);"
+          >
+            <h2 class="font-medium text-white">Comments</h2>
+            {#if comments.length > 0}
+              <span class="text-white text-sm bg-gray-600 px-2 py-1 rounded-full">
+                {comments.length} comment{comments.length !== 1 ? 's' : ''}
+              </span>
+            {/if}
+          </div>
+
+          <div class="mt-4 space-y-4">
+            <!-- Existing Comments -->
+            {#if comments.length > 0}
+              <div class="space-y-3">
+                {#each comments as comment (comment.id)}
+                  <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-start justify-between">
+                      <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="font-medium text-gray-900">{comment.author}</span>
+                          <span class="text-xs text-gray-500">
+                            {new Date(comment.created_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                        <p class="text-gray-700 whitespace-pre-wrap">{comment.text}</p>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+
+            <!-- Add New Comment -->
+            <div class="bg-white border border-gray-300 rounded-lg p-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2" for="new-comment">
+                Add Comment
+              </label>
+              <div class="space-y-3">
+                <textarea
+                  id="new-comment"
+                  rows="3"
+                  bind:value={newComment}
+                  class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter your comment..."
+                ></textarea>
+                <div class="flex justify-end">
+                  <button
+                    type="button"
+                    on:click={addComment}
+                    disabled={!newComment.trim()}
+                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 transition-colors"
+                  >
+                    Add Comment
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="flex justify-end gap-3">
         <a href="{base}/workshop/workshop-board" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>

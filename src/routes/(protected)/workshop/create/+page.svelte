@@ -149,6 +149,15 @@
   }> = [];
   let newComment: string = '';
 
+  // History
+  let history: Array<{
+    id: string;
+    timestamp: string;
+    user: string;
+    status: string;
+    isCreation?: boolean;
+  }> = [];
+
   // Photo viewer modal state
   let showPhotoViewer = false;
   let currentPhotoIndex = 0;
@@ -427,6 +436,25 @@
         comments = [];
       }
 
+      // Load history if available
+      if (workshop.history) {
+        // Handle both array format and JSON string format
+        if (Array.isArray(workshop.history)) {
+          history = workshop.history;
+        } else if (typeof workshop.history === 'string') {
+          try {
+            history = JSON.parse(workshop.history);
+          } catch (error) {
+            console.warn('Failed to parse history JSON:', error);
+            history = [];
+          }
+        } else {
+          history = [];
+        }
+      } else {
+        history = [];
+      }
+
       // Load existing photos (they're already saved in storage)
       // Note: We can't recreate File objects from URLs, so we'll show them differently
       if (workshop.photo_urls && workshop.photo_urls.length > 0) {
@@ -556,6 +584,9 @@
     // Start submission
     isSubmitting = true;
 
+    // Track history for update job (no status change for updates)
+    // Note: Updates don't change status, so we don't add history entries for them
+
     // Separate new photos from existing photos
     const newPhotos = photos.filter(p => !p.isExisting).map(p => p.file);
     const existingPhotoUrls = photos.filter(p => p.isExisting).map(p => p.url);
@@ -589,6 +620,9 @@
       comments
       // Note: No status changes, no order creation for update job
     };
+
+    // Add history to formData (preserve existing history)
+    (formData as any).history = history;
 
     // Get current user
     const user = get(currentUser);
@@ -787,40 +821,55 @@
     if (workshopStatus === 'new' || !existingWorkshopId) {
       if (action === 'Pickup') {
         (formData as any).status = 'pickup';
+        addHistoryEntry('pickup', true); // true = isCreation
       } else if (action === 'Repair') {
         (formData as any).status = 'booked_in_for_repair_service';
+        addHistoryEntry('booked_in_for_repair_service', true); // true = isCreation
       } else if (action === 'Deliver to Workshop') {
         (formData as any).status = 'deliver_to_workshop';
+        addHistoryEntry('deliver_to_workshop', true); // true = isCreation
       }
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
       wasPickupJob = true;
+      addHistoryEntry('to_be_quoted', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
       // For existing "to_be_quoted" jobs, change status to docket_ready
       (formData as any).status = 'docket_ready';
+      addHistoryEntry('docket_ready', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'docket_ready') {
       // For existing "docket_ready" jobs, change status to quoted or repaired based on quoteOrRepair field
       (formData as any).status = quoteOrRepair === 'Quote' ? 'quoted' : 'repaired';
+      addHistoryEntry(quoteOrRepair === 'Quote' ? 'quoted' : 'repaired', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'quoted') {
       // For existing "quoted" jobs, change status to waiting_approval_po
       (formData as any).status = 'waiting_approval_po';
+      addHistoryEntry('waiting_approval_po', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
       // For existing "waiting_approval_po" jobs, change status to waiting_for_parts
       (formData as any).status = 'waiting_for_parts';
+      addHistoryEntry('waiting_for_parts', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'waiting_for_parts') {
       // For existing "waiting_for_parts" jobs, change status to booked_in_for_repair_service
       (formData as any).status = 'booked_in_for_repair_service';
+      addHistoryEntry('booked_in_for_repair_service', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'booked_in_for_repair_service') {
       // For existing "booked_in_for_repair_service" jobs, change status to repaired
       (formData as any).status = 'repaired';
+      addHistoryEntry('repaired', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'repaired') {
       // For existing "repaired" jobs, change status to return
       (formData as any).status = 'return';
+      addHistoryEntry('return', false); // false = status change
     } else {
       // Default: set to "to_be_quoted"
       (formData as any).status = 'to_be_quoted';
+      addHistoryEntry('to_be_quoted', !existingWorkshopId); // true if new job, false if status change
     }
+
+    // Add history to formData after all history entries have been added
+    (formData as any).history = history;
 
     // Submit to Supabase - either create new or update existing
     const submitPromise = existingWorkshopId
@@ -1204,6 +1253,28 @@
     comments = [...comments, comment];
     newComment = ''; // Clear the input
   }
+
+  function addHistoryEntry(status: string, isCreation: boolean = false) {
+    // Get current user
+    const user = get(currentUser);
+    if (!user) return;
+
+    // Use profile name if available, otherwise fallback to email or display name
+    const userName = profile
+      ? `${profile.firstName} ${profile.lastName}`.trim()
+      : user.displayName || user.email?.split('@')[0] || 'Unknown User';
+
+    const historyEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      user: userName,
+      status,
+      isCreation
+    };
+
+    history = [...history, historyEntry];
+  }
+
 
   function getSubmitButtonLoadingText() {
     // Use centralized job status logic
@@ -1988,6 +2059,74 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Section -->
+      <div class="grid grid-cols-1 gap-6">
+        <div>
+          <div
+            class="flex items-center justify-between px-4 py-3 rounded"
+            style="background-color: rgb(30, 30, 30);"
+          >
+            <h2 class="font-medium text-white">History</h2>
+            {#if history.length > 0}
+              <span class="text-white text-sm bg-gray-600 px-2 py-1 rounded-full">
+                {history.length} event{history.length !== 1 ? 's' : ''}
+              </span>
+            {/if}
+          </div>
+
+          <div class="mt-4 space-y-4">
+            <!-- History Timeline -->
+            {#if history.length > 0}
+              <div class="space-y-3">
+                {#each history as historyEntry (historyEntry.id)}
+                  <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0">
+                          <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                          </div>
+                        </div>
+                        <div>
+                          <div class="flex items-center gap-2 mb-1">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {historyEntry.isCreation ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'} capitalize">
+                              {#if historyEntry.isCreation}
+                                Job Created - {historyEntry.status === 'pickup' ? 'Pickup' : historyEntry.status === 'deliver_to_workshop' ? 'Delivery' : historyEntry.status === 'booked_in_for_repair_service' ? 'Repair' : historyEntry.status.replace(/_/g, ' ')}
+                              {:else}
+                                {historyEntry.status.replace(/_/g, ' ')}
+                              {/if}
+                            </span>
+                          </div>
+                          <div class="text-xs text-gray-500">
+                            by {historyEntry.user} • {new Date(historyEntry.timestamp).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="text-center py-8">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No history yet</h3>
+                <p class="mt-1 text-sm text-gray-500">Job history will appear here as the job progresses through different stages.</p>
+              </div>
+            {/if}
           </div>
         </div>
       </div>

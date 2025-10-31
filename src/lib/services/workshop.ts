@@ -121,6 +121,15 @@ export interface WorkshopRecord {
     author: string;
     created_at: string;
   }> | any;
+
+  // History (JSONB)
+  history?: Array<{
+    id: string;
+    timestamp: string;
+    user: string;
+    status: string;
+    isCreation?: boolean;
+  }> | any;
 }
 
 export interface WorkshopPhoto {
@@ -214,7 +223,8 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       photo_urls: photoUrls,
       file_urls: fileUrls,
       order_id: data.order_id || null,
-      comments: data.comments || []
+      comments: data.comments || [],
+      history: data.history || []
     };
 
     console.log('Inserting workshop data:', JSON.stringify(workshopData, null, 2));
@@ -529,6 +539,11 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     // Add docket_info if provided (for "to_be_quoted" status submissions)
     if (data.docket_info !== undefined) {
       updateData.docket_info = data.docket_info;
+    }
+
+    // Add history if provided
+    if (data.history !== undefined) {
+      updateData.history = data.history;
     }
 
     // Note: We don't update created_by on updates as it should remain the original creator's name

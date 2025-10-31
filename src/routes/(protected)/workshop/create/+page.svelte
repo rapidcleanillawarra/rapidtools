@@ -370,6 +370,34 @@
     }
   }
 
+  // Initialize history for new jobs
+  $: if (!existingWorkshopId && (workshopStatus === 'new' || workshopStatus === null) && history.length === 0) {
+    initializeNewJobHistory();
+  }
+
+  async function initializeNewJobHistory() {
+    // Get current user
+    const user = get(currentUser);
+    if (!user) return;
+
+    // Use profile name if available, otherwise fallback to email or display name
+    const profile = get(userProfile);
+    const userName = profile
+      ? `${profile.firstName} ${profile.lastName}`.trim()
+      : user.displayName || user.email?.split('@')[0] || 'Unknown User';
+
+    // Add creation history entry for new jobs
+    const creationEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      user: userName,
+      status: 'new',
+      isCreation: true
+    };
+
+    history = [creationEntry];
+  }
+
   async function loadExistingWorkshop(workshopId: string) {
     try {
       const workshop = await getWorkshop(workshopId);
@@ -819,15 +847,21 @@
 
     // Set status based on action for new jobs
     if (workshopStatus === 'new' || !existingWorkshopId) {
+      // Only add creation history entry if not already initialized
+      const hasCreationEntry = history.some(entry => entry.status === 'new' && entry.isCreation);
+      if (!hasCreationEntry) {
+        addHistoryEntry('new', true); // true = isCreation - records who created the job
+      }
+
       if (action === 'Pickup') {
         (formData as any).status = 'pickup';
-        addHistoryEntry('pickup', true); // true = isCreation
+        addHistoryEntry('pickup', false); // false = status change (not creation)
       } else if (action === 'Repair') {
         (formData as any).status = 'booked_in_for_repair_service';
-        addHistoryEntry('booked_in_for_repair_service', true); // true = isCreation
+        addHistoryEntry('booked_in_for_repair_service', false); // false = status change (not creation)
       } else if (action === 'Deliver to Workshop') {
         (formData as any).status = 'deliver_to_workshop';
-        addHistoryEntry('deliver_to_workshop', true); // true = isCreation
+        addHistoryEntry('deliver_to_workshop', false); // false = status change (not creation)
       }
     } else if (existingWorkshopId && workshopStatus === 'pickup') {
       // For existing pickup jobs being submitted, update to "to_be_quoted"
@@ -2097,7 +2131,11 @@
                           <div class="flex items-center gap-2 mb-1">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {historyEntry.isCreation ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'} capitalize">
                               {#if historyEntry.isCreation}
-                                Job Created - {historyEntry.status === 'pickup' ? 'Pickup' : historyEntry.status === 'deliver_to_workshop' ? 'Delivery' : historyEntry.status === 'booked_in_for_repair_service' ? 'Repair' : historyEntry.status.replace(/_/g, ' ')}
+                                {#if historyEntry.status === 'new'}
+                                  Job Created
+                                {:else}
+                                  Job Created - {historyEntry.status === 'pickup' ? 'Pickup' : historyEntry.status === 'deliver_to_workshop' ? 'Delivery' : historyEntry.status === 'booked_in_for_repair_service' ? 'Repair' : historyEntry.status.replace(/_/g, ' ')}
+                                {/if}
                               {:else}
                                 {historyEntry.status.replace(/_/g, ' ')}
                               {/if}

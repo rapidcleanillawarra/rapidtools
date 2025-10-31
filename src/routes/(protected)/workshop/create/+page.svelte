@@ -730,15 +730,11 @@
 
     let shouldCreateOrder = false;
 
-    // Only create Maropost orders for existing workshops that don't already have an order
-    // New forms should never create Maropost orders
-    // Pickup submissions should never create Maropost orders
-    // Explicit check: if this is a brand new form with no existing data, never create order
-    const isNewForm = !existingWorkshopId && !workshopStatus && !existingOrderId;
+    // Only skip Maropost order creation for pickup submissions
+    // New jobs should create Maropost orders directly
+    // Existing workshops should create orders if they don't already have one
     if (isPickupSubmission) {
       // This is a pickup submission - skipping Maropost order creation
-    } else if (isNewForm) {
-      // This is a new form with no existing data - skipping Maropost order creation
     } else if (existingWorkshopId) {
       // ALWAYS check if workshop already has an order_id to prevent duplicates
       try {
@@ -756,33 +752,34 @@
         // If we can't check, err on the side of caution and don't create order
         shouldCreateOrder = false;
       }
+    } else {
+      // For new jobs, always attempt to create an order
+      shouldCreateOrder = true;
+    }
 
-      // Only fetch customer data if we're actually going to create an order
-      if (shouldCreateOrder) {
-        try {
-          customerApiData = await fetchCustomerData();
-        } catch (error) {
-          console.error('Failed to fetch customer data:', error);
-          toastError('Failed to fetch customer data. Please try again.');
-          isSubmitting = false;
-          return;
-        }
+    // Only fetch customer data and create order if we're actually going to create an order
+    if (shouldCreateOrder) {
+      try {
+        customerApiData = await fetchCustomerData();
+      } catch (error) {
+        console.error('Failed to fetch customer data:', error);
+        toastError('Failed to fetch customer data. Please try again.');
+        isSubmitting = false;
+        return;
       }
 
-      if (shouldCreateOrder) {
-        try {
-          orderApiData = await createOrder(customerApiData);
+      try {
+        orderApiData = await createOrder(customerApiData);
 
-          // Store the generated order ID for the success message
-          if (orderApiData && orderApiData.Order && orderApiData.Order.OrderID) {
-            generatedOrderId = orderApiData.Order.OrderID;
-          }
-        } catch (error) {
-          console.error('Failed to create order:', error);
-          toastError('Failed to create order. Please try again.');
-          isSubmitting = false;
-          return;
+        // Store the generated order ID for the success message
+        if (orderApiData && orderApiData.Order && orderApiData.Order.OrderID) {
+          generatedOrderId = orderApiData.Order.OrderID;
         }
+      } catch (error) {
+        console.error('Failed to create order:', error);
+        toastError('Failed to create order. Please try again.');
+        isSubmitting = false;
+        return;
       }
     }
 
@@ -830,10 +827,10 @@
           parts: parts.filter(part => part.sku.trim() || part.quantity.trim()) // Only include non-empty parts
         }
       }),
-      ...(existingWorkshopId && {
+      ...(shouldCreateOrder && generatedOrderId && {
         customerApiData,
         orderApiData,
-        order_id: generatedOrderId || null
+        order_id: generatedOrderId
       })
     };
 
@@ -921,11 +918,11 @@
 
         // Set success message based on status change
         if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Pickup') {
-          successMessage = 'Workshop created successfully as a pickup job!';
+          successMessage = `Workshop created successfully as a pickup job${generatedOrderId ? ` and order #${generatedOrderId} generated` : ''}!`;
         } else if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Repair') {
-          successMessage = 'Workshop created successfully and booked in for repair service!';
+          successMessage = `Workshop created successfully and booked in for repair service${generatedOrderId ? ` - Order #${generatedOrderId} generated` : ''}!`;
         } else if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Deliver to Workshop') {
-          successMessage = 'Workshop created successfully and scheduled for delivery to workshop!';
+          successMessage = `Workshop created successfully and scheduled for delivery to workshop${generatedOrderId ? ` - Order #${generatedOrderId} generated` : ''}!`;
         } else if (wasPickupJob) {
           successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
         } else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {

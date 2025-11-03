@@ -612,6 +612,56 @@
     // Start submission
     isSubmitting = true;
 
+    // For new jobs (jobs that don't exist in database yet), create Maropost order first
+    let shouldCreateOrder = false;
+    let generatedOrderId = '';
+    let customerApiData: any = null;
+    let orderApiData: any = null;
+
+    if (!existingWorkshopId) {
+      console.log('New job detected in handleUpdateJob - creating Maropost order first before saving to database');
+      shouldCreateOrder = true;
+
+      // Use selected customer data directly instead of fetching from API
+      if (!selectedCustomer) {
+        console.error('No customer selected for order creation');
+        toastError('Please select a customer before creating the order.');
+        isSubmitting = false;
+        return;
+      }
+
+      try {
+        console.log('Creating Maropost order for new job using selected customer:', selectedCustomer);
+        orderApiData = await createOrder(selectedCustomer);
+
+        // Store the generated order ID for the success message
+        // Handle both object and array response structures
+        let orderId = null;
+        if (orderApiData) {
+          if (orderApiData.Order) {
+            if (Array.isArray(orderApiData.Order) && orderApiData.Order.length > 0) {
+              orderId = orderApiData.Order[0].OrderID;
+            } else if (orderApiData.Order.OrderID) {
+              orderId = orderApiData.Order.OrderID;
+            }
+          }
+        }
+
+        if (orderId) {
+          generatedOrderId = orderId;
+          console.log('Maropost order created successfully with Order ID:', generatedOrderId);
+        } else {
+          console.error('Maropost order creation failed - no OrderID returned:', orderApiData);
+          throw new Error('Order creation failed - no OrderID returned');
+        }
+      } catch (error) {
+        console.error('Failed to create Maropost order for new job:', error);
+        toastError('Failed to create order. Please try again.');
+        isSubmitting = false;
+        return;
+      }
+    }
+
     // Track history for update job (no status change for updates)
     // Note: Updates don't change status, so we don't add history entries for them
 
@@ -623,7 +673,15 @@
     const newFiles = files.filter(f => !f.isExisting).map(f => f.file);
     const existingFileUrls = files.filter(f => f.isExisting).map(f => f.url);
 
-    // Prepare form data for update only (no status changes, no order creation)
+    // Debug: Log order creation status before saving
+    console.log('Preparing form data in handleUpdateJob:', {
+      existingWorkshopId,
+      shouldCreateOrder,
+      generatedOrderId,
+      hasOrderId: !!generatedOrderId
+    });
+
+    // Prepare form data for update only (no status changes, but order creation for new jobs)
     const formData = {
       locationOfMachine,
       action,
@@ -645,9 +703,20 @@
       existingFileUrls,
       startedWith,
       quoteOrRepaired: quoteOrRepair,
-      comments
-      // Note: No status changes, no order creation for update job
+      comments,
+      // Include order data for new jobs
+      ...(shouldCreateOrder && generatedOrderId && {
+        customerApiData: selectedCustomer, // Use selected customer data
+        orderApiData,
+        order_id: generatedOrderId
+      })
     };
+
+    // Debug: Log final formData to check if order_id is included
+    console.log('Final formData object in handleUpdateJob:', {
+      ...formData,
+      order_id: formData.order_id || 'NOT SET'
+    });
 
     // Add history to formData (preserve existing history)
     (formData as any).history = history;
@@ -728,15 +797,15 @@
     // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
     isPickupSubmission = !existingWorkshopId && action === 'Pickup' && siteLocation.trim() !== '';
 
+
     let shouldCreateOrder = false;
 
-    // Only skip Maropost order creation for pickup submissions
-    // New jobs should create Maropost orders directly
-    // Existing workshops should create orders if they don't already have one
-    if (isPickupSubmission) {
-      // This is a pickup submission - skipping Maropost order creation
+    // For new jobs (jobs that don't exist in database yet), ALWAYS create Maropost order first
+    if (!existingWorkshopId) {
+      console.log('New job detected - creating Maropost order first before saving to database');
+      shouldCreateOrder = true;
     } else if (existingWorkshopId) {
-      // ALWAYS check if workshop already has an order_id to prevent duplicates
+      // For existing workshops, check if they already have an order_id to prevent duplicates
       try {
         const existingWorkshop = await getWorkshop(existingWorkshopId);
 
@@ -752,13 +821,52 @@
         // If we can't check, err on the side of caution and don't create order
         shouldCreateOrder = false;
       }
-    } else {
-      // For new jobs, always attempt to create an order
-      shouldCreateOrder = true;
     }
 
-    // Only fetch customer data and create order if we're actually going to create an order
-    if (shouldCreateOrder) {
+    // For new jobs, create order first and wait for completion before proceeding
+    if (!existingWorkshopId && shouldCreateOrder) {
+      // Use selected customer data directly instead of fetching from API
+      if (!selectedCustomer) {
+        console.error('No customer selected for order creation');
+        toastError('Please select a customer before creating the order.');
+        isSubmitting = false;
+        return;
+      }
+
+      try {
+        console.log('Creating Maropost order for new job using selected customer:', selectedCustomer);
+        orderApiData = await createOrder(selectedCustomer);
+
+        // Store the generated order ID for the success message
+        // Handle both object and array response structures
+        let orderId = null;
+        if (orderApiData) {
+          if (orderApiData.Order) {
+            if (Array.isArray(orderApiData.Order) && orderApiData.Order.length > 0) {
+              orderId = orderApiData.Order[0].OrderID;
+            } else if (orderApiData.Order.OrderID) {
+              orderId = orderApiData.Order.OrderID;
+            }
+          }
+        }
+
+        if (orderId) {
+          generatedOrderId = orderId;
+          console.log('Maropost order created successfully with Order ID:', generatedOrderId);
+        } else {
+          console.error('Maropost order creation failed - no OrderID returned:', orderApiData);
+          throw new Error('Order creation failed - no OrderID returned');
+        }
+      } catch (error) {
+        console.error('Failed to create Maropost order for new job:', error);
+        toastError('Failed to create order. Please try again.');
+        isSubmitting = false;
+        return;
+      }
+    }
+
+    // For existing jobs, create order only if needed (same logic as before)
+    else if (existingWorkshopId && shouldCreateOrder) {
       try {
         customerApiData = await fetchCustomerData();
       } catch (error) {
@@ -772,8 +880,20 @@
         orderApiData = await createOrder(customerApiData);
 
         // Store the generated order ID for the success message
-        if (orderApiData && orderApiData.Order && orderApiData.Order.OrderID) {
-          generatedOrderId = orderApiData.Order.OrderID;
+        // Handle both object and array response structures
+        let orderId = null;
+        if (orderApiData) {
+          if (orderApiData.Order) {
+            if (Array.isArray(orderApiData.Order) && orderApiData.Order.length > 0) {
+              orderId = orderApiData.Order[0].OrderID;
+            } else if (orderApiData.Order.OrderID) {
+              orderId = orderApiData.Order.OrderID;
+            }
+          }
+        }
+
+        if (orderId) {
+          generatedOrderId = orderId;
         }
       } catch (error) {
         console.error('Failed to create order:', error);
@@ -790,6 +910,14 @@
     // Separate new files from existing files
     const newFiles = files.filter(f => !f.isExisting).map(f => f.file);
     const existingFileUrls = files.filter(f => f.isExisting).map(f => f.url);
+
+    // Debug: Log order creation status before saving
+    console.log('Preparing form data for database save:', {
+      existingWorkshopId,
+      shouldCreateOrder,
+      generatedOrderId,
+      hasOrderId: !!generatedOrderId
+    });
 
     // Prepare form data
     const formData = {
@@ -828,11 +956,17 @@
         }
       }),
       ...(shouldCreateOrder && generatedOrderId && {
-        customerApiData,
+        customerApiData: selectedCustomer, // Use selected customer data
         orderApiData,
         order_id: generatedOrderId
       })
     };
+
+    // Debug: Log final formData to check if order_id is included
+    console.log('Final formData object:', {
+      ...formData,
+      order_id: formData.order_id || 'NOT SET'
+    });
 
     // Get current user
     const user = get(currentUser);

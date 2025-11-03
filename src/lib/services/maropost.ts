@@ -50,12 +50,31 @@ export async function fetchCustomerData(): Promise<CustomerApiData> {
   }
 }
 
-export async function createOrder(customerApiData: CustomerApiData): Promise<OrderApiData> {
-  if (!customerApiData || !customerApiData.Customer || customerApiData.Customer.length === 0) {
+export async function createOrder(customerData: any): Promise<OrderApiData> {
+  if (!customerData) {
     throw new Error('Customer data not available for creating order');
   }
 
-  const customer = customerApiData.Customer[0];
+  console.log('createOrder received customerData:', customerData);
+
+  // Handle both API response format and direct customer object format
+  const customer = customerData.Customer && customerData.Customer.length > 0
+    ? customerData.Customer[0]
+    : customerData;
+
+  console.log('Extracted customer object:', customer);
+  console.log('Customer Username:', customer.Username);
+
+  // Validate required fields
+  if (!customer.Username) {
+    throw new Error('Customer Username is required for order creation');
+  }
+  if (!customer.BillingAddress?.BillFirstName || !customer.BillingAddress?.BillLastName) {
+    throw new Error('Customer billing name is required for order creation');
+  }
+  if (!customer.EmailAddress) {
+    throw new Error('Customer email address is required for order creation');
+  }
 
   // Generate OrderID in format: YYYYWMDDHHMMSS (Year + W + Month + Day + Hour + Minutes + Seconds)
   const now = new Date();
@@ -75,30 +94,36 @@ export async function createOrder(customerApiData: CustomerApiData): Promise<Ord
         {
           "OrderID": orderId,
           "OrderStatus": "Quote",
-          "Username": customer.Username || "joeven_customer",
-          "BillFirstName": customer.BillingAddress?.BillFirstName || "Joeven Customer",
-          "BillLastName": customer.BillingAddress?.BillLastName || "Cerveza",
-          "BillCompany": customer.BillingAddress?.BillCompany || "Rapid Clean Illawarra",
-          "BillStreet1": customer.BillingAddress?.BillStreetLine1 || "32 Crawford St.",
-          "BillStreet2": customer.BillingAddress?.BillStreetLine2 || "1148 Mountain Ash Rd",
-          "BillCity": customer.BillingAddress?.BillCity || "CANNINGTON",
-          "BillState": customer.BillingAddress?.BillState || "WA",
-          "BillPostCode": customer.BillingAddress?.BillPostCode || "6107",
-          "BillCountry": customer.BillingAddress?.BillCountry || "AU",
-          "BillPhone": customer.BillingAddress?.BillPhone || "61 2 9071 7908",
+          "Username": customer.Username || "",
+          "BillFirstName": customer.BillingAddress?.BillFirstName || "",
+          "BillLastName": customer.BillingAddress?.BillLastName || "",
+          "BillCompany": customer.BillingAddress?.BillCompany || "",
+          "BillStreet1": customer.BillingAddress?.BillStreetLine1 || "",
+          "BillStreet2": customer.BillingAddress?.BillStreetLine2 || "",
+          "BillCity": customer.BillingAddress?.BillCity || "",
+          "BillState": customer.BillingAddress?.BillState || "",
+          "BillPostCode": customer.BillingAddress?.BillPostCode || "",
+          "BillCountry": customer.BillingAddress?.BillCountry || "",
+          "BillPhone": customer.BillingAddress?.BillPhone || "",
           "BillFax": customer.BillingAddress?.BillFax || "",
-          "ShipFirstName": customer.ShippingAddress?.ShipFirstName || "Joeven Customer",
-          "ShipLastName": customer.ShippingAddress?.ShipLastName || "Cerveza",
-          "ShipCompany": customer.ShippingAddress?.ShipCompany || "Rapid Clean Illawarra",
-          "ShipStreet1": customer.ShippingAddress?.ShipStreetLine1 || "32 Crawford St.",
-          "ShipStreet2": customer.ShippingAddress?.ShipStreetLine2 || "1148 Mountain Ash Rd",
-          "ShipCity": customer.ShippingAddress?.ShipCity || "CANNINGTON",
-          "ShipState": customer.ShippingAddress?.ShipState || "WA",
-          "ShipPostCode": customer.ShippingAddress?.ShipPostCode || "6107",
-          "ShipCountry": customer.ShippingAddress?.ShipCountry || "AU",
-          "ShipPhone": customer.ShippingAddress?.ShipPhone || "61 2 9071 7908",
+          "ShipFirstName": customer.ShippingAddress?.ShipFirstName || "",
+          "ShipLastName": customer.ShippingAddress?.ShipLastName || "",
+          "ShipCompany": customer.ShippingAddress?.ShipCompany || "",
+          "ShipStreet1": customer.ShippingAddress?.ShipStreetLine1 || "",
+          "ShipStreet2": customer.ShippingAddress?.ShipStreetLine2 || "",
+          "ShipCity": customer.ShippingAddress?.ShipCity || "",
+          "ShipState": customer.ShippingAddress?.ShipState || "",
+          "ShipPostCode": customer.ShippingAddress?.ShipPostCode || "",
+          "ShipCountry": customer.ShippingAddress?.ShipCountry || "",
+          "ShipPhone": customer.ShippingAddress?.ShipPhone || "",
           "ShipFax": customer.ShippingAddress?.ShipFax || "",
-          "EmailAddress": customer.EmailAddress || "joeven_rc@gmail.com"
+          "EmailAddress": customer.EmailAddress || "",
+          "OrderLine": [
+            {
+              "SKU": "LABOR",
+              "Quantity": 1
+            }
+          ]
         }
       ],
       "action": "AddOrder"

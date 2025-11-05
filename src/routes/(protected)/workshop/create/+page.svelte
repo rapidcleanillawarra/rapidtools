@@ -713,6 +713,19 @@
       startedWith,
       quoteOrRepaired: quoteOrRepair,
       comments,
+      // Include docket info when updating from "to_be_quoted" status
+      ...(existingWorkshopId && workshopStatus === 'to_be_quoted' && {
+        docket_info: {
+          quoteOrRepair,
+          quoteDescription,
+          additionalInformation,
+          stockOnHand,
+          labour,
+          travelTime,
+          callOut,
+          parts: parts.filter(part => part.sku.trim() || part.quantity.trim()) // Only include non-empty parts
+        }
+      }),
       // Include order data for new jobs
       ...(shouldCreateOrder && generatedOrderId && {
         customerApiData: selectedCustomer, // Use selected customer data

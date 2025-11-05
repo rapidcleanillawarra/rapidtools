@@ -4,13 +4,13 @@
   import CustomerDropdown from './CustomerDropdown.svelte';
 
   export let statusFilter: string = '';
-  export let customerFilter: string = '';
+  export let searchFilter: string = '';
   export let sortBy: string = 'created_at';
   export let sortOrder: 'asc' | 'desc' = 'desc';
 
   const dispatch = createEventDispatcher<{
     statusFilterChanged: { value: string };
-    customerFilterChanged: { value: string };
+    searchFilterChanged: { value: string };
     sortByChanged: { value: string };
     sortOrderChanged: { value: 'asc' | 'desc' };
     applyFilters: void;
@@ -57,15 +57,10 @@
     dispatch('applyFilters');
   }
 
-  function handleCustomerSelect(event: any) {
-    customerFilter = event.detail ? event.detail.customer.BillingAddress.BillCompany || event.detail.customer.Name : '';
-    dispatch('customerFilterChanged', { value: customerFilter });
-    dispatch('applyFilters');
-  }
-
-  function handleCustomerClear() {
-    customerFilter = '';
-    dispatch('customerFilterChanged', { value: customerFilter });
+  function handleSearchInput(event: Event) {
+    const target = event.target as HTMLInputElement;
+    searchFilter = target.value;
+    dispatch('searchFilterChanged', { value: searchFilter });
     dispatch('applyFilters');
   }
 </script>
@@ -83,14 +78,16 @@
       />
     </div>
 
-    <!-- Customer Filter -->
+    <!-- Combined Search Filter -->
     <div>
-      <label for="customer-filter" class="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-      <CustomerDropdown
-        value={customerFilter}
-        placeholder="Search customers..."
-        on:select={handleCustomerSelect}
-        on:clear={handleCustomerClear}
+      <label for="search-filter" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+      <input
+        id="search-filter"
+        type="text"
+        bind:value={searchFilter}
+        on:input={handleSearchInput}
+        placeholder="Search customer, order ID, work order..."
+        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
       />
     </div>
 

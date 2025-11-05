@@ -34,7 +34,7 @@
 
   // Filter states
   let statusFilter = '';
-  let customerFilter = '';
+  let searchFilter = '';
   let sortBy = 'created_at';
   let sortOrder: 'asc' | 'desc' = 'desc';
 
@@ -53,7 +53,7 @@
   }
 
   function applyFilters() {
-    console.log('[APPLY_FILTERS] Starting applyFilters. Current filters:', { statusFilter, customerFilter, sortBy, sortOrder });
+    console.log('[APPLY_FILTERS] Starting applyFilters. Current filters:', { statusFilter, searchFilter, sortBy, sortOrder });
     console.log('[APPLY_FILTERS] Workshops array length:', workshops.length);
 
     let filtered = [...workshops];
@@ -66,13 +66,17 @@
       console.log('[APPLY_FILTERS] Status filter applied:', statusFilter, 'Before:', beforeStatus, 'After:', filtered.length);
     }
 
-    // Apply customer filter
-    if (customerFilter) {
-      const beforeCustomer = filtered.length;
-      filtered = filtered.filter(workshop =>
-        workshop.customer_name?.toLowerCase().includes(customerFilter.toLowerCase())
-      );
-      console.log('[APPLY_FILTERS] Customer filter applied:', customerFilter, 'Before:', beforeCustomer, 'After:', filtered.length);
+    // Apply combined search filter (customer name, order ID, work order)
+    if (searchFilter) {
+      const beforeSearch = filtered.length;
+      const searchTerm = searchFilter.toLowerCase();
+      filtered = filtered.filter(workshop => {
+        const customerMatch = workshop.customer_name?.toLowerCase().includes(searchTerm);
+        const orderIdMatch = workshop.order_id?.toLowerCase().includes(searchTerm);
+        const workOrderMatch = workshop.clients_work_order?.toLowerCase().includes(searchTerm);
+        return customerMatch || orderIdMatch || workOrderMatch;
+      });
+      console.log('[APPLY_FILTERS] Search filter applied:', searchFilter, 'Before:', beforeSearch, 'After:', filtered.length);
     }
 
     // Apply sorting
@@ -379,11 +383,11 @@
     <!-- Filters -->
     <WorkshopFilters
       bind:statusFilter
-      bind:customerFilter
+      bind:searchFilter
       bind:sortBy
       bind:sortOrder
       on:statusFilterChanged={(e) => statusFilter = e.detail.value}
-      on:customerFilterChanged={(e) => customerFilter = e.detail.value}
+      on:searchFilterChanged={(e) => searchFilter = e.detail.value}
       on:sortByChanged={(e) => sortBy = e.detail.value}
       on:sortOrderChanged={(e) => sortOrder = e.detail.value}
       on:applyFilters={applyFilters}

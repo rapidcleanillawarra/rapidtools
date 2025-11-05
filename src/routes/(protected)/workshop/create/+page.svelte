@@ -650,6 +650,11 @@
         if (orderId) {
           generatedOrderId = orderId;
           console.log('Maropost order created successfully with Order ID:', generatedOrderId);
+          
+          // Wait for order creation to complete, then call Power Automate API
+          console.log('Order creation confirmed. Now calling Power Automate API...');
+          await callPowerAutomateAPI(generatedOrderId);
+          console.log('Power Automate API call completed.');
         } else {
           console.error('Maropost order creation failed - no OrderID returned:', orderApiData);
           throw new Error('Order creation failed - no OrderID returned');
@@ -853,6 +858,11 @@
         if (orderId) {
           generatedOrderId = orderId;
           console.log('Maropost order created successfully with Order ID:', generatedOrderId);
+          
+          // Wait for order creation to complete, then call Power Automate API
+          console.log('Order creation confirmed. Now calling Power Automate API...');
+          await callPowerAutomateAPI(generatedOrderId);
+          console.log('Power Automate API call completed.');
         } else {
           console.error('Maropost order creation failed - no OrderID returned:', orderApiData);
           throw new Error('Order creation failed - no OrderID returned');
@@ -894,6 +904,12 @@
 
         if (orderId) {
           generatedOrderId = orderId;
+          console.log('Maropost order created successfully with Order ID:', generatedOrderId);
+          
+          // Wait for order creation to complete, then call Power Automate API
+          console.log('Order creation confirmed. Now calling Power Automate API...');
+          await callPowerAutomateAPI(generatedOrderId);
+          console.log('Power Automate API call completed.');
         }
       } catch (error) {
         console.error('Failed to create order:', error);
@@ -1591,6 +1607,73 @@
   function closePhotoViewer() {
     showPhotoViewer = false;
     currentPhotoIndex = 0;
+  }
+
+  /**
+   * Generates a tag payload with product name, client work order, customer name, and order ID
+   * @param {string|null} orderId - The order ID to use (if provided, otherwise uses existing/generated)
+   * @returns {Object} JSON payload object
+   */
+  function generateTag(orderId?: string | null) {
+    // Use provided orderId, or fall back to existing/generated
+    const finalOrderId = orderId || existingOrderId || generatedOrderId || null;
+
+    const payload = {
+      productName: productName || '',
+      clientsWorkOrder: clientsWorkOrder || '',
+      customerName: customerName || '',
+      orderId: finalOrderId
+    };
+
+    return payload;
+  }
+
+  /**
+   * Calls Power Automate API with the generated tag payload
+   * This function waits for the Maropost order to be created before calling Power Automate
+   * @param {string} orderId - The order ID that was just created from Maropost
+   */
+  async function callPowerAutomateAPI(orderId: string) {
+    try {
+      // Ensure we have a valid orderId before proceeding
+      if (!orderId) {
+        console.error('Cannot call Power Automate API: orderId is missing');
+        return null;
+      }
+
+      // Generate payload with the specific orderId that was just created
+      const payload = generateTag(orderId);
+      
+      // Log the payload being sent
+      console.log('Calling Power Automate API with payload:', payload);
+      console.log('Payload JSON:', JSON.stringify(payload, null, 2));
+
+      // Make sure to use POST method for Power Automate API
+      console.log('Making POST request to Power Automate API...');
+      const response = await fetch(
+        'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7df52bcd1b054f31a92f9665986fb408/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6mFQ1Q-SlB-A3SjMtqIFKbBsJgzlpx0uJevloYt-I2Y',
+        {
+          method: 'POST', // Explicitly set to POST method
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Power Automate API call failed: ${response.status} ${response.statusText}`);
+      }
+
+      const responseData = await response.json();
+      console.log('Power Automate API response:', responseData);
+      return responseData;
+    } catch (error) {
+      console.error('Error calling Power Automate API:', error);
+      // Don't throw error - we don't want to fail the whole submission if this fails
+      toastError('Failed to call Power Automate API. Order was created successfully.');
+      return null;
+    }
   }
 
 </script>

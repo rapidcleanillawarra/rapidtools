@@ -93,6 +93,7 @@ export async function createOrder(customerData: any): Promise<OrderApiData> {
       "Order": [
         {
           "OrderID": orderId,
+          "SalesChannel": "Workshop",
           "OrderStatus": "Quote",
           "Username": customer.Username || "",
           "BillFirstName": customer.BillingAddress?.BillFirstName || "",
@@ -120,7 +121,7 @@ export async function createOrder(customerData: any): Promise<OrderApiData> {
           "EmailAddress": customer.EmailAddress || "",
           "OrderLine": [
             {
-              "SKU": "LABOR",
+              "SKU": "LABOUR",
               "Quantity": 1
             }
           ]

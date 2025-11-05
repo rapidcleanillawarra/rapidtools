@@ -219,6 +219,7 @@
   let existingWorkshopId: string | null = null;
   let workshopStatus: JobStatus = null;
   let existingOrderId: string | null = null;
+  let createdAt: string | null = null;
 
   // Store for submit button text to ensure reactivity
   const submitButtonTextStore = writable('Loading...');
@@ -411,6 +412,9 @@
       // Set workshop status and order_id
       workshopStatus = workshop.status;
       existingOrderId = workshop.order_id || null;
+      createdAt = workshop.created_at || null;
+
+      console.log('📋 Loaded workshop data - order_id:', existingOrderId, 'created_at:', createdAt);
 
       // Populate form with existing workshop data
       locationOfMachine = workshop.location_of_machine || 'Site';
@@ -740,6 +744,10 @@
       } else {
         // Create new workshop
         workshop = await createWorkshop(formData, user.uid);
+        // Set createdAt for newly created workshops so the regenerate tag button works
+        if (workshop && workshop.created_at) {
+          createdAt = workshop.created_at;
+        }
       }
 
       successMessage = existingWorkshopId
@@ -1610,19 +1618,115 @@
   }
 
   /**
-   * Generates a tag payload with product name, client work order, customer name, and order ID
+   * Generates a tag payload with product name, client work order, customer name, order ID, and date issued
    * @param {string|null} orderId - The order ID to use (if provided, otherwise uses existing/generated)
-   * @returns {Object} JSON payload object
+   * @returns {Object} JSON payload object with camelCase field names
    */
   function generateTag(orderId?: string | null) {
     // Use provided orderId, or fall back to existing/generated
     const finalOrderId = orderId || existingOrderId || generatedOrderId || null;
 
+    // Convert created_at to AU Sydney timezone with full date and time
+    let dateIssued = '';
+    console.log('🔍 Generating dateIssued from createdAt:', createdAt);
+
+    if (createdAt) {
+      try {
+        console.log('🔄 Parsing createdAt:', createdAt, 'Type:', typeof createdAt);
+        const date = new Date(createdAt);
+        console.log('📅 Original created_at date:', date.toISOString());
+        console.log('📅 Date parsed successfully:', !isNaN(date.getTime()));
+
+        // Use the original UTC date - toLocaleString will handle timezone conversion
+        console.log('🇦🇺 Converting to Australia/Sydney timezone...');
+
+        // Format as "3 November 2025 at 10:10:58 pm" (matching sample payload)
+        const day = date.toLocaleDateString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          day: 'numeric'
+        });
+        const month = date.toLocaleDateString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          month: 'long'
+        });
+        const year = date.toLocaleDateString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          year: 'numeric'
+        });
+        const timeString = date.toLocaleTimeString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+
+        dateIssued = `${day} ${month} ${year} at ${timeString}`;
+        console.log('✅ Final dateIssued:', dateIssued);
+      } catch (error) {
+        console.warn('Error converting created_at to Sydney timezone:', error);
+        // Fallback to current Sydney time
+        const now = new Date();
+        console.log('⚠️ Using current time as fallback');
+
+        const day = now.toLocaleDateString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          day: 'numeric'
+        });
+        const month = now.toLocaleDateString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          month: 'long'
+        });
+        const year = now.toLocaleDateString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          year: 'numeric'
+        });
+        const timeString = now.toLocaleTimeString('en-AU', {
+          timeZone: 'Australia/Sydney',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true
+        });
+
+        dateIssued = `${day} ${month} ${year} at ${timeString}`;
+        console.log('✅ Final dateIssued (fallback):', dateIssued);
+      }
+    } else {
+      console.log('⚠️ No createdAt available, using current time as fallback');
+      // Fallback to current Sydney time if no created_at available
+      const now = new Date();
+
+      const day = now.toLocaleDateString('en-AU', {
+        timeZone: 'Australia/Sydney',
+        day: 'numeric'
+      });
+      const month = now.toLocaleDateString('en-AU', {
+        timeZone: 'Australia/Sydney',
+        month: 'long'
+      });
+      const year = now.toLocaleDateString('en-AU', {
+        timeZone: 'Australia/Sydney',
+        year: 'numeric'
+      });
+      const timeString = now.toLocaleTimeString('en-AU', {
+        timeZone: 'Australia/Sydney',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+
+      dateIssued = `${day} ${month} ${year} at ${timeString}`;
+      console.log('✅ Final dateIssued (no createdAt fallback):', dateIssued);
+    }
+
     const payload = {
       productName: productName || '',
       clientsWorkOrder: clientsWorkOrder || '',
       customerName: customerName || '',
-      orderId: finalOrderId
+      orderId: finalOrderId,
+      dateIssued: dateIssued
     };
 
     return payload;
@@ -1643,7 +1747,7 @@
 
       // Generate payload with the specific orderId that was just created
       const payload = generateTag(orderId);
-      
+
       // Log the payload being sent
       console.log('Calling Power Automate API with payload:', payload);
       console.log('Payload JSON:', JSON.stringify(payload, null, 2));
@@ -1665,14 +1769,161 @@
         throw new Error(`Power Automate API call failed: ${response.status} ${response.statusText}`);
       }
 
-      const responseData = await response.json();
-      console.log('Power Automate API response:', responseData);
-      return responseData;
+      const responseText = await response.text();
+      console.log('Power Automate API response:', responseText);
+      return responseText;
     } catch (error) {
       console.error('Error calling Power Automate API:', error);
       // Don't throw error - we don't want to fail the whole submission if this fails
       toastError('Failed to call Power Automate API. Order was created successfully.');
       return null;
+    }
+  }
+
+  /**
+   * Regenerates and sends the tag to Power Automate
+   * Can be called manually for existing workshops
+   */
+  async function regenerateAndSendTag() {
+    console.log('🔄 REGENERATE TAG BUTTON CLICKED');
+    console.log('🔍 Current createdAt value:', createdAt);
+    console.log('🔍 Current existingWorkshopId:', existingWorkshopId);
+
+    // Ensure workshop data is loaded if we have an existingWorkshopId but missing data
+    if (existingWorkshopId && (!createdAt || !existingOrderId)) {
+      console.log('📋 Workshop data not fully loaded, fetching...');
+      console.log('🔍 Missing data - createdAt:', !!createdAt, 'existingOrderId:', !!existingOrderId);
+      try {
+        await loadExistingWorkshop(existingWorkshopId);
+        console.log('✅ Workshop data loaded, createdAt:', createdAt, 'existingOrderId:', existingOrderId);
+      } catch (error) {
+        console.error('❌ Failed to load workshop data:', error);
+        toastError('Failed to load workshop data for tag regeneration');
+        return;
+      }
+    }
+
+    try {
+      // Use available order ID (button only shows when orderId exists)
+      let orderIdToUse = existingOrderId || generatedOrderId;
+      console.log('📋 Initial order ID check:', orderIdToUse);
+
+      // If no order ID available, create a new Maropost order
+      if (!orderIdToUse) {
+        console.log('📋 No order ID found, creating new Maropost order...');
+        toastInfo('Creating order for tag regeneration...');
+
+        try {
+          // Fetch customer data for order creation
+          const { fetchCustomerData, createOrder } = await import('$lib/services/maropost');
+
+          let customerApiData;
+          try {
+            customerApiData = await fetchCustomerData();
+            console.log('✅ Customer data fetched for order creation');
+          } catch (error) {
+            console.error('❌ Failed to fetch customer data:', error);
+            toastError('Failed to fetch customer data for order creation');
+            return;
+          }
+
+          // Create the order
+          const orderApiData = await createOrder(customerApiData);
+          console.log('✅ Maropost order created:', orderApiData);
+
+          // Extract the order ID
+          let newOrderId: string | null = null;
+          if (orderApiData && orderApiData.Order) {
+            if (Array.isArray(orderApiData.Order) && orderApiData.Order.length > 0 && orderApiData.Order[0]?.OrderID) {
+              newOrderId = orderApiData.Order[0].OrderID;
+            } else if (!Array.isArray(orderApiData.Order) && orderApiData.Order.OrderID) {
+              newOrderId = orderApiData.Order.OrderID;
+            }
+          }
+
+          if (newOrderId) {
+            console.log('📋 New order ID generated:', newOrderId);
+
+            // Update the workshop with the new order_id
+            try {
+              const { updateWorkshop } = await import('$lib/services/workshop');
+              await updateWorkshop(existingWorkshopId!, {
+                order_id: newOrderId!,
+                customerApiData: customerApiData,
+                orderApiData: orderApiData
+              });
+              console.log('✅ Workshop updated with new order_id');
+
+              // Set the order ID for tag generation
+              orderIdToUse = newOrderId;
+              existingOrderId = newOrderId; // Update the local variable too
+
+            } catch (updateError) {
+              console.error('❌ Failed to update workshop with order_id:', updateError);
+              toastError('Order created but failed to update workshop record');
+              return;
+            }
+          } else {
+            console.error('❌ Failed to extract order ID from Maropost response');
+            toastError('Failed to create order - no order ID returned');
+            return;
+          }
+
+        } catch (orderError) {
+          console.error('❌ Failed to create Maropost order:', orderError);
+          toastError('Failed to create order for tag regeneration');
+          return;
+        }
+      }
+
+      console.log('📋 Final order ID to use:', orderIdToUse);
+
+      // Show loading state
+      toastInfo('Regenerating and sending tag...');
+
+      // Generate the payload (orderId will be null/empty if not available)
+      const payload = generateTag(orderIdToUse);
+
+      console.log('📤 Regenerating tag with payload:', payload);
+      console.log('📤 Payload JSON:', JSON.stringify(payload, null, 2));
+
+      // Call Power Automate API
+      const response = await fetch(
+        'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7df52bcd1b054f31a92f9665986fb408/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6mFQ1Q-SlB-A3SjMtqIFKbBsJgzlpx0uJevloYt-I2Y',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Power Automate API call failed: ${response.status} ${response.statusText}`);
+      }
+
+      const responseText = await response.text();
+      console.log('📥 API Response Status:', response.status, response.statusText);
+      console.log('📥 API Response Text:', responseText);
+
+      // Success is determined by HTTP status code 200
+      if (response.status === 200) {
+        console.log('✅ Tag regeneration successful! Status:', response.status);
+      } else {
+        console.error('❌ Unexpected API response status:', response.status, responseText);
+        throw new Error(`Power Automate API failed with status ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('🎉 Tag regeneration completed successfully!');
+      const message = orderIdToUse
+        ? 'Tag regenerated and sent successfully!'
+        : 'Tag sent successfully (without order ID - for testing purposes)';
+      toastSuccess(message);
+    } catch (error) {
+      console.error('❌ Error regenerating tag:', error);
+      console.error('❌ Error details:', error instanceof Error ? error.message : 'Unknown error');
+      toastError(`Failed to regenerate tag: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -2385,6 +2636,21 @@
 
       <div class="flex justify-end gap-3">
         <a href="{base}/workshop/workshop-board" class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Cancel</a>
+
+        <!-- Regenerate Tag Button - show for all existing workshops -->
+        {#if existingWorkshopId}
+          <button
+            type="button"
+            on:click={regenerateAndSendTag}
+            disabled={isSubmitting}
+            class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+            </svg>
+            Regenerate Tag
+          </button>
+        {/if}
 
         <!-- Update Job Button - always visible for data updates only -->
         <button

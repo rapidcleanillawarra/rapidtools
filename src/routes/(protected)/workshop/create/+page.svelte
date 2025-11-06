@@ -898,14 +898,17 @@
 
     // For existing jobs, create order only if needed (same logic as before)
     else if (existingWorkshopId && shouldCreateOrder) {
-      try {
-        customerApiData = await fetchCustomerData();
-      } catch (error) {
-        console.error('Failed to fetch customer data:', error);
-        toastError('Failed to fetch customer data. Please try again.');
+      // Use selected customer data directly instead of fetching from API
+      if (!selectedCustomer) {
+        console.error('No customer selected for order creation');
+        toastError('Please select a customer before creating the order.');
         isSubmitting = false;
         return;
       }
+
+      // Use selectedCustomer directly instead of fetching
+      customerApiData = selectedCustomer;
+      console.log('Using selected customer data for existing job order creation:', customerApiData);
 
       try {
         orderApiData = await createOrder(customerApiData);
@@ -1827,18 +1830,19 @@
         toastInfo('Creating order for tag regeneration...');
 
         try {
-          // Fetch customer data for order creation
-          const { fetchCustomerData, createOrder } = await import('$lib/services/maropost');
+          // Use selected customer data for order creation
+          const { createOrder } = await import('$lib/services/maropost');
 
           let customerApiData;
-          try {
-            customerApiData = await fetchCustomerData();
-            console.log('✅ Customer data fetched for order creation');
-          } catch (error) {
-            console.error('❌ Failed to fetch customer data:', error);
-            toastError('Failed to fetch customer data for order creation');
+          // Use selectedCustomer if available, otherwise show error
+          if (!selectedCustomer) {
+            console.error('❌ No customer selected for order creation');
+            toastError('No customer selected. Cannot create order for tag regeneration.');
             return;
           }
+
+          customerApiData = selectedCustomer;
+          console.log('✅ Using selected customer data for order creation:', customerApiData);
 
           // Create the order
           const orderApiData = await createOrder(customerApiData);

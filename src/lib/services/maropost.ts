@@ -17,7 +17,11 @@ export interface OrderApiData {
 
 const MAROPOST_API_URL = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
-export async function fetchCustomerData(): Promise<CustomerApiData> {
+export async function fetchCustomerData(username: string): Promise<CustomerApiData> {
+  if (!username) {
+    throw new Error('Username is required to fetch customer data');
+  }
+
   try {
     const response = await fetch(MAROPOST_API_URL, {
       method: 'POST',
@@ -26,7 +30,7 @@ export async function fetchCustomerData(): Promise<CustomerApiData> {
       },
       body: JSON.stringify({
         "Filter": {
-          "Username": ["joeven_customer"],
+          "Username": [username],
           "OutputSelector": [
             "EmailAddress",
             "BillingAddress",
@@ -42,10 +46,10 @@ export async function fetchCustomerData(): Promise<CustomerApiData> {
     }
 
     const data: CustomerApiData = await response.json();
-    console.log('Customer API data fetched successfully:', data);
+    console.log('Customer API data fetched successfully for username:', username, data);
     return data;
   } catch (error) {
-    console.error('Error fetching customer data:', error);
+    console.error('Error fetching customer data for username:', username, error);
     throw error;
   }
 }

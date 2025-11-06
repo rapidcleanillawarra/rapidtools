@@ -713,8 +713,8 @@
       startedWith,
       quoteOrRepaired: quoteOrRepair,
       comments,
-      // Include docket info when updating from "to_be_quoted" status
-      ...(existingWorkshopId && workshopStatus === 'to_be_quoted' && {
+      // Include docket info for all statuses where docket info is visible (not 'new' and not 'pickup')
+      ...(existingWorkshopId && workshopStatus && workshopStatus !== 'new' && workshopStatus !== 'pickup' && {
         docket_info: {
           quoteOrRepair,
           quoteDescription,
@@ -982,8 +982,8 @@
       startedWith,
       quoteOrRepaired: quoteOrRepair,
       comments,
-      // Include docket info when submitting from "to_be_quoted" status
-      ...(existingWorkshopId && workshopStatus === 'to_be_quoted' && {
+      // Include docket info for all statuses where docket info is visible (not 'new' and not 'pickup')
+      ...(existingWorkshopId && workshopStatus && workshopStatus !== 'new' && workshopStatus !== 'pickup' && {
         docket_info: {
           quoteOrRepair,
           quoteDescription,

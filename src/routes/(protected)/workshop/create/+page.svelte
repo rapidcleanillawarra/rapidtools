@@ -1280,8 +1280,8 @@
     // Jobs that are ready for quoting/docket creation
     if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
       return {
-        canEditMachineInfo: false,  // Cannot edit machine info once quoted
-        canEditUserInfo: false,     // Cannot edit user info once quoted
+        canEditMachineInfo: true,   // Allow editing machine info for to_be_quoted jobs
+        canEditUserInfo: true,      // Allow editing user info for to_be_quoted jobs
         canEditContacts: true,      // Can still add contacts for quoted jobs
         canCreateOrder: !existingOrderId, // Can create order if doesn't have one
         canPickup: false,          // Quoted jobs aren't pickups

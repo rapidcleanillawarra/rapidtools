@@ -1431,9 +1431,9 @@
     // Jobs that are waiting for PO approval
     if (existingWorkshopId && workshopStatus === 'waiting_approval_po') {
       return {
-        canEditMachineInfo: false,  // Cannot edit machine info while waiting for approval
-        canEditUserInfo: false,     // Cannot edit user info while waiting for approval
-        canEditContacts: false,     // Cannot edit contacts while waiting for approval
+        canEditMachineInfo: true,   // Allow editing machine info while waiting for approval
+        canEditUserInfo: true,      // Allow editing user info while waiting for approval
+        canEditContacts: true,      // Allow editing contacts while waiting for approval
         canCreateOrder: false,      // Already processed for approval
         canPickup: false,          // Not a pickup job
         buttonText: 'Waiting For Parts',

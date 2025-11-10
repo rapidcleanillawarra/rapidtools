@@ -1397,9 +1397,9 @@
     // Jobs that have docket information ready
     if (existingWorkshopId && workshopStatus === 'docket_ready') {
       return {
-        canEditMachineInfo: false,  // Cannot edit machine info once docket is ready
-        canEditUserInfo: false,     // Cannot edit user info once docket is ready
-        canEditContacts: false,     // Cannot edit contacts once docket is ready
+        canEditMachineInfo: true,   // Allow editing machine info for docket ready jobs
+        canEditUserInfo: true,      // Allow editing user info for docket ready jobs
+        canEditContacts: true,      // Allow editing contacts for docket ready jobs
         canCreateOrder: false,      // Docket ready jobs don't create new orders
         canPickup: false,          // Docket ready jobs aren't pickups
         buttonText: quoteOrRepair === 'Quote' ? 'Quoted' : 'Repaired',

@@ -188,6 +188,31 @@
   // Customer billing info modal state
   let showCustomerBillingModal = false;
 
+  // Processing modal state (for new job creation)
+  let showProcessingModal = false;
+
+  // Processing progress tracking
+  let processingSteps = {
+    creatingOrder: { label: 'Creating Maropost Order', completed: false, inProgress: false },
+    callingPowerAutomate: { label: 'Calling Power Automate API', completed: false, inProgress: false },
+    savingWorkshop: { label: 'Saving Workshop to Database', completed: false, inProgress: false }
+  };
+
+  // Reset processing steps
+  function resetProcessingSteps() {
+    processingSteps = {
+      creatingOrder: { label: 'Creating Maropost Order', completed: false, inProgress: false },
+      callingPowerAutomate: { label: 'Calling Power Automate API', completed: false, inProgress: false },
+      savingWorkshop: { label: 'Saving Workshop to Database', completed: false, inProgress: false }
+    };
+  }
+
+  // Update processing step status
+  function updateProcessingStep(step: keyof typeof processingSteps, inProgress: boolean, completed: boolean) {
+    processingSteps[step].inProgress = inProgress;
+    processingSteps[step].completed = completed;
+  }
+
   // Pickup submission modal state
   let showPickupSubmissionModal = false;
 
@@ -245,6 +270,23 @@
   onDestroy(() => {
     unsubUserProfile();
   });
+
+  // Prevent window closing during job submission
+  let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+
+  $: {
+    if (showProcessingModal && typeof window !== 'undefined' && !beforeUnloadHandler) {
+      beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = 'Job creation is in progress. Are you sure you want to leave? Your changes may not be saved.';
+        return e.returnValue;
+      };
+      window.addEventListener('beforeunload', beforeUnloadHandler);
+    } else if (!showProcessingModal && beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', beforeUnloadHandler);
+      beforeUnloadHandler = null;
+    }
+  }
 
   async function loadUserProfile(uid: string) {
     try {
@@ -619,6 +661,13 @@
     // Start submission
     isSubmitting = true;
 
+    // Show processing modal for new job creation
+    const isNewJob = !existingWorkshopId;
+    if (isNewJob) {
+      resetProcessingSteps();
+      showProcessingModal = true;
+    }
+
     // For new jobs (jobs that don't exist in database yet), create Maropost order first
     let shouldCreateOrder = false;
     let generatedOrderId = '';
@@ -634,12 +683,15 @@
         console.error('No customer selected for order creation');
         toastError('Please select a customer before creating the order.');
         isSubmitting = false;
+        showProcessingModal = false;
         return;
       }
 
       try {
         console.log('Creating Maropost order for new job using selected customer:', selectedCustomer);
+        updateProcessingStep('creatingOrder', true, false);
         orderApiData = await createOrder(selectedCustomer);
+        updateProcessingStep('creatingOrder', false, true);
 
         // Store the generated order ID for the success message
         // Handle both object and array response structures
@@ -660,7 +712,9 @@
           
           // Wait for order creation to complete, then call Power Automate API
           console.log('Order creation confirmed. Now calling Power Automate API...');
+          updateProcessingStep('callingPowerAutomate', true, false);
           await callPowerAutomateAPI(generatedOrderId);
+          updateProcessingStep('callingPowerAutomate', false, true);
           console.log('Power Automate API call completed.');
         } else {
           console.error('Maropost order creation failed - no OrderID returned:', orderApiData);
@@ -677,6 +731,7 @@
         }
 
         isSubmitting = false;
+        showProcessingModal = false;
         return;
       }
     }
@@ -760,6 +815,7 @@
     }
 
     try {
+      updateProcessingStep('savingWorkshop', true, false);
       let workshop;
       if (existingWorkshopId) {
         // Update existing workshop
@@ -772,6 +828,8 @@
           createdAt = workshop.created_at;
         }
       }
+
+      updateProcessingStep('savingWorkshop', false, true);
 
       successMessage = existingWorkshopId
         ? 'Workshop job updated successfully!'
@@ -794,6 +852,7 @@
       toastError(error instanceof Error ? error.message : 'Failed to save workshop. Please try again.');
     } finally {
       isSubmitting = false;
+      showProcessingModal = false;
     }
   }
 
@@ -829,6 +888,13 @@
 
     // Start submission
     isSubmitting = true;
+
+    // Show processing modal for new job creation
+    const isNewJob = !existingWorkshopId;
+    if (isNewJob) {
+      resetProcessingSteps();
+      showProcessingModal = true;
+    }
 
     // Check if this is a pickup submission (only for NEW jobs, not existing pickup jobs)
     isPickupSubmission = !existingWorkshopId && action === 'Pickup' && siteLocation.trim() !== '';
@@ -866,12 +932,15 @@
         console.error('No customer selected for order creation');
         toastError('Please select a customer before creating the order.');
         isSubmitting = false;
+        showProcessingModal = false;
         return;
       }
 
       try {
         console.log('Creating Maropost order for new job using selected customer:', selectedCustomer);
+        updateProcessingStep('creatingOrder', true, false);
         orderApiData = await createOrder(selectedCustomer);
+        updateProcessingStep('creatingOrder', false, true);
 
         // Store the generated order ID for the success message
         // Handle both object and array response structures
@@ -892,7 +961,9 @@
           
           // Wait for order creation to complete, then call Power Automate API
           console.log('Order creation confirmed. Now calling Power Automate API...');
+          updateProcessingStep('callingPowerAutomate', true, false);
           await callPowerAutomateAPI(generatedOrderId);
+          updateProcessingStep('callingPowerAutomate', false, true);
           console.log('Power Automate API call completed.');
         } else {
           console.error('Maropost order creation failed - no OrderID returned:', orderApiData);
@@ -909,6 +980,7 @@
         }
 
         isSubmitting = false;
+        showProcessingModal = false;
         return;
       }
     }
@@ -920,6 +992,7 @@
         console.error('No customer selected for order creation');
         toastError('Please select a customer before creating the order.');
         isSubmitting = false;
+        showProcessingModal = false;
         return;
       }
 
@@ -949,13 +1022,16 @@
           
           // Wait for order creation to complete, then call Power Automate API
           console.log('Order creation confirmed. Now calling Power Automate API...');
+          updateProcessingStep('callingPowerAutomate', true, false);
           await callPowerAutomateAPI(generatedOrderId);
+          updateProcessingStep('callingPowerAutomate', false, true);
           console.log('Power Automate API call completed.');
         }
       } catch (error) {
         console.error('Failed to create order:', error);
         toastError('Failed to create order. Please try again.');
         isSubmitting = false;
+        showProcessingModal = false;
         return;
       }
     }
@@ -1094,12 +1170,14 @@
     (formData as any).history = history;
 
     // Submit to Supabase - either create new or update existing
+    updateProcessingStep('savingWorkshop', true, false);
     const submitPromise = existingWorkshopId
       ? updateWorkshop(existingWorkshopId, formData)
       : createWorkshop(formData, user.uid);
 
     submitPromise
       .then((workshop) => {
+        updateProcessingStep('savingWorkshop', false, true);
 
         // Show success modal with appropriate message
         const isUpdate = !!existingWorkshopId;
@@ -1188,6 +1266,8 @@
         isSubmitting = false;
         // Reset pickup job flag
         wasPickupJob = false;
+        // Hide processing modal
+        showProcessingModal = false;
       });
   }
 
@@ -3189,6 +3269,68 @@
           >
             Return to Workshop Board
           </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Processing Modal (for new job creation) -->
+  {#if showProcessingModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-6 text-center">
+          <div class="flex justify-center mb-4">
+            <svg class="animate-spin h-12 w-12 text-blue-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Creating Your Workshop Job</h3>
+
+          <!-- Progress Checklist -->
+          <div class="space-y-3 mb-6">
+            {#each Object.entries(processingSteps) as [key, step]}
+              <div class="flex items-center justify-between p-3 rounded-md border {step.completed ? 'bg-green-50 border-green-200' : step.inProgress ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 mr-3">
+                    {#if step.completed}
+                      <!-- Completed checkmark -->
+                      <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    {:else if step.inProgress}
+                      <!-- In progress spinner -->
+                      <svg class="animate-spin w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    {:else}
+                      <!-- Pending -->
+                      <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                    {/if}
+                  </div>
+                  <span class="text-sm font-medium {step.completed ? 'text-green-800' : step.inProgress ? 'text-blue-800' : 'text-gray-600'}">
+                    {step.label}
+                  </span>
+                </div>
+                {#if step.completed}
+                  <span class="text-xs text-green-600 font-medium">✓</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+
+          <div class="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+            <div class="flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <p class="text-sm text-blue-700 font-medium">
+                Please do not close this window or navigate away
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

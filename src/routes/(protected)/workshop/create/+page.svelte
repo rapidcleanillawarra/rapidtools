@@ -185,6 +185,9 @@
   let showIncompleteContactModal = false;
   let pendingAction: (() => void) | null = null;
 
+  // Customer billing info modal state
+  let showCustomerBillingModal = false;
+
   // Pickup submission modal state
   let showPickupSubmissionModal = false;
 
@@ -665,7 +668,14 @@
         }
       } catch (error) {
         console.error('Failed to create Maropost order for new job:', error);
-        toastError('Failed to create order. Please try again.');
+
+        // Check if this is a billing name error and show specific modal
+        if (error instanceof Error && error.message.includes('Customer billing name is required for order creation')) {
+          showCustomerBillingModal = true;
+        } else {
+          toastError('Failed to create order. Please try again.');
+        }
+
         isSubmitting = false;
         return;
       }
@@ -890,7 +900,14 @@
         }
       } catch (error) {
         console.error('Failed to create Maropost order for new job:', error);
-        toastError('Failed to create order. Please try again.');
+
+        // Check if this is a billing name error and show specific modal
+        if (error instanceof Error && error.message.includes('Customer billing name is required for order creation')) {
+          showCustomerBillingModal = true;
+        } else {
+          toastError('Failed to create order. Please try again.');
+        }
+
         isSubmitting = false;
         return;
       }
@@ -1888,7 +1905,14 @@
 
         } catch (orderError) {
           console.error('❌ Failed to create Maropost order:', orderError);
-          toastError('Failed to create order for tag regeneration');
+
+          // Check if this is a billing name error and show specific modal
+          if (orderError instanceof Error && orderError.message.includes('Customer billing name is required for order creation')) {
+            showCustomerBillingModal = true;
+          } else {
+            toastError('Failed to create order for tag regeneration');
+          }
+
           return;
         }
       }
@@ -1952,7 +1976,7 @@
       <div class="flex flex-col items-center space-y-3">
         <h1 class="text-2xl font-bold text-center">
           {#if existingWorkshopId && workshopStatus && workshopStatus !== 'new' && existingOrderId}
-            Order #{existingOrderId}
+            Order <a href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={existingOrderId}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">#{existingOrderId}</a>
           {:else if existingWorkshopId}
             Edit Workshop Job
           {:else}
@@ -2233,7 +2257,9 @@
                           </div>
                         {/if}
                         <div class="text-xs text-blue-600 mt-2 font-medium">
-                          ✓ Linked to Maropost customer
+                          <a href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={selectedCustomer.Username}" target="_blank" class="text-blue-600 hover:text-blue-800 underline">
+                            Open this customer in Maropost
+                          </a>
                         </div>
                       {:else}
                         <div class="text-xs text-gray-500 mt-1">
@@ -3163,6 +3189,66 @@
           >
             Return to Workshop Board
           </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Customer Billing Information Modal -->
+  {#if showCustomerBillingModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-medium text-gray-900">Customer Billing Information Required</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4">
+          <p class="text-sm text-gray-600 mb-3">
+            The selected customer is missing required billing information (first name and last name). This information is needed to create a Maropost order.
+          </p>
+          <div class="bg-orange-50 border border-orange-200 rounded-md p-3 mb-4">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-orange-700">
+                  <strong>What to do:</strong> Update the customer's billing information in Maropost with their first name and last name.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-gray-50 rounded-b-lg flex space-x-3">
+          <button
+            type="button"
+            on:click={() => showCustomerBillingModal = false}
+            class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+          >
+            Cancel
+          </button>
+          {#if selectedCustomer}
+            <a
+              href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={selectedCustomer.Username}"
+              target="_blank"
+              on:click={() => showCustomerBillingModal = false}
+              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium text-center"
+            >
+              Update in Maropost
+            </a>
+          {/if}
         </div>
       </div>
     </div>

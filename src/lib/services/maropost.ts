@@ -156,3 +156,45 @@ export async function createOrder(customerData: any): Promise<OrderApiData> {
     throw error;
   }
 }
+
+export async function cancelOrder(orderId: string): Promise<any> {
+  if (!orderId) {
+    throw new Error('Order ID is required for order cancellation');
+  }
+
+  // Use the specific cancel order endpoint
+  const CANCEL_ORDER_API_URL = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+
+  try {
+    const cancelPayload = {
+      "Order": [
+        {
+          "OrderID": orderId,
+          "OrderStatus": "Cancelled"
+        }
+      ],
+      "action": "UpdateOrder"
+    };
+
+    console.log('Cancelling order with payload:', cancelPayload);
+
+    const response = await fetch(CANCEL_ORDER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cancelPayload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`CancelOrder API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Order cancelled successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    throw error;
+  }
+}

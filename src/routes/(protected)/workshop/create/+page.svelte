@@ -13,7 +13,7 @@
   import type { Customer } from '$lib/services/customers';
   import { getCustomerDisplayName } from '$lib/services/customers';
   import { createWorkshop, getPhotoStatistics, cleanupOrphanedPhotos, getWorkshop, updateWorkshop, deleteWorkshop } from '$lib/services/workshop';
-  import { fetchCustomerData, createOrder } from '$lib/services/maropost';
+  import { fetchCustomerData, createOrder, cancelOrder } from '$lib/services/maropost';
   import { onMount, onDestroy } from 'svelte';
   import { validateWorkshopForm } from '$lib/utils/validation';
   import { page } from '$app/stores';
@@ -194,11 +194,20 @@
   // Processing modal state (for new job creation)
   let showProcessingModal = false;
 
+  // Delete processing modal state
+  let showDeleteProcessingModal = false;
+
   // Processing progress tracking
   let processingSteps = {
     creatingOrder: { label: 'Creating Maropost Order', completed: false, inProgress: false },
     callingPowerAutomate: { label: 'Calling Power Automate API', completed: false, inProgress: false },
     savingWorkshop: { label: 'Saving Workshop to Database', completed: false, inProgress: false }
+  };
+
+  // Delete processing progress tracking
+  let deleteProcessingSteps = {
+    cancellingOrder: { label: 'Cancelling Maropost Order', completed: false, inProgress: false },
+    deletingWorkshop: { label: 'Deleting Workshop from Database', completed: false, inProgress: false }
   };
 
   // Reset processing steps
@@ -210,10 +219,24 @@
     };
   }
 
+  // Reset delete processing steps
+  function resetDeleteProcessingSteps() {
+    deleteProcessingSteps = {
+      cancellingOrder: { label: 'Cancelling Maropost Order', completed: false, inProgress: false },
+      deletingWorkshop: { label: 'Deleting Workshop from Database', completed: false, inProgress: false }
+    };
+  }
+
   // Update processing step status
   function updateProcessingStep(step: keyof typeof processingSteps, inProgress: boolean, completed: boolean) {
     processingSteps[step].inProgress = inProgress;
     processingSteps[step].completed = completed;
+  }
+
+  // Update delete processing step status
+  function updateDeleteProcessingStep(step: keyof typeof deleteProcessingSteps, inProgress: boolean, completed: boolean) {
+    deleteProcessingSteps[step].inProgress = inProgress;
+    deleteProcessingSteps[step].completed = completed;
   }
 
   // Pickup submission modal state
@@ -1727,14 +1750,55 @@
       return;
     }
 
+    // Close the confirmation modal and show processing modal
+    showDeleteJobModal = false;
+    resetDeleteProcessingSteps();
+    showDeleteProcessingModal = true;
+
     try {
+      // First, cancel the order in Maropost if it exists
+      if (existingOrderId) {
+        console.log('Cancelling Maropost order before deleting workshop:', existingOrderId);
+        updateDeleteProcessingStep('cancellingOrder', true, false);
+
+        try {
+          // Wait for the cancel order endpoint to return a response before proceeding
+          const cancelResponse = await cancelOrder(existingOrderId);
+          console.log('Maropost cancel order response received:', cancelResponse);
+
+          // Only proceed if we get a successful response
+          if (cancelResponse && cancelResponse.Ack === 'Success') {
+            updateDeleteProcessingStep('cancellingOrder', false, true);
+            console.log('Maropost order cancelled successfully');
+          } else {
+            throw new Error('Cancel order response did not indicate success');
+          }
+        } catch (cancelError) {
+          console.error('Failed to cancel Maropost order:', cancelError);
+          // Continue with workshop deletion even if order cancellation fails
+          updateDeleteProcessingStep('cancellingOrder', false, false); // Mark as not completed but not in progress
+          toastError('Failed to cancel order in Maropost, but proceeding with workshop deletion');
+        }
+      } else {
+        // No order to cancel, mark as completed
+        updateDeleteProcessingStep('cancellingOrder', false, true);
+      }
+
+      // Now delete the workshop from the database (add deleted_at timestamp)
+      console.log('Deleting workshop from database:', existingWorkshopId);
+      updateDeleteProcessingStep('deletingWorkshop', true, false);
+
       await deleteWorkshop(existingWorkshopId);
+      updateDeleteProcessingStep('deletingWorkshop', false, true);
+
       toastSuccess('Workshop job deleted successfully');
       // Navigate back to workshop board
       navigateToWorkshopBoard();
     } catch (error) {
       console.error('Error deleting workshop:', error);
       toastError('Failed to delete workshop job. Please try again.');
+    } finally {
+      showDeleteProcessingModal = false;
     }
   }
 
@@ -3370,6 +3434,68 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
               </svg>
               <p class="text-sm text-blue-700 font-medium">
+                Please do not close this window or navigate away
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Delete Processing Modal -->
+  {#if showDeleteProcessingModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+      <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="px-6 py-6 text-center">
+          <div class="flex justify-center mb-4">
+            <svg class="animate-spin h-12 w-12 text-red-600" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Deleting Workshop Job</h3>
+
+          <!-- Progress Checklist -->
+          <div class="space-y-3 mb-6">
+            {#each Object.entries(deleteProcessingSteps) as [key, step]}
+              <div class="flex items-center justify-between p-3 rounded-md border {step.completed ? 'bg-green-50 border-green-200' : step.inProgress ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 mr-3">
+                    {#if step.completed}
+                      <!-- Completed checkmark -->
+                      <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    {:else if step.inProgress}
+                      <!-- In progress spinner -->
+                      <svg class="animate-spin w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    {:else}
+                      <!-- Pending -->
+                      <div class="w-5 h-5 rounded-full border-2 border-gray-300"></div>
+                    {/if}
+                  </div>
+                  <span class="text-sm font-medium {step.completed ? 'text-green-800' : step.inProgress ? 'text-red-800' : 'text-gray-600'}">
+                    {step.label}
+                  </span>
+                </div>
+                {#if step.completed}
+                  <span class="text-xs text-green-600 font-medium">✓</span>
+                {/if}
+              </div>
+            {/each}
+          </div>
+
+          <div class="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+            <div class="flex items-center justify-center">
+              <svg class="w-5 h-5 text-red-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+              <p class="text-sm text-red-700 font-medium">
                 Please do not close this window or navigate away
               </p>
             </div>

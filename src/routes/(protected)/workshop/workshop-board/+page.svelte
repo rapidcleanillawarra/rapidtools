@@ -81,6 +81,7 @@
       docket_ready: [],
       quoted: [],
       repaired: [],
+      pickup_from_workshop: [],
       return: [],
       waiting_approval_po: [],
       waiting_for_parts: [],
@@ -496,6 +497,19 @@
               status="repaired"
               title="Repaired"
               workshops={workshopsByStatus.repaired}
+              {draggedWorkshopId}
+              {recentlyMovedWorkshopId}
+              on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
+            />
+
+            <StatusColumn
+              status="pickup_from_workshop"
+              title="Workshop Pickup"
+              workshops={workshopsByStatus.pickup_from_workshop}
               {draggedWorkshopId}
               {recentlyMovedWorkshopId}
               on:click={({ detail }) => handleWorkshopClick(detail.workshop)}

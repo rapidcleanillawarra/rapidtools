@@ -10,7 +10,6 @@
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
   import WorkshopCard from '$lib/components/WorkshopCard.svelte';
   import StatusColumn from '$lib/components/StatusColumn.svelte';
-  import WorkshopFilters from '$lib/components/WorkshopFilters.svelte';
 
   let workshops: WorkshopRecord[] = [];
   let filteredWorkshops: WorkshopRecord[] = [];
@@ -33,10 +32,7 @@
   let recentlyMovedWorkshopId: string | null = null;
 
   // Filter states
-  let statusFilter = '';
   let searchFilter = '';
-  let sortBy = 'created_at';
-  let sortOrder: 'asc' | 'desc' = 'desc';
 
   async function loadWorkshops() {
     try {
@@ -53,18 +49,11 @@
   }
 
   function applyFilters() {
-    console.log('[APPLY_FILTERS] Starting applyFilters. Current filters:', { statusFilter, searchFilter, sortBy, sortOrder });
+    console.log('[APPLY_FILTERS] Starting applyFilters. Current filters:', { searchFilter });
     console.log('[APPLY_FILTERS] Workshops array length:', workshops.length);
 
     let filtered = [...workshops];
     console.log('[APPLY_FILTERS] After copying workshops:', filtered.length);
-
-    // Apply status filter
-    if (statusFilter) {
-      const beforeStatus = filtered.length;
-      filtered = filtered.filter(workshop => workshop.status === statusFilter);
-      console.log('[APPLY_FILTERS] Status filter applied:', statusFilter, 'Before:', beforeStatus, 'After:', filtered.length);
-    }
 
     // Apply combined search filter (customer name, order ID, work order)
     if (searchFilter) {
@@ -79,22 +68,7 @@
       console.log('[APPLY_FILTERS] Search filter applied:', searchFilter, 'Before:', beforeSearch, 'After:', filtered.length);
     }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      const aValue = a[sortBy as keyof WorkshopRecord];
-      const bValue = b[sortBy as keyof WorkshopRecord];
-
-      let comparison = 0;
-      const aStr = aValue?.toString() || '';
-      const bStr = bValue?.toString() || '';
-
-      if (aStr < bStr) comparison = -1;
-      if (aStr > bStr) comparison = 1;
-
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
-
-    console.log('[APPLY_FILTERS] After sorting, filtered length:', filtered.length);
+    console.log('[APPLY_FILTERS] Filtered length:', filtered.length);
     filteredWorkshops = filtered;
     console.log('[APPLY_FILTERS] Assigned to filteredWorkshops, new length:', filteredWorkshops.length);
   }
@@ -123,15 +97,6 @@
     return grouped;
   }
 
-  function toggleSort(column: string) {
-    if (sortBy === column) {
-      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortBy = column;
-      sortOrder = 'asc';
-    }
-    applyFilters();
-  }
 
   // Photo viewer functions
   function openPhotoViewer(workshop: WorkshopRecord, photoIndex: number = 0) {
@@ -380,18 +345,20 @@
       </div>
     {/if}
 
-    <!-- Filters -->
-    <WorkshopFilters
-      bind:statusFilter
-      bind:searchFilter
-      bind:sortBy
-      bind:sortOrder
-      on:statusFilterChanged={(e) => statusFilter = e.detail.value}
-      on:searchFilterChanged={(e) => searchFilter = e.detail.value}
-      on:sortByChanged={(e) => sortBy = e.detail.value}
-      on:sortOrderChanged={(e) => sortOrder = e.detail.value}
-      on:applyFilters={applyFilters}
-    />
+    <!-- Search Filter -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <div class="max-w-md">
+        <label for="search-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Workshops</label>
+        <input
+          id="search-filter"
+          type="text"
+          bind:value={searchFilter}
+          on:input={applyFilters}
+          placeholder="Search customer, order ID, work order..."
+          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+        />
+      </div>
+    </div>
 
     <!-- Board View -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

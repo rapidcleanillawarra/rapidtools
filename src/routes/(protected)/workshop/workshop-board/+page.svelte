@@ -198,6 +198,90 @@
     draggedWorkshopId = null;
   }
 
+  async function handleWorkshopCompleted(event: CustomEvent<{ workshop: WorkshopRecord }>) {
+    const { workshop } = event.detail;
+    const workshopId = workshop.id;
+    const newStatus = 'completed';
+
+    console.log('[WORKSHOP_COMPLETED] Starting completion for workshop:', workshopId, 'Current status:', workshop.status);
+
+    // Immediately update local state for smooth UI
+    const workshopIndex = workshops.findIndex(w => w.id === workshopId);
+    console.log('[LOCAL_UPDATE_COMPLETED] Workshop found at index:', workshopIndex);
+
+    if (workshopIndex !== -1) {
+      const oldStatus = workshops[workshopIndex].status;
+      console.log('[LOCAL_UPDATE_COMPLETED] Old workshop object:', { id: workshops[workshopIndex].id, status: oldStatus });
+
+      // Create a completely new workshops array to ensure proper reactivity
+      const updatedWorkshops = workshops.map((w, index) =>
+        index === workshopIndex
+          ? { ...w, status: newStatus as WorkshopRecord['status'] }
+          : w
+      );
+
+      console.log('[LOCAL_UPDATE_COMPLETED] Created new workshops array, updating workshop:', updatedWorkshops[workshopIndex].id, 'status to:', updatedWorkshops[workshopIndex].status);
+
+      // Force reactivity by assigning the new array
+      workshops = updatedWorkshops;
+      console.log('[LOCAL_UPDATE_COMPLETED] Workshops array assigned, length:', workshops.length);
+
+      // Ensure UI has a chance to update before continuing
+      await tick();
+      console.log('[LOCAL_UPDATE_COMPLETED] Tick completed, UI should be updated');
+
+      console.log('[LOCAL_UPDATE_COMPLETED] Status changed from', oldStatus, 'to', newStatus);
+    }
+
+    const currentWorkshop = workshops.find(w => w.id === workshopId);
+    console.log('[BACKEND_UPDATE_COMPLETED] Starting backend update for workshop:', workshopId);
+
+    try {
+      // Get the current workshop data to update history
+      if (!currentWorkshop) {
+        throw new Error('Workshop not found for completion update');
+      }
+
+      // Create updated history with the status change
+      const updatedHistory = addHistoryEntry(currentWorkshop, newStatus);
+
+      // Update the workshop status and history in the backend
+      await updateWorkshop(workshopId, {
+        status: newStatus as WorkshopRecord['status'],
+        history: updatedHistory
+      } as any);
+      console.log('[BACKEND_UPDATE_COMPLETED] Backend update successful for workshop:', workshopId, 'with history entry added');
+
+      // Show success message
+      toastSuccess(
+        `Workshop "${currentWorkshop.customer_name}" marked as completed`,
+        'Workshop Completed'
+      );
+    } catch (err) {
+      console.error('[BACKEND_UPDATE_COMPLETED_ERROR] Failed to complete workshop:', workshopId, 'Error:', err);
+      error = 'Failed to complete workshop';
+
+      // Revert the local change on error
+      if (workshopIndex !== -1 && workshop?.status) {
+        console.log('[LOCAL_REVERT_COMPLETED] Reverting local status back to:', workshop.status);
+        const revertedWorkshops = workshops.map((w, index) =>
+          index === workshopIndex
+            ? { ...w, status: workshop.status }
+            : w
+        );
+        workshops = revertedWorkshops;
+        await tick(); // Ensure UI updates with reverted state
+      }
+    }
+
+    // Highlight the completed workshop for visual feedback
+    recentlyMovedWorkshopId = workshopId;
+    // Clear the highlight after 2 seconds
+    setTimeout(() => {
+      recentlyMovedWorkshopId = null;
+    }, 2000);
+  }
+
   async function handleWorkshopDrop(event: CustomEvent<{ workshopId: string; newStatus: string }>) {
     const { workshopId, newStatus } = event.detail;
     console.log('[DRAG_DROP] Workshop ID:', workshopId, 'New Status:', newStatus, 'Timestamp:', Date.now());
@@ -563,6 +647,7 @@
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
+              on:completed={handleWorkshopCompleted}
             />
 
             <StatusColumn
@@ -576,6 +661,7 @@
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
+              on:completed={handleWorkshopCompleted}
             />
 
             <StatusColumn
@@ -589,6 +675,7 @@
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
+              on:completed={handleWorkshopCompleted}
             />
 
             <StatusColumn

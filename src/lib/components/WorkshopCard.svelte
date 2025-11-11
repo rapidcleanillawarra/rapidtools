@@ -13,6 +13,7 @@
     photoClick: { workshop: WorkshopRecord; photoIndex: number };
     deleteClick: { workshop: WorkshopRecord };
     dragstart: { workshop: WorkshopRecord; event: DragEvent };
+    completed: { workshop: WorkshopRecord };
   }>();
 
   function formatDate(dateString: string) {
@@ -84,6 +85,15 @@
 
     console.log('[CARD_DRAG_DISPATCH] Dispatching dragstart event for workshop:', workshop.id);
     dispatch('dragstart', { workshop, event });
+  }
+
+  function handleCompletedClick(event: Event) {
+    event.stopPropagation();
+    dispatch('completed', { workshop });
+  }
+
+  function showCompletedButton(status: string): boolean {
+    return ['repaired', 'pickup_from_workshop', 'return'].includes(status);
   }
 </script>
 
@@ -265,6 +275,19 @@
       <div>WO: {workshop.clients_work_order || 'N/A'}</div>
       <div>{formatDateShort(workshop.created_at)}</div>
     </div>
+
+    <!-- Completed button for specific statuses -->
+    {#if showCompletedButton(workshop.status)}
+      <button
+        type="button"
+        class="w-full mb-2 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded-md transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+        on:click={handleCompletedClick}
+        title="Mark as completed"
+        aria-label="Mark workshop as completed"
+      >
+        Mark as completed
+      </button>
+    {/if}
 
     <!-- X delete button positioned in upper right corner -->
     <button

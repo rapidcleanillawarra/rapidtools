@@ -11,6 +11,7 @@
 
   const dispatch = createEventDispatcher<{
     drop: { workshopId: string; newStatus: string };
+    completed: { workshop: WorkshopRecord };
   }>();
 
   let isDragOver = false;
@@ -134,6 +135,7 @@
             on:photoClick
             on:deleteClick
             on:dragstart
+            on:completed
           />
         {/each}
       </div>

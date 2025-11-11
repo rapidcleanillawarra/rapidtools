@@ -2,8 +2,11 @@
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { getWorkshops, deleteWorkshop as deleteWorkshopService, updateWorkshopStatus, type WorkshopRecord } from '$lib/services/workshop';
+  import { getWorkshops, deleteWorkshop as deleteWorkshopService, updateWorkshopStatus, getWorkshop, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
   import { toastSuccess } from '$lib/utils/toast';
+  import { currentUser } from '$lib/firebase';
+  import { userProfile } from '$lib/userProfile';
+  import { get } from 'svelte/store';
 
   // Import components
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
@@ -242,9 +245,21 @@
     console.log('[BACKEND_UPDATE] Starting backend update for workshop:', workshopId);
 
     try {
-      // Update the workshop status in the backend
-      await updateWorkshopStatus(workshopId, newStatus as WorkshopRecord['status']);
-      console.log('[BACKEND_UPDATE] Backend update successful for workshop:', workshopId);
+      // Get the current workshop data to update history
+      const currentWorkshop = workshops.find(w => w.id === workshopId);
+      if (!currentWorkshop) {
+        throw new Error('Workshop not found for history update');
+      }
+
+      // Create updated history with the status change
+      const updatedHistory = addHistoryEntry(currentWorkshop, newStatus);
+
+      // Update the workshop status and history in the backend
+      await updateWorkshop(workshopId, {
+        status: newStatus as WorkshopRecord['status'],
+        history: updatedHistory
+      } as any);
+      console.log('[BACKEND_UPDATE] Backend update successful for workshop:', workshopId, 'with history entry added');
 
       // Show success message
       if (workshop) {
@@ -287,6 +302,36 @@
 
   function handleWorkshopClick(workshop: WorkshopRecord) {
     goto(`${base}/workshop/create?workshop_id=${workshop.id}`);
+  }
+
+  function addHistoryEntry(workshop: WorkshopRecord, newStatus: string): Array<{
+    id: string;
+    timestamp: string;
+    user: string;
+    status: string;
+    isCreation?: boolean;
+  }> {
+    // Get current user
+    const user = get(currentUser);
+    if (!user) return workshop.history || [];
+
+    // Use profile name if available, otherwise fallback to email or display name
+    const profile = get(userProfile);
+    const userName = profile
+      ? `${profile.firstName} ${profile.lastName}`.trim()
+      : user.displayName || user.email?.split('@')[0] || 'Unknown User';
+
+    const historyEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      user: userName,
+      status: newStatus,
+      isCreation: false // Status change, not creation
+    };
+
+    // Add to existing history or create new array
+    const existingHistory = workshop.history || [];
+    return [...existingHistory, historyEntry];
   }
 
   onMount(() => {

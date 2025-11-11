@@ -350,6 +350,9 @@
   // Log when filteredWorkshops changes
   $: console.log('[REACTIVE] filteredWorkshops changed. Length:', filteredWorkshops.length, 'Timestamp:', Date.now());
 
+  // Computed property for completed jobs count
+  $: completedJobsCount = workshops.filter(workshop => workshop.status === 'completed').length;
+
 </script>
 
 <svelte:head>
@@ -393,16 +396,27 @@
 
     <!-- Search Filter -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <div class="max-w-md">
-        <label for="search-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Workshops</label>
-        <input
-          id="search-filter"
-          type="text"
-          bind:value={searchFilter}
-          on:input={applyFilters}
-          placeholder="Search customer, order ID, work order..."
-          class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-        />
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div class="max-w-md">
+          <label for="search-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Workshops</label>
+          <input
+            id="search-filter"
+            type="text"
+            bind:value={searchFilter}
+            on:input={applyFilters}
+            placeholder="Search customer, order ID, work order..."
+            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+          />
+        </div>
+        <a
+          href="{base}/workshop/completed"
+          class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          Completed Jobs ({completedJobsCount})
+        </a>
       </div>
     </div>
 

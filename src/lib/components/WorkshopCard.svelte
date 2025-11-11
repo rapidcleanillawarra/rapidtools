@@ -216,28 +216,24 @@
             </button>
           </div>
         {:else}
-          <!-- Multiple photos display -->
-          <div class="grid grid-cols-2 gap-1">
-            {#each workshop.photo_urls.slice(0, 4) as photoUrl, index}
-              <div class="relative">
-                <!-- Photo thumbnail -->
-                <button
-                  type="button"
-                  class="w-full h-20 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
-                  on:click={(e) => handlePhotoClick(index, e)}
-                  aria-label="View photo {index + 1} of {workshop.photo_urls.length}"
-                >
-                  <img src={photoUrl} alt="" class="w-full h-full object-cover rounded-md" />
-                </button>
+          <!-- Multiple photos display - show only first image -->
+          <div class="relative">
+            <!-- Photo thumbnail -->
+            <button
+              type="button"
+              class="w-full h-40 rounded overflow-hidden border-0 p-0 bg-transparent cursor-pointer hover:ring-2 hover:ring-blue-300 transition-all"
+              on:click={(e) => handlePhotoClick(0, e)}
+              aria-label="View first photo of {workshop.photo_urls.length} total photos"
+            >
+              <img src={workshop.photo_urls[0]} alt="" class="w-full h-full object-cover rounded-md" />
+            </button>
 
-                <!-- Photo number indicator for first photo -->
-                {#if index === 0 && workshop.photo_urls.length > 4}
-                  <div class="absolute top-1 right-1 bg-black bg-opacity-70 text-white text-xs px-1.5 py-0.5 rounded-full">
-                    +{workshop.photo_urls.length - 4}
-                  </div>
-                {/if}
+            <!-- Photo count indicator for multiple photos -->
+            {#if workshop.photo_urls.length > 1}
+              <div class="absolute top-1 right-1 bg-black bg-opacity-70 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {workshop.photo_urls.length}
               </div>
-            {/each}
+            {/if}
           </div>
         {/if}
       </div>

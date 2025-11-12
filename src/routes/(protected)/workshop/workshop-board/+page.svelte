@@ -435,11 +435,35 @@
   $: console.log('[REACTIVE] filteredWorkshops changed. Length:', filteredWorkshops.length, 'Timestamp:', Date.now());
 
   // Computed property for workshops grouped by status - MUST be reactive for production builds
-  $: workshopsByStatus = getWorkshopsByStatus();
-  $: console.log('[REACTIVE] workshopsByStatus updated. Column counts:', Object.keys(workshopsByStatus).reduce((acc, status) => {
-    acc[status] = workshopsByStatus[status].length;
-    return acc;
-  }, {} as Record<string, number>));
+  $: workshopsByStatus = {
+    new: filteredWorkshops.filter(w => w.status === 'new'),
+    pickup: filteredWorkshops.filter(w => w.status === 'pickup'),
+    to_be_quoted: filteredWorkshops.filter(w => w.status === 'to_be_quoted'),
+    docket_ready: filteredWorkshops.filter(w => w.status === 'docket_ready'),
+    quoted: filteredWorkshops.filter(w => w.status === 'quoted'),
+    repaired: filteredWorkshops.filter(w => w.status === 'repaired'),
+    pickup_from_workshop: filteredWorkshops.filter(w => w.status === 'pickup_from_workshop'),
+    return: filteredWorkshops.filter(w => w.status === 'return'),
+    waiting_approval_po: filteredWorkshops.filter(w => w.status === 'waiting_approval_po'),
+    waiting_for_parts: filteredWorkshops.filter(w => w.status === 'waiting_for_parts'),
+    booked_in_for_repair_service: filteredWorkshops.filter(w => w.status === 'booked_in_for_repair_service'),
+    pending_jobs: filteredWorkshops.filter(w => w.status === 'pending_jobs')
+  };
+
+  $: console.log('[REACTIVE] workshopsByStatus computed. Column counts:', {
+    new: workshopsByStatus.new.length,
+    pickup: workshopsByStatus.pickup.length,
+    to_be_quoted: workshopsByStatus.to_be_quoted.length,
+    docket_ready: workshopsByStatus.docket_ready.length,
+    quoted: workshopsByStatus.quoted.length,
+    repaired: workshopsByStatus.repaired.length,
+    pickup_from_workshop: workshopsByStatus.pickup_from_workshop.length,
+    return: workshopsByStatus.return.length,
+    waiting_approval_po: workshopsByStatus.waiting_approval_po.length,
+    waiting_for_parts: workshopsByStatus.waiting_for_parts.length,
+    booked_in_for_repair_service: workshopsByStatus.booked_in_for_repair_service.length,
+    pending_jobs: workshopsByStatus.pending_jobs.length
+  });
 
   // Computed property for completed jobs count
   $: completedJobsCount = workshops.filter(workshop => workshop.status === 'completed').length;

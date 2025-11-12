@@ -191,6 +191,9 @@
   // Delete job modal state
   let showDeleteJobModal = false;
 
+  // Repaired status transition selection
+  let repairedStatusTransition = '';
+
   // Processing modal state (for new job creation)
   let showProcessingModal = false;
 
@@ -1186,9 +1189,15 @@
       (formData as any).status = 'repaired';
       addHistoryEntry('repaired', false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'repaired') {
-      // For existing "repaired" jobs, change status to return
-      (formData as any).status = 'return';
-      addHistoryEntry('return', false); // false = status change
+      // For existing "repaired" jobs, change status based on dropdown selection
+      if (!repairedStatusTransition) {
+        toastError('Please select a status transition from the dropdown before proceeding.');
+        isSubmitting = false;
+        showProcessingModal = false;
+        return;
+      }
+      (formData as any).status = repairedStatusTransition;
+      addHistoryEntry(repairedStatusTransition, false); // false = status change
     } else if (existingWorkshopId && workshopStatus === 'return') {
       // For existing "return" jobs, change status to completed
       (formData as any).status = 'completed';
@@ -1316,7 +1325,7 @@
   // what actions are allowed based on the current state.
   // DO NOT MODIFY THIS WITHOUT CAREFUL CONSIDERATION OF BUSINESS IMPACT
 
-  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'deliver_to_workshop' | 'pending_jobs' | 'return' | 'completed' | null;
+  type JobStatus = 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'deliver_to_workshop' | 'pending_jobs' | 'return' | 'completed' | 'to_be_scrapped' | 'pickup_from_workshop' | null;
 
   interface JobStatusContext {
     existingWorkshopId: string | null;
@@ -1525,7 +1534,7 @@
         canEditContacts: false,     // Cannot edit contacts for repaired jobs
         canCreateOrder: false,      // Already processed
         canPickup: false,          // Not a pickup job
-        buttonText: 'Return',
+        buttonText: 'Proceed',
         statusDisplay: 'Repaired',
         priority: 4.8
       };
@@ -1678,6 +1687,7 @@
     optionalContacts = [];
     workshopStatus = null;
     existingOrderId = null;
+    repairedStatusTransition = '';
 
     // Clear photos - only revoke URLs for new photos created with URL.createObjectURL
     photos.forEach(p => {
@@ -2934,12 +2944,26 @@
           {/if}
         </button>
 
+        <!-- Status Transition Dropdown - only show for repaired status -->
+        {#if existingWorkshopId && workshopStatus === 'repaired'}
+          <select
+            bind:value={repairedStatusTransition}
+            class="px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 {!repairedStatusTransition ? 'border-red-300' : ''}"
+          >
+            <option value="">Select next status...</option>
+            <option value="completed">Completed</option>
+            <option value="return">Return</option>
+            <option value="to_be_scrapped">To Be Scrapped</option>
+            <option value="pending_jobs">Pending Jobs</option>
+          </select>
+        {/if}
+
         <!-- Submit Button - for order creation, status transitions, and updates -->
         {#if existingWorkshopId}
           <button
             type="button"
             on:click={handleSubmit}
-            disabled={isSubmitting || (existingWorkshopId !== null && workshopStatus === null)}
+            disabled={isSubmitting || (existingWorkshopId !== null && workshopStatus === null) || (workshopStatus === 'repaired' && !repairedStatusTransition)}
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {#if isSubmitting}

@@ -37,6 +37,27 @@
   // Filter states
   let searchFilter = '';
 
+  // Status visibility states
+  let visibleStatuses = {
+    new: true,
+    pickup: true,
+    to_be_quoted: true,
+    docket_ready: true,
+    quoted: true,
+    waiting_approval_po: true,
+    waiting_for_parts: true,
+    booked_in_for_repair_service: true,
+    repaired: true,
+    pickup_from_workshop: true,
+    return: true,
+    pending_jobs: true
+  };
+
+  let showAllStatuses = true;
+
+  // LocalStorage key for status visibility preferences
+  const STATUS_VISIBILITY_KEY = 'workshop-status-visibility';
+
   async function loadWorkshops() {
     try {
       loading = true;
@@ -74,6 +95,96 @@
     console.log('[APPLY_FILTERS] Filtered length:', filtered.length);
     filteredWorkshops = filtered;
     console.log('[APPLY_FILTERS] Assigned to filteredWorkshops, new length:', filteredWorkshops.length);
+  }
+
+  function toggleStatusVisibility(status: keyof typeof visibleStatuses) {
+    visibleStatuses[status] = !visibleStatuses[status];
+    visibleStatuses = { ...visibleStatuses }; // Trigger reactivity
+
+    // Update showAllStatuses based on whether all statuses are visible
+    const allVisible = Object.values(visibleStatuses).every(Boolean);
+    const allHidden = Object.values(visibleStatuses).every(v => !v);
+    showAllStatuses = allVisible || allHidden;
+
+    // Save to localStorage
+    saveStatusVisibilityToLocalStorage();
+  }
+
+  function toggleShowAll() {
+    showAllStatuses = !showAllStatuses;
+    const newVisibility = showAllStatuses;
+    (Object.keys(visibleStatuses) as Array<keyof typeof visibleStatuses>).forEach(status => {
+      visibleStatuses[status] = newVisibility;
+    });
+    visibleStatuses = { ...visibleStatuses }; // Trigger reactivity
+
+    // Save to localStorage
+    saveStatusVisibilityToLocalStorage();
+  }
+
+  function hideAllStatuses() {
+    showAllStatuses = false;
+    (Object.keys(visibleStatuses) as Array<keyof typeof visibleStatuses>).forEach(status => {
+      visibleStatuses[status] = false;
+    });
+    visibleStatuses = { ...visibleStatuses }; // Trigger reactivity
+
+    // Save to localStorage
+    saveStatusVisibilityToLocalStorage();
+  }
+
+  // LocalStorage functions
+  function saveStatusVisibilityToLocalStorage() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(STATUS_VISIBILITY_KEY, JSON.stringify(visibleStatuses));
+        console.log('[LOCALSTORAGE] Status visibility saved:', visibleStatuses);
+        console.log('[LOCALSTORAGE] Verifying save - retrieved:', JSON.parse(localStorage.getItem(STATUS_VISIBILITY_KEY) || '{}'));
+      } else {
+        console.warn('[LOCALSTORAGE] localStorage not available');
+      }
+    } catch (error) {
+      console.error('[LOCALSTORAGE] Failed to save status visibility:', error);
+    }
+  }
+
+  function loadStatusVisibilityFromLocalStorage() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = localStorage.getItem(STATUS_VISIBILITY_KEY);
+        console.log('[LOCALSTORAGE] Raw saved data:', saved);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          console.log('[LOCALSTORAGE] Parsed data:', parsed);
+          // Validate that all expected keys exist and are booleans
+          const requiredKeys = Object.keys(visibleStatuses);
+          console.log('[LOCALSTORAGE] Required keys:', requiredKeys);
+          const isValid = requiredKeys.every(key =>
+            typeof parsed[key] === 'boolean'
+          );
+          console.log('[LOCALSTORAGE] Data is valid:', isValid);
+
+          if (isValid) {
+            visibleStatuses = { ...parsed };
+            console.log('[LOCALSTORAGE] Status visibility loaded:', visibleStatuses);
+
+            // Update showAllStatuses based on loaded state
+            const allVisible = Object.values(visibleStatuses).every(Boolean);
+            const allHidden = Object.values(visibleStatuses).every(v => !v);
+            showAllStatuses = allVisible || allHidden;
+            console.log('[LOCALSTORAGE] showAllStatuses set to:', showAllStatuses);
+          } else {
+            console.warn('[LOCALSTORAGE] Invalid saved data, using defaults');
+          }
+        } else {
+          console.log('[LOCALSTORAGE] No saved data found');
+        }
+      } else {
+        console.warn('[LOCALSTORAGE] localStorage not available during load');
+      }
+    } catch (error) {
+      console.error('[LOCALSTORAGE] Failed to load status visibility:', error);
+    }
   }
 
   function getWorkshopsByStatus() {
@@ -420,6 +531,19 @@
 
   onMount(() => {
     console.log('[WORKSHOP_BOARD_INIT] Initializing workshop board, Timestamp:', Date.now());
+    console.log('[WORKSHOP_BOARD_INIT] Initial visibleStatuses:', visibleStatuses);
+    // Load saved status visibility preferences first
+    loadStatusVisibilityFromLocalStorage();
+    console.log('[WORKSHOP_BOARD_INIT] After loading from localStorage:', visibleStatuses);
+
+    // If no saved preferences exist, save the current defaults to establish a baseline
+    const saved = localStorage.getItem(STATUS_VISIBILITY_KEY);
+    if (!saved) {
+      console.log('[WORKSHOP_BOARD_INIT] No saved preferences found, saving defaults');
+      saveStatusVisibilityToLocalStorage();
+    }
+
+    // Then load workshops
     loadWorkshops();
   });
 
@@ -526,6 +650,7 @@
             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
           />
         </div>
+        <!-- Action Buttons -->
         <div class="flex items-center gap-3">
           <a
             href="{base}/workshop/completed"
@@ -546,6 +671,96 @@
             To Be Scrapped ({scrappedJobsCount})
           </a>
         </div>
+      </div>
+    </div>
+
+    <!-- Status Pills -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+      <div class="flex flex-wrap gap-2">
+        <button
+          on:click={toggleShowAll}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {showAllStatuses ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Show All
+        </button>
+        <button
+          on:click={hideAllStatuses}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
+        >
+          Hide All
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('new')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.new ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          New ({workshopsByStatus.new.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('pickup')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.pickup ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Pickup ({workshopsByStatus.pickup.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('to_be_quoted')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.to_be_quoted ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          To be Quoted ({workshopsByStatus.to_be_quoted.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('docket_ready')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.docket_ready ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Docket Ready ({workshopsByStatus.docket_ready.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('quoted')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.quoted ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Quoted ({workshopsByStatus.quoted.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('waiting_approval_po')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.waiting_approval_po ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Waiting Approval PO ({workshopsByStatus.waiting_approval_po.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('waiting_for_parts')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.waiting_for_parts ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Waiting for Parts ({workshopsByStatus.waiting_for_parts.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('booked_in_for_repair_service')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.booked_in_for_repair_service ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Booked in for Repair/Service ({workshopsByStatus.booked_in_for_repair_service.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('repaired')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.repaired ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Repaired ({workshopsByStatus.repaired.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('pickup_from_workshop')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.pickup_from_workshop ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Workshop Pickup ({workshopsByStatus.pickup_from_workshop.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('return')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.return ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Return ({workshopsByStatus.return.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('pending_jobs')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.pending_jobs ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Pending Jobs ({workshopsByStatus.pending_jobs.length})
+        </button>
       </div>
     </div>
 
@@ -576,6 +791,7 @@
           <div class="flex gap-6 overflow-x-auto pb-6 px-4 scroll-smooth scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 scroll-snap-x-mandatory"
                style="scroll-behavior: smooth; scrollbar-width: thin; scroll-padding-left: 1rem; scroll-padding-right: 1rem; min-height: 600px;">
             <div class="flex gap-6 min-w-max py-2">
+            {#if visibleStatuses.new}
             <StatusColumn
               status="new"
               title="New"
@@ -588,7 +804,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.pickup}
             <StatusColumn
               status="pickup"
               title="Pickup"
@@ -601,7 +819,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.to_be_quoted}
             <StatusColumn
               status="to_be_quoted"
               title="To be Quoted"
@@ -614,7 +834,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.docket_ready}
             <StatusColumn
               status="docket_ready"
               title="Docket Ready"
@@ -627,7 +849,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.quoted}
             <StatusColumn
               status="quoted"
               title="Quoted"
@@ -640,7 +864,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.waiting_approval_po}
             <StatusColumn
               status="waiting_approval_po"
               title="WAITING APPROVAL PO"
@@ -653,7 +879,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.waiting_for_parts}
             <StatusColumn
               status="waiting_for_parts"
               title="Waiting for Parts"
@@ -666,7 +894,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.booked_in_for_repair_service}
             <StatusColumn
               status="booked_in_for_repair_service"
               title="BOOKED IN FOR REPAIR/ SERVICE"
@@ -679,7 +909,9 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
 
+            {#if visibleStatuses.repaired}
             <StatusColumn
               status="repaired"
               title="Repaired"
@@ -693,7 +925,9 @@
               on:drop={handleWorkshopDrop}
               on:completed={handleWorkshopCompleted}
             />
+            {/if}
 
+            {#if visibleStatuses.pickup_from_workshop}
             <StatusColumn
               status="pickup_from_workshop"
               title="Workshop Pickup"
@@ -707,7 +941,9 @@
               on:drop={handleWorkshopDrop}
               on:completed={handleWorkshopCompleted}
             />
+            {/if}
 
+            {#if visibleStatuses.return}
             <StatusColumn
               status="return"
               title="Return"
@@ -721,7 +957,9 @@
               on:drop={handleWorkshopDrop}
               on:completed={handleWorkshopCompleted}
             />
+            {/if}
 
+            {#if visibleStatuses.pending_jobs}
             <StatusColumn
               status="pending_jobs"
               title="PENDING JOBS"
@@ -734,6 +972,7 @@
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
             />
+            {/if}
             </div>
           </div>
         </div>
@@ -741,7 +980,7 @@
         <!-- Summary for Board View -->
         <div class="mt-6 bg-gray-50 px-4 py-4 rounded-lg border border-gray-200">
           <div class="text-sm text-gray-700">
-            Showing {filteredWorkshops.length} of {workshops.length} workshop{workshops.length !== 1 ? 's' : ''} across all statuses
+            Showing {filteredWorkshops.length} of {workshops.length} workshop{workshops.length !== 1 ? 's' : ''} across {Object.values(visibleStatuses).filter(Boolean).length} visible status{Object.values(visibleStatuses).filter(Boolean).length !== 1 ? 'es' : ''}
           </div>
         </div>
       {/if}

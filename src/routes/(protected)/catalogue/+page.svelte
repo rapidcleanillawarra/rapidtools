@@ -65,11 +65,13 @@
     // Sessions data
     let savedSessions: any[] = [];
     let loadingSessions: boolean = false;
+    let hasLoadedSessions: boolean = false;
 
-    // Load sessions when component mounts
-    onMount(async () => {
-      await loadSavedSessions();
-    });
+    // Load sessions when user becomes available
+    $: if (user?.uid && !hasLoadedSessions) {
+      loadSavedSessions();
+      hasLoadedSessions = true;
+    }
 
     // Focus input when dialog opens
     $: if (showSaveDialog) {
@@ -448,6 +450,7 @@
 
         if (error) throw error;
         savedSessions = data || [];
+        hasLoadedSessions = true;
       } catch (error) {
         console.error('Error loading sessions:', error);
         toastWarning('Failed to load saved sessions', 'Load Error');

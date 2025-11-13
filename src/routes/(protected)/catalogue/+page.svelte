@@ -90,7 +90,7 @@
       certifications: string[];
     } | null> {
       try {
-        const response = await fetch('https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs', {
+        const response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -149,16 +149,8 @@
           certifications
         };
       } catch (error) {
-        console.error(`Error fetching product data for SKU ${sku}:`, error);
-        // Return basic data if API fails
-        return {
-          sku,
-          price: '0.00',
-          name: sku,
-          description: '',
-          image: null,
-          certifications: []
-        };
+        // Return null to indicate failure - this will be tracked in failedSkus section
+        return null;
       }
     }
 
@@ -1181,6 +1173,8 @@
         }
 
         if (apiErrors.length > 0) {
+          // Add failed SKUs to the failedSkus array (merge with existing, avoid duplicates)
+          failedSkus = [...new Set([...failedSkus, ...apiErrors])];
           toastWarning(`${apiErrors.length} SKU${apiErrors.length > 1 ? 's' : ''} failed to update from API: ${apiErrors.join(', ')}`, 'Update Errors');
         }
 
@@ -1453,36 +1447,6 @@
                   </div>
                 {/if}
 
-                <!-- Failed SKUs List -->
-                {#if failedSkus.length > 0}
-                  <div class="bg-white border border-red-200 rounded-lg p-4">
-                    <h4 class="text-sm font-medium text-red-700 mb-2">Failed to Fetch SKUs</h4>
-                    <div class="space-y-2 max-h-64 overflow-y-auto">
-                      {#each failedSkus as sku, i (i)}
-                        <div class="bg-red-50 border border-red-200 rounded p-2 text-sm flex justify-between items-center">
-                          <div class="flex-1">
-                            <div class="font-medium text-red-800">{sku}</div>
-                            <div class="text-xs text-red-600">Failed to fetch from API</div>
-                          </div>
-                          <button
-                            on:click={(e) => {
-                              e.stopPropagation();
-                              failedSkus = failedSkus.filter(s => s !== sku);
-                              toastInfo(`SKU "${sku}" removed from failed list`, 'SKU Removed');
-                            }}
-                            class="text-red-600 hover:text-red-800 ml-1"
-                            title="Remove from list"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      {/each}
-                    </div>
-                    <div class="mt-2 text-xs text-red-600">
-                      These SKUs could not be found in the product database. You can try re-entering them or contact support.
-                    </div>
-                  </div>
-                {/if}
               </div>
             </div>
 
@@ -1800,6 +1764,55 @@
                               ✓ Currently loaded
                             </div>
                           {/if}
+                        </div>
+                      {/each}
+                    </div>
+                  </div>
+                {/if}
+              </div>
+
+              <!-- Failed Product SKU Pulls Section -->
+              <div class="space-y-4 mt-6">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-lg font-semibold text-gray-800">Failed Product SKU Pulls</h3>
+                </div>
+
+                {#if failedSkus.length === 0}
+                  <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <div class="text-gray-600 mb-2">No failed SKU pulls</div>
+                    <div class="text-sm text-gray-500">All SKUs fetched successfully</div>
+                  </div>
+                {:else}
+                  <div class="bg-white border border-red-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                    <div class="space-y-2">
+                      {#each failedSkus as sku, i (i)}
+                        <div class="bg-red-50 border border-red-200 rounded p-3 hover:bg-red-100 transition-colors">
+                          <div class="flex justify-between items-center">
+                            <div class="flex-1 min-w-0">
+                              <a
+                                href="https://www.rapidsupplies.com.au/_cpanel/quicksearch?keyword={sku}&fn=item"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="font-medium text-red-800 hover:text-red-600 hover:underline transition-colors"
+                              >
+                                {sku}
+                              </a>
+                              <div class="text-xs text-red-600 mt-1">
+                                Product not found or API returned error
+                              </div>
+                            </div>
+                            <button
+                              on:click={(e) => {
+                                e.stopPropagation();
+                                failedSkus = failedSkus.filter(s => s !== sku);
+                                toastInfo(`SKU "${sku}" removed from failed list`, 'SKU Removed');
+                              }}
+                              class="text-red-600 hover:text-red-800 ml-2 p-1"
+                              title="Remove from list"
+                            >
+                              ×
+                            </button>
+                          </div>
                         </div>
                       {/each}
                     </div>

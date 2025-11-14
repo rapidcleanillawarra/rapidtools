@@ -9,6 +9,7 @@ import { fetchUserProfile } from '$lib/userProfile';
 export interface WorkshopFormData {
   // Machine Information
   locationOfMachine: 'Site' | 'Workshop' | null;
+  action?: string | null; // Missing field
   productName: string | null;
   clientsWorkOrder: string;
   makeModel: string;
@@ -47,6 +48,15 @@ export interface WorkshopFormData {
     text: string;
     author: string;
     created_at: string;
+  }>;
+
+  // History
+  history?: Array<{
+    id: string;
+    timestamp: string;
+    user: string;
+    status: string;
+    isCreation?: boolean;
   }>;
 
   // API data
@@ -494,24 +504,57 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
     console.log('Update - Formatted contacts length:', formattedContacts.length);
     console.log('Update - Formatted contacts type:', typeof formattedContacts[0]);
     
-    // Prepare update data
+    // Prepare update data - only include fields that are explicitly provided
     const updateData: any = {
-      location_of_machine: data.locationOfMachine || null,
-      action: data.action || null,
-      product_name: data.productName || null,
-      clients_work_order: data.clientsWorkOrder,
-      make_model: data.makeModel,
-      serial_number: data.serialNumber,
-      site_location: data.siteLocation?.trim() || null,
-      schedules: data.schedules || null,
-      fault_description: data.faultDescription,
-      customer_name: data.customerName || null,
-      contact_email: data.contactEmail,
-      contact_number: data.contactNumber,
-      customer_data: data.selectedCustomer,
-      optional_contacts: formattedContacts.length > 0 ? formattedContacts : [],
       updated_at: new Date().toISOString()
     };
+
+    console.log('[UPDATE_WORKSHOP] Input data:', data);
+    console.log('[UPDATE_WORKSHOP] Initial updateData:', updateData);
+
+    // Only update fields that are explicitly provided (not undefined)
+    if (data.locationOfMachine !== undefined) {
+      updateData.location_of_machine = data.locationOfMachine || null;
+    }
+    if (data.action !== undefined) {
+      updateData.action = data.action || null;
+    }
+    if (data.productName !== undefined) {
+      updateData.product_name = data.productName || null;
+    }
+    if (data.clientsWorkOrder !== undefined) {
+      updateData.clients_work_order = data.clientsWorkOrder;
+    }
+    if (data.makeModel !== undefined) {
+      updateData.make_model = data.makeModel;
+    }
+    if (data.serialNumber !== undefined) {
+      updateData.serial_number = data.serialNumber;
+    }
+    if (data.siteLocation !== undefined) {
+      updateData.site_location = data.siteLocation?.trim() || null;
+    }
+    if (data.schedules !== undefined) {
+      updateData.schedules = data.schedules || null;
+    }
+    if (data.faultDescription !== undefined) {
+      updateData.fault_description = data.faultDescription;
+    }
+    if (data.customerName !== undefined) {
+      updateData.customer_name = data.customerName || null;
+    }
+    if (data.contactEmail !== undefined) {
+      updateData.contact_email = data.contactEmail;
+    }
+    if (data.contactNumber !== undefined) {
+      updateData.contact_number = data.contactNumber;
+    }
+    if (data.selectedCustomer !== undefined) {
+      updateData.customer_data = data.selectedCustomer;
+    }
+    if (data.optionalContacts !== undefined) {
+      updateData.optional_contacts = formattedContacts.length > 0 ? formattedContacts : [];
+    }
 
     // Add comments if provided
     if (data.comments !== undefined) {
@@ -560,7 +603,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
       if (hasNewPhotos && hasExistingPhotos) {
         // Merge new photos with existing photos
-        finalPhotoUrls = [...data.existingPhotoUrls, ...newPhotoUrls];
+        finalPhotoUrls = [...(data.existingPhotoUrls || []), ...newPhotoUrls];
       } else if (hasNewPhotos && !hasExistingPhotos) {
         // Only new photos
         finalPhotoUrls = newPhotoUrls;
@@ -590,7 +633,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
       if (hasNewFiles && hasExistingFiles) {
         // Merge new files with existing files
-        finalFileUrls = [...data.existingFileUrls, ...newFileUrls];
+        finalFileUrls = [...(data.existingFileUrls || []), ...newFileUrls];
       } else if (hasNewFiles && !hasExistingFiles) {
         // Only new files
         finalFileUrls = newFileUrls;
@@ -607,6 +650,8 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
         newFileUrlsLength: newFileUrls.length
       });
     }
+
+    console.log('[UPDATE_WORKSHOP] Final updateData being sent to database:', updateData);
 
     const { data: workshop, error } = await supabase
       .from('workshop')

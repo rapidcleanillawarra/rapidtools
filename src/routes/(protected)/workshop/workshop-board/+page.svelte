@@ -357,8 +357,11 @@
       const updatedHistory = addHistoryEntry(currentWorkshop, newStatus);
 
       // Update the workshop status and history in the backend
+      // First update the status
+      await updateWorkshopStatus(workshopId, newStatus as WorkshopRecord['status']);
+
+      // Then update the history separately
       await updateWorkshop(workshopId, {
-        status: newStatus as WorkshopRecord['status'],
         history: updatedHistory
       } as any);
       console.log('[BACKEND_UPDATE_COMPLETED] Backend update successful for workshop:', workshopId, 'with history entry added');
@@ -450,8 +453,11 @@
       const updatedHistory = addHistoryEntry(currentWorkshop, newStatus);
 
       // Update the workshop status and history in the backend
+      // First update the status
+      await updateWorkshopStatus(workshopId, newStatus as WorkshopRecord['status']);
+
+      // Then update the history separately
       await updateWorkshop(workshopId, {
-        status: newStatus as WorkshopRecord['status'],
         history: updatedHistory
       } as any);
       console.log('[BACKEND_UPDATE] Backend update successful for workshop:', workshopId, 'with history entry added');

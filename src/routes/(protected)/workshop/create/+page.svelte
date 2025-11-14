@@ -203,7 +203,7 @@
   // Processing progress tracking
   let processingSteps = {
     creatingOrder: { label: 'Creating Maropost Order', completed: false, inProgress: false },
-    callingPowerAutomate: { label: 'Calling Power Automate API', completed: false, inProgress: false },
+    callingPowerAutomate: { label: 'Generating Tag and sending emails', completed: false, inProgress: false },
     savingWorkshop: { label: 'Saving Workshop to Database', completed: false, inProgress: false }
   };
 
@@ -217,7 +217,7 @@
   function resetProcessingSteps() {
     processingSteps = {
       creatingOrder: { label: 'Creating Maropost Order', completed: false, inProgress: false },
-      callingPowerAutomate: { label: 'Calling Power Automate API', completed: false, inProgress: false },
+      callingPowerAutomate: { label: 'Generating Tag and sending emails', completed: false, inProgress: false },
       savingWorkshop: { label: 'Saving Workshop to Database', completed: false, inProgress: false }
     };
   }
@@ -2953,6 +2953,7 @@
             <option value="">Select next status...</option>
             <option value="completed">Completed</option>
             <option value="return">Return</option>
+            <option value="pickup_from_workshop">Pickup From Workshop</option>
             <option value="to_be_scrapped">To Be Scrapped</option>
             <option value="pending_jobs">Pending Jobs</option>
           </select>

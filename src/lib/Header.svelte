@@ -44,7 +44,9 @@
   // Check if we're on the landing page
   let isLandingPage: boolean;
   const unsubPage = page.subscribe(value => {
-    isLandingPage = value.url.pathname === base + '/' || value.url.pathname === base;
+    const pathname = value.url.pathname;
+    const basePath = base || '';
+    isLandingPage = pathname === basePath + '/' || pathname === basePath;
   });
 
   // For mobile dropdowns
@@ -166,7 +168,7 @@
             </button>
             {#if productsOpen}
               <div 
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
               >
                 <div class="py-1.5">
@@ -215,6 +217,20 @@
                   sttOpen = false;
                 }
               }}
+              on:mouseenter={() => {
+                if (!catalogueOpen) {
+                  catalogueOpen = true;
+                  productsOpen = false;
+                  ordersOpen = false;
+                  shippingOpen = false;
+                  proMaxOpen = false;
+                  workshopOpen = false;
+                  sttOpen = false;
+                }
+              }}
+              on:mouseleave={() => {
+                // Don't close on mouseleave - let handleClickOutside handle it
+              }}
             >
               Catalogue
               <svg
@@ -229,8 +245,11 @@
             </button>
             {#if catalogueOpen}
               <div
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
+                on:mouseleave={() => {
+                  catalogueOpen = false;
+                }}
               >
                 <div class="py-1.5">
                   <a
@@ -270,7 +289,7 @@
             </button>
             {#if ordersOpen}
               <div 
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
               >
                 <div class="py-1.5">
@@ -331,7 +350,7 @@
             </button>
             {#if shippingOpen}
               <div 
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
               >
                 <div class="py-1.5">
@@ -372,7 +391,7 @@
             </button>
             {#if proMaxOpen}
               <div 
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
               >
                 <div class="py-1.5">
@@ -419,7 +438,7 @@
             </button>
             {#if workshopOpen}
               <div
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
               >
                 <div class="py-1.5">
@@ -476,7 +495,7 @@
             </button>
             {#if sttOpen}
               <div 
-                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out"
+                class="absolute left-0 w-56 mt-1 bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-gray-200/50 transform origin-top transition-all duration-200 ease-out z-40"
                 transition:fade
               >
                 <div class="py-1.5">

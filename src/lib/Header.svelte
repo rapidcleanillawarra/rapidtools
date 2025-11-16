@@ -11,7 +11,6 @@
   let ordersOpen = false;
   let userDropdownOpen = false;
   let shippingOpen = false;
-  let customerGroupProductsOpen = false;
   let proMaxOpen = false; // Add this line
   let workshopOpen = false; // Add workshop dropdown state
   let sttOpen = false; // Add STT dropdown state
@@ -53,7 +52,6 @@
   let mobileProductsOpen = false;
   let mobileOrdersOpen = false;
   let mobileShippingOpen = false;
-  let mobileCustomerGroupProductsOpen = false;
   let mobileProMaxOpen = false; // Add this line
   let mobileWorkshopOpen = false; // Add mobile workshop dropdown state
   let mobileSttOpen = false; // Add mobile STT dropdown state
@@ -72,9 +70,6 @@
     }
     if (!target.closest('.shipping-dropdown') && shippingOpen) {
       shippingOpen = false;
-    }
-    if (!target.closest('.customer-group-products-dropdown') && customerGroupProductsOpen) {
-      customerGroupProductsOpen = false;
     }
     if (!target.closest('.promax-dropdown') && proMaxOpen) { // Add this block
       proMaxOpen = false;
@@ -110,7 +105,6 @@
       mobileShippingOpen = false;
       userDropdownOpen = false;
       shippingOpen = false;
-      customerGroupProductsOpen = false;
       proMaxOpen = false; // Add this line
       mobileProMaxOpen = false; // Add this line
       workshopOpen = false; // Add workshop dropdown
@@ -187,16 +181,6 @@
                     class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
                     on:click={() => productsOpen = false}
                   >Update Product Price</a>
-                  <a 
-                    href="{base}/compare-sku" 
-                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
-                    on:click={() => productsOpen = false}
-                  >Compare SKU</a>
-                  <a
-                    href="{base}/customer-group-products"
-                    class="block px-4 py-2.5 text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors duration-150"
-                    on:click={() => productsOpen = false}
-                  >Customer Group Products</a>
                 </div>
               </div>
             {/if}
@@ -617,16 +601,6 @@
               class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
               on:click={() => mobileProductsOpen = false}
             >Update Product Price</a>
-            <a 
-              href="{base}/compare-sku" 
-              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
-              on:click={() => mobileProductsOpen = false}
-            >Compare SKU</a>
-            <a 
-              href="{base}/customer-group-products" 
-              class="block text-gray-200 hover:text-yellow-400 transition-colors duration-150 px-3 py-2.5 hover:bg-gray-800/50"
-              on:click={() => mobileProductsOpen = false}
-            >Customer Group Products</a>
           </div>
         {/if}
         <!-- Mobile Orders Dropdown -->

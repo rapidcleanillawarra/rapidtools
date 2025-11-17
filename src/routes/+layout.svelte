@@ -13,6 +13,7 @@
 	let mounted = false;
 	let user: any = null;
 	let loading = true;
+	let sidebarMinimized = false;
 
 	// Subscribe to auth state
 	const unsubAuth = currentUser.subscribe(value => {
@@ -38,17 +39,36 @@
 		goto(base + '/');
 	}
 
+	// Calculate sidebar width
+	$: sidebarWidth = sidebarMinimized ? '80px' : '280px';
+
 	onMount(() => {
 		mounted = true;
+
+		// Load initial sidebar state
+		if (browser && localStorage.getItem('sidebarMinimized') === 'true') {
+			sidebarMinimized = true;
+		}
+
+		// Listen for sidebar toggle events
+		const handleSidebarToggle = (event: CustomEvent) => {
+			sidebarMinimized = event.detail.minimized;
+		};
+		
+		window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+
 		return () => {
 			unsubAuth();
 			unsubLoading();
+			window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
 		};
 	});
 </script>
 
 {#if mounted || !browser}
 	<Header />
-	<slot />
+	<main class="transition-all duration-300" style="margin-left: 0;" style:margin-left={browser && window.innerWidth >= 1024 ? sidebarWidth : '0'}>
+		<slot />
+	</main>
 	<ToastContainer />
 {/if}

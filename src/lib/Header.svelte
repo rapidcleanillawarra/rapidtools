@@ -129,15 +129,15 @@
 </script>
 
 {#if !isLandingPage}
-  <nav class="bg-gray-900 border-b border-gray-800 w-full sticky top-0 z-50">
-    <div class="max-w-[98%] mx-auto px-4 sm:px-6">
-      <div class="flex justify-between items-center h-16">
+  <nav class="bg-gray-900 border-b border-gray-800 w-full sticky top-0 z-50 shadow-lg">
+    <div class="w-full px-3 sm:px-6 lg:px-10">
+      <div class="flex flex-wrap items-center justify-between gap-4 py-3 md:py-4">
         <!-- Logo / App Name -->
         <div class="flex-shrink-0 flex items-center">
           <span class="text-2xl font-bold text-yellow-400 tracking-tight">RapidTools</span>
         </div>
         <!-- Desktop Nav -->
-        <div class="hidden md:flex space-x-6 items-center">
+        <div class="hidden md:flex flex-1 flex-wrap items-center justify-center gap-x-4 gap-y-2 lg:gap-x-6 xl:gap-x-8">
           <a href="{base}/" class="text-white text-lg font-medium hover:text-yellow-400 transition px-2 py-1">Home</a>
           <!-- Products Dropdown -->
           <div class="relative products-dropdown">
@@ -546,7 +546,7 @@
           {/if}
         </div>
         <!-- Mobile Hamburger -->
-        <div class="md:hidden flex items-center">
+        <div class="md:hidden flex items-center ml-auto">
           <button type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-300 hover:text-yellow-400 hover:bg-gray-800 focus:outline-none" aria-label="Open main menu" on:click={() => mobileMenuOpen = !mobileMenuOpen}>
             <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
               <path class={mobileMenuOpen ? 'hidden' : 'inline'} stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -558,7 +558,7 @@
     </div>
     <!-- Mobile Menu -->
     {#if mobileMenuOpen}
-      <div class="md:hidden bg-gray-900 border-t border-gray-800 px-2 pt-2 pb-3 space-y-1">
+      <div class="md:hidden bg-gray-900 border-t border-gray-800 px-3 sm:px-4 pt-2 pb-3 space-y-1">
         <a href="{base}/" class="block text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2">Home</a>
         <!-- Mobile Catalogue Dropdown -->
         <button type="button" class="w-full flex justify-between items-center text-white text-base font-medium hover:text-yellow-400 transition px-3 py-2 focus:outline-none" on:click={() => mobileCatalogueOpen = !mobileCatalogueOpen}>

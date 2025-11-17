@@ -824,8 +824,8 @@ For any questions or concerns, please contact the system administrator.`;
   });
 </script>
 
-<div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
-  <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
+<div class="min-h-screen bg-gray-100 py-6 px-1 sm:px-3 lg:px-6">
+  <div class="w-full bg-white shadow-sm rounded-2xl p-4 sm:p-6 lg:p-8" transition:fade>
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold text-gray-900">Product Request</h2>
       {#if profile}
@@ -871,199 +871,204 @@ For any questions or concerns, please contact the system administrator.`;
       </div>
 
       <!-- Product Rows -->
-      <div class="overflow-visible">
-        <!-- Headers -->
-        <div class="hidden md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:px-6 md:py-3 text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 rounded-t-lg">
-          <div>#</div>
-          <div>SKU</div>
-          <div>Product Name</div>
-          <div>
-            Brand
-            <div class="mt-1">
+      <section class="space-y-5">
+        <div class="rounded-2xl border border-blue-100/80 bg-blue-50/80 p-4 text-sm text-blue-900 shadow-sm">
+          <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p class="text-base font-semibold">Bulk apply</p>
+              <p class="text-xs text-blue-700">Copy the first-row selections to every row below.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
               <button
                 on:click={() => applyToAll('brand', rows[0]?.brand)}
-                class="text-blue-600 hover:text-blue-800 text-xs"
+                class="rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
               >
-                Apply to All
+                Brand
               </button>
-            </div>
-          </div>
-          <div>
-            Supplier
-            <div class="mt-1">
               <button
                 on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-                class="text-blue-600 hover:text-blue-800 text-xs"
+                class="rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
               >
-                Apply to All
+                Supplier
               </button>
-            </div>
-          </div>
-          <div>Purchase Price</div>
-          <div>GPM (%)</div>
-          <div>List Price</div>
-          <div>
-            Tax Free
-            <div class="mt-1">
               <button
                 on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
-                class="text-blue-600 hover:text-blue-800 text-xs"
+                class="rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
               >
-                Apply to All
+                Tax Included
               </button>
             </div>
           </div>
-          <div></div>
         </div>
 
-        <!-- Rows -->
-        <div class="divide-y divide-gray-200">
-          {#each rows as row, i}
-            <div class="bg-white md:hover:bg-gray-50 transition-colors">
-              <div class="md:grid md:grid-cols-[40px_1fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr_40px] md:gap-4 md:items-center p-4 md:px-6 md:py-4">
-                <!-- Row Number -->
-                <div class="mb-4 md:mb-0 flex items-center justify-center">
-                  <span class="text-sm font-medium text-gray-500">{i + 1}</span>
-                </div>
-                
-                <!-- SKU -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">SKU</label>
-                  <input
-                    type="text"
-                    bind:value={row.sku}
-                    on:paste={(e) => handlePaste(e, i, 'sku')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="SKU"
-                  />
-                </div>
-
-                <!-- Product Name -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                  <input
-                    type="text"
-                    bind:value={row.productName}
-                    on:paste={(e) => handlePaste(e, i, 'productName')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Product Name"
-                  />
-                </div>
-
-                <!-- Brand -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Brand</label>
-                  {#if loadingBrands}
-                    <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
-                  {:else if brandError}
-                    <div class="text-red-600 text-sm">{brandError}</div>
-                  {:else}
-                    <Select
-                      items={brands}
-                      bind:value={row.brand}
-                      placeholder="Select Brand"
-                      containerStyles="position: relative;"
-                    />
-                  {/if}
-                </div>
-
-                <!-- Supplier -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Supplier</label>
-                  {#if loadingSuppliers}
-                    <div class="animate-pulse bg-gray-200 h-9 rounded"></div>
-                  {:else if supplierError}
-                    <div class="text-red-600 text-sm">{supplierError}</div>
-                  {:else}
-                    <Select
-                      items={suppliers}
-                      bind:value={row.supplier}
-                      placeholder="Select Supplier"
-                      containerStyles="position: relative;"
-                    />
-                  {/if}
-                </div>
-
-                <!-- Purchase Price -->
-                <div class="mb-4 md:mb-0 input-wrapper">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
-                  <input
-                    type="number"
-                    bind:value={row.purchasePrice}
-                    on:input={(e) => handlePurchasePriceChange(e, i)}
-                    on:paste={(e) => handlePaste(e, i, 'purchasePrice')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="Purchase Price"
-                    step="0.01"
-                  />
-                </div>
-
-                <!-- GPM -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">GPM (%)</label>
-                  <input
-                    type="number"
-                    bind:value={row.gpm}
-                    on:input={(e) => handleGPMChange(e, i)}
-                    on:paste={(e) => handlePaste(e, i, 'gpm')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="GPM (%)"
-                    step="0.01"
-                  />
-                </div>
-
-                <!-- List Price -->
-                <div class="mb-4 md:mb-0">
-                  <label class="block md:hidden text-sm font-medium text-gray-700 mb-1">List Price</label>
-                  <input
-                    type="number"
-                    bind:value={row.listPrice}
-                    on:input={(e) => handleListPriceChange(e, i)}
-                    on:blur={(e) => handleListPriceBlur(e, i)}
-                    on:paste={(e) => handlePaste(e, i, 'listPrice')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    placeholder="List Price"
-                    step="0.01"
-                  />
-                </div>
-
-
-                <!-- Tax Column -->
-                <label class="mb-4 md:mb-0 flex items-center cursor-pointer">
-                  <span class="block md:hidden text-sm font-medium text-gray-700 mb-1 mr-2">Tax Free</span>
-                  <input
-                    type="checkbox"
-                    bind:checked={row.taxIncluded}
-                    class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                  />
-                </label>
-
-                <!-- Action -->
-                <div class="text-right md:text-center">
-                  <button
-                    on:click={() => removeRow(i)}
-                    class="md:p-1 md:rounded hover:bg-red-50 transition-colors inline-flex items-center justify-center"
-                    disabled={rows.length === 1}
-                    title="Remove row"
-                  >
-                    <!-- Mobile view: Text button -->
-                    <span class="md:hidden bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
-                      Remove
-                    </span>
-                    
-                    <!-- Desktop view: Icon only -->
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" 
-                      class="hidden md:block w-4 h-4 text-red-600 hover:text-red-900">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span class="sr-only">Remove row</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          {/each}
+        <div class="rounded-2xl border border-gray-200 bg-white shadow-lg">
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[1180px] divide-y divide-gray-200 text-sm">
+              <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th class="py-3 pl-6 pr-3 text-left">#</th>
+                  <th class="px-3 py-3 text-left">SKU</th>
+                  <th class="px-3 py-3 text-left">Product Name</th>
+                  <th class="px-3 py-3 text-left">
+                    <div class="flex items-center gap-2">
+                      <span>Brand</span>
+                      <button
+                        on:click={() => applyToAll('brand', rows[0]?.brand)}
+                        class="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                      >
+                        Apply to All
+                      </button>
+                    </div>
+                  </th>
+                  <th class="px-3 py-3 text-left">
+                    <div class="flex items-center gap-2">
+                      <span>Supplier</span>
+                      <button
+                        on:click={() => applyToAll('supplier', rows[0]?.supplier)}
+                        class="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                      >
+                        Apply to All
+                      </button>
+                    </div>
+                  </th>
+                  <th class="px-3 py-3 text-left">Purchase Price</th>
+                  <th class="px-3 py-3 text-left">GPM (%)</th>
+                  <th class="px-3 py-3 text-left">List Price</th>
+                  <th class="px-3 py-3 text-center">
+                    <div class="flex items-center justify-center gap-2">
+                      <span>Tax Included</span>
+                      <button
+                        on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
+                        class="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                      >
+                        Apply to All
+                      </button>
+                    </div>
+                  </th>
+                  <th class="py-3 pl-3 pr-6 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 bg-white">
+                {#each rows as row, i}
+                  <tr class="even:bg-gray-50/70">
+                    <td class="whitespace-nowrap py-4 pl-6 pr-3 text-center text-sm font-semibold text-gray-500">{i + 1}</td>
+                    <td class="px-3 py-4 align-top">
+                      <label class="sr-only" for={`sku-${i}`}>SKU</label>
+                      <input
+                        id={`sku-${i}`}
+                        type="text"
+                        bind:value={row.sku}
+                        on:paste={(e) => handlePaste(e, i, 'sku')}
+                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="SKU"
+                      />
+                    </td>
+                    <td class="px-3 py-4 align-top">
+                      <label class="sr-only" for={`product-name-${i}`}>Product Name</label>
+                      <input
+                        id={`product-name-${i}`}
+                        type="text"
+                        bind:value={row.productName}
+                        on:paste={(e) => handlePaste(e, i, 'productName')}
+                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Product Name"
+                      />
+                    </td>
+                    <td class="px-3 py-4 align-top select-wrapper">
+                      {#if loadingBrands}
+                        <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
+                      {:else if brandError}
+                        <div class="text-sm text-red-600">{brandError}</div>
+                      {:else}
+                        <Select
+                          items={brands}
+                          bind:value={row.brand}
+                          placeholder="Select Brand"
+                          containerStyles="position: relative;"
+                        />
+                      {/if}
+                    </td>
+                    <td class="px-3 py-4 align-top select-wrapper">
+                      {#if loadingSuppliers}
+                        <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
+                      {:else if supplierError}
+                        <div class="text-sm text-red-600">{supplierError}</div>
+                      {:else}
+                        <Select
+                          items={suppliers}
+                          bind:value={row.supplier}
+                          placeholder="Select Supplier"
+                          containerStyles="position: relative;"
+                        />
+                      {/if}
+                    </td>
+                    <td class="px-3 py-4 align-top input-wrapper">
+                      <label class="sr-only" for={`purchase-price-${i}`}>Purchase Price</label>
+                      <input
+                        id={`purchase-price-${i}`}
+                        type="number"
+                        bind:value={row.purchasePrice}
+                        on:input={(e) => handlePurchasePriceChange(e, i)}
+                        on:paste={(e) => handlePaste(e, i, 'purchasePrice')}
+                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="0.00"
+                        step="0.01"
+                      />
+                    </td>
+                    <td class="px-3 py-4 align-top">
+                      <label class="sr-only" for={`gpm-${i}`}>GPM</label>
+                      <input
+                        id={`gpm-${i}`}
+                        type="number"
+                        bind:value={row.gpm}
+                        on:input={(e) => handleGPMChange(e, i)}
+                        on:paste={(e) => handlePaste(e, i, 'gpm')}
+                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="0.00"
+                        step="0.01"
+                      />
+                    </td>
+                    <td class="px-3 py-4 align-top">
+                      <label class="sr-only" for={`list-price-${i}`}>List Price</label>
+                      <input
+                        id={`list-price-${i}`}
+                        type="number"
+                        bind:value={row.listPrice}
+                        on:input={(e) => handleListPriceChange(e, i)}
+                        on:blur={(e) => handleListPriceBlur(e, i)}
+                        on:paste={(e) => handlePaste(e, i, 'listPrice')}
+                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="0.00"
+                        step="0.01"
+                      />
+                    </td>
+                    <td class="px-3 py-4 text-center">
+                      <label class="sr-only" for={`tax-${i}`}>Tax Included</label>
+                      <input
+                        id={`tax-${i}`}
+                        type="checkbox"
+                        bind:checked={row.taxIncluded}
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td class="py-4 pl-3 pr-6 text-right">
+                      <button
+                        on:click={() => removeRow(i)}
+                        class="inline-flex items-center justify-center rounded-full border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        disabled={rows.length === 1}
+                        title="Remove row"
+                      >
+                        Remove
+                        <span class="sr-only">Remove row {i + 1}</span>
+                      </button>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 
@@ -1119,7 +1124,7 @@ For any questions or concerns, please contact the system administrator.`;
 </div>
 
 <!-- Add portal container at the end of the body -->
-<div id="select-portal" />
+<div id="select-portal"></div>
 
 <style>
   :global(body) {

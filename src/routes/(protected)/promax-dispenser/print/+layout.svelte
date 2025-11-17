@@ -3,36 +3,30 @@
   export let data: LayoutData;
 </script>
 
-<slot />
+<div class="print-layout">
+  <slot />
+</div>
 
 <style>
-  :global(*) {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-
-  :global(body) {
+  .print-layout {
     margin: 0;
     padding: 0;
     background: white;
     font-family: Arial, sans-serif;
-  }
-
-  :global(header), :global(nav), :global(.header) {
-    display: none !important;
+    min-height: 100vh;
   }
 
   /* Print styles */
   @media print {
-    :global(body) {
+    .print-layout {
       margin: 0;
       padding: 0;
       background: white;
     }
-    
-    :global(header), :global(nav), :global(.header) {
-      display: none !important;
+
+    :global(body) {
+      margin: 0;
+      padding: 0;
     }
   }
 </style> 

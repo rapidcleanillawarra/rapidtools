@@ -14,6 +14,7 @@
 	let user: any = null;
 	let loading = true;
 	let sidebarMinimized = false;
+	let isDesktop = true; // Track if we're on desktop screen
 
 	// Subscribe to auth state
 	const unsubAuth = currentUser.subscribe(value => {
@@ -23,6 +24,9 @@
 	const unsubLoading = isLoadingAuth.subscribe(value => {
 		loading = value;
 	});
+
+	// Check if we're on a print page
+	$: isPrintPage = $page.url.pathname.includes('/print');
 
 	// Check if we're on a protected route
 	$: isProtectedRoute = $page.url.pathname.startsWith(base + '/product-request') ||
@@ -39,8 +43,8 @@
 		goto(base + '/');
 	}
 
-	// Calculate sidebar width
-	$: sidebarWidth = sidebarMinimized ? '80px' : '280px';
+	// Calculate sidebar width - only apply on desktop and not on print pages
+	$: sidebarWidth = isPrintPage ? '0' : (isDesktop ? (sidebarMinimized ? '80px' : '280px') : '0');
 
 	onMount(() => {
 		mounted = true;
@@ -50,9 +54,15 @@
 			sidebarMinimized = true;
 		}
 
+		// Check initial screen size
+		if (browser) {
+			isDesktop = window.innerWidth >= 1024;
+		}
+
 		// Listen for sidebar toggle events
 		const handleSidebarToggle = (event: CustomEvent) => {
 			sidebarMinimized = event.detail.minimized;
+			isDesktop = event.detail.isDesktop;
 		};
 		
 		window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
@@ -66,8 +76,10 @@
 </script>
 
 {#if mounted || !browser}
-	<Header />
-	<main class="transition-all duration-300" style="margin-left: 0;" style:margin-left={browser && window.innerWidth >= 1024 ? sidebarWidth : '0'}>
+	{#if !isPrintPage}
+		<Header />
+	{/if}
+	<main class="transition-all duration-300" style:margin-left={sidebarWidth}>
 		<slot />
 	</main>
 	<ToastContainer />

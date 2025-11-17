@@ -22,8 +22,14 @@
     sidebarMinimized = !sidebarMinimized;
     if (browser) {
       localStorage.setItem('sidebarMinimized', sidebarMinimized.toString());
-      // Dispatch event to update main content margin
-      window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { minimized: sidebarMinimized } }));
+      // Dispatch event to update main content margin (desktop only)
+      const isDesktop = window.innerWidth >= 1024; // lg breakpoint
+      window.dispatchEvent(new CustomEvent('sidebar-toggle', { 
+        detail: { 
+          minimized: sidebarMinimized,
+          isDesktop: isDesktop
+        } 
+      }));
     }
     // Close all dropdowns when minimizing
     if (sidebarMinimized) {
@@ -101,6 +107,30 @@
       sidebarMinimized = true;
     }
 
+    // Dispatch initial sidebar state
+    if (browser) {
+      const isDesktop = window.innerWidth >= 1024;
+      window.dispatchEvent(new CustomEvent('sidebar-toggle', { 
+        detail: { 
+          minimized: sidebarMinimized,
+          isDesktop: isDesktop
+        } 
+      }));
+    }
+
+    // Handle window resize to update layout when switching between mobile/desktop
+    const handleResize = () => {
+      if (browser) {
+        const isDesktop = window.innerWidth >= 1024;
+        window.dispatchEvent(new CustomEvent('sidebar-toggle', { 
+          detail: { 
+            minimized: sidebarMinimized,
+            isDesktop: isDesktop
+          } 
+        }));
+      }
+    };
+
     const close = () => {
       sidebarOpen = false;
       productsOpen = false;
@@ -112,11 +142,15 @@
       catalogueOpen = false;
       userDropdownOpen = false;
     };
+    
     window.addEventListener('hashchange', close);
     window.addEventListener('popstate', close);
+    window.addEventListener('resize', handleResize);
+    
     return () => {
       window.removeEventListener('hashchange', close);
       window.removeEventListener('popstate', close);
+      window.removeEventListener('resize', handleResize);
       unsubCurrentUser();
       unsubPage();
       unsubUserProfile();

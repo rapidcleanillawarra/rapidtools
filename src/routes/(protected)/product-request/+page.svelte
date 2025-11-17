@@ -80,6 +80,26 @@
     };
   }
 
+  // Format number with commas for display
+  function formatNumberWithCommas(value: string): string {
+    if (!value || value === '') return '';
+    // Remove any existing commas first
+    const cleanValue = value.replace(/,/g, '');
+    const num = parseFloat(cleanValue);
+    if (isNaN(num)) return value;
+    
+    // Format with commas
+    return num.toLocaleString('en-US', { 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2 
+    });
+  }
+
+  // Remove commas from formatted string for calculations
+  function removeCommas(value: string): string {
+    return value.replace(/,/g, '');
+  }
+
   // Local Storage Functions
   function saveToLocalStorage() {
     try {
@@ -287,8 +307,8 @@
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.productName}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.brand?.label || '-'}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.supplier?.label || '-'}</td>
-      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.purchasePrice).toFixed(2)}</td>
-      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(product.listPrice).toFixed(2)}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">${product.taxIncluded ? 'Yes' : 'No'}</td>
     </tr>
     `).join('')}
@@ -297,7 +317,7 @@
 
       // For Teams, create a simplified ASCII table
       const teamsTable = products.map((product, index) => `
-${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(product.purchasePrice).toFixed(2)} | $${parseFloat(product.listPrice).toFixed(2)} | ${product.taxIncluded ? 'Yes' : 'No'}`).join('\n');
+${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | $${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | ${product.taxIncluded ? 'Yes' : 'No'}`).join('\n');
 
       // Create email body with HTML formatting
       const emailBody = `
@@ -441,9 +461,9 @@ For any questions or concerns, please contact the system administrator.`;
             product_name: row.productName,
             brand: row.brand?.label || '',
             primary_supplier: row.supplier?.value || '',
-            purchase_price: parseFloat(row.purchasePrice) || 0,
-            list_price: parseFloat(row.listPrice) || 0,
-            rrp: parseFloat(row.rrp) || 0,
+            purchase_price: parseFloat(removeCommas(row.purchasePrice)) || 0,
+            list_price: parseFloat(removeCommas(row.listPrice)) || 0,
+            rrp: parseFloat(removeCommas(row.rrp)) || 0,
             tax_included: row.taxIncluded,
             status: 'request',
             date_created: serverTimestamp(),
@@ -504,21 +524,42 @@ For any questions or concerns, please contact the system administrator.`;
 
   // Handle Purchase Price change - update GPM
   function handlePurchasePriceChange(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    // Remove commas for calculations
+    const cleanValue = removeCommas(target.value);
+    rows = rows.map((row, index) =>
+      index === rowIndex ? { ...row, purchasePrice: cleanValue } : row
+    );
     // Update GPM after a short delay to ensure the value is updated
     setTimeout(() => updateGPM(rowIndex), 0);
+  }
+
+  // Handle Purchase Price blur - format with commas
+  function handlePurchasePriceBlur(event: Event, rowIndex: number) {
+    const target = event.target as HTMLInputElement;
+    const formatted = formatNumberWithCommas(target.value);
+    rows = rows.map((row, index) =>
+      index === rowIndex ? { ...row, purchasePrice: formatted || row.purchasePrice } : row
+    );
   }
 
   // Handle List Price change - calculate RRP as List Price + 10% and update GPM
   function handleListPriceChange(event: Event, rowIndex: number) {
     const target = event.target as HTMLInputElement;
-    const listPrice = parseFloat(target.value);
+    // Remove commas for calculations
+    const cleanValue = removeCommas(target.value);
+    const listPrice = parseFloat(cleanValue);
 
     if (!isNaN(listPrice) && listPrice > 0) {
       const calculatedRRP = (listPrice * 1.10).toFixed(2);
       rows = rows.map((row, index) =>
         index === rowIndex
-          ? { ...row, rrp: calculatedRRP }
+          ? { ...row, listPrice: cleanValue, rrp: calculatedRRP }
           : row
+      );
+    } else {
+      rows = rows.map((row, index) =>
+        index === rowIndex ? { ...row, listPrice: cleanValue } : row
       );
     }
 
@@ -526,24 +567,35 @@ For any questions or concerns, please contact the system administrator.`;
     setTimeout(() => updateGPM(rowIndex), 0);
   }
 
-  // Handle List Price blur - clear RRP if List Price is empty/null
+  // Handle List Price blur - format with commas and clear RRP if empty
   function handleListPriceBlur(event: Event, rowIndex: number) {
     const target = event.target as HTMLInputElement;
-    const listPrice = target.value.trim();
+    const listPrice = removeCommas(target.value).trim();
 
     if (!listPrice || listPrice === '') {
       rows = rows.map((row, index) =>
         index === rowIndex
-          ? { ...row, rrp: '' }
+          ? { ...row, listPrice: '', rrp: '' }
           : row
+      );
+    } else {
+      // Format both list price and RRP with commas
+      const formattedListPrice = formatNumberWithCommas(listPrice);
+      const row = rows[rowIndex];
+      const formattedRRP = row.rrp ? formatNumberWithCommas(row.rrp) : '';
+      rows = rows.map((r, index) =>
+        index === rowIndex
+          ? { ...r, listPrice: formattedListPrice, rrp: formattedRRP }
+          : r
       );
     }
   }
 
   // Calculate GPM (Gross Profit Margin)
   function calculateGPM(purchasePrice: string, listPrice: string): string {
-    const purchase = parseFloat(purchasePrice);
-    const list = parseFloat(listPrice);
+    // Remove commas before parsing
+    const purchase = parseFloat(removeCommas(purchasePrice));
+    const list = parseFloat(removeCommas(listPrice));
 
     if (isNaN(purchase) || isNaN(list) || purchase <= 0 || list <= 0) {
       return '';
@@ -569,30 +621,46 @@ For any questions or concerns, please contact the system administrator.`;
   // Handle RRP change - calculate List Price as RRP - 10%
   function handleRRPChange(event: Event, rowIndex: number) {
     const target = event.target as HTMLInputElement;
-    const rrp = parseFloat(target.value);
+    // Remove commas for calculations
+    const cleanValue = removeCommas(target.value);
+    const rrp = parseFloat(cleanValue);
 
     if (!isNaN(rrp) && rrp > 0) {
       const calculatedListPrice = (rrp / 1.10).toFixed(2);
       rows = rows.map((row, index) =>
         index === rowIndex
-          ? { ...row, listPrice: calculatedListPrice }
+          ? { ...row, rrp: cleanValue, listPrice: calculatedListPrice }
           : row
       );
       // Update GPM after list price calculation
       setTimeout(() => updateGPM(rowIndex), 0);
+    } else {
+      rows = rows.map((row, index) =>
+        index === rowIndex ? { ...row, rrp: cleanValue } : row
+      );
     }
   }
 
-  // Handle RRP blur - clear list price if RRP is empty/null
+  // Handle RRP blur - format with commas and clear list price if empty
   function handleRRPBlur(event: Event, rowIndex: number) {
     const target = event.target as HTMLInputElement;
-    const rrp = target.value.trim();
+    const rrp = removeCommas(target.value).trim();
 
     if (!rrp || rrp === '') {
       rows = rows.map((row, index) =>
         index === rowIndex
-          ? { ...row, listPrice: '' }
+          ? { ...row, rrp: '', listPrice: '' }
           : row
+      );
+    } else {
+      // Format both RRP and list price with commas
+      const formattedRRP = formatNumberWithCommas(rrp);
+      const row = rows[rowIndex];
+      const formattedListPrice = row.listPrice ? formatNumberWithCommas(row.listPrice) : '';
+      rows = rows.map((r, index) =>
+        index === rowIndex
+          ? { ...r, rrp: formattedRRP, listPrice: formattedListPrice }
+          : r
       );
     }
   }
@@ -604,7 +672,8 @@ For any questions or concerns, please contact the system administrator.`;
     const row = rows[rowIndex];
 
     if (!isNaN(gpm) && gpm >= 0 && gpm < 100 && row.purchasePrice) {
-      const purchasePrice = parseFloat(row.purchasePrice);
+      // Remove commas before calculation
+      const purchasePrice = parseFloat(removeCommas(row.purchasePrice));
       if (purchasePrice > 0) {
         // Calculate List Price: listPrice = purchasePrice / (1 - GPM/100)
         const calculatedListPrice = (purchasePrice / (1 - gpm / 100)).toFixed(2);
@@ -623,6 +692,11 @@ For any questions or concerns, please contact the system administrator.`;
   // SVG icon for delete button
   const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-5 h-5">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>`;
+
+  // SVG icon for apply to all (copy down arrow)
+  const applyToAllIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-4 h-4">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
   </svg>`;
 
   // Function to handle Excel paste
@@ -673,16 +747,21 @@ For any questions or concerns, please contact the system administrator.`;
         console.log('Single cell paste:', { value, field, rowIndex });
 
         if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp' || field === 'gpm') {
+          // Clean value if it's a price field
+          const cleanedValue = (field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') 
+            ? removeCommas(value) 
+            : value;
+          
           // Use reactive assignment to ensure UI updates
           rows = rows.map((row, index) =>
             index === rowIndex
-              ? { ...row, [field]: value }
+              ? { ...row, [field]: cleanedValue }
               : row
           );
 
           // Trigger calculations for price fields
           if (field === 'listPrice') {
-            const listPrice = parseFloat(value);
+            const listPrice = parseFloat(cleanedValue);
             if (!isNaN(listPrice) && listPrice > 0) {
               const calculatedRRP = (listPrice * 1.10).toFixed(2);
               rows = rows.map((row, index) =>
@@ -691,13 +770,30 @@ For any questions or concerns, please contact the system administrator.`;
                   : row
               );
             }
-            // Update GPM after calculations
-            setTimeout(() => updateGPM(rowIndex), 0);
+            // Update GPM and format after calculations
+            setTimeout(() => {
+              updateGPM(rowIndex);
+              // Format the values
+              const row = rows[rowIndex];
+              rows = rows.map((r, idx) =>
+                idx === rowIndex
+                  ? { ...r, listPrice: formatNumberWithCommas(r.listPrice), rrp: formatNumberWithCommas(r.rrp) }
+                  : r
+              );
+            }, 10);
           } else if (field === 'purchasePrice') {
-            // Update GPM after purchase price change
-            setTimeout(() => updateGPM(rowIndex), 0);
+            // Update GPM and format after purchase price change
+            setTimeout(() => {
+              updateGPM(rowIndex);
+              // Format the value
+              rows = rows.map((r, idx) =>
+                idx === rowIndex
+                  ? { ...r, purchasePrice: formatNumberWithCommas(r.purchasePrice) }
+                  : r
+              );
+            }, 10);
           } else if (field === 'rrp') {
-            const rrp = parseFloat(value);
+            const rrp = parseFloat(cleanedValue);
             if (!isNaN(rrp) && rrp > 0) {
               const calculatedListPrice = (rrp / 1.10).toFixed(2);
               rows = rows.map((row, index) =>
@@ -706,13 +802,22 @@ For any questions or concerns, please contact the system administrator.`;
                   : row
               );
             }
-            // Update GPM after calculations
-            setTimeout(() => updateGPM(rowIndex), 0);
+            // Update GPM and format after calculations
+            setTimeout(() => {
+              updateGPM(rowIndex);
+              // Format the values
+              const row = rows[rowIndex];
+              rows = rows.map((r, idx) =>
+                idx === rowIndex
+                  ? { ...r, rrp: formatNumberWithCommas(r.rrp), listPrice: formatNumberWithCommas(r.listPrice) }
+                  : r
+              );
+            }, 10);
           } else if (field === 'gpm') {
             const gpm = parseFloat(value);
             const row = rows[rowIndex];
             if (!isNaN(gpm) && gpm >= 0 && gpm < 100 && row.purchasePrice) {
-              const purchasePrice = parseFloat(row.purchasePrice);
+              const purchasePrice = parseFloat(removeCommas(row.purchasePrice));
               if (purchasePrice > 0) {
                 // Calculate List Price: listPrice = purchasePrice / (1 - GPM/100)
                 const calculatedListPrice = (purchasePrice / (1 - gpm / 100)).toFixed(2);
@@ -723,6 +828,14 @@ For any questions or concerns, please contact the system administrator.`;
                     ? { ...r, listPrice: calculatedListPrice, rrp: calculatedRRP }
                     : r
                 );
+                // Format after calculations
+                setTimeout(() => {
+                  rows = rows.map((r, idx) =>
+                    idx === rowIndex
+                      ? { ...r, listPrice: formatNumberWithCommas(r.listPrice), rrp: formatNumberWithCommas(r.rrp) }
+                      : r
+                  );
+                }, 10);
               }
             }
           }
@@ -743,17 +856,22 @@ For any questions or concerns, please contact the system administrator.`;
       // Update the specific column for each row
       values.forEach((value, index) => {
         if (field === 'sku' || field === 'productName' || field === 'purchasePrice' || field === 'listPrice' || field === 'rrp' || field === 'gpm') {
-          newRows[rowIndex + index] = { ...newRows[rowIndex + index], [field]: value };
+          // Clean value if it's a price field
+          const cleanedValue = (field === 'purchasePrice' || field === 'listPrice' || field === 'rrp') 
+            ? removeCommas(value) 
+            : value;
+          
+          newRows[rowIndex + index] = { ...newRows[rowIndex + index], [field]: cleanedValue };
 
           // Trigger calculations for price fields
           if (field === 'listPrice') {
-            const listPrice = parseFloat(value);
+            const listPrice = parseFloat(cleanedValue);
             if (!isNaN(listPrice) && listPrice > 0) {
               const calculatedRRP = (listPrice * 1.10).toFixed(2);
               newRows[rowIndex + index] = { ...newRows[rowIndex + index], rrp: calculatedRRP };
             }
           } else if (field === 'rrp') {
-            const rrp = parseFloat(value);
+            const rrp = parseFloat(cleanedValue);
             if (!isNaN(rrp) && rrp > 0) {
               const calculatedListPrice = (rrp / 1.10).toFixed(2);
               newRows[rowIndex + index] = { ...newRows[rowIndex + index], listPrice: calculatedListPrice };
@@ -762,7 +880,7 @@ For any questions or concerns, please contact the system administrator.`;
             const gpm = parseFloat(value);
             const row = newRows[rowIndex + index];
             if (!isNaN(gpm) && gpm >= 0 && gpm < 100 && row.purchasePrice) {
-              const purchasePrice = parseFloat(row.purchasePrice);
+              const purchasePrice = parseFloat(removeCommas(row.purchasePrice));
               if (purchasePrice > 0) {
                 // Calculate List Price: listPrice = purchasePrice / (1 - GPM/100)
                 const calculatedListPrice = (purchasePrice / (1 - gpm / 100)).toFixed(2);
@@ -779,6 +897,33 @@ For any questions or concerns, please contact the system administrator.`;
           const updatedRow = newRows[rowIndex + index];
           const gpm = calculateGPM(updatedRow.purchasePrice, updatedRow.listPrice);
           newRows[rowIndex + index] = { ...newRows[rowIndex + index], gpm };
+          
+          // Format price fields with commas
+          if (field === 'purchasePrice') {
+            newRows[rowIndex + index] = { 
+              ...newRows[rowIndex + index], 
+              purchasePrice: formatNumberWithCommas(newRows[rowIndex + index].purchasePrice) 
+            };
+          } else if (field === 'listPrice') {
+            newRows[rowIndex + index] = { 
+              ...newRows[rowIndex + index], 
+              listPrice: formatNumberWithCommas(newRows[rowIndex + index].listPrice),
+              rrp: formatNumberWithCommas(newRows[rowIndex + index].rrp)
+            };
+          } else if (field === 'rrp') {
+            newRows[rowIndex + index] = { 
+              ...newRows[rowIndex + index], 
+              rrp: formatNumberWithCommas(newRows[rowIndex + index].rrp),
+              listPrice: formatNumberWithCommas(newRows[rowIndex + index].listPrice)
+            };
+          }
+        } else if (field === 'gpm') {
+          // Format list price and RRP after GPM calculation
+          newRows[rowIndex + index] = { 
+            ...newRows[rowIndex + index], 
+            listPrice: formatNumberWithCommas(newRows[rowIndex + index].listPrice),
+            rrp: formatNumberWithCommas(newRows[rowIndex + index].rrp)
+          };
         }
       });
       
@@ -881,20 +1026,26 @@ For any questions or concerns, please contact the system administrator.`;
             <div class="flex flex-wrap gap-2">
               <button
                 on:click={() => applyToAll('brand', rows[0]?.brand)}
-                class="rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                title="Apply brand to all rows"
               >
+                {@html applyToAllIcon}
                 Brand
               </button>
               <button
                 on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-                class="rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                title="Apply supplier to all rows"
               >
+                {@html applyToAllIcon}
                 Supplier
               </button>
               <button
                 on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
-                class="rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                title="Apply tax setting to all rows"
               >
+                {@html applyToAllIcon}
                 Tax Included
               </button>
             </div>
@@ -906,53 +1057,56 @@ For any questions or concerns, please contact the system administrator.`;
             <table class="w-full min-w-[1180px] divide-y divide-gray-200 text-sm">
               <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 <tr>
-                  <th class="py-3 pl-6 pr-3 text-left">#</th>
-                  <th class="px-3 py-3 text-left">SKU</th>
-                  <th class="px-3 py-3 text-left">Product Name</th>
-                  <th class="px-3 py-3 text-left">
+                  <th class="py-3 pl-6 pr-3 text-left w-12">#</th>
+                  <th class="px-3 py-3 text-left w-32">SKU</th>
+                  <th class="px-3 py-3 text-left w-48">Product Name</th>
+                  <th class="px-3 py-3 text-left w-52">
                     <div class="flex items-center gap-2">
                       <span>Brand</span>
                       <button
                         on:click={() => applyToAll('brand', rows[0]?.brand)}
-                        class="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                        class="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                        title="Apply to all rows"
                       >
-                        Apply to All
+                        {@html applyToAllIcon}
                       </button>
                     </div>
                   </th>
-                  <th class="px-3 py-3 text-left">
+                  <th class="px-3 py-3 text-left w-52">
                     <div class="flex items-center gap-2">
                       <span>Supplier</span>
                       <button
                         on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-                        class="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                        class="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                        title="Apply to all rows"
                       >
-                        Apply to All
+                        {@html applyToAllIcon}
                       </button>
                     </div>
                   </th>
-                  <th class="px-3 py-3 text-left">Purchase Price</th>
-                  <th class="px-3 py-3 text-left">GPM (%)</th>
-                  <th class="px-3 py-3 text-left">List Price</th>
-                  <th class="px-3 py-3 text-center">
+                  <th class="px-3 py-3 text-left w-28">Purchase Price</th>
+                  <th class="px-3 py-3 text-left w-24">GPM (%)</th>
+                  <th class="px-3 py-3 text-left w-28">List Price</th>
+                  <th class="px-3 py-3 text-center w-20">
                     <div class="flex items-center justify-center gap-2">
-                      <span>Tax Included</span>
+                      <span>Tax</span>
                       <button
                         on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
-                        class="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                        class="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                        title="Apply to all rows"
                       >
-                        Apply to All
+                        {@html applyToAllIcon}
                       </button>
                     </div>
                   </th>
-                  <th class="py-3 pl-3 pr-6 text-right">Action</th>
+                  <th class="py-3 pl-3 pr-6 text-right w-28">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 bg-white">
                 {#each rows as row, i}
                   <tr class="even:bg-gray-50/70">
-                    <td class="whitespace-nowrap py-4 pl-6 pr-3 text-center text-sm font-semibold text-gray-500">{i + 1}</td>
-                    <td class="px-3 py-4 align-top">
+                    <td class="whitespace-nowrap py-4 pl-6 pr-3 text-center text-sm font-semibold text-gray-500 w-12">{i + 1}</td>
+                    <td class="px-3 py-4 align-top w-32">
                       <label class="sr-only" for={`sku-${i}`}>SKU</label>
                       <input
                         id={`sku-${i}`}
@@ -963,7 +1117,7 @@ For any questions or concerns, please contact the system administrator.`;
                         placeholder="SKU"
                       />
                     </td>
-                    <td class="px-3 py-4 align-top">
+                    <td class="px-3 py-4 align-top w-48">
                       <label class="sr-only" for={`product-name-${i}`}>Product Name</label>
                       <input
                         id={`product-name-${i}`}
@@ -974,7 +1128,7 @@ For any questions or concerns, please contact the system administrator.`;
                         placeholder="Product Name"
                       />
                     </td>
-                    <td class="px-3 py-4 align-top select-wrapper">
+                    <td class="px-3 py-4 align-top select-wrapper w-52">
                       {#if loadingBrands}
                         <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
                       {:else if brandError}
@@ -988,7 +1142,7 @@ For any questions or concerns, please contact the system administrator.`;
                         />
                       {/if}
                     </td>
-                    <td class="px-3 py-4 align-top select-wrapper">
+                    <td class="px-3 py-4 align-top select-wrapper w-52">
                       {#if loadingSuppliers}
                         <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
                       {:else if supplierError}
@@ -1002,20 +1156,20 @@ For any questions or concerns, please contact the system administrator.`;
                         />
                       {/if}
                     </td>
-                    <td class="px-3 py-4 align-top input-wrapper">
+                    <td class="px-3 py-4 align-top input-wrapper w-28">
                       <label class="sr-only" for={`purchase-price-${i}`}>Purchase Price</label>
                       <input
                         id={`purchase-price-${i}`}
-                        type="number"
+                        type="text"
                         bind:value={row.purchasePrice}
                         on:input={(e) => handlePurchasePriceChange(e, i)}
+                        on:blur={(e) => handlePurchasePriceBlur(e, i)}
                         on:paste={(e) => handlePaste(e, i, 'purchasePrice')}
-                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
                         placeholder="0.00"
-                        step="0.01"
                       />
                     </td>
-                    <td class="px-3 py-4 align-top">
+                    <td class="px-3 py-4 align-top w-24">
                       <label class="sr-only" for={`gpm-${i}`}>GPM</label>
                       <input
                         id={`gpm-${i}`}
@@ -1023,26 +1177,25 @@ For any questions or concerns, please contact the system administrator.`;
                         bind:value={row.gpm}
                         on:input={(e) => handleGPMChange(e, i)}
                         on:paste={(e) => handlePaste(e, i, 'gpm')}
-                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
                         placeholder="0.00"
                         step="0.01"
                       />
                     </td>
-                    <td class="px-3 py-4 align-top">
+                    <td class="px-3 py-4 align-top w-28">
                       <label class="sr-only" for={`list-price-${i}`}>List Price</label>
                       <input
                         id={`list-price-${i}`}
-                        type="number"
+                        type="text"
                         bind:value={row.listPrice}
                         on:input={(e) => handleListPriceChange(e, i)}
                         on:blur={(e) => handleListPriceBlur(e, i)}
                         on:paste={(e) => handlePaste(e, i, 'listPrice')}
-                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
                         placeholder="0.00"
-                        step="0.01"
                       />
                     </td>
-                    <td class="px-3 py-4 text-center">
+                    <td class="px-3 py-4 text-center w-20">
                       <label class="sr-only" for={`tax-${i}`}>Tax Included</label>
                       <input
                         id={`tax-${i}`}
@@ -1051,7 +1204,7 @@ For any questions or concerns, please contact the system administrator.`;
                         class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td class="py-4 pl-3 pr-6 text-right">
+                    <td class="py-4 pl-3 pr-6 text-right w-28">
                       <button
                         on:click={() => removeRow(i)}
                         class="inline-flex items-center justify-center rounded-full border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"

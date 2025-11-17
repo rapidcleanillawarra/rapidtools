@@ -289,12 +289,7 @@
                 href="{base}/catalogue"
                 class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
                 on:click={closeSidebar}
-              >View Catalogue</a>
-              <a
-                href="{base}/catalogue/print"
-                class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
-                on:click={closeSidebar}
-              >Print Catalogue</a>
+              >Create Catalogue</a>
             </div>
           {/if}
         </div>
@@ -524,17 +519,14 @@
                 class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
                 on:click={closeSidebar}
               >Workshop Job Status</a>
-              <div class="h-px bg-gray-700 my-1"></div>
-              <a
-                href="{base}/workshop"
-                class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
-                on:click={closeSidebar}
-              >Overview</a>
-              <a
-                href="{base}/workshop/create"
-                class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
-                on:click={closeSidebar}
-              >Create Workshop</a>
+              {#if profile?.firstName === "Joeven" && profile?.lastName === "Cerveza"}
+                <div class="h-px bg-gray-700 my-1"></div>
+                <a
+                  href="{base}/workshop"
+                  class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
+                  on:click={closeSidebar}
+                >Overview</a>
+              {/if}
               <a
                 href="{base}/workshop/camera"
                 class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"

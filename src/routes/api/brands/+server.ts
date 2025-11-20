@@ -1,25 +1,29 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { db } from '$lib/firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { fetchBrands } from '$lib/services/brands';
 
 export const GET: RequestHandler = async () => {
   try {
-    const brandsSnapshot = await getDocs(collection(db, 'brands'));
-    const brands = brandsSnapshot.docs.map(doc => {
-      const data = doc.data();
-      const name = data.name;
-      return {
-        id: doc.id,
-        ...data,
-        value: name,
-        label: name
-      };
+    const brandData = await fetchBrands();
+
+    // Transform the API response to match the expected format
+    const brands = brandData.Content?.map(brand => ({
+      id: brand.ContentID,
+      name: brand.ContentName,
+      value: brand.ContentName,
+      label: brand.ContentName,
+      contentId: brand.ContentID
+    })) || [];
+
+    return json({
+      success: true,
+      data: brands
     });
-    
-    return json(brands);
   } catch (error) {
     console.error('Error fetching brands:', error);
-    return new Response('Error fetching brands', { status: 500 });
+    return json({
+      success: false,
+      error: 'Failed to fetch brands'
+    }, { status: 500 });
   }
 }; 

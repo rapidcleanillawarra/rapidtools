@@ -103,7 +103,7 @@ export interface WorkshopRecord {
   }>;
 
   // Status
-  status: 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'pickup_from_workshop' | 'return' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'pending_jobs' | 'completed' | 'to_be_scrapped';
+  status: 'new' | 'pickup' | 'to_be_quoted' | 'docket_ready' | 'quoted' | 'repaired' | 'pickup_from_workshop' | 'return' | 'waiting_approval_po' | 'waiting_for_parts' | 'booked_in_for_repair_service' | 'pending_jobs' | 'completed' | 'to_be_scrapped' | 'warranty_claim';
   created_by: string;
 
   // Workflow tracking

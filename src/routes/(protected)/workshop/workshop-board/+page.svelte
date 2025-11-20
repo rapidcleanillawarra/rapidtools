@@ -50,7 +50,8 @@
     repaired: true,
     pickup_from_workshop: true,
     return: true,
-    pending_jobs: true
+    pending_jobs: true,
+    warranty_claim: true
   };
 
   let showAllStatuses = true;
@@ -200,7 +201,8 @@
       waiting_approval_po: [],
       waiting_for_parts: [],
       booked_in_for_repair_service: [],
-      pending_jobs: []
+      pending_jobs: [],
+      warranty_claim: []
     };
 
     filteredWorkshops.forEach(workshop => {
@@ -577,7 +579,8 @@
     waiting_approval_po: filteredWorkshops.filter(w => w.status === 'waiting_approval_po'),
     waiting_for_parts: filteredWorkshops.filter(w => w.status === 'waiting_for_parts'),
     booked_in_for_repair_service: filteredWorkshops.filter(w => w.status === 'booked_in_for_repair_service'),
-    pending_jobs: filteredWorkshops.filter(w => w.status === 'pending_jobs')
+    pending_jobs: filteredWorkshops.filter(w => w.status === 'pending_jobs'),
+    warranty_claim: filteredWorkshops.filter(w => w.status === 'warranty_claim')
   };
 
   $: console.log('[REACTIVE] workshopsByStatus computed. Column counts:', {
@@ -592,7 +595,8 @@
     waiting_approval_po: workshopsByStatus.waiting_approval_po.length,
     waiting_for_parts: workshopsByStatus.waiting_for_parts.length,
     booked_in_for_repair_service: workshopsByStatus.booked_in_for_repair_service.length,
-    pending_jobs: workshopsByStatus.pending_jobs.length
+    pending_jobs: workshopsByStatus.pending_jobs.length,
+    warranty_claim: workshopsByStatus.warranty_claim.length
   });
 
   // Computed property for completed jobs count
@@ -766,6 +770,12 @@
           class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.pending_jobs ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
         >
           Pending Jobs ({workshopsByStatus.pending_jobs.length})
+        </button>
+        <button
+          on:click={() => toggleStatusVisibility('warranty_claim')}
+          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses.warranty_claim ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        >
+          Warranty Claim ({workshopsByStatus.warranty_claim.length})
         </button>
       </div>
     </div>
@@ -977,6 +987,22 @@
               on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
               on:dragstart={handleWorkshopDragStart}
               on:drop={handleWorkshopDrop}
+            />
+            {/if}
+
+            {#if visibleStatuses.warranty_claim}
+            <StatusColumn
+              status="warranty_claim"
+              title="WARRANTY CLAIM"
+              workshops={workshopsByStatus.warranty_claim}
+              {draggedWorkshopId}
+              {recentlyMovedWorkshopId}
+              on:click={({ detail }) => handleWorkshopClick(detail.workshop)}
+              on:photoClick={({ detail }) => openPhotoViewer(detail.workshop, detail.photoIndex)}
+              on:deleteClick={({ detail }) => openDeleteModal(detail.workshop)}
+              on:dragstart={handleWorkshopDragStart}
+              on:drop={handleWorkshopDrop}
+              on:completed={handleWorkshopCompleted}
             />
             {/if}
             </div>

@@ -33,7 +33,6 @@ export const visibleColumns = writable<Record<keyof ProductInfo, boolean>>({
   specifications: false,
   features: false,
   category_1: false,
-  category_2: false,
   seo_page_title: false,
   seo_meta_description: false,
   seo_page_heading: false,

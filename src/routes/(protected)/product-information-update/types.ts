@@ -10,7 +10,6 @@ export interface ProductInfo {
   specifications?: string;
   features?: string;
   category_1?: string;
-  category_2?: string;
   seo_page_title?: string;
   seo_meta_description?: string;
   seo_page_heading?: string;

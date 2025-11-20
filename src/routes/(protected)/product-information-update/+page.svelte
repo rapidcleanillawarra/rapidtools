@@ -293,7 +293,7 @@
         <thead class="bg-gray-50">
           <tr>
             {#if $visibleColumns.image}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('image')}>
                     Image {getSortIcon('image', $sortField, $sortDirection)}
@@ -302,7 +302,7 @@
               </th>
             {/if}
             {#if $visibleColumns.sku}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('sku')}>
                     SKU {getSortIcon('sku', $sortField, $sortDirection)}
@@ -310,14 +310,14 @@
                   <input
                     type="text"
                     placeholder="Search SKU..."
-                    class="border rounded px-1 py-0.5 text-xs"
+                    class="border rounded px-1 py-0.5 text-[10px]"
                     bind:value={$searchFilters.sku}
                   />
                 </div>
               </th>
             {/if}
             {#if $visibleColumns.name}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('name')}>
                     Name {getSortIcon('name', $sortField, $sortDirection)}
@@ -325,14 +325,29 @@
                   <input
                     type="text"
                     placeholder="Search Name..."
-                    class="border rounded px-1 py-0.5 text-xs"
+                    class="border rounded px-1 py-0.5 text-[10px]"
                     bind:value={$searchFilters.name}
                   />
                 </div>
               </th>
             {/if}
+            {#if $visibleColumns.brand}
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('brand')}>
+                    Brand {getSortIcon('brand', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search Brand..."
+                    class="border rounded px-1 py-0.5 text-[10px]"
+                    bind:value={$searchFilters.brand}
+                  />
+                </div>
+              </th>
+            {/if}
             {#if $visibleColumns.category_1}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('category_1')}>
                     Category 1 {getSortIcon('category_1', $sortField, $sortDirection)}
@@ -340,14 +355,14 @@
                   <input
                     type="text"
                     placeholder="Search Category 1..."
-                    class="border rounded px-1 py-0.5 text-xs"
+                    class="border rounded px-1 py-0.5 text-[10px]"
                     bind:value={$searchFilters.category_1}
                   />
                 </div>
               </th>
             {/if}
             {#if $visibleColumns.subtitle}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('subtitle')}>
                     Subtitle {getSortIcon('subtitle', $sortField, $sortDirection)}
@@ -355,17 +370,8 @@
                 </div>
               </th>
             {/if}
-            {#if $visibleColumns.brand}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div class="flex flex-col gap-2">
-                  <div class="cursor-pointer" on:click={() => handleSortClick('brand')}>
-                    Brand {getSortIcon('brand', $sortField, $sortDirection)}
-                  </div>
-                </div>
-              </th>
-            {/if}
             {#if $visibleColumns.description}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('description')}>
                     Description {getSortIcon('description', $sortField, $sortDirection)}
@@ -374,7 +380,7 @@
               </th>
             {/if}
             {#if $visibleColumns.short_description}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('short_description')}>
                     Short Description {getSortIcon('short_description', $sortField, $sortDirection)}
@@ -383,7 +389,7 @@
               </th>
             {/if}
             {#if $visibleColumns.specifications}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('specifications')}>
                     Specifications {getSortIcon('specifications', $sortField, $sortDirection)}
@@ -392,7 +398,7 @@
               </th>
             {/if}
             {#if $visibleColumns.features}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('features')}>
                     Features {getSortIcon('features', $sortField, $sortDirection)}
@@ -401,7 +407,7 @@
               </th>
             {/if}
             {#if $visibleColumns.seo_page_title}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_title')}>
                     SEO Page Title {getSortIcon('seo_page_title', $sortField, $sortDirection)}
@@ -410,7 +416,7 @@
               </th>
             {/if}
             {#if $visibleColumns.seo_meta_description}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('seo_meta_description')}>
                     SEO Meta Description {getSortIcon('seo_meta_description', $sortField, $sortDirection)}
@@ -419,7 +425,7 @@
               </th>
             {/if}
             {#if $visibleColumns.seo_page_heading}
-              <th scope="col" class="px-2 py-1 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_heading')}>
                     SEO Page Heading {getSortIcon('seo_page_heading', $sortField, $sortDirection)}
@@ -469,48 +475,98 @@
                 {#if $visibleColumns.name}
                   <td class="px-2 py-2 whitespace-nowrap font-medium text-gray-900 text-xs">{product.name}</td>
                 {/if}
+                {#if $visibleColumns.brand}
+                  <td class="px-2 py-2 whitespace-nowrap text-gray-500 text-xs">{product.brand}</td>
+                {/if}
                 {#if $visibleColumns.category_1}
                   <td class="px-2 py-2 whitespace-nowrap text-gray-500 text-xs">{product.category_1 || '-'}</td>
                 {/if}
                 {#if $visibleColumns.subtitle}
-                  <td class="px-2 py-2 whitespace-nowrap text-gray-500 text-xs">{product.subtitle || '-'}</td>
-                {/if}
-                {#if $visibleColumns.brand}
-                  <td class="px-2 py-2 whitespace-nowrap text-gray-500 text-xs">{product.brand}</td>
+                  <td class="px-2 py-2 whitespace-nowrap text-center">
+                    {#if product.subtitle}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
+                  </td>
                 {/if}
                 {#if $visibleColumns.description}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.description}>
-                    {product.description || '-'}
+                  <td class="px-2 py-2 text-center" title={product.description}>
+                    {#if product.description}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
                 {#if $visibleColumns.short_description}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.short_description}>
-                    {product.short_description || '-'}
+                  <td class="px-2 py-2 text-center" title={product.short_description}>
+                    {#if product.short_description}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
                 {#if $visibleColumns.specifications}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.specifications}>
-                    {product.specifications || '-'}
+                  <td class="px-2 py-2 text-center" title={product.specifications}>
+                    {#if product.specifications}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
                 {#if $visibleColumns.features}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.features}>
-                    {product.features || '-'}
+                  <td class="px-2 py-2 text-center" title={product.features}>
+                    {#if product.features}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
                 {#if $visibleColumns.seo_page_title}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.seo_page_title}>
-                    {product.seo_page_title || '-'}
+                  <td class="px-2 py-2 text-center" title={product.seo_page_title}>
+                    {#if product.seo_page_title}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
                 {#if $visibleColumns.seo_meta_description}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.seo_meta_description}>
-                    {product.seo_meta_description || '-'}
+                  <td class="px-2 py-2 text-center" title={product.seo_meta_description}>
+                    {#if product.seo_meta_description}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
                 {#if $visibleColumns.seo_page_heading}
-                  <td class="px-2 py-2 text-gray-500 max-w-xs truncate text-xs" title={product.seo_page_heading}>
-                    {product.seo_page_heading || '-'}
+                  <td class="px-2 py-2 text-center" title={product.seo_page_heading}>
+                    {#if product.seo_page_heading}
+                      <svg class="h-4 w-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                      </svg>
+                    {:else}
+                      <span class="text-gray-300">-</span>
+                    {/if}
                   </td>
                 {/if}
               </tr>

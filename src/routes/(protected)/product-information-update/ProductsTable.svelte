@@ -12,6 +12,7 @@
   export let onSort: (field: keyof ProductInfo) => void;
   export let onSearchChange: (key: keyof ProductInfo, value: string) => void;
   export let onImageClick: (product: ProductInfo) => void;
+  export let onRowClick: (product: ProductInfo) => void;
   export let hasData: boolean;
 </script>
 
@@ -65,7 +66,7 @@
         </tr>
       {:else}
         {#each products as product (product.id)}
-          <tr class="hover:bg-gray-50">
+          <tr class="hover:bg-gray-50 cursor-pointer" on:click={() => onRowClick(product)}>
             {#each columns as column (column.key)}
               {#if column.renderType === 'image'}
                 <td class="px-2 py-2 whitespace-nowrap">
@@ -73,7 +74,7 @@
                     <button
                       type="button"
                       class="cursor-pointer hover:opacity-75 transition-opacity"
-                      on:click={() => onImageClick(product)}
+                      on:click|stopPropagation={() => onImageClick(product)}
                       title="Click to view full size image"
                     >
                       <img src={product.image} alt={product.name} class="h-10 w-10 rounded-lg object-cover" />

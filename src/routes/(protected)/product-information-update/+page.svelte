@@ -22,6 +22,7 @@
   import ProductsTable from './ProductsTable.svelte';
   import LoadingProgressModal from './LoadingProgressModal.svelte';
   import ImageViewer from './ImageViewer.svelte';
+  import ProductEditModal from './ProductEditModal.svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
 
@@ -30,7 +31,9 @@
   let showProgressModal = false;
   let totalProductsLoaded = 0;
   let showImageViewer = false;
+  let showEditModal = false;
   let selectedProduct: ProductInfo | null = null;
+  let selectedProductForEdit: ProductInfo | null = null;
 
   // Computed visible columns
   $: visibleColumnsList = columns.filter(col => $visibleColumns[col.key]);
@@ -191,6 +194,29 @@
     showImageViewer = false;
     selectedProduct = null;
   }
+
+  // Handle row click to edit product
+  function handleRowClick(product: ProductInfo) {
+    selectedProductForEdit = product;
+    showEditModal = true;
+  }
+
+  function handleEditModalClose() {
+    showEditModal = false;
+    selectedProductForEdit = null;
+  }
+
+  // Handle product save from edit modal
+  function handleProductSave(event: CustomEvent) {
+    const { product } = event.detail;
+
+    // Update the product in the stores
+    originalData.update(data => data.map(p => p.id === product.id ? product : p));
+    tableData.update(data => data.map(p => p.id === product.id ? product : p));
+
+    showEditModal = false;
+    selectedProductForEdit = null;
+  }
 </script>
 
 <ToastContainer />
@@ -199,6 +225,13 @@
   showImageViewer={showImageViewer}
   product={selectedProduct}
   on:close={handleImageViewerClose}
+/>
+
+<ProductEditModal
+  show={showEditModal}
+  product={selectedProductForEdit}
+  on:close={handleEditModalClose}
+  on:save={handleProductSave}
 />
 
 <LoadingProgressModal show={showProgressModal} totalProducts={totalProductsLoaded} />
@@ -294,6 +327,7 @@
       onSort={handleSortClick}
       onSearchChange={handleSearchChange}
       onImageClick={handleImageClick}
+      onRowClick={handleRowClick}
       hasData={$originalData.length > 0}
     />
 

@@ -5,6 +5,7 @@
 	export let show: boolean = false;
 	export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
 	export let allowClose: boolean = true;
+	export let style: string = '';
 
 	const dispatch = createEventDispatcher();
 
@@ -32,6 +33,7 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<div
 			class="bg-white rounded-lg shadow-xl p-6 w-full {size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}"
+			style={style}
 			on:click|stopPropagation
 			role="dialog"
 			aria-modal="true"

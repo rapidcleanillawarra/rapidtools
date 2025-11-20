@@ -216,6 +216,24 @@
     }));
   }
 
+  // Show all columns
+  function showAllColumns() {
+    const allVisible = Object.keys($visibleColumns).reduce((acc, key) => {
+      acc[key as keyof ProductInfo] = true;
+      return acc;
+    }, {} as Record<keyof ProductInfo, boolean>);
+    visibleColumns.set(allVisible);
+  }
+
+  // Hide all columns except image and sku
+  function hideAllColumns() {
+    const hiddenExceptRequired = Object.keys($visibleColumns).reduce((acc, key) => {
+      acc[key as keyof ProductInfo] = key === 'image' || key === 'sku';
+      return acc;
+    }, {} as Record<keyof ProductInfo, boolean>);
+    visibleColumns.set(hiddenExceptRequired);
+  }
+
   // Render cell content based on type
   function getCellContent(product: ProductInfo, column: ColumnConfig) {
     const value = product[column.key];
@@ -374,6 +392,20 @@
   <!-- Column Visibility Controls -->
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h3 class="text-lg font-medium text-gray-900 mb-4">Show/Hide Columns</h3>
+    <div class="flex flex-wrap gap-2 mb-4">
+      <button
+        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors duration-200"
+        on:click={showAllColumns}
+      >
+        Show All
+      </button>
+      <button
+        class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 hover:bg-red-200 transition-colors duration-200"
+        on:click={hideAllColumns}
+      >
+        Hide All
+      </button>
+    </div>
     <div class="flex flex-wrap gap-2">
       {#each columns as column}
         <button

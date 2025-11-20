@@ -20,8 +20,8 @@ export const searchFilters = writable<Record<string, string>>({});
 // Selected brand
 export const selectedBrand = writable<string>('');
 
-// Column visibility stores
-export const visibleColumns = writable<Record<keyof ProductInfo, boolean>>({
+// Column visibility stores with localStorage persistence
+const defaultVisibleColumns: Record<keyof ProductInfo, boolean> = {
   id: false, // Hidden by default as it's internal
   image: true,
   sku: true,
@@ -36,6 +36,19 @@ export const visibleColumns = writable<Record<keyof ProductInfo, boolean>>({
   seo_page_title: false,
   seo_meta_description: false,
   seo_page_heading: false,
+};
+
+// Load from localStorage or use defaults
+const storedVisibility = typeof window !== 'undefined' ? localStorage.getItem('product-info-visible-columns') : null;
+const initialVisibility = storedVisibility ? JSON.parse(storedVisibility) : defaultVisibleColumns;
+
+export const visibleColumns = writable<Record<keyof ProductInfo, boolean>>(initialVisibility);
+
+// Save to localStorage when visibility changes
+visibleColumns.subscribe(value => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('product-info-visible-columns', JSON.stringify(value));
+  }
 });
 
 // Computed: paginated data

@@ -81,28 +81,47 @@
     tableData.set([]);
   }
 
-  // Load products by brand
+  // Load products by brand with pagination
   async function loadProducts(brandName?: string) {
     try {
       isTableLoading = true;
       isLoading.set(true);
 
-      const url = brandName ? `/api/products?brand=${encodeURIComponent(brandName)}` : '/api/products';
-      const response = await fetch(url);
+      let allProducts: any[] = [];
+      let page = 0;
+      let hasMorePages = true;
 
-      if (!response.ok) {
-        throw new Error('Failed to load products');
+      while (hasMorePages) {
+        const url = brandName
+          ? `/api/products?brand=${encodeURIComponent(brandName)}&page=${page}`
+          : `/api/products?page=${page}`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error('Failed to load products');
+        }
+
+        const result = await response.json();
+
+        if (result.success) {
+          const pageProducts = result.data;
+          allProducts = allProducts.concat(pageProducts);
+
+          // If we got fewer than 100 products, this is the last page
+          if (pageProducts.length < 100) {
+            hasMorePages = false;
+          } else {
+            page++;
+          }
+        } else {
+          throw new Error('Failed to load products');
+        }
       }
 
-      const result = await response.json();
-
-      if (result.success) {
-        originalData.set(result.data);
-        tableData.set(result.data);
-        toastSuccess(`Loaded ${result.data.length} products successfully`);
-      } else {
-        throw new Error('Failed to load products');
-      }
+      originalData.set(allProducts);
+      tableData.set(allProducts);
+      toastSuccess(`Loaded ${allProducts.length} products successfully`);
     } catch (error) {
       console.error('Error loading products:', error);
       toastError('Failed to load products');
@@ -193,10 +212,7 @@
     toastSuccess(`Exported ${$tableData.length} products (${includeAllColumns ? 'all columns' : 'visible columns only'}) to CSV`);
   }
 
-  // Load all products on mount
-  onMount(() => {
-    loadProducts();
-  });
+  // Products will be loaded when user selects a brand or clicks "Apply Filter"
 </script>
 
 <ToastContainer />

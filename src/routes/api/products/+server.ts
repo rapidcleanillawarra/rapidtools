@@ -5,8 +5,9 @@ import { fetchProducts, extractCategories } from '$lib/services/products';
 export const GET: RequestHandler = async ({ url }) => {
   try {
     const brand = url.searchParams.get('brand');
+    const page = parseInt(url.searchParams.get('page') || '0', 10);
 
-    const productData = await fetchProducts(brand);
+    const productData = await fetchProducts(brand, page);
 
     // Transform the API response to match the expected format
     const products = productData.Item?.map(product => {

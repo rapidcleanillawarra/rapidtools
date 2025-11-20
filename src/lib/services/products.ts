@@ -58,13 +58,13 @@ export function extractCategories(categories?: Array<{ Category: any }>): string
 
 const PRODUCTS_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
-export async function fetchProducts(brand?: string | null): Promise<ProductApiData> {
+export async function fetchProducts(brand?: string | null, page: number = 0): Promise<ProductApiData> {
   try {
     const payload: any = {
       "Filter": {
         "IsActive": true,
-        "Page": 0,
-        "Limit": 100, // Increased limit for better UX
+        "Page": page,
+        "Limit": 100,
         "OutputSelector": [
           "SKU",
           "Model",

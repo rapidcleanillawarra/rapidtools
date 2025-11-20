@@ -241,7 +241,7 @@
                 Loading...
               </div>
             {:else}
-              Load Products
+              Apply Filter
             {/if}
           </button>
           <button

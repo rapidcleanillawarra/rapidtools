@@ -11,6 +11,7 @@
   export let sortDirection: 'asc' | 'desc';
   export let onSort: (field: keyof ProductInfo) => void;
   export let onSearchChange: (key: keyof ProductInfo, value: string) => void;
+  export let onImageClick: (product: ProductInfo) => void;
   export let hasData: boolean;
 </script>
 
@@ -69,7 +70,14 @@
               {#if column.renderType === 'image'}
                 <td class="px-2 py-2 whitespace-nowrap">
                   {#if product.image}
-                    <img src={product.image} alt={product.name} class="h-10 w-10 rounded-lg object-cover" />
+                    <button
+                      type="button"
+                      class="cursor-pointer hover:opacity-75 transition-opacity"
+                      on:click={() => onImageClick(product)}
+                      title="Click to view full size image"
+                    >
+                      <img src={product.image} alt={product.name} class="h-10 w-10 rounded-lg object-cover" />
+                    </button>
                   {:else}
                     <div class="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center">
                       <span class="text-xs text-gray-500">No img</span>

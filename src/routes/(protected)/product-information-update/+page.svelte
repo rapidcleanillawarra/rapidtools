@@ -20,6 +20,7 @@
   import TablePagination from './TablePagination.svelte';
   import ProductsTable from './ProductsTable.svelte';
   import LoadingProgressModal from './LoadingProgressModal.svelte';
+  import ImageViewer from './ImageViewer.svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
 
@@ -27,6 +28,8 @@
   let isTableLoading = false;
   let showProgressModal = false;
   let totalProductsLoaded = 0;
+  let showImageViewer = false;
+  let selectedProduct: ProductInfo | null = null;
 
   // Computed visible columns
   $: visibleColumnsList = columns.filter(col => $visibleColumns[col.key]);
@@ -176,9 +179,26 @@
   function handleSearchChange(key: keyof ProductInfo, value: string) {
     searchFilters.update(current => ({ ...current, [key]: value }));
   }
+
+  // Image viewer handler
+  function handleImageClick(product: ProductInfo) {
+    selectedProduct = product;
+    showImageViewer = true;
+  }
+
+  function handleImageViewerClose() {
+    showImageViewer = false;
+    selectedProduct = null;
+  }
 </script>
 
 <ToastContainer />
+
+<ImageViewer
+  showImageViewer={showImageViewer}
+  product={selectedProduct}
+  on:close={handleImageViewerClose}
+/>
 
 <LoadingProgressModal show={showProgressModal} totalProducts={totalProductsLoaded} />
 
@@ -272,6 +292,7 @@
       sortDirection={$sortDirection}
       onSort={handleSortClick}
       onSearchChange={handleSearchChange}
+      onImageClick={handleImageClick}
       hasData={$originalData.length > 0}
     />
 

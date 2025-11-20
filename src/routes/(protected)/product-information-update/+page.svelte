@@ -16,11 +16,19 @@
   import { getSortIcon, sortData } from './utils';
   import type { ProductInfo } from './types';
   import BrandDropdown from './BrandDropdown.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
 
   let selectedBrandValue = '';
   let isTableLoading = false;
+  let showProgressModal = false;
+  let loadingProgress = {
+    currentPage: 0,
+    totalProducts: 0,
+    estimatedTotal: 0,
+    progress: 0
+  };
 
   // Column configuration - single source of truth
   type ColumnConfig = {
@@ -86,12 +94,28 @@
     try {
       isTableLoading = true;
       isLoading.set(true);
+      showProgressModal = true;
+
+      // Initialize progress tracking
+      loadingProgress = {
+        currentPage: 0,
+        totalProducts: 0,
+        estimatedTotal: 0,
+        progress: 0
+      };
 
       let allProducts: any[] = [];
       let page = 0;
       let hasMorePages = true;
+      let totalEstimated = 0;
 
       while (hasMorePages) {
+        // Update progress for current page
+        loadingProgress = {
+          ...loadingProgress,
+          currentPage: page + 1
+        };
+
         const url = brandName
           ? `/api/products?brand=${encodeURIComponent(brandName)}&page=${page}`
           : `/api/products?page=${page}`;
@@ -108,9 +132,21 @@
           const pageProducts = result.data;
           allProducts = allProducts.concat(pageProducts);
 
+          // Update progress
+          loadingProgress = {
+            ...loadingProgress,
+            totalProducts: allProducts.length,
+            progress: Math.min(90, (allProducts.length / (allProducts.length + 100)) * 100) // Estimate progress
+          };
+
           // If we got fewer than 100 products, this is the last page
           if (pageProducts.length < 100) {
             hasMorePages = false;
+            // Final progress update
+            loadingProgress = {
+              ...loadingProgress,
+              progress: 100
+            };
           } else {
             page++;
           }
@@ -130,6 +166,7 @@
     } finally {
       isTableLoading = false;
       isLoading.set(false);
+      showProgressModal = false;
     }
   }
 
@@ -216,6 +253,40 @@
 </script>
 
 <ToastContainer />
+
+<!-- Progress Modal -->
+<Modal show={showProgressModal} size="md" allowClose={false}>
+  <div slot="header" class="flex items-center">
+    <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"></div>
+    Loading Products
+  </div>
+  <div slot="body" class="space-y-4">
+    <div class="text-center">
+      <div class="text-sm text-gray-600 mb-2">
+        Loading page {loadingProgress.currentPage}
+      </div>
+      <div class="text-lg font-semibold text-gray-900">
+        {loadingProgress.totalProducts} products loaded
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="w-full bg-gray-200 rounded-full h-3">
+      <div
+        class="bg-blue-500 h-3 rounded-full transition-all duration-300 ease-out"
+        style="width: {loadingProgress.progress}%"
+      ></div>
+    </div>
+
+    <div class="text-center text-sm text-gray-500">
+      {Math.round(loadingProgress.progress)}% complete
+    </div>
+
+    <div class="text-center text-xs text-gray-400">
+      Please wait while we fetch all products...
+    </div>
+  </div>
+</Modal>
 
 <div class="container mx-auto p-4">
   <div class="flex justify-between items-center mb-6">

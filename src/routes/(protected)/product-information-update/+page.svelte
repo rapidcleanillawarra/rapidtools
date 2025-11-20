@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { base } from '$app/paths';
   import {
     originalData,
     tableData,
@@ -16,6 +15,7 @@
   import { sortData, exportToCSV as exportCSV, filterProducts } from './utils';
   import { columns, PRODUCTS_PER_API_PAGE } from './config';
   import type { ProductInfo } from './types';
+  import { fetchProducts, extractCategories } from '$lib/services/products';
   import BrandDropdown from './BrandDropdown.svelte';
   import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
   import TablePagination from './TablePagination.svelte';
@@ -66,19 +66,36 @@
 
   // Fetch a single page of products
   async function fetchProductPage(pageNum: number, brandName?: string): Promise<{ products: ProductInfo[], hasMore: boolean }> {
-    const url = brandName
-      ? `${base}/api/products?brand=${encodeURIComponent(brandName)}&page=${pageNum}`
-      : `${base}/api/products?page=${pageNum}`;
+    // Call the products API directly instead of going through SvelteKit API route
+    // This works in GitHub Pages static hosting
+    const productData = await fetchProducts(brandName, pageNum);
 
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Failed to load products');
+    // Transform the API response to match the expected format
+    const products = productData.Item?.map(product => {
+      const categories = extractCategories(product.Categories);
+      const imageUrl = product.Images?.[0]?.URL || undefined;
 
-    const result = await response.json();
-    if (!result.success) throw new Error('Failed to load products');
+      return {
+        id: product.SKU,
+        sku: product.SKU,
+        name: product.Model || '',
+        brand: brandName || '',
+        image: imageUrl,
+        subtitle: product.Subtitle || undefined,
+        description: product.Description || undefined,
+        short_description: product.ShortDescription || undefined,
+        specifications: product.Specifications || undefined,
+        features: product.Features || undefined,
+        category_1: categories[0] || undefined,
+        seo_page_title: product.SEOPageTitle || undefined,
+        seo_meta_description: product.SEOMetaDescription || undefined,
+        seo_page_heading: product.SEOPageHeading || undefined
+      };
+    }) || [];
 
     return {
-      products: result.data,
-      hasMore: result.data.length >= PRODUCTS_PER_API_PAGE
+      products,
+      hasMore: products.length >= PRODUCTS_PER_API_PAGE
     };
   }
 

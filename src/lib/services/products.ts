@@ -107,3 +107,34 @@ export async function fetchProducts(brand?: string | null, page: number = 0): Pr
     throw error;
   }
 }
+
+export async function updateProduct(productId: string, updateData: any): Promise<any> {
+  try {
+    const payload = {
+      "Filter": {
+        "SKU": productId,
+        ...updateData
+      },
+      "action": "UpdateItem"
+    };
+
+    const response = await fetch(PRODUCTS_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('Product updated successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw error;
+  }
+}

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';
-  import { base } from '$app/paths';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
+  import { fetchBrands } from '$lib/services/brands';
   import type { Brand } from './types';
 
   const dispatch = createEventDispatcher();
@@ -49,15 +49,19 @@
     error = null;
 
     try {
-      const response = await fetch(`${base}/api/brands`);
-      if (!response.ok) {
-        throw new Error('Failed to load brands');
-      }
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load brands');
-      }
-      brands = result.data;
+      // Call the brands API directly instead of going through SvelteKit API route
+      // This works in GitHub Pages static hosting
+      const brandData = await fetchBrands();
+      
+      // Transform the API response to match the expected format
+      brands = brandData.Content?.map(brand => ({
+        id: brand.ContentID,
+        name: brand.ContentName,
+        value: brand.ContentName,
+        label: brand.ContentName,
+        contentId: brand.ContentID
+      })) || [];
+      
       filteredBrands = brands.slice(0, 10);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load brands';

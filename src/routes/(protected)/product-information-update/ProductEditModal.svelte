@@ -1,8 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { base } from '$app/paths';
   import Modal from '$lib/components/Modal.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
+  import { updateProduct } from '$lib/services/products';
   import type { ProductInfo } from './types';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
 
@@ -29,26 +29,14 @@
 
     try {
       isSaving = true;
-      const response = await fetch(`${base}/api/products/${product.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update product');
-      }
-
-      const result = await response.json();
-      if (result.success) {
-        toastSuccess('Product updated successfully');
-        dispatch('save', { product: result.data });
-        closeModal();
-      } else {
-        throw new Error(result.message || 'Failed to update product');
-      }
+      
+      // Call the products API directly instead of going through SvelteKit API route
+      // This works in GitHub Pages static hosting
+      await updateProduct(product.id, formData);
+      
+      toastSuccess('Product updated successfully');
+      dispatch('save', { product: formData });
+      closeModal();
     } catch (error) {
       console.error('Error updating product:', error);
       toastError(error instanceof Error ? error.message : 'Failed to update product');

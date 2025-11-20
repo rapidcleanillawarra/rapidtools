@@ -130,6 +130,55 @@
     }));
   }
 
+  // Export table data to CSV
+  function exportToCSV(includeAllColumns = false) {
+    if ($tableData.length === 0) {
+      toastError('No data to export');
+      return;
+    }
+
+    // Get columns to export (visible only or all)
+    const columnKeys = includeAllColumns
+      ? Object.keys(columnDisplayNames) as (keyof ProductInfo)[]
+      : Object.entries($visibleColumns)
+          .filter(([_, visible]) => visible)
+          .map(([key, _]) => key as keyof ProductInfo);
+
+    // Create CSV headers
+    const headers = columnKeys.map(key => `"${columnDisplayNames[key]}"`);
+
+    // Create CSV rows
+    const rows = $tableData.map(product => {
+      return columnKeys.map(key => {
+        const value = product[key];
+        // Handle null/undefined values and escape quotes
+        const stringValue = value == null ? '' : String(value);
+        // Escape quotes by doubling them and wrap in quotes
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      });
+    });
+
+    // Combine headers and rows
+    const csvContent = [headers, ...rows]
+      .map(row => row.join(','))
+      .join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const filenameSuffix = includeAllColumns ? 'all-columns' : 'visible-columns';
+    link.setAttribute('download', `product-information-${$selectedBrand || 'all'}-${filenameSuffix}-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toastSuccess(`Exported ${$tableData.length} products (${includeAllColumns ? 'all columns' : 'visible columns only'}) to CSV`);
+  }
+
   // Load all products on mount
   onMount(() => {
     loadProducts();
@@ -180,6 +229,22 @@
             {:else}
               Load Products
             {/if}
+          </button>
+          <button
+            type="button"
+            class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+            on:click={() => exportToCSV(false)}
+            disabled={$tableData.length === 0}
+          >
+            Export Visible CSV
+          </button>
+          <button
+            type="button"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+            on:click={() => exportToCSV(true)}
+            disabled={$tableData.length === 0}
+          >
+            Export All CSV
           </button>
         </div>
         <p class="mt-2 text-sm text-gray-500">

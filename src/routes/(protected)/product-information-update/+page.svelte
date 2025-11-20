@@ -392,6 +392,12 @@
                   <div class="cursor-pointer" on:click={() => handleSortClick('category_1')}>
                     Category 1 {getSortIcon('category_1', $sortField, $sortDirection)}
                   </div>
+                  <input
+                    type="text"
+                    placeholder="Search Category 1..."
+                    class="border rounded px-2 py-1 text-xs"
+                    bind:value={$searchFilters.category_1}
+                  />
                 </div>
               </th>
             {/if}
@@ -401,6 +407,12 @@
                   <div class="cursor-pointer" on:click={() => handleSortClick('category_2')}>
                     Category 2 {getSortIcon('category_2', $sortField, $sortDirection)}
                   </div>
+                  <input
+                    type="text"
+                    placeholder="Search Category 2..."
+                    class="border rounded px-2 py-1 text-xs"
+                    bind:value={$searchFilters.category_2}
+                  />
                 </div>
               </th>
             {/if}

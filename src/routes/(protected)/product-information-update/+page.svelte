@@ -89,7 +89,7 @@
     tableData.set([]);
   }
 
-  // Load products by brand with pagination
+  // Load products by brand with pagination using parallel API calls
   async function loadProducts(brandName?: string) {
     try {
       isTableLoading = true;
@@ -105,20 +105,18 @@
       };
 
       let allProducts: any[] = [];
-      let page = 0;
-      let hasMorePages = true;
-      let totalEstimated = 0;
+      let evenPage = 0;
+      let oddPage = 1;
+      let hasMoreEvenPages = true;
+      let hasMoreOddPages = true;
+      let evenProducts: any[] = [];
+      let oddProducts: any[] = [];
 
-      while (hasMorePages) {
-        // Update progress for current page
-        loadingProgress = {
-          ...loadingProgress,
-          currentPage: page + 1
-        };
-
+      // Function to load a single page
+      async function loadPage(pageNum: number): Promise<{ products: any[], hasMore: boolean }> {
         const url = brandName
-          ? `/api/products?brand=${encodeURIComponent(brandName)}&page=${page}`
-          : `/api/products?page=${page}`;
+          ? `/api/products?brand=${encodeURIComponent(brandName)}&page=${pageNum}`
+          : `/api/products?page=${pageNum}`;
 
         const response = await fetch(url);
 
@@ -128,32 +126,58 @@
 
         const result = await response.json();
 
-        if (result.success) {
-          const pageProducts = result.data;
-          allProducts = allProducts.concat(pageProducts);
-
-          // Update progress
-          loadingProgress = {
-            ...loadingProgress,
-            totalProducts: allProducts.length,
-            progress: Math.min(90, (allProducts.length / (allProducts.length + 100)) * 100) // Estimate progress
-          };
-
-          // If we got fewer than 100 products, this is the last page
-          if (pageProducts.length < 100) {
-            hasMorePages = false;
-            // Final progress update
-            loadingProgress = {
-              ...loadingProgress,
-              progress: 100
-            };
-          } else {
-            page++;
-          }
-        } else {
+        if (!result.success) {
           throw new Error('Failed to load products');
         }
+
+        const pageProducts = result.data;
+        const hasMore = pageProducts.length >= 100; // Assuming 100 is the page size
+
+        return { products: pageProducts, hasMore };
       }
+
+      // Load even and odd pages in parallel
+      while (hasMoreEvenPages || hasMoreOddPages) {
+        const promises: Promise<void>[] = [];
+
+        // Load even page
+        if (hasMoreEvenPages) {
+          const evenPromise = loadPage(evenPage).then(({ products, hasMore }) => {
+            evenProducts = evenProducts.concat(products);
+            hasMoreEvenPages = hasMore;
+            evenPage += 2;
+          });
+          promises.push(evenPromise);
+        }
+
+        // Load odd page
+        if (hasMoreOddPages) {
+          const oddPromise = loadPage(oddPage).then(({ products, hasMore }) => {
+            oddProducts = oddProducts.concat(products);
+            hasMoreOddPages = hasMore;
+            oddPage += 2;
+          });
+          promises.push(oddPromise);
+        }
+
+        // Wait for both requests to complete
+        await Promise.all(promises);
+
+        // Merge and update progress
+        allProducts = [...evenProducts, ...oddProducts];
+
+        loadingProgress = {
+          ...loadingProgress,
+          totalProducts: allProducts.length,
+          progress: Math.min(90, (allProducts.length / (allProducts.length + 100)) * 100) // Estimate progress
+        };
+      }
+
+      // Final progress update
+      loadingProgress = {
+        ...loadingProgress,
+        progress: 100
+      };
 
       originalData.set(allProducts);
       tableData.set(allProducts);

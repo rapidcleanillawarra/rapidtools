@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';
+  import { base } from '$app/paths';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import type { Brand } from './types';
 
@@ -48,7 +49,7 @@
     error = null;
 
     try {
-      const response = await fetch('/api/brands');
+      const response = await fetch(`${base}/api/brands`);
       if (!response.ok) {
         throw new Error('Failed to load brands');
       }

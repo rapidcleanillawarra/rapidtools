@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { base } from '$app/paths';
   import {
     originalData,
     tableData,
@@ -63,8 +64,8 @@
   // Fetch a single page of products
   async function fetchProductPage(pageNum: number, brandName?: string): Promise<{ products: ProductInfo[], hasMore: boolean }> {
     const url = brandName
-      ? `/api/products?brand=${encodeURIComponent(brandName)}&page=${pageNum}`
-      : `/api/products?page=${pageNum}`;
+      ? `${base}/api/products?brand=${encodeURIComponent(brandName)}&page=${pageNum}`
+      : `${base}/api/products?page=${pageNum}`;
 
     const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to load products');

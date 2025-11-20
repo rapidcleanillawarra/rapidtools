@@ -52,7 +52,11 @@
       if (!response.ok) {
         throw new Error('Failed to load brands');
       }
-      brands = await response.json();
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load brands');
+      }
+      brands = result.data;
       filteredBrands = brands.slice(0, 10);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load brands';

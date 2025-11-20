@@ -209,7 +209,7 @@
   <!-- Brand Selection -->
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <div class="flex gap-4">
-      <div class="flex-1 max-w-md">
+      <div class="flex-1 max-w-lg">
         <label for="brand-select" class="block text-sm font-medium text-gray-700 mb-2">
           Select Brand
         </label>

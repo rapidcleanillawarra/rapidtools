@@ -20,4 +20,5 @@ export interface Brand {
   name: string;
   value: string;
   label: string;
+  contentId: string;
 }

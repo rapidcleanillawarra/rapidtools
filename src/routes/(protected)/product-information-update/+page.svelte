@@ -270,18 +270,6 @@
       </div>
     </div>
 
-    <!-- Progress Bar -->
-    <div class="w-full bg-gray-200 rounded-full h-3">
-      <div
-        class="bg-blue-500 h-3 rounded-full transition-all duration-300 ease-out"
-        style="width: {loadingProgress.progress}%"
-      ></div>
-    </div>
-
-    <div class="text-center text-sm text-gray-500">
-      {Math.round(loadingProgress.progress)}% complete
-    </div>
-
     <div class="text-center text-xs text-gray-400">
       Please wait while we fetch all products...
     </div>

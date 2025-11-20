@@ -25,6 +25,24 @@
   // Column display names for the UI
   const columnDisplayNames: Record<keyof ProductInfo, string> = {
     id: 'ID',
+    image: 'Img',
+    sku: 'SKU',
+    name: 'Name',
+    subtitle: 'Sub',
+    brand: 'Brand',
+    description: 'Desc',
+    short_description: 'SD',
+    specifications: 'Specs',
+    features: 'Feat',
+    category_1: 'Categories',
+    seo_page_title: 'SEO Title',
+    seo_meta_description: 'SEO Desc',
+    seo_page_heading: 'SEO Head',
+  };
+
+  // Full column names for the visibility toggle pills
+  const columnPillNames: Record<keyof ProductInfo, string> = {
+    id: 'ID',
     image: 'Image',
     sku: 'SKU',
     name: 'Name',
@@ -261,7 +279,7 @@
   <div class="bg-white rounded-lg shadow p-6 mb-6">
     <h3 class="text-lg font-medium text-gray-900 mb-4">Show/Hide Columns</h3>
     <div class="flex flex-wrap gap-2">
-      {#each Object.entries(columnDisplayNames) as [columnKey, displayName]}
+      {#each Object.entries(columnPillNames) as [columnKey, displayName]}
         {@const column = columnKey as keyof ProductInfo}
         {#if column !== 'id'}
           <button
@@ -296,7 +314,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('image')}>
-                    Image {getSortIcon('image', $sortField, $sortDirection)}
+                    {columnDisplayNames.image} {getSortIcon('image', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -350,7 +368,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('category_1')}>
-                    Category 1 {getSortIcon('category_1', $sortField, $sortDirection)}
+                    {columnDisplayNames.category_1} {getSortIcon('category_1', $sortField, $sortDirection)}
                   </div>
                   <input
                     type="text"
@@ -365,7 +383,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('subtitle')}>
-                    Subtitle {getSortIcon('subtitle', $sortField, $sortDirection)}
+                    {columnDisplayNames.subtitle} {getSortIcon('subtitle', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -374,7 +392,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('description')}>
-                    Description {getSortIcon('description', $sortField, $sortDirection)}
+                    {columnDisplayNames.description} {getSortIcon('description', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -383,7 +401,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('short_description')}>
-                    Short Description {getSortIcon('short_description', $sortField, $sortDirection)}
+                    {columnDisplayNames.short_description} {getSortIcon('short_description', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -392,7 +410,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('specifications')}>
-                    Specifications {getSortIcon('specifications', $sortField, $sortDirection)}
+                    {columnDisplayNames.specifications} {getSortIcon('specifications', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -401,7 +419,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('features')}>
-                    Features {getSortIcon('features', $sortField, $sortDirection)}
+                    {columnDisplayNames.features} {getSortIcon('features', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -410,7 +428,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_title')}>
-                    SEO Page Title {getSortIcon('seo_page_title', $sortField, $sortDirection)}
+                    {columnDisplayNames.seo_page_title} {getSortIcon('seo_page_title', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -419,7 +437,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('seo_meta_description')}>
-                    SEO Meta Description {getSortIcon('seo_meta_description', $sortField, $sortDirection)}
+                    {columnDisplayNames.seo_meta_description} {getSortIcon('seo_meta_description', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -428,7 +446,7 @@
               <th scope="col" class="px-2 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">
                 <div class="flex flex-col gap-2">
                   <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_heading')}>
-                    SEO Page Heading {getSortIcon('seo_page_heading', $sortField, $sortDirection)}
+                    {columnDisplayNames.seo_page_heading} {getSortIcon('seo_page_heading', $sortField, $sortDirection)}
                   </div>
                 </div>
               </th>
@@ -461,9 +479,9 @@
                 {#if $visibleColumns.image}
                   <td class="px-2 py-2 whitespace-nowrap">
                     {#if product.image}
-                      <img src={product.image} alt={product.name} class="h-6 w-6 rounded-lg object-cover" />
+                      <img src={product.image} alt={product.name} class="h-10 w-10 rounded-lg object-cover" />
                     {:else}
-                      <div class="h-6 w-6 rounded-lg bg-gray-200 flex items-center justify-center">
+                      <div class="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center">
                         <span class="text-xs text-gray-500">No img</span>
                       </div>
                     {/if}

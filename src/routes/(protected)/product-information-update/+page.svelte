@@ -114,24 +114,51 @@
 
   <!-- Brand Selection -->
   <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="max-w-md">
-      <label for="brand-select" class="block text-sm font-medium text-gray-700 mb-2">
-        Select Brand
-      </label>
-      <BrandDropdown
-        id="brand-select"
-        placeholder="Search brands..."
-        value={selectedBrandValue}
-        on:select={handleBrandSelect}
-        on:clear={handleBrandClear}
-      />
-      <p class="mt-2 text-sm text-gray-500">
-        {#if $selectedBrand}
-          Showing products for brand: <strong>{$selectedBrand}</strong>
-        {:else}
-          Showing all products
-        {/if}
-      </p>
+    <div class="flex gap-4">
+      <div class="flex-1 max-w-md">
+        <label for="brand-select" class="block text-sm font-medium text-gray-700 mb-2">
+          Select Brand
+        </label>
+        <div class="flex gap-4">
+          <div class="flex-1">
+            <BrandDropdown
+              id="brand-select"
+              placeholder="Search brands..."
+              value={selectedBrandValue}
+              on:select={handleBrandSelect}
+              on:clear={handleBrandClear}
+            />
+          </div>
+          <button
+            type="button"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+            on:click={() => {
+              if ($selectedBrand) {
+                loadProducts($selectedBrand);
+              } else {
+                loadProducts();
+              }
+            }}
+            disabled={isTableLoading}
+          >
+            {#if isTableLoading}
+              <div class="flex items-center">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Loading...
+              </div>
+            {:else}
+              Load Products
+            {/if}
+          </button>
+        </div>
+        <p class="mt-2 text-sm text-gray-500">
+          {#if $selectedBrand}
+            Showing products for brand: <strong>{$selectedBrand}</strong>
+          {:else}
+            Showing all products
+          {/if}
+        </p>
+      </div>
     </div>
   </div>
 

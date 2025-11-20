@@ -338,6 +338,11 @@
                 class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
                 on:click={closeSidebar}
               >Update Product Price</a>
+              <a
+                href="{base}/product-information-update"
+                class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
+                on:click={closeSidebar}
+              >Product Information Update</a>
             </div>
           {/if}
         </div>

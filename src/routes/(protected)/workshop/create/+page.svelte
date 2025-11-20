@@ -1972,7 +1972,11 @@
       clientsWorkOrder: clientsWorkOrder || '',
       customerName: customerName || '',
       orderId: finalOrderId,
-      dateIssued: dateIssued
+      dateIssued: dateIssued,
+      makeModel: makeModel || '',
+      serialNumber: serialNumber || '',
+      siteLocation: siteLocation || '',
+      faultDescription: faultDescription || ''
     };
 
     return payload;

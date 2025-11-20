@@ -4,6 +4,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import type { ProductInfo } from './types';
+  import TinyMCEEditor from './TinyMCEEditor.svelte';
 
   export let show: boolean = false;
   export let product: ProductInfo | null = null;
@@ -71,7 +72,7 @@
       <!-- Image Preview -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="md:col-span-1">
-          <label class="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
+          <div class="block text-sm font-medium text-gray-700 mb-2">Product Image</div>
           {#if product.image}
             <div class="border rounded-lg p-4 bg-gray-50">
               <img src={product.image} alt={product.name} class="w-full h-48 object-cover rounded" />
@@ -189,56 +190,53 @@
         ></textarea>
       </div>
 
-      <!-- Description and Short Description in grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <textarea
-            id="description"
-            rows="3"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={formData.description || ''}
-            on:input={(e) => handleInputChange('description', e.currentTarget.value)}
-            disabled={isSaving}
-          ></textarea>
-        </div>
-        <div>
-          <label for="short_description" class="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
-          <textarea
-            id="short_description"
-            rows="3"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={formData.short_description || ''}
-            on:input={(e) => handleInputChange('short_description', e.currentTarget.value)}
-            disabled={isSaving}
-          ></textarea>
-        </div>
+      <!-- Description with TinyMCE -->
+      <div>
+        <label for="description" class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+        <TinyMCEEditor
+          id="description"
+          bind:value={formData.description}
+          disabled={isSaving}
+          placeholder="Enter product description..."
+          height={300}
+        />
       </div>
 
-      <!-- Specifications and Features in grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label for="specifications" class="block text-sm font-medium text-gray-700 mb-1">Specifications</label>
-          <textarea
-            id="specifications"
-            rows="3"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={formData.specifications || ''}
-            on:input={(e) => handleInputChange('specifications', e.currentTarget.value)}
-            disabled={isSaving}
-          ></textarea>
-        </div>
-        <div>
-          <label for="features" class="block text-sm font-medium text-gray-700 mb-1">Features</label>
-          <textarea
-            id="features"
-            rows="3"
-            class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={formData.features || ''}
-            on:input={(e) => handleInputChange('features', e.currentTarget.value)}
-            disabled={isSaving}
-          ></textarea>
-        </div>
+      <!-- Short Description -->
+      <div>
+        <label for="short_description" class="block text-sm font-medium text-gray-700 mb-1">Short Description</label>
+        <textarea
+          id="short_description"
+          rows="3"
+          class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={formData.short_description || ''}
+          on:input={(e) => handleInputChange('short_description', e.currentTarget.value)}
+          disabled={isSaving}
+        ></textarea>
+      </div>
+
+      <!-- Specifications with TinyMCE -->
+      <div>
+        <label for="specifications" class="block text-sm font-medium text-gray-700 mb-2">Specifications</label>
+        <TinyMCEEditor
+          id="specifications"
+          bind:value={formData.specifications}
+          disabled={isSaving}
+          placeholder="Enter product specifications..."
+          height={300}
+        />
+      </div>
+
+      <!-- Features with TinyMCE -->
+      <div>
+        <label for="features" class="block text-sm font-medium text-gray-700 mb-2">Features</label>
+        <TinyMCEEditor
+          id="features"
+          bind:value={formData.features}
+          disabled={isSaving}
+          placeholder="Enter product features..."
+          height={300}
+        />
       </div>
     {/if}
   </div>

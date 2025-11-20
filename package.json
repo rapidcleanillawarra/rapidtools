@@ -48,11 +48,13 @@
 		"@fullcalendar/daygrid": "^6.1.18",
 		"@fullcalendar/interaction": "^6.1.18",
 		"@supabase/supabase-js": "^2.50.2",
+		"@tinymce/tinymce-svelte": "^3.2.0",
 		"firebase": "^11.8.0",
 		"lucide-svelte": "^0.514.0",
 		"luxon": "^3.6.1",
 		"svelte-dnd-action": "^0.9.63",
 		"svelte-hero-icons": "^5.2.0",
-		"svelte-select": "^5.8.3"
+		"svelte-select": "^5.8.3",
+		"tinymce": "^8.2.2"
 	}
 }

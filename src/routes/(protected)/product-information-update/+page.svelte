@@ -10,6 +10,7 @@
     sortDirection,
     searchFilters,
     selectedBrand,
+    visibleColumns,
     paginatedData
   } from './stores';
   import { getSortIcon, sortData } from './utils';
@@ -20,6 +21,25 @@
 
   let selectedBrandValue = '';
   let isTableLoading = false;
+
+  // Column display names for the UI
+  const columnDisplayNames: Record<keyof ProductInfo, string> = {
+    id: 'ID',
+    image: 'Image',
+    sku: 'SKU',
+    name: 'Name',
+    subtitle: 'Subtitle',
+    brand: 'Brand',
+    description: 'Description',
+    short_description: 'Short Description',
+    specifications: 'Specifications',
+    features: 'Features',
+    category_1: 'Category 1',
+    category_2: 'Category 2',
+    seo_page_title: 'SEO Page Title',
+    seo_meta_description: 'SEO Meta Description',
+    seo_page_heading: 'SEO Page Heading',
+  };
 
   // Handler for clicking a table header to sort
   function handleSortClick(field: keyof ProductInfo) {
@@ -99,6 +119,17 @@
     currentPage.set(1);
   }
 
+  // Calculate visible column count for colspan
+  $: visibleColumnCount = Object.values($visibleColumns).filter(Boolean).length;
+
+  // Toggle column visibility
+  function toggleColumnVisibility(column: keyof ProductInfo) {
+    visibleColumns.update(current => ({
+      ...current,
+      [column]: !current[column]
+    }));
+  }
+
   // Load all products on mount
   onMount(() => {
     loadProducts();
@@ -162,128 +193,185 @@
     </div>
   </div>
 
+  <!-- Column Visibility Controls -->
+  <div class="bg-white rounded-lg shadow p-6 mb-6">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">Show/Hide Columns</h3>
+    <div class="flex flex-wrap gap-2">
+      {#each Object.entries(columnDisplayNames) as [columnKey, displayName]}
+        {@const column = columnKey as keyof ProductInfo}
+        {#if column !== 'id'}
+          <button
+            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200 {($visibleColumns)[column]
+              ? 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }"
+            on:click={() => toggleColumnVisibility(column)}
+          >
+            {displayName}
+            {#if ($visibleColumns)[column]}
+              <svg class="ml-1 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+              </svg>
+            {/if}
+          </button>
+        {/if}
+      {/each}
+    </div>
+    <p class="mt-2 text-sm text-gray-500">
+      Click on column names above to show or hide them in the table below.
+    </p>
+  </div>
+
   <!-- Products Table -->
   <div class="bg-white rounded-lg shadow overflow-hidden">
     <div class="overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200">
         <thead class="bg-gray-50">
           <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('image')}>
-                  Image {getSortIcon('image', $sortField, $sortDirection)}
+            {#if $visibleColumns.image}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('image')}>
+                    Image {getSortIcon('image', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('sku')}>
-                  SKU {getSortIcon('sku', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.sku}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('sku')}>
+                    SKU {getSortIcon('sku', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search SKU..."
+                    class="border rounded px-2 py-1 text-xs"
+                    bind:value={$searchFilters.sku}
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search SKU..."
-                  class="border rounded px-2 py-1 text-xs"
-                  bind:value={$searchFilters.sku}
-                />
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('name')}>
-                  Name {getSortIcon('name', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.name}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('name')}>
+                    Name {getSortIcon('name', $sortField, $sortDirection)}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search Name..."
+                    class="border rounded px-2 py-1 text-xs"
+                    bind:value={$searchFilters.name}
+                  />
                 </div>
-                <input
-                  type="text"
-                  placeholder="Search Name..."
-                  class="border rounded px-2 py-1 text-xs"
-                  bind:value={$searchFilters.name}
-                />
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('subtitle')}>
-                  Subtitle {getSortIcon('subtitle', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.subtitle}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('subtitle')}>
+                    Subtitle {getSortIcon('subtitle', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('brand')}>
-                  Brand {getSortIcon('brand', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.brand}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('brand')}>
+                    Brand {getSortIcon('brand', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('description')}>
-                  Description {getSortIcon('description', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.description}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('short_description')}>
+                    Short Description {getSortIcon('short_description', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('short_description')}>
-                  Short Description {getSortIcon('short_description', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.short_description}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('short_description')}>
+                    Short Description {getSortIcon('short_description', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('specifications')}>
-                  Specifications {getSortIcon('specifications', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.specifications}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('specifications')}>
+                    Specifications {getSortIcon('specifications', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('features')}>
-                  Features {getSortIcon('features', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.features}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('features')}>
+                    Features {getSortIcon('features', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('category_1')}>
-                  Category 1 {getSortIcon('category_1', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.category_1}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('category_1')}>
+                    Category 1 {getSortIcon('category_1', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('category_2')}>
-                  Category 2 {getSortIcon('category_2', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.category_2}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('category_2')}>
+                    Category 2 {getSortIcon('category_2', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_title')}>
-                  SEO Page Title {getSortIcon('seo_page_title', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.seo_page_title}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_title')}>
+                    SEO Page Title {getSortIcon('seo_page_title', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('seo_meta_description')}>
-                  SEO Meta Description {getSortIcon('seo_meta_description', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.seo_meta_description}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('seo_meta_description')}>
+                    SEO Meta Description {getSortIcon('seo_meta_description', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              <div class="flex flex-col gap-2">
-                <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_heading')}>
-                  SEO Page Heading {getSortIcon('seo_page_heading', $sortField, $sortDirection)}
+              </th>
+            {/if}
+            {#if $visibleColumns.seo_page_heading}
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div class="flex flex-col gap-2">
+                  <div class="cursor-pointer" on:click={() => handleSortClick('seo_page_heading')}>
+                    SEO Page Heading {getSortIcon('seo_page_heading', $sortField, $sortDirection)}
+                  </div>
                 </div>
-              </div>
-            </th>
+              </th>
+            {/if}
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           {#if $isLoading || isTableLoading}
             <tr>
-              <td colspan="15" class="px-6 py-4 text-center">
+              <td colspan={visibleColumnCount} class="px-6 py-4 text-center">
                 <div class="flex items-center justify-center">
                   <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
                   <span class="ml-2">Loading products...</span>
@@ -292,7 +380,7 @@
             </tr>
           {:else if $paginatedData.length === 0}
             <tr>
-              <td colspan="15" class="px-6 py-4 text-center text-gray-500">
+              <td colspan={visibleColumnCount} class="px-6 py-4 text-center text-gray-500">
                 {#if $originalData.length === 0}
                   No products found. Select a brand to load products.
                 {:else}
@@ -303,42 +391,70 @@
           {:else}
             {#each $paginatedData as product (product.id)}
               <tr class="hover:bg-gray-50">
-                <td class="px-6 py-4 whitespace-nowrap">
-                  {#if product.image}
-                    <img src={product.image} alt={product.name} class="h-12 w-12 rounded-lg object-cover" />
-                  {:else}
-                    <div class="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
-                      <span class="text-xs text-gray-500">No img</span>
-                    </div>
-                  {/if}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.sku}</td>
-                <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.subtitle || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.brand}</td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.description}>
-                  {product.description || '-'}
-                </td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.short_description}>
-                  {product.short_description || '-'}
-                </td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.specifications}>
-                  {product.specifications || '-'}
-                </td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.features}>
-                  {product.features || '-'}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.category_1 || '-'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.category_2 || '-'}</td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.seo_page_title}>
-                  {product.seo_page_title || '-'}
-                </td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.seo_meta_description}>
-                  {product.seo_meta_description || '-'}
-                </td>
-                <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.seo_page_heading}>
-                  {product.seo_page_heading || '-'}
-                </td>
+                {#if $visibleColumns.image}
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    {#if product.image}
+                      <img src={product.image} alt={product.name} class="h-12 w-12 rounded-lg object-cover" />
+                    {:else}
+                      <div class="h-12 w-12 rounded-lg bg-gray-200 flex items-center justify-center">
+                        <span class="text-xs text-gray-500">No img</span>
+                      </div>
+                    {/if}
+                  </td>
+                {/if}
+                {#if $visibleColumns.sku}
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.sku}</td>
+                {/if}
+                {#if $visibleColumns.name}
+                  <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{product.name}</td>
+                {/if}
+                {#if $visibleColumns.subtitle}
+                  <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.subtitle || '-'}</td>
+                {/if}
+                {#if $visibleColumns.brand}
+                  <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.brand}</td>
+                {/if}
+                {#if $visibleColumns.description}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.description}>
+                    {product.description || '-'}
+                  </td>
+                {/if}
+                {#if $visibleColumns.short_description}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.short_description}>
+                    {product.short_description || '-'}
+                  </td>
+                {/if}
+                {#if $visibleColumns.specifications}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.specifications}>
+                    {product.specifications || '-'}
+                  </td>
+                {/if}
+                {#if $visibleColumns.features}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.features}>
+                    {product.features || '-'}
+                  </td>
+                {/if}
+                {#if $visibleColumns.category_1}
+                  <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.category_1 || '-'}</td>
+                {/if}
+                {#if $visibleColumns.category_2}
+                  <td class="px-6 py-4 whitespace-nowrap text-gray-500">{product.category_2 || '-'}</td>
+                {/if}
+                {#if $visibleColumns.seo_page_title}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.seo_page_title}>
+                    {product.seo_page_title || '-'}
+                  </td>
+                {/if}
+                {#if $visibleColumns.seo_meta_description}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.seo_meta_description}>
+                    {product.seo_meta_description || '-'}
+                  </td>
+                {/if}
+                {#if $visibleColumns.seo_page_heading}
+                  <td class="px-6 py-4 text-gray-500 max-w-xs truncate" title={product.seo_page_heading}>
+                    {product.seo_page_heading || '-'}
+                  </td>
+                {/if}
               </tr>
             {/each}
           {/if}

@@ -20,6 +20,25 @@ export const searchFilters = writable<Record<string, string>>({});
 // Selected brand
 export const selectedBrand = writable<string>('');
 
+// Column visibility stores
+export const visibleColumns = writable<Record<keyof ProductInfo, boolean>>({
+  id: false, // Hidden by default as it's internal
+  image: true,
+  sku: true,
+  name: true,
+  subtitle: false,
+  brand: true,
+  description: false,
+  short_description: false,
+  specifications: false,
+  features: false,
+  category_1: false,
+  category_2: false,
+  seo_page_title: false,
+  seo_meta_description: false,
+  seo_page_heading: false,
+});
+
 // Computed: paginated data
 export const paginatedData = writable<ProductInfo[]>([]);
 

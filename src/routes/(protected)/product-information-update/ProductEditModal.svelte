@@ -29,11 +29,28 @@
 
     try {
       isSaving = true;
-      
+
+      // Transform field names to match API expectations
+      const apiData = {
+        ...formData,
+        SearchKeywords: formData.search_keywords,
+        SEOPageTitle: formData.seo_page_title,
+        SEOMetaDescription: formData.seo_meta_description,
+        SEOPageHeading: formData.seo_page_heading,
+        ShortDescription: formData.short_description
+      };
+
+      // Remove the internal field names
+      delete apiData.search_keywords;
+      delete apiData.seo_page_title;
+      delete apiData.seo_meta_description;
+      delete apiData.seo_page_heading;
+      delete apiData.short_description;
+
       // Call the products API directly instead of going through SvelteKit API route
       // This works in GitHub Pages static hosting
-      await updateProduct(product.id, formData);
-      
+      await updateProduct(product.id, apiData);
+
       toastSuccess('Product updated successfully');
       dispatch('save', { product: formData });
       closeModal();
@@ -139,6 +156,22 @@
         />
       </div>
 
+      <!-- Search Keywords -->
+      <div>
+        <label for="search_keywords" class="block text-sm font-medium text-gray-700 mb-1">Search Keywords</label>
+        <textarea
+          id="search_keywords"
+          rows="3"
+          maxlength="255"
+          class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={formData.search_keywords || ''}
+          on:input={(e) => handleInputChange('search_keywords', e.currentTarget.value)}
+          disabled={isSaving}
+          placeholder="Enter search keywords separated by commas..."
+        ></textarea>
+        <p class="mt-1 text-xs text-gray-500">Maximum 255 characters</p>
+      </div>
+
       <!-- SEO Fields -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
@@ -199,11 +232,13 @@
         <textarea
           id="short_description"
           rows="3"
+          maxlength="255"
           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           value={formData.short_description || ''}
           on:input={(e) => handleInputChange('short_description', e.currentTarget.value)}
           disabled={isSaving}
         ></textarea>
+        <p class="mt-1 text-xs text-gray-500">Maximum 255 characters</p>
       </div>
 
       <!-- Specifications with TinyMCE -->

@@ -16,6 +16,7 @@ export interface ProductApiData {
     ShortDescription?: string;
     Specifications?: string;
     Features?: string;
+    SearchKeywords?: string;
     SEOPageTitle?: string;
     SEOMetaDescription?: string;
     SEOPageHeading?: string;
@@ -74,6 +75,7 @@ export async function fetchProducts(brand?: string | null, page: number = 0): Pr
           "ShortDescription",
           "Specifications",
           "Features",
+          "SearchKeywords",
           "SEOPageTitle",
           "SEOMetaDescription",
           "SEOPageHeading",

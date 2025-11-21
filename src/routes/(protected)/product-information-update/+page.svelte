@@ -87,6 +87,7 @@
         specifications: product.Specifications || undefined,
         features: product.Features || undefined,
         category_1: categories[0] || undefined,
+        search_keywords: product.SearchKeywords || undefined,
         seo_page_title: product.SEOPageTitle || undefined,
         seo_meta_description: product.SEOMetaDescription || undefined,
         seo_page_heading: product.SEOPageHeading || undefined

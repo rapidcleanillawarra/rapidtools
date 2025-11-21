@@ -15,6 +15,7 @@ export const columns: ColumnConfig[] = [
   { key: 'brand', displayName: 'Brand', pillName: 'Brand', hasSearch: true, renderType: 'text' },
   { key: 'category_1', displayName: 'Categories', pillName: 'Categories', hasSearch: true, renderType: 'text' },
   { key: 'subtitle', displayName: 'Sub', pillName: 'Subtitle', hasSearch: false, renderType: 'boolean-icon' },
+  { key: 'search_keywords', displayName: 'Keys', pillName: 'Keywords', hasSearch: false, renderType: 'boolean-icon' },
   { key: 'description', displayName: 'Desc', pillName: 'Description', hasSearch: false, renderType: 'boolean-icon' },
   { key: 'short_description', displayName: 'SD', pillName: 'Short Description', hasSearch: false, renderType: 'boolean-icon' },
   { key: 'specifications', displayName: 'Specs', pillName: 'Specifications', hasSearch: false, renderType: 'boolean-icon' },

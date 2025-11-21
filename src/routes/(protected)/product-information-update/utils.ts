@@ -1,4 +1,4 @@
-import type { ProductInfo } from './types';
+import type { ProductInfo, CategoryTreeNode } from './types';
 import type { ColumnConfig } from './config';
 
 export function getSortIcon(field: keyof ProductInfo, currentField: keyof ProductInfo, direction: 'asc' | 'desc'): string {
@@ -41,16 +41,34 @@ export function sortData<T extends Record<string, any>>(
   });
 }
 
-export function getCellContent(product: ProductInfo, column: ColumnConfig): string {
+// Global cache for category tree to avoid rebuilding on every render
+let categoryTreeCache: CategoryTreeNode[] | null = null;
+let categoryIdToPathMap: Map<string, string> | null = null;
+
+export function getCellContent(product: ProductInfo, column: ColumnConfig, categories?: CategoryFlat[]): string {
   const value = product[column.key];
-  
+
   if (column.renderType === 'text') {
     if (column.key === 'category_1') {
+      // If we have categories data, try to resolve the full path
+      if (categories && categories.length > 0) {
+        if (!categoryTreeCache) {
+          categoryTreeCache = buildCategoryHierarchy(categories);
+        }
+        if (!categoryIdToPathMap) {
+          categoryIdToPathMap = new Map();
+          flattenCategoryTree(categoryTreeCache).forEach(cat => {
+            categoryIdToPathMap!.set(cat.id, cat.path);
+          });
+        }
+        const categoryId = value as string;
+        return categoryIdToPathMap.get(categoryId) || value || '-';
+      }
       return value || '-';
     }
     return value as string;
   }
-  
+
   return value as string;
 }
 
@@ -103,7 +121,7 @@ export function filterProducts(
   searchFilters: Record<string, string>
 ): ProductInfo[] {
   let filtered = products;
-  
+
   for (const [key, value] of Object.entries(searchFilters)) {
     if (value) {
       filtered = filtered.filter(item =>
@@ -111,6 +129,93 @@ export function filterProducts(
       );
     }
   }
-  
+
   return filtered;
+}
+
+export interface CategoryFlat {
+  id: string;
+  name: string;
+  parentId: string;
+  value: string;
+  label: string;
+  categoryId: string;
+  parentCategoryId: string;
+}
+
+export function buildCategoryHierarchy(categories: CategoryFlat[]): CategoryTreeNode[] {
+  // Create a map for quick lookup
+  const categoryMap = new Map<string, CategoryTreeNode>();
+  const rootCategories: CategoryTreeNode[] = [];
+
+  // First pass: create all nodes
+  categories.forEach(cat => {
+    const node: CategoryTreeNode = {
+      id: cat.id,
+      name: cat.name,
+      label: cat.label,
+      value: cat.value,
+      categoryId: cat.categoryId,
+      parentCategoryId: cat.parentCategoryId,
+      children: [],
+      level: 0,
+      path: cat.name
+    };
+    categoryMap.set(cat.id, node);
+  });
+
+  // Second pass: build hierarchy
+  categories.forEach(cat => {
+    const node = categoryMap.get(cat.id)!;
+
+    if (cat.parentId === '0') {
+      // Root category
+      rootCategories.push(node);
+    } else {
+      // Child category
+      const parent = categoryMap.get(cat.parentId);
+      if (parent) {
+        parent.children!.push(node);
+        node.level = parent.level + 1;
+        node.path = `${parent.path} > ${node.name}`;
+      }
+    }
+  });
+
+  // Sort categories by name at each level
+  const sortCategories = (nodes: CategoryTreeNode[]): void => {
+    nodes.sort((a, b) => a.name.localeCompare(b.name));
+    nodes.forEach(node => {
+      if (node.children && node.children.length > 0) {
+        sortCategories(node.children);
+      }
+    });
+  };
+
+  sortCategories(rootCategories);
+
+  return rootCategories;
+}
+
+export function flattenCategoryTree(nodes: CategoryTreeNode[], result: CategoryTreeNode[] = []): CategoryTreeNode[] {
+  nodes.forEach(node => {
+    result.push(node);
+    if (node.children && node.children.length > 0) {
+      flattenCategoryTree(node.children, result);
+    }
+  });
+  return result;
+}
+
+export function findCategoryById(nodes: CategoryTreeNode[], id: string): CategoryTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === id) {
+      return node;
+    }
+    if (node.children && node.children.length > 0) {
+      const found = findCategoryById(node.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
 }

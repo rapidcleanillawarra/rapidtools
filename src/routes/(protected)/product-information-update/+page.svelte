@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import {
     originalData,
     tableData,
@@ -16,6 +17,7 @@
   import { columns, PRODUCTS_PER_API_PAGE } from './config';
   import type { ProductInfo } from './types';
   import { fetchProducts, extractCategories } from '$lib/services/products';
+  import type { CategoryFlat } from './utils';
   import BrandDropdown from './BrandDropdown.svelte';
   import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
   import TablePagination from './TablePagination.svelte';
@@ -34,6 +36,22 @@
   let showEditModal = false;
   let selectedProduct: ProductInfo | null = null;
   let selectedProductForEdit: ProductInfo | null = null;
+  let categories: CategoryFlat[] = [];
+
+  // Load categories for display purposes
+  async function loadCategories() {
+    try {
+      const response = await fetch('/api/categories');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          categories = data.data;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+    }
+  }
 
   // Computed visible columns
   $: visibleColumnsList = columns.filter(col => $visibleColumns[col.key]);
@@ -235,6 +253,11 @@
     showEditModal = false;
     selectedProductForEdit = null;
   }
+
+  // Load categories on component mount
+  onMount(() => {
+    loadCategories();
+  });
 </script>
 
 <ToastContainer />
@@ -338,6 +361,7 @@
     <ProductsTable
       columns={visibleColumnsList}
       products={$paginatedData}
+      categories={categories}
       isLoading={$isLoading || isTableLoading}
       searchFilters={$searchFilters}
       sortField={$sortField}

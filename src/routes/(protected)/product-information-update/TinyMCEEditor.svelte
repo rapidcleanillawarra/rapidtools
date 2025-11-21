@@ -36,7 +36,6 @@
         import('tinymce/plugins/code'),
         import('tinymce/plugins/fullscreen'),
         import('tinymce/plugins/table'),
-        import('tinymce/plugins/help'),
         import('tinymce/plugins/wordcount')
       ]);
 
@@ -50,12 +49,12 @@
         plugins: [
           'advlist', 'autolink', 'lists', 'link', 'charmap', 'preview',
           'searchreplace', 'visualblocks', 'code', 'fullscreen',
-          'table', 'help', 'wordcount'
+          'table', 'wordcount'
         ],
         toolbar: 'undo redo | blocks | ' +
           'bold italic forecolor | alignleft aligncenter ' +
           'alignright alignjustify | bullist numlist outdent indent | ' +
-          'removeformat | code | help',
+          'removeformat | code',
         content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size:14px; padding: 10px; }',
         placeholder: placeholder,
         readonly: disabled,

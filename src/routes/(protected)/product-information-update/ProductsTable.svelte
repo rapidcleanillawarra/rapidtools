@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ProductInfo } from './types';
   import type { ColumnConfig } from './config';
+  import type { CategoryFlat } from './utils';
   import { getSortIcon, getCellContent } from './utils';
 
   export let columns: ColumnConfig[];
@@ -14,6 +15,7 @@
   export let onImageClick: (product: ProductInfo) => void;
   export let onRowClick: (product: ProductInfo) => void;
   export let hasData: boolean;
+  export let categories: CategoryFlat[] = [];
 </script>
 
 <div class="overflow-x-auto">
@@ -97,7 +99,7 @@
                 </td>
               {:else}
                 <td class="px-2 py-2 whitespace-nowrap {column.key === 'sku' || column.key === 'name' ? 'font-medium text-gray-900' : 'text-gray-500'} text-xs">
-                  {getCellContent(product, column)}
+                  {getCellContent(product, column, categories)}
                 </td>
               {/if}
             {/each}

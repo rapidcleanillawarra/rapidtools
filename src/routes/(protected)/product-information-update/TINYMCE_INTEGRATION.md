@@ -41,7 +41,6 @@ This document describes the TinyMCE rich text editor integration for the Product
 - **Alignment**: Left, Center, Right, Justify
 - **Lists**: Bullet lists, Numbered lists, Indent/Outdent
 - **Code View**: HTML source code editing
-- **Help**: Built-in help documentation
 
 ### Plugins Enabled
 - `advlist` - Advanced list styles
@@ -55,8 +54,9 @@ This document describes the TinyMCE rich text editor integration for the Product
 - `code` - HTML code editing
 - `fullscreen` - Fullscreen editing mode
 - `table` - Table insertion/editing
-- `help` - Help documentation
 - `wordcount` - Word/character count
+
+**Note**: The `help` plugin was removed due to asset loading issues in TinyMCE 8.x
 
 ## Static Assets
 
@@ -135,4 +135,5 @@ TinyMCE is used under the GPL license (configured with `license_key: 'gpl'`). Fo
 - Editor instances are properly cleaned up on component destroy
 - The editor maintains reactivity with Svelte stores and parent components
 - Content is saved as HTML and should be sanitized on the backend if needed
+- **TinyMCE 8.x Compatibility**: Some plugins may attempt to load additional assets that aren't included in the static build. If you encounter similar errors with other plugins, they may need to be removed or configured differently
 

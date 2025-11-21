@@ -23,3 +23,15 @@ export interface Brand {
   label: string;
   contentId: string;
 }
+
+export interface CategoryTreeNode {
+  id: string;
+  name: string;
+  label: string;
+  value: string;
+  categoryId: string;
+  parentCategoryId: string;
+  children?: CategoryTreeNode[];
+  level: number;
+  path: string;
+}

@@ -55,7 +55,7 @@
     Edit Product: {product?.name || 'Unknown Product'}
   </div>
 
-  <div slot="body" class="max-h-[500px] overflow-y-auto space-y-6">
+  <div slot="body" class="max-h-[80vh] overflow-y-auto space-y-6 p-6">
     {#if product}
       <!-- Image Preview -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -80,10 +80,9 @@
               <input
                 id="sku"
                 type="text"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
                 value={formData.sku || ''}
-                on:input={(e) => handleInputChange('sku', e.currentTarget.value)}
-                disabled={isSaving}
+                readonly
               />
             </div>
             <div>
@@ -132,6 +131,7 @@
         <input
           id="subtitle"
           type="text"
+          maxlength="56"
           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           value={formData.subtitle || ''}
           on:input={(e) => handleInputChange('subtitle', e.currentTarget.value)}
@@ -146,6 +146,7 @@
           <input
             id="seo_title"
             type="text"
+            maxlength="100"
             class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={formData.seo_page_title || ''}
             on:input={(e) => handleInputChange('seo_page_title', e.currentTarget.value)}
@@ -157,6 +158,7 @@
           <input
             id="seo_heading"
             type="text"
+            maxlength="100"
             class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={formData.seo_page_heading || ''}
             on:input={(e) => handleInputChange('seo_page_heading', e.currentTarget.value)}
@@ -171,6 +173,7 @@
         <textarea
           id="seo_meta"
           rows="3"
+          maxlength="320"
           class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           value={formData.seo_meta_description || ''}
           on:input={(e) => handleInputChange('seo_meta_description', e.currentTarget.value)}

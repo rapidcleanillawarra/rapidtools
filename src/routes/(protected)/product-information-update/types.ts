@@ -9,6 +9,7 @@ export interface ProductInfo {
   short_description?: string;
   specifications?: string;
   features?: string;
+  categories?: string[];
   category_1?: string;
   search_keywords?: string;
   seo_page_title?: string;

@@ -104,6 +104,7 @@
         short_description: product.ShortDescription || undefined,
         specifications: product.Specifications || undefined,
         features: product.Features || undefined,
+        categories: categories.length > 0 ? categories : undefined,
         category_1: categories[0] || undefined,
         search_keywords: product.SearchKeywords || undefined,
         seo_page_title: product.SEOPageTitle || undefined,

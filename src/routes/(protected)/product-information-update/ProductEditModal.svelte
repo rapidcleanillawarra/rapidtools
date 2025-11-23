@@ -128,9 +128,29 @@
             />
           </div>
 
+          <!-- Existing Categories -->
+          {#if product.categories && product.categories.length > 0}
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Existing Categories</label>
+              <div class="flex flex-wrap gap-2">
+                {#each product.categories as category}
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                    {category}
+                  </span>
+                {/each}
+              </div>
+              <p class="mt-1 text-xs text-gray-500">These are the current categories assigned to this product</p>
+            </div>
+          {:else}
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Existing Categories</label>
+              <p class="text-sm text-gray-500 italic">No categories currently assigned</p>
+            </div>
+          {/if}
+
           <!-- Category -->
           <div>
-            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Primary Category</label>
             <CategoryDropdown
               id="category"
               placeholder="Select a category..."
@@ -138,6 +158,7 @@
               on:change={(e) => handleInputChange('category_1', e.detail.value)}
               disabled={isSaving}
             />
+            <p class="mt-1 text-xs text-gray-500">Select the primary category for this product</p>
           </div>
         </div>
       </div>

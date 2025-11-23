@@ -10,6 +10,7 @@
   export let value: string = '';
   export let placeholder: string = 'Search categories...';
   export let id: string | undefined = undefined;
+  export let disabled: boolean = false;
 
   let isOpen = false;
   let searchTerm = '';
@@ -29,12 +30,12 @@
       filterCategories();
     }, 300);
   } else {
-    filteredCategories = flattenedCategories.slice(0, 20); // Show first 20 when no search
+    filteredCategories = flattenedCategories.slice(0, 50); // Show first 50 when no search
   }
 
   function filterCategories() {
     if (!searchTerm.trim()) {
-      filteredCategories = flattenedCategories.slice(0, 20);
+      filteredCategories = flattenedCategories.slice(0, 50); // Show more categories by default
       return;
     }
 
@@ -43,7 +44,7 @@
       const name = category.name.toLowerCase();
       const path = category.path.toLowerCase();
       return name.includes(term) || path.includes(term);
-    }).slice(0, 20); // Limit to 20 results
+    }).slice(0, 50); // Limit to 50 results for search
   }
 
   async function loadCategories() {
@@ -95,9 +96,7 @@
   }
 
   function toggleDropdown() {
-    if (!isOpen && flattenedCategories.length === 0) {
-      loadCategories();
-    }
+    // Categories are now preloaded on mount, so no need to load again
     isOpen = !isOpen;
   }
 
@@ -109,18 +108,13 @@
     }
   }
 
+  // Load categories on mount and set up event listeners
   onMount(() => {
+    loadCategories();
     document.addEventListener('click', handleClickOutside);
     return () => {
       document.removeEventListener('click', handleClickOutside);
     };
-  });
-
-  // Load categories on mount if we have a value
-  onMount(() => {
-    if (value) {
-      loadCategories();
-    }
   });
 </script>
 
@@ -129,23 +123,23 @@
     <input
       {id}
       type="text"
-      class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+      class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {disabled || isLoading ? 'cursor-not-allowed bg-gray-100' : 'cursor-pointer'}"
       {placeholder}
       value={selectedCategory ? selectedCategory.path : searchTerm}
-      on:click={toggleDropdown}
+      on:click={disabled ? undefined : toggleDropdown}
       on:input={(e) => {
         searchTerm = e.currentTarget.value;
         if (!isOpen) isOpen = true;
       }}
-      readonly={!isOpen}
-      disabled={isLoading}
+      readonly={!isOpen || disabled}
+      disabled={disabled || isLoading}
     />
 
     <button
       type="button"
       class="absolute inset-y-0 right-0 pr-3 flex items-center"
-      on:click={toggleDropdown}
-      disabled={isLoading}
+      on:click={disabled ? undefined : toggleDropdown}
+      disabled={disabled || isLoading}
     >
       {#if isLoading}
         <SkeletonLoader className="w-5 h-5" />
@@ -160,7 +154,8 @@
       <button
         type="button"
         class="absolute inset-y-0 right-8 pr-2 flex items-center text-gray-400 hover:text-gray-600"
-        on:click={clearSelection}
+        on:click={disabled ? undefined : clearSelection}
+        disabled={disabled}
         title="Clear selection"
       >
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

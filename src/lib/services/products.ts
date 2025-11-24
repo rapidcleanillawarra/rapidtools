@@ -139,13 +139,20 @@ export async function updateProduct(productId: string, updateData: any): Promise
 
     // Add images if there are image operations
     if (updateData.imageOperations && updateData.imageOperations.length > 0) {
-      itemData.Images = {
-        Image: updateData.imageOperations.map((op: any) => ({
+      console.log('Processing image operations:', updateData.imageOperations);
+      const processedImages = updateData.imageOperations.map((op: any) => {
+        const processedOp = {
           Name: op.Name,
           ...(op.URL && { URL: op.URL }),
-          ...(op.Delete && { Delete: op.Delete })
-        }))
+          ...(typeof op.Delete === 'boolean' && { Delete: op.Delete })
+        };
+        console.log('Processed image operation:', op, '->', processedOp);
+        return processedOp;
+      });
+      itemData.Images = {
+        Image: processedImages
       };
+      console.log('Final Images array:', itemData.Images);
     }
 
     const payload = {

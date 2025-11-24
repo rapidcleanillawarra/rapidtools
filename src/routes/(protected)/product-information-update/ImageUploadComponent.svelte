@@ -19,6 +19,20 @@
   // Visibility state for alt images
   let visibleAltImages: Record<string, boolean> = {};
 
+  // Force reactivity updates
+  $: imageOperationsChanged = imageOperations.length;
+
+  // Force component re-render when imageOperations changes
+  $: if (imageOperationsChanged !== undefined) {
+    // Trigger a re-render by updating a local state
+    renderTrigger = !renderTrigger;
+  }
+
+  let renderTrigger = false;
+
+  // Simple reactive trigger for UI updates
+  $: uiTrigger = imageOperations?.length || 0;
+
   // Generate image names for alt images
   function generateAltImageNames(): string[] {
     const altNames: string[] = [];
@@ -53,54 +67,10 @@
     return operations;
   }
 
-  // Handle main image upload or URL input
-  function handleMainImageUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size must be less than 5MB');
-      return;
-    }
-
-    const localPreviewUrl = URL.createObjectURL(file);
-
-    // Remove any existing main image operation
-    imageOperations = imageOperations.filter(op => op.Name !== 'Main');
-
-    // Clear text input
-    textInputs = { ...textInputs, Main: '' };
-
-    // Add new main image operation
-    imageOperations = [...imageOperations, {
-      Name: 'Main',
-      file,
-      localPreviewUrl
-    }];
-
-    dispatch('images-changed', { imageOperations });
-  }
-
-  // Handle URL input for main image
-  function handleMainImageUrl(imageName: string) {
-    const url = textInputs[imageName]?.trim();
-    if (!url) return;
-
-    // Basic URL validation
-    try {
-      new URL(url);
-    } catch {
-      alert('Please enter a valid URL');
-      return;
-    }
+  // Automatically handle URL when it becomes valid
+  function handleUrlAutomatically(imageName: string, url: string) {
+    console.log('Automatically using URL for', imageName, ':', url);
 
     // Remove any existing operation for this image
     imageOperations = imageOperations.filter(op => op.Name !== imageName);
@@ -111,72 +81,12 @@
       URL: url
     }];
 
+    console.log('Added automatic URL operation:', { Name: imageName, URL: url });
     dispatch('images-changed', { imageOperations });
   }
 
-  // Handle alt image upload
-  function handleAltImageUpload(event: Event, imageName: string) {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file');
-      return;
-    }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size must be less than 5MB');
-      return;
-    }
-
-    const localPreviewUrl = URL.createObjectURL(file);
-
-    // Show the alt image section
-    showAltImage(imageName);
-
-    // Remove any existing operation for this alt image
-    imageOperations = imageOperations.filter(op => op.Name !== imageName);
-
-    // Clear text input
-    textInputs = { ...textInputs, [imageName]: '' };
-
-    // Add new alt image operation
-    imageOperations = [...imageOperations, {
-      Name: imageName,
-      file,
-      localPreviewUrl
-    }];
-
-    dispatch('images-changed', { imageOperations });
-  }
-
-  // Handle URL input for alt images
-  function handleAltImageUrl(imageName: string) {
-    const url = textInputs[imageName]?.trim();
-    if (!url) return;
-
-    // Basic URL validation
-    try {
-      new URL(url);
-    } catch {
-      alert('Please enter a valid URL');
-      return;
-    }
-
-    // Remove any existing operation for this image
-    imageOperations = imageOperations.filter(op => op.Name !== imageName);
-
-    // Add URL-based image operation
-    imageOperations = [...imageOperations, {
-      Name: imageName,
-      URL: url
-    }];
-
-    dispatch('images-changed', { imageOperations });
-  }
 
   // Show an alt image section
   function showAltImage(imageName: string) {
@@ -251,6 +161,8 @@
       if (isTrustedDomain) {
         // Skip CORS validation for trusted domains and assume valid
         urlPreviewStates = { ...urlPreviewStates, [imageName]: { loading: false, error: false, valid: true } };
+        // Automatically use the URL when it becomes valid
+        handleUrlAutomatically(imageName, url);
         return;
       }
 
@@ -266,6 +178,8 @@
 
       // URL is valid and image loads
       urlPreviewStates = { ...urlPreviewStates, [imageName]: { loading: false, error: false, valid: true } };
+      // Automatically use the URL when it becomes valid
+      handleUrlAutomatically(imageName, url);
 
     } catch (error) {
       // Check if it's a CORS error but URL format is valid
@@ -281,19 +195,35 @@
 
   // Delete an image
   function deleteImage(imageName: string) {
+    console.log('deleteImage called for:', imageName);
+    console.log('Current images:', images);
+    console.log('Current imageOperations before:', imageOperations);
+
     // Check if this is an existing image that needs to be marked for deletion
     const existingImage = images.find(img => img.Name === imageName);
-    if (existingImage) {
-      // Mark for deletion
-      imageOperations = [...imageOperations, {
+    console.log('Existing image found:', existingImage);
+
+    // Check if there's already a delete operation for this image
+    const existingDeleteOp = imageOperations.find(op => op.Name === imageName && op.Delete);
+    console.log('Existing delete operation found:', existingDeleteOp);
+
+    if (existingImage && !existingDeleteOp) {
+      // Mark for deletion only if not already marked
+      const deleteOperation = {
         Name: imageName,
         Delete: true
-      }];
-    } else {
+      };
+      imageOperations = [...imageOperations, deleteOperation];
+      console.log('Added delete operation:', deleteOperation);
+    } else if (!existingImage) {
       // Remove from operations (was a new upload that's now cancelled)
       imageOperations = imageOperations.filter(op => op.Name !== imageName);
+      console.log('Removed operation for new upload');
+    } else {
+      console.log('Image already marked for deletion, ignoring duplicate click');
     }
 
+    console.log('Final imageOperations after delete:', imageOperations);
     dispatch('images-changed', { imageOperations });
   }
 
@@ -308,23 +238,24 @@
     // Check if not marked for deletion
     const deleteOp = imageOperations.find(op => op.Name === imageName && op.Delete);
     if (deleteOp) {
+      console.log('getImageUrl - image marked for deletion:', imageName);
       return null;
     }
 
     // Return existing image URL
     const existingImage = images.find(img => img.Name === imageName);
-    return existingImage?.URL || null;
+    const result = existingImage?.URL || null;
+    console.log('getImageUrl called for:', imageName, 'result:', result);
+    return result;
   }
 
   // Check if an image is marked for deletion
   function isImageDeleted(imageName: string): boolean {
-    return imageOperations.some(op => op.Name === imageName && op.Delete);
+    const result = imageOperations.some(op => op.Name === imageName && op.Delete);
+    console.log('isImageDeleted called for:', imageName, 'result:', result, 'operations:', imageOperations.filter(op => op.Name === imageName));
+    return result;
   }
 
-  // Check if an image has a pending upload
-  function hasPendingUpload(imageName: string): boolean {
-    return imageOperations.some(op => op.Name === imageName && op.file);
-  }
 </script>
 
 <div class="space-y-6">
@@ -333,8 +264,19 @@
     <h3 class="text-lg font-medium text-gray-900">Main Image</h3>
 
     <div class="border border-gray-200 rounded-lg p-4">
-      {#if getImageUrl('Main')}
-        <div class="relative mb-4">
+      <div class="relative mb-4">
+        {#if uiTrigger !== undefined && isImageDeleted('Main')}
+          <div class="w-full max-h-96 flex items-center justify-center rounded-lg border bg-red-50 text-red-600">
+            <div class="text-center">
+              <svg class="mx-auto h-8 w-8 text-red-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              <span class="text-sm font-medium">Image marked for deletion</span>
+              <br>
+              <span class="text-xs">Changes will be saved when you submit</span>
+            </div>
+          </div>
+        {:else if uiTrigger !== undefined && getImageUrl('Main')}
           <img
             src={getImageUrl('Main')}
             alt="Main product image"
@@ -343,8 +285,14 @@
           {#if !disabled}
             <button
               type="button"
-              on:click={() => deleteImage('Main')}
-              class="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+              on:click={() => {
+                console.log('Delete button clicked for Main');
+                console.log('Before delete - images:', images);
+                console.log('Before delete - imageOperations:', imageOperations);
+                deleteImage('Main');
+                console.log('After delete - imageOperations:', imageOperations);
+              }}
+              class="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 hover:bg-red-700 transition-colors z-10 shadow-lg"
               title="Remove image"
             >
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,23 +300,20 @@
               </svg>
             </button>
           {/if}
-          {#if hasPendingUpload('Main')}
-            <div class="absolute bottom-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs">
-              Pending Upload
-            </div>
-          {/if}
+        {:else}
+          <div class="w-full max-h-96 flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 text-gray-400">
+            <span class="text-sm">No main image</span>
+          </div>
+        {/if}
         </div>
-      {/if}
 
       {#if !disabled}
-        <!-- 2-column layout: Text input and Upload/Preview area -->
-        <div class="grid grid-cols-2 gap-4">
-          <!-- Column 1: Text Input -->
+        <div class="space-y-3">
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
             <input
               type="text"
-              placeholder="Enter image URL or leave empty to upload file"
+              placeholder="Enter image URL"
               value={textInputs.Main || ''}
               on:input={(e) => handleTextInputChange('Main', e.currentTarget.value)}
               class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -384,17 +329,10 @@
               </div>
             {:else if urlPreviewStates.Main?.valid}
               <div class="mt-1 text-xs text-green-600">
-                Image URL valid ✓
+                Image URL valid ✓ - URL will be used automatically
               </div>
-            {/if}
-          </div>
-
-          <!-- Column 2: Upload/URL Button or Image Preview -->
-          <div class="flex items-end">
-            {#if urlPreviewStates.Main?.valid && textInputs.Main?.trim()}
-              <!-- Show image preview and Use URL button -->
-              <div class="w-full space-y-2">
-                <div class="relative max-h-32 overflow-hidden">
+              {#if urlPreviewStates.Main?.valid && textInputs.Main?.trim()}
+                <div class="mt-2 relative max-h-32 overflow-hidden">
                   <img
                     src={textInputs.Main}
                     alt="URL preview"
@@ -404,31 +342,7 @@
                     <span class="text-xs text-white font-medium opacity-0 hover:opacity-100">Preview</span>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  on:click={() => handleMainImageUrl('Main')}
-                  class="w-full inline-flex items-center justify-center px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-                  </svg>
-                  Use URL
-                </button>
-              </div>
-            {:else}
-              <!-- Show upload button -->
-              <label class="w-full cursor-pointer inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                </svg>
-                {getImageUrl('Main') ? 'Replace' : 'Upload'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  on:change={handleMainImageUpload}
-                  class="hidden"
-                />
-              </label>
+              {/if}
             {/if}
           </div>
         </div>
@@ -460,17 +374,15 @@
     <div class="space-y-4">
       {#each generateAltImageNames() as altName}
         {@const isVisible = visibleAltImages[altName]}
-        {@const imageUrl = getImageUrl(altName)}
-        {@const isDeleted = isImageDeleted(altName)}
-        {@const hasPending = hasPendingUpload(altName)}
-
+        {@const imageUrl = uiTrigger !== undefined ? getImageUrl(altName) : null}
+        {@const isDeleted = uiTrigger !== undefined ? isImageDeleted(altName) : false}
         {#if isVisible}
           <div class="border border-gray-200 rounded-lg p-4 relative">
             <!-- Remove button for the alt image section -->
             {#if !disabled}
               <button
                 type="button"
-                on:click={() => hideAltImage(altName)}
+                on:click={() => hideAltImage(altImage.name)}
                 class="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
                 title="Remove this alt image"
               >
@@ -482,8 +394,17 @@
 
             <div class="text-sm font-medium text-gray-700 mb-3 pr-8">{altName}</div>
 
-            {#if imageUrl && !isDeleted}
-              <div class="relative mb-3">
+            <div class="relative mb-3">
+              {#if isDeleted}
+                <div class="w-full max-h-32 flex items-center justify-center rounded border bg-red-50 text-red-600">
+                  <div class="text-center">
+                    <svg class="mx-auto h-6 w-6 text-red-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    <span class="text-xs font-medium">Marked for deletion</span>
+                  </div>
+                </div>
+              {:else if imageUrl}
                 <img
                   src={imageUrl}
                   alt={altName}
@@ -492,8 +413,14 @@
                 {#if !disabled}
                   <button
                     type="button"
-                    on:click={() => deleteImage(altName)}
-                    class="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 transition-colors"
+                    on:click={() => {
+                      console.log('Delete button clicked for', altName);
+                      console.log('Before delete - images:', images);
+                      console.log('Before delete - imageOperations:', imageOperations);
+                      deleteImage(altName);
+                      console.log('After delete - imageOperations:', imageOperations);
+                    }}
+                    class="absolute top-1 right-1 bg-red-600 text-white rounded-full p-2 hover:bg-red-700 transition-colors z-10 shadow-lg"
                     title="Remove image"
                   >
                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -501,84 +428,48 @@
                     </svg>
                   </button>
                 {/if}
-                {#if hasPending}
-                  <div class="absolute bottom-1 left-1 bg-blue-600 text-white px-1 py-0.5 rounded text-xs">
-                    New
-                  </div>
-                {/if}
-              </div>
-            {/if}
+              {:else}
+                <div class="w-full max-h-32 flex items-center justify-center rounded border-2 border-dashed border-gray-300 bg-gray-50 text-gray-400">
+                  <span class="text-xs">No image</span>
+                </div>
+              {/if}
+            </div>
 
             {#if !disabled}
-              <!-- 2-column layout: Text input and Upload/Preview area -->
-              <div class="grid grid-cols-2 gap-4">
-                <!-- Column 1: Text Input -->
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Enter image URL"
-                    value={textInputs[altName] || ''}
-                    on:input={(e) => handleTextInputChange(altName, e.currentTarget.value)}
-                    class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  {#if urlPreviewStates[altName]?.loading}
-                    <div class="mt-1 text-xs text-blue-600 flex items-center">
-                      <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
-                      Validating...
-                    </div>
-                  {:else if urlPreviewStates[altName]?.error}
-                    <div class="mt-1 text-xs text-red-600">
-                      Invalid URL
-                    </div>
-                  {:else if urlPreviewStates[altName]?.valid}
-                    <div class="mt-1 text-xs text-green-600">
-                      Valid ✓
-                    </div>
-                  {/if}
-                </div>
-
-                <!-- Column 2: Upload/URL Button or Image Preview -->
-                <div class="flex items-center">
+              <div class="space-y-2">
+                <input
+                  type="text"
+                  placeholder="Enter image URL"
+                  value={textInputs[altName] || ''}
+                  on:input={(e) => handleTextInputChange(altName, e.currentTarget.value)}
+                  class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {#if urlPreviewStates[altName]?.loading}
+                  <div class="mt-1 text-xs text-blue-600 flex items-center">
+                    <div class="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600 mr-1"></div>
+                    Validating...
+                  </div>
+                {:else if urlPreviewStates[altName]?.error}
+                  <div class="mt-1 text-xs text-red-600">
+                    Invalid URL
+                  </div>
+                {:else if urlPreviewStates[altName]?.valid}
+                  <div class="mt-1 text-xs text-green-600">
+                    Valid ✓ - URL will be used automatically
+                  </div>
                   {#if urlPreviewStates[altName]?.valid && textInputs[altName]?.trim()}
-                    <!-- Show image preview and Use URL button -->
-                    <div class="w-full space-y-2">
-                      <div class="relative max-h-24 overflow-hidden">
-                        <img
-                          src={textInputs[altName]}
-                          alt="URL preview"
-                          class="w-full max-h-24 object-contain rounded border bg-gray-50"
-                        />
-                        <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded flex items-center justify-center">
-                          <span class="text-xs text-white font-medium opacity-0 hover:opacity-100">Preview</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        on:click={() => handleAltImageUrl(altName)}
-                        class="w-full inline-flex items-center justify-center px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                      >
-                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-                        </svg>
-                        Use URL
-                      </button>
-                    </div>
-                  {:else}
-                    <!-- Show upload button -->
-                    <label class="w-full cursor-pointer inline-flex items-center justify-center px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors">
-                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                      </svg>
-                      {imageUrl && !isDeleted ? 'Replace' : 'Upload'}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        on:change={(e) => handleAltImageUpload(e, altName)}
-                        class="hidden"
+                    <div class="mt-2 relative max-h-24 overflow-hidden">
+                      <img
+                        src={textInputs[altName]}
+                        alt="URL preview"
+                        class="w-full max-h-24 object-contain rounded border bg-gray-50"
                       />
-                    </label>
+                      <div class="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded flex items-center justify-center">
+                        <span class="text-xs text-white font-medium opacity-0 hover:opacity-100">Preview</span>
+                      </div>
+                    </div>
                   {/if}
-                </div>
+                {/if}
               </div>
             {/if}
           </div>

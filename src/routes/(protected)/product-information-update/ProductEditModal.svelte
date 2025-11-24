@@ -5,6 +5,7 @@
   import { updateProduct } from '$lib/services/products';
   import type { ProductInfo, CategoryTreeNode, CategoryOperation, ImageOperation } from './types';
   import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
+  import { transformProductsData } from './productTransformer';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
   import CategoryDropdown from './CategoryDropdown.svelte';
   import KeywordPills from './KeywordPills.svelte';
@@ -114,16 +115,26 @@
         imageOperations: imageOperations.length > 0 ? imageOperations : undefined
       };
 
+      console.log('Saving product with image operations:', imageOperations);
+      console.log('Update data being sent:', updateData);
+
       // Call the products API directly instead of going through SvelteKit API route
       // This works in GitHub Pages static hosting
-      await updateProduct(product.sku, updateData);
+      const updateResponse = await updateProduct(product.sku, updateData);
+      console.log('Update response:', updateResponse);
+
+      // Transform the response to get updated product data
+      const updatedProductData = updateResponse.Item && updateResponse.Item.length > 0
+        ? transformProductsData(updateResponse.Item, product?.brand)[0]
+        : product;
 
       // Calculate final categories after operations are applied
-      const finalCategories = getEffectiveCategories(product?.categories || [], categoryOperations);
+      const finalCategories = getEffectiveCategories(updatedProductData?.categories || [], categoryOperations);
 
       const updatedProduct = {
         ...formData,
-        categories: finalCategories
+        categories: finalCategories,
+        images: updatedProductData?.images || [] // Use updated images from server
       };
 
       // Clear temporary storage since changes are now saved

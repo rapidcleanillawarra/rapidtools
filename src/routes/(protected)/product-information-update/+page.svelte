@@ -220,7 +220,8 @@
 
   // Handle row click to edit product
   function handleRowClick(product: ProductInfo) {
-    selectedProductForEdit = product;
+    // Create a fresh copy of the product to ensure reactivity in the modal
+    selectedProductForEdit = { ...product };
     showEditModal = true;
   }
 
@@ -234,15 +235,16 @@
     const { product } = event.detail;
 
     // Apply optimistic updates to the UI immediately
-    tableData.update(data => data.map(p => p.id === product.id ? product : p));
+    tableData.update(data => data.map(p => p.id === product.id ? { ...product } : p));
   }
 
   function handleProductSave(event: CustomEvent) {
     const { product } = event.detail;
 
     // Update the product in the stores (confirm the optimistic changes)
-    originalData.update(data => data.map(p => p.id === product.id ? product : p));
-    tableData.update(data => data.map(p => p.id === product.id ? product : p));
+    // Create fresh copies to ensure reactivity
+    originalData.update(data => data.map(p => p.id === product.id ? { ...product } : p));
+    tableData.update(data => data.map(p => p.id === product.id ? { ...product } : p));
 
     showEditModal = false;
     selectedProductForEdit = null;

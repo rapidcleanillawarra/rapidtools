@@ -15,6 +15,8 @@ export interface ProductInfo {
   seo_page_title?: string;
   seo_meta_description?: string;
   seo_page_heading?: string;
+  // Category management
+  categoryOperations?: CategoryOperation[];
 }
 
 export interface Brand {
@@ -35,4 +37,13 @@ export interface CategoryTreeNode {
   children?: CategoryTreeNode[];
   level: number;
   path: string;
+}
+
+export interface CategoryOperation {
+  CategoryID: string;
+  Delete?: boolean;
+}
+
+export interface ProductCategories {
+  Category: CategoryOperation[];
 }

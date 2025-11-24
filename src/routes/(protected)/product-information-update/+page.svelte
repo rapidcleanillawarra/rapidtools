@@ -230,15 +230,34 @@
   }
 
   // Handle product save from edit modal
+  function handleOptimisticUpdate(event: CustomEvent) {
+    const { product } = event.detail;
+
+    // Apply optimistic updates to the UI immediately
+    tableData.update(data => data.map(p => p.id === product.id ? product : p));
+  }
+
   function handleProductSave(event: CustomEvent) {
     const { product } = event.detail;
 
-    // Update the product in the stores
+    // Update the product in the stores (confirm the optimistic changes)
     originalData.update(data => data.map(p => p.id === product.id ? product : p));
     tableData.update(data => data.map(p => p.id === product.id ? product : p));
 
     showEditModal = false;
     selectedProductForEdit = null;
+  }
+
+  function handleRevertOptimistic(event: CustomEvent) {
+    const { productId } = event.detail;
+
+    // Revert optimistic changes by restoring from originalData
+    originalData.subscribe(original => {
+      const originalProduct = original.find(p => p.id === productId);
+      if (originalProduct) {
+        tableData.update(data => data.map(p => p.id === productId ? originalProduct : p));
+      }
+    })();
   }
 
   // Cleanup timeout on component destroy
@@ -265,6 +284,8 @@
   product={selectedProductForEdit}
   on:close={handleEditModalClose}
   on:save={handleProductSave}
+  on:optimistic-update={handleOptimisticUpdate}
+  on:revert-optimistic={handleRevertOptimistic}
 />
 
 <LoadingProgressModal show={showProgressModal} totalProducts={totalProductsLoaded} />

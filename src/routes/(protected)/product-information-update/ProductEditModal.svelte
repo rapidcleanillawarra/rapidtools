@@ -3,7 +3,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import { updateProduct } from '$lib/services/products';
-  import type { ProductInfo, CategoryTreeNode } from './types';
+  import type { ProductInfo, CategoryTreeNode, CategoryOperation } from './types';
   import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
   import CategoryDropdown from './CategoryDropdown.svelte';
@@ -22,19 +22,54 @@
   let flattenedCategories: CategoryTreeNode[] = [];
   let categoryMap = new Map<string, CategoryTreeNode>();
 
+  // Category management state
+  let categoryOperations: CategoryOperation[] = [];
+  let selectedCategoryToAdd: string = '';
+  let originalCategories: string[] = [];
+
+  // Temporary storage for category operations across modal sessions
+  // Keyed by product SKU to persist changes during a session
+  let tempCategoryStorage = new Map<string, CategoryOperation[]>();
+
+  // Reactive statement to ensure UI updates when category operations change
+  $: effectiveCategories = getEffectiveCategories(product?.categories || [], categoryOperations);
+
+  // Save operations to temporary storage whenever they change
+  $: if (product?.sku && categoryOperations.length >= 0) {
+    tempCategoryStorage.set(product.sku, [...categoryOperations]);
+
+    // Dispatch optimistic update to parent for immediate UI feedback
+    const optimisticCategories = getEffectiveCategories(product?.categories || [], categoryOperations);
+    const optimisticProduct = {
+      ...product,
+      categories: optimisticCategories
+    };
+    dispatch('optimistic-update', { product: optimisticProduct });
+  }
+
   // Reset form data when product changes (optimized type safety)
   $: if (product) {
     // Parse keywords if they're a string
     const keywords = typeof product.search_keywords === 'string'
       ? product.search_keywords.split(',').map(k => k.trim()).filter(k => k)
       : product.search_keywords || [];
-    
+
     formData = {
       ...product,
       search_keywords: keywords
     };
+
+    // Store original categories for comparison
+    originalCategories = product.categories || [];
+
+    // Load any existing operations from temporary storage
+    categoryOperations = tempCategoryStorage.get(product.sku) || [];
+    selectedCategoryToAdd = '';
   } else {
     formData = null;
+    categoryOperations = [];
+    selectedCategoryToAdd = '';
+    originalCategories = [];
   }
 
   // Load categories when modal is shown
@@ -43,6 +78,8 @@
   }
 
   function closeModal() {
+    // Reset category operations when modal closes without saving
+    categoryOperations = [];
     dispatch('close');
     formData = null;
   }
@@ -53,15 +90,38 @@
     try {
       isSaving = true;
 
+      // Prepare formData with category operations
+      const updateData = {
+        ...formData,
+        categoryOperations: categoryOperations.length > 0 ? categoryOperations : undefined
+      };
+
       // Call the products API directly instead of going through SvelteKit API route
       // This works in GitHub Pages static hosting
-      await updateProduct(product.sku, formData);
+      await updateProduct(product.sku, updateData);
+
+      // Calculate final categories after operations are applied
+      const finalCategories = getEffectiveCategories(product?.categories || [], categoryOperations);
+
+      const updatedProduct = {
+        ...formData,
+        categories: finalCategories
+      };
+
+      // Clear temporary storage since changes are now saved
+      if (product?.sku) {
+        tempCategoryStorage.delete(product.sku);
+      }
 
       toastSuccess('Product updated successfully');
-      dispatch('save', { product: formData });
+      dispatch('save', { product: updatedProduct });
       closeModal();
     } catch (error) {
       console.error('Error updating product:', error);
+
+      // Revert optimistic changes on failure
+      dispatch('revert-optimistic', { productId: product.id });
+
       toastError(error instanceof Error ? error.message : 'Failed to update product');
     } finally {
       isSaving = false;
@@ -125,6 +185,71 @@
       parent,
       children: category.children || []
     };
+  }
+
+  function removeCategory(categoryName: string) {
+    const category = getCategoryByName(categoryName);
+    if (!category) return;
+
+    // Check if this category is already in operations
+    const existingOp = categoryOperations.find(op => op.CategoryID === category.categoryId);
+    if (existingOp) {
+      // If it was being added, remove the operation entirely
+      if (!existingOp.Delete) {
+        categoryOperations = categoryOperations.filter(op => op.CategoryID !== category.categoryId);
+      }
+      // If it was already being deleted, do nothing
+    } else {
+      // Add delete operation
+      categoryOperations = [...categoryOperations, { CategoryID: category.categoryId, Delete: true }];
+    }
+  }
+
+  function addCategory() {
+    if (!selectedCategoryToAdd) return;
+
+    const category = categoryMap.get(selectedCategoryToAdd);
+    if (!category) return;
+
+    // Check if this category is already in operations
+    const existingOp = categoryOperations.find(op => op.CategoryID === category.categoryId);
+    if (existingOp) {
+      // If it was being deleted, change to add
+      if (existingOp.Delete) {
+        categoryOperations = categoryOperations.map(op =>
+          op.CategoryID === category.categoryId ? { CategoryID: op.CategoryID } : op
+        );
+      }
+      // If it was already being added, do nothing
+    } else {
+      // Add add operation
+      categoryOperations = [...categoryOperations, { CategoryID: category.categoryId }];
+    }
+
+    // Reset selection
+    selectedCategoryToAdd = '';
+  }
+
+  function getEffectiveCategories(productCategories: string[] = [], operations: CategoryOperation[] = []): string[] {
+    let effectiveCategories = [...productCategories];
+
+    // Apply operations
+    operations.forEach(op => {
+      const category = flattenedCategories.find(cat => cat.categoryId === op.CategoryID);
+      if (category) {
+        if (op.Delete) {
+          // Remove category
+          effectiveCategories = effectiveCategories.filter(catName => catName !== category.name);
+        } else {
+          // Add category
+          if (!effectiveCategories.includes(category.name)) {
+            effectiveCategories.push(category.name);
+          }
+        }
+      }
+    });
+
+    return effectiveCategories;
   }
 </script>
 
@@ -190,70 +315,90 @@
             />
           </div>
 
-          <!-- Existing Categories -->
-          {#if product.categories && product.categories.length > 0}
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Existing Categories</label>
-              <div class="space-y-3">
-                {#each product.categories as categoryName}
-                  {@const categoryObj = getCategoryByName(categoryName)}
-                  {@const hierarchy = getCategoryHierarchy(categoryName)}
-                  <div class="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                    <div class="flex items-center justify-between">
-                      <div class="flex-1">
-                        {#if categoryObj}
-                          <div class="flex items-center gap-2">
-                            <div class="font-medium text-gray-900">{categoryObj.name}</div>
-                            {#if hierarchy.parent}
-                              <div class="text-sm text-gray-600">
-                                <span class="text-gray-500">under</span> <span class="font-medium text-blue-700">{hierarchy.parent}</span>
-                              </div>
-                            {/if}
-                          </div>
-                          {#if hierarchy.children && hierarchy.children.length > 0}
-                            <div class="text-sm text-gray-600 mt-2">
-                              <span class="font-medium">Contains:</span>
-                              <div class="flex flex-wrap gap-1 mt-1">
-                                {#each hierarchy.children.slice(0, 5) as child}
-                                  <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                                    {child.name}
-                                  </span>
-                                {/each}
-                                {#if hierarchy.children.length > 5}
-                                  <span class="text-xs text-gray-500">+{hierarchy.children.length - 5} more</span>
-                                {/if}
-                              </div>
+          <!-- Category Management -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Product Categories</label>
+            <div class="space-y-3">
+              <!-- Current Categories -->
+              {#each effectiveCategories as categoryName}
+                {@const categoryObj = getCategoryByName(categoryName)}
+                {@const hierarchy = getCategoryHierarchy(categoryName)}
+                <div class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                  <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                      {#if categoryObj}
+                        <div class="flex items-center gap-2">
+                          <div class="font-medium text-gray-900">{categoryObj.name}</div>
+                          {#if hierarchy.parent}
+                            <div class="text-sm text-gray-600">
+                              <span class="text-gray-500">under</span> <span class="font-medium text-blue-700">{hierarchy.parent}</span>
                             </div>
                           {/if}
-                        {:else}
-                          <div class="font-medium text-gray-900">{categoryName}</div>
+                        </div>
+                        {#if hierarchy.children && hierarchy.children.length > 0}
+                          <div class="text-sm text-gray-600 mt-2">
+                            <span class="font-medium">Contains:</span>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                              {#each hierarchy.children.slice(0, 5) as child}
+                                <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                                  {child.name}
+                                </span>
+                              {/each}
+                              {#if hierarchy.children.length > 5}
+                                <span class="text-xs text-gray-500">+{hierarchy.children.length - 5} more</span>
+                              {/if}
+                            </div>
+                          </div>
                         {/if}
-                      </div>
+                      {:else}
+                        <div class="font-medium text-gray-900">{categoryName}</div>
+                      {/if}
                     </div>
+                    <button
+                      type="button"
+                      class="ml-3 text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50 transition-colors"
+                      on:click={() => removeCategory(categoryName)}
+                      disabled={isSaving}
+                      title="Remove category"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
                   </div>
-                {/each}
-              </div>
-              <p class="mt-2 text-xs text-gray-500">These are the current categories assigned to this product, showing their parent and child relationships</p>
-            </div>
-          {:else}
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">Existing Categories</label>
-              <p class="text-sm text-gray-500 italic">No categories currently assigned</p>
-            </div>
-          {/if}
+                </div>
+              {/each}
 
-          <!-- Category -->
-          <div>
-            <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Primary Category</label>
-            <CategoryDropdown
-              id="category"
-              placeholder="Select a category..."
-              value={formData.category_1 || ''}
-              on:change={(e) => handleInputChange('category_1', e.detail.value)}
-              disabled={isSaving}
-            />
-            <p class="mt-1 text-xs text-gray-500">Select the primary category for this product</p>
+              <!-- Add Category -->
+              <div class="border border-dashed border-gray-300 rounded-lg p-3 bg-white">
+                <div class="flex items-center gap-3">
+                  <div class="flex-1">
+                    <CategoryDropdown
+                      id="add-category"
+                      placeholder="Select a category to add..."
+                      value={selectedCategoryToAdd}
+                      on:change={(e) => selectedCategoryToAdd = e.detail.value}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    on:click={addCategory}
+                    disabled={isSaving || !selectedCategoryToAdd}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+            {#if effectiveCategories.length === 0}
+              <p class="mt-2 text-sm text-gray-500 italic">No categories assigned to this product</p>
+            {:else}
+              <p class="mt-2 text-xs text-gray-500">Categories assigned to this product, showing their parent and child relationships</p>
+            {/if}
           </div>
+
         </div>
       </div>
 

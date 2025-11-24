@@ -52,6 +52,11 @@
 			<div class="modal-content">
 				<slot name="body">Modal Content</slot>
 			</div>
+			{#if $$slots.footer}
+				<div class="border-t pt-4 mt-6">
+					<slot name="footer" />
+				</div>
+			{/if}
 		</div>
 	</div>
 {/if} 

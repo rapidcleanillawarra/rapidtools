@@ -31,26 +31,9 @@
     try {
       isSaving = true;
 
-      // Transform field names to match API expectations
-      const apiData = {
-        ...formData,
-        SearchKeywords: formData.search_keywords,
-        SEOPageTitle: formData.seo_page_title,
-        SEOMetaDescription: formData.seo_meta_description,
-        SEOPageHeading: formData.seo_page_heading,
-        ShortDescription: formData.short_description
-      };
-
-      // Remove the internal field names
-      delete apiData.search_keywords;
-      delete apiData.seo_page_title;
-      delete apiData.seo_meta_description;
-      delete apiData.seo_page_heading;
-      delete apiData.short_description;
-
       // Call the products API directly instead of going through SvelteKit API route
       // This works in GitHub Pages static hosting
-      await updateProduct(product.id, apiData);
+      await updateProduct(product.sku, formData);
 
       toastSuccess('Product updated successfully');
       dispatch('save', { product: formData });
@@ -289,7 +272,7 @@
   </div>
 
   <!-- Modal Footer -->
-  <div class="flex justify-end space-x-3 pt-4 border-t">
+  <div slot="footer" class="flex justify-end space-x-3">
     <button
       type="button"
       class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent disabled:opacity-50"

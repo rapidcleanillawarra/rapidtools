@@ -112,11 +112,24 @@ export async function fetchProducts(brand?: string | null, page: number = 0): Pr
 
 export async function updateProduct(productId: string, updateData: any): Promise<any> {
   try {
+    // Transform the updateData to match the new API payload format
+    const itemData = {
+      SKU: productId,
+      Name: updateData.name,
+      Brand: updateData.brand,
+      Subtitle: updateData.subtitle,
+      SearchKeywords: updateData.search_keywords || updateData.SearchKeywords,
+      ShortDescription: updateData.short_description || updateData.ShortDescription,
+      Description: updateData.description || updateData.Description,
+      Specifications: updateData.specifications || updateData.Specifications,
+      Features: updateData.features || updateData.Features,
+      SEOPageTitle: updateData.seo_page_title || updateData.SEOPageTitle,
+      SEOMetaDescription: updateData.seo_meta_description || updateData.SEOMetaDescription,
+      SEOPageHeading: updateData.seo_page_heading || updateData.SEOPageHeading
+    };
+
     const payload = {
-      "Filter": {
-        "SKU": productId,
-        ...updateData
-      },
+      "Item": [itemData],
       "action": "UpdateItem"
     };
 

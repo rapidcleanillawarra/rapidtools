@@ -1,6 +1,7 @@
 export interface ProductInfo {
   id: string;
   image?: string;
+  images?: ProductImage[];
   sku: string;
   name: string;
   subtitle?: string;
@@ -17,6 +18,8 @@ export interface ProductInfo {
   seo_page_heading?: string;
   // Category management
   categoryOperations?: CategoryOperation[];
+  // Image management
+  imageOperations?: ImageOperation[];
 }
 
 export interface Brand {
@@ -46,4 +49,21 @@ export interface CategoryOperation {
 
 export interface ProductCategories {
   Category: CategoryOperation[];
+}
+
+export interface ProductImage {
+  Name: string;
+  URL: string;
+  Timestamp?: string;
+  ThumbURL?: string;
+  MediumThumbURL?: string;
+}
+
+export interface ImageOperation {
+  Name: string;
+  URL?: string;
+  Delete?: boolean;
+  // For new uploads (not yet saved to server)
+  file?: File;
+  localPreviewUrl?: string;
 }

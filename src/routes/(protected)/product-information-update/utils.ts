@@ -90,14 +90,26 @@ export function getCellContent(product: ProductInfo, column: ColumnConfig, categ
       if (categories && categories.length > 0) {
         categoryCache.build(categories);
         const categoryId = value as string;
-        return categoryCache.getPath(categoryId) || value || '-';
+        return categoryCache.getPath(categoryId) || (value as string) || '-';
       }
-      return value || '-';
+      return (value as string) || '-';
     }
-    return value as string;
+
+    // Handle array properties that should display as text
+    if (column.key === 'categories' || column.key === 'search_keywords') {
+      const arrayValue = value as string[] | undefined;
+      return arrayValue ? arrayValue.join(', ') : '-';
+    }
+
+    // Handle properties that shouldn't be displayed in table
+    if (column.key === 'images' || column.key === 'categoryOperations' || column.key === 'imageOperations') {
+      return '-';
+    }
+
+    return (value as string) || '';
   }
 
-  return value as string;
+  return (value as string) || '';
 }
 
 /**

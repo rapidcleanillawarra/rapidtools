@@ -3,11 +3,12 @@
   import Modal from '$lib/components/Modal.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import { updateProduct } from '$lib/services/products';
-  import type { ProductInfo, CategoryTreeNode, CategoryOperation } from './types';
+  import type { ProductInfo, CategoryTreeNode, CategoryOperation, ImageOperation } from './types';
   import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
   import CategoryDropdown from './CategoryDropdown.svelte';
   import KeywordPills from './KeywordPills.svelte';
+  import ImageUploadComponent from './ImageUploadComponent.svelte';
 
   export let show: boolean = false;
   export let product: ProductInfo | null = null;
@@ -31,6 +32,12 @@
   // Keyed by product SKU to persist changes during a session
   let tempCategoryStorage = new Map<string, CategoryOperation[]>();
 
+  // Image management state
+  let imageOperations: ImageOperation[] = [];
+
+  // Temporary storage for image operations across modal sessions
+  let tempImageStorage = new Map<string, ImageOperation[]>();
+
   // Reactive statement to ensure UI updates when category operations change
   $: effectiveCategories = getEffectiveCategories(product?.categories || [], categoryOperations);
 
@@ -45,6 +52,11 @@
       categories: optimisticCategories
     };
     dispatch('optimistic-update', { product: optimisticProduct });
+  }
+
+  // Save image operations to temporary storage whenever they change
+  $: if (product?.sku && imageOperations.length >= 0) {
+    tempImageStorage.set(product.sku, [...imageOperations]);
   }
 
   // Reset form data when product changes (optimized type safety)
@@ -65,6 +77,9 @@
     // Load any existing operations from temporary storage
     categoryOperations = tempCategoryStorage.get(product.sku) || [];
     selectedCategoryToAdd = '';
+
+    // Load any existing image operations from temporary storage
+    imageOperations = tempImageStorage.get(product.sku) || [];
   } else {
     formData = null;
     categoryOperations = [];
@@ -80,6 +95,8 @@
   function closeModal() {
     // Reset category operations when modal closes without saving
     categoryOperations = [];
+    // Reset image operations when modal closes without saving
+    imageOperations = [];
     dispatch('close');
     formData = null;
   }
@@ -90,10 +107,11 @@
     try {
       isSaving = true;
 
-      // Prepare formData with category operations
+      // Prepare formData with category and image operations
       const updateData = {
         ...formData,
-        categoryOperations: categoryOperations.length > 0 ? categoryOperations : undefined
+        categoryOperations: categoryOperations.length > 0 ? categoryOperations : undefined,
+        imageOperations: imageOperations.length > 0 ? imageOperations : undefined
       };
 
       // Call the products API directly instead of going through SvelteKit API route
@@ -111,6 +129,7 @@
       // Clear temporary storage since changes are now saved
       if (product?.sku) {
         tempCategoryStorage.delete(product.sku);
+        tempImageStorage.delete(product.sku);
       }
 
       toastSuccess('Product updated successfully');
@@ -400,6 +419,17 @@
           </div>
 
         </div>
+      </div>
+
+      <!-- Image Management -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Product Images</label>
+        <ImageUploadComponent
+          images={product?.images || []}
+          imageOperations={imageOperations}
+          disabled={isSaving}
+          on:images-changed={(e) => imageOperations = e.detail.imageOperations}
+        />
       </div>
 
       <!-- Subtitle -->

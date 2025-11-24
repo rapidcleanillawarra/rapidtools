@@ -13,7 +13,8 @@ export function transformProductData(product: any, brandName?: string): ProductI
     sku: product.SKU,
     name: product.Model || '',
     brand: brandName || '',
-    image: product.Images?.[0]?.URL,
+    image: product.Images?.[0]?.URL, // Keep for backward compatibility (first image)
+    images: product.Images || [], // Store all images
     subtitle: product.Subtitle,
     description: product.Description,
     short_description: product.ShortDescription,

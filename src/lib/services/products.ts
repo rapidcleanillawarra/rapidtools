@@ -137,6 +137,17 @@ export async function updateProduct(productId: string, updateData: any): Promise
       };
     }
 
+    // Add images if there are image operations
+    if (updateData.imageOperations && updateData.imageOperations.length > 0) {
+      itemData.Images = {
+        Image: updateData.imageOperations.map((op: any) => ({
+          Name: op.Name,
+          ...(op.URL && { URL: op.URL }),
+          ...(op.Delete && { Delete: op.Delete })
+        }))
+      };
+    }
+
     const payload = {
       "Item": [itemData],
       "action": "UpdateItem"

@@ -24,6 +24,7 @@ export const selectedBrand = writable<string>('');
 const defaultVisibleColumns: Record<keyof ProductInfo, boolean> = {
   id: false, // Hidden by default as it's internal
   image: true,
+  images: false, // Hidden by default, not needed in table view
   sku: true,
   name: true,
   subtitle: false,
@@ -32,10 +33,14 @@ const defaultVisibleColumns: Record<keyof ProductInfo, boolean> = {
   short_description: false,
   specifications: false,
   features: false,
+  categories: false,
   category_1: false,
+  search_keywords: false,
   seo_page_title: false,
   seo_meta_description: false,
   seo_page_heading: false,
+  categoryOperations: false, // Hidden by default, internal operations
+  imageOperations: false, // Hidden by default, internal operations
 };
 
 // Load from localStorage or use defaults

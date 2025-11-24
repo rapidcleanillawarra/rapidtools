@@ -11,7 +11,7 @@ export interface ProductInfo {
   features?: string;
   categories?: string[];
   category_1?: string;
-  search_keywords?: string;
+  search_keywords?: string | string[];
   seo_page_title?: string;
   seo_meta_description?: string;
   seo_page_heading?: string;

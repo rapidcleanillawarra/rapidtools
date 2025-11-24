@@ -118,7 +118,9 @@ export async function updateProduct(productId: string, updateData: any): Promise
       Name: updateData.name,
       Brand: updateData.brand,
       Subtitle: updateData.subtitle,
-      SearchKeywords: updateData.search_keywords || updateData.SearchKeywords,
+      SearchKeywords: Array.isArray(updateData.search_keywords)
+        ? updateData.search_keywords.join(',')
+        : updateData.search_keywords || updateData.SearchKeywords,
       ShortDescription: updateData.short_description || updateData.ShortDescription,
       Description: updateData.description || updateData.Description,
       Specifications: updateData.specifications || updateData.Specifications,
@@ -132,6 +134,8 @@ export async function updateProduct(productId: string, updateData: any): Promise
       "Item": [itemData],
       "action": "UpdateItem"
     };
+
+    console.log('Product update payload being sent:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(PRODUCTS_API_URL, {
       method: 'POST',

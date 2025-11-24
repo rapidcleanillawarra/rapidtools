@@ -6,6 +6,7 @@
   import type { ProductInfo } from './types';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
   import CategoryDropdown from './CategoryDropdown.svelte';
+  import KeywordPills from './KeywordPills.svelte';
 
   export let show: boolean = false;
   export let product: ProductInfo | null = null;
@@ -17,7 +18,12 @@
 
   // Reset form data when product changes
   $: if (product) {
-    formData = { ...product };
+    formData = {
+      ...product,
+      search_keywords: product.search_keywords
+        ? product.search_keywords.split(',').map(k => k.trim()).filter(k => k)
+        : []
+    };
   }
 
   function closeModal() {
@@ -46,8 +52,12 @@
     }
   }
 
-  function handleInputChange(field: keyof ProductInfo, value: string | boolean) {
+  function handleInputChange(field: keyof ProductInfo, value: string | boolean | string[]) {
     formData = { ...formData, [field]: value };
+  }
+
+  function handleKeywordsChange(event: CustomEvent<{ keywords: string[] }>) {
+    formData = { ...formData, search_keywords: event.detail.keywords };
   }
 </script>
 
@@ -78,13 +88,15 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label for="sku" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-              <input
-                id="sku"
-                type="text"
-                class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
-                value={formData.sku || ''}
-                readonly
-              />
+              <a
+                href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku={encodeURIComponent(formData.sku || '')}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50 text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors cursor-pointer text-sm"
+                title="Click to view product in Rapid Supplies admin"
+              >
+                {formData.sku || ''}
+              </a>
             </div>
             <div>
               <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -163,17 +175,12 @@
       <!-- Search Keywords -->
       <div>
         <label for="search_keywords" class="block text-sm font-medium text-gray-700 mb-1">Search Keywords</label>
-        <textarea
-          id="search_keywords"
-          rows="3"
-          maxlength="255"
-          class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          value={formData.search_keywords || ''}
-          on:input={(e) => handleInputChange('search_keywords', e.currentTarget.value)}
+        <KeywordPills
+          keywords={formData.search_keywords || []}
+          on:change={handleKeywordsChange}
           disabled={isSaving}
-          placeholder="Enter search keywords separated by commas..."
-        ></textarea>
-        <p class="mt-1 text-xs text-gray-500">Maximum 255 characters</p>
+          placeholder="Type a keyword and press Enter..."
+        />
       </div>
 
       <!-- SEO Fields -->

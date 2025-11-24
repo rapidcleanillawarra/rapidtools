@@ -266,3 +266,33 @@ export function findCategoryById(nodes: CategoryTreeNode[], id: string): Categor
   }
   return null;
 }
+
+/**
+ * Convert UTC timestamp to Australian timezone and format as YYYYMMDDHHMMSS
+ * Used for generating cache-busting query parameters for product images
+ */
+export function formatTimestampForImageUrl(timestamp: string): string {
+  if (!timestamp) return '';
+
+  // Parse UTC timestamp (format: "2025-11-24 12:47:51")
+  const utcDate = new Date(timestamp + ' UTC');
+
+  // Convert to Australian/Sydney timezone (handles daylight savings)
+  const sydneyTime = utcDate.toLocaleString('en-AU', {
+    timeZone: 'Australia/Sydney',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  // Extract components and format as YYYYMMDDHHMMSS
+  const match = sydneyTime.match(/(\d{2})\/(\d{2})\/(\d{4}), (\d{2}):(\d{2}):(\d{2})/);
+  if (!match) return '';
+
+  const [, day, month, year, hour, minute, second] = match;
+  return `${year}${month}${day}${hour}${minute}${second}`;
+}

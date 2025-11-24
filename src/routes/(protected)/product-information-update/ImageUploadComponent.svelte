@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { ProductImage, ImageOperation } from './types';
+  import { formatTimestampForImageUrl } from './utils';
 
   export let images: ProductImage[] = [];
   export let imageOperations: ImageOperation[] = [];
@@ -242,8 +243,15 @@
       return null;
     }
 
-    // Return existing image URL
+    // Return existing image URL with timestamp processing
     const existingImage = images.find(img => img.Name === imageName);
+    if (existingImage?.URL && existingImage?.Timestamp) {
+      const timestampParam = formatTimestampForImageUrl(existingImage.Timestamp);
+      const result = timestampParam ? `${existingImage.URL}?${timestampParam}` : existingImage.URL;
+      console.log('getImageUrl called for:', imageName, 'result:', result);
+      return result;
+    }
+
     const result = existingImage?.URL || null;
     console.log('getImageUrl called for:', imageName, 'result:', result);
     return result;

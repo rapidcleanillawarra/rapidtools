@@ -45,8 +45,7 @@
       <img
         src={product.image}
         alt={product.name}
-        class="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-        style="max-height: 80vh; max-width: 80vw;"
+        class="image-viewer-main object-contain rounded-lg shadow-2xl"
       />
     </div>
 
@@ -58,3 +57,10 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .image-viewer-main {
+    max-height: 80vh;
+    max-width: 80vw;
+  }
+</style>

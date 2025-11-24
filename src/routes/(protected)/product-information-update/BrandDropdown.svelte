@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { onMount } from 'svelte';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import { fetchBrands } from '$lib/services/brands';
@@ -21,6 +21,7 @@
 
   // Debounce search
   let searchTimeout: number;
+  let blurTimeout: number;
 
   $: if (searchTerm) {
     clearTimeout(searchTimeout);
@@ -109,10 +110,16 @@
 
   function handleBlur() {
     // Delay closing to allow for clicks on dropdown items
-    setTimeout(() => {
+    blurTimeout = window.setTimeout(() => {
       isOpen = false;
     }, 200);
   }
+
+  // Cleanup on component destroy
+  onDestroy(() => {
+    clearTimeout(searchTimeout);
+    clearTimeout(blurTimeout);
+  });
 
   // Load brands on mount
   onMount(() => {

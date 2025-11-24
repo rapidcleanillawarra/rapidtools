@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onDestroy } from 'svelte';
   import { onMount } from 'svelte';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import type { CategoryTreeNode } from './types';
@@ -23,6 +23,7 @@
 
   // Debounce search
   let searchTimeout: number;
+  let clickOutsideHandler: ((event: MouseEvent) => void) | null = null;
 
   $: if (searchTerm) {
     clearTimeout(searchTimeout);
@@ -108,13 +109,19 @@
     }
   }
 
+  // Cleanup on component destroy
+  onDestroy(() => {
+    clearTimeout(searchTimeout);
+    if (clickOutsideHandler) {
+      document.removeEventListener('click', clickOutsideHandler);
+    }
+  });
+
   // Load categories on mount and set up event listeners
   onMount(() => {
     loadCategories();
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
+    clickOutsideHandler = handleClickOutside;
+    document.addEventListener('click', clickOutsideHandler);
   });
 </script>
 

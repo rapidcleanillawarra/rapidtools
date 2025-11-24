@@ -14,21 +14,26 @@
   const dispatch = createEventDispatcher();
 
   let isSaving = false;
-  let formData: Partial<ProductInfo> = {};
+  let formData: ProductInfo | null = null;
 
-  // Reset form data when product changes
+  // Reset form data when product changes (optimized type safety)
   $: if (product) {
+    // Parse keywords if they're a string
+    const keywords = typeof product.search_keywords === 'string'
+      ? product.search_keywords.split(',').map(k => k.trim()).filter(k => k)
+      : product.search_keywords || [];
+    
     formData = {
       ...product,
-      search_keywords: product.search_keywords
-        ? product.search_keywords.split(',').map(k => k.trim()).filter(k => k)
-        : []
+      search_keywords: keywords
     };
+  } else {
+    formData = null;
   }
 
   function closeModal() {
     dispatch('close');
-    formData = {};
+    formData = null;
   }
 
   async function handleSave() {

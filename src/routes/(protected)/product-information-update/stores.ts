@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import type { ProductInfo } from './types';
 
 // Data stores
@@ -51,31 +51,12 @@ visibleColumns.subscribe(value => {
   }
 });
 
-// Computed: paginated data
-export const paginatedData = writable<ProductInfo[]>([]);
-
-// Update paginatedData when dependencies change
-let currentTableData: ProductInfo[] = [];
-let currentPageValue = 1;
-let currentItemsPerPage = 10;
-
-tableData.subscribe(data => {
-  currentTableData = data;
-  updatePaginatedData();
-});
-
-currentPage.subscribe(page => {
-  currentPageValue = page;
-  updatePaginatedData();
-});
-
-itemsPerPage.subscribe(items => {
-  currentItemsPerPage = items;
-  updatePaginatedData();
-});
-
-function updatePaginatedData() {
-  const startIndex = (currentPageValue - 1) * currentItemsPerPage;
-  const endIndex = startIndex + currentItemsPerPage;
-  paginatedData.set(currentTableData.slice(startIndex, endIndex));
-}
+// Computed: paginated data using derived store (optimized)
+export const paginatedData = derived(
+  [tableData, currentPage, itemsPerPage],
+  ([$tableData, $currentPage, $itemsPerPage]) => {
+    const startIndex = ($currentPage - 1) * $itemsPerPage;
+    const endIndex = startIndex + $itemsPerPage;
+    return $tableData.slice(startIndex, endIndex);
+  }
+);

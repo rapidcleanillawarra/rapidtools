@@ -67,7 +67,7 @@
           </td>
         </tr>
       {:else}
-        {#each products as product (product.id)}
+        {#each products as product (`${product.sku}-${product.id}`)}
           <tr class="hover:bg-gray-50 cursor-pointer" on:click={() => onRowClick(product)}>
             {#each columns as column (column.key)}
               {#if column.renderType === 'image'}

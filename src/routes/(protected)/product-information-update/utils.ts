@@ -41,9 +41,45 @@ export function sortData<T extends Record<string, any>>(
   });
 }
 
-// Global cache for category tree to avoid rebuilding on every render
-let categoryTreeCache: CategoryTreeNode[] | null = null;
-let categoryIdToPathMap: Map<string, string> | null = null;
+/**
+ * Optimized category cache with proper invalidation
+ * Prevents unnecessary rebuilds while maintaining data freshness
+ */
+class CategoryCache {
+  private treeCache: CategoryTreeNode[] | null = null;
+  private pathMap: Map<string, string> | null = null;
+  private sourceData: CategoryFlat[] | null = null;
+
+  build(categories: CategoryFlat[]): void {
+    // Only rebuild if data changed (reference equality check)
+    if (this.sourceData === categories) return;
+    
+    this.sourceData = categories;
+    this.treeCache = buildCategoryHierarchy(categories);
+    this.pathMap = new Map();
+    
+    flattenCategoryTree(this.treeCache).forEach(cat => {
+      this.pathMap!.set(cat.id, cat.path);
+    });
+  }
+
+  getPath(categoryId: string): string | undefined {
+    return this.pathMap?.get(categoryId);
+  }
+
+  clear(): void {
+    this.treeCache = null;
+    this.pathMap = null;
+    this.sourceData = null;
+  }
+
+  getTree(): CategoryTreeNode[] | null {
+    return this.treeCache;
+  }
+}
+
+// Global category cache instance
+const categoryCache = new CategoryCache();
 
 export function getCellContent(product: ProductInfo, column: ColumnConfig, categories?: CategoryFlat[]): string {
   const value = product[column.key];
@@ -52,17 +88,9 @@ export function getCellContent(product: ProductInfo, column: ColumnConfig, categ
     if (column.key === 'category_1') {
       // If we have categories data, try to resolve the full path
       if (categories && categories.length > 0) {
-        if (!categoryTreeCache) {
-          categoryTreeCache = buildCategoryHierarchy(categories);
-        }
-        if (!categoryIdToPathMap) {
-          categoryIdToPathMap = new Map();
-          flattenCategoryTree(categoryTreeCache).forEach(cat => {
-            categoryIdToPathMap!.set(cat.id, cat.path);
-          });
-        }
+        categoryCache.build(categories);
         const categoryId = value as string;
-        return categoryIdToPathMap.get(categoryId) || value || '-';
+        return categoryCache.getPath(categoryId) || value || '-';
       }
       return value || '-';
     }
@@ -70,6 +98,13 @@ export function getCellContent(product: ProductInfo, column: ColumnConfig, categ
   }
 
   return value as string;
+}
+
+/**
+ * Clear the category cache (useful for testing or when data source changes)
+ */
+export function clearCategoryCache(): void {
+  categoryCache.clear();
 }
 
 export function exportToCSV(

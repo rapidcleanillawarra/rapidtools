@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import {
     originalData,
     tableData,
@@ -16,7 +16,9 @@
   import { sortData, exportToCSV as exportCSV, filterProducts } from './utils';
   import { columns, PRODUCTS_PER_API_PAGE } from './config';
   import type { ProductInfo } from './types';
-  import { fetchProducts, extractCategories } from '$lib/services/products';
+  import { fetchProducts } from '$lib/services/products';
+  import { transformProductsData } from './productTransformer';
+  import { safeAsync } from './errorHandler';
   import type { CategoryFlat } from './utils';
   import BrandDropdown from './BrandDropdown.svelte';
   import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
@@ -28,8 +30,6 @@
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
 
-  let selectedBrandValue = '';
-  let isTableLoading = false;
   let showProgressModal = false;
   let totalProductsLoaded = 0;
   let showImageViewer = false;
@@ -37,20 +37,24 @@
   let selectedProduct: ProductInfo | null = null;
   let selectedProductForEdit: ProductInfo | null = null;
   let categories: CategoryFlat[] = [];
+  let filterTimeout: number;
 
   // Load categories for display purposes
   async function loadCategories() {
-    try {
-      const response = await fetch('/api/categories');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          categories = data.data;
+    await safeAsync(
+      async () => {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            categories = data.data;
+          }
         }
+      },
+      {
+        errorMessage: 'Failed to load categories'
       }
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
+    );
   }
 
   // Computed visible columns
@@ -70,14 +74,12 @@
   function handleBrandSelect(event: CustomEvent) {
     const brand = event.detail.brand;
     selectedBrand.set(brand.name);
-    selectedBrandValue = brand.name;
     loadProducts(brand.name);
   }
 
   // Handle brand clear
   function handleBrandClear() {
     selectedBrand.set('');
-    selectedBrandValue = '';
     originalData.set([]);
     tableData.set([]);
   }
@@ -88,30 +90,8 @@
     // This works in GitHub Pages static hosting
     const productData = await fetchProducts(brandName, pageNum);
 
-    // Transform the API response to match the expected format
-    const products = productData.Item?.map(product => {
-      const categories = extractCategories(product.Categories);
-      const imageUrl = product.Images?.[0]?.URL || undefined;
-
-      return {
-        id: product.SKU,
-        sku: product.SKU,
-        name: product.Model || '',
-        brand: brandName || '',
-        image: imageUrl,
-        subtitle: product.Subtitle || undefined,
-        description: product.Description || undefined,
-        short_description: product.ShortDescription || undefined,
-        specifications: product.Specifications || undefined,
-        features: product.Features || undefined,
-        categories: categories.length > 0 ? categories : undefined,
-        category_1: categories[0] || undefined,
-        search_keywords: product.SearchKeywords || undefined,
-        seo_page_title: product.SEOPageTitle || undefined,
-        seo_meta_description: product.SEOMetaDescription || undefined,
-        seo_page_heading: product.SEOPageHeading || undefined
-      };
-    }) || [];
+    // Transform the API response using centralized transformer
+    const products = productData.Item ? transformProductsData(productData.Item, brandName) : [];
 
     return {
       products,
@@ -121,68 +101,74 @@
 
   // Load products by brand with parallel pagination
   async function loadProducts(brandName?: string) {
-    try {
-      isTableLoading = true;
-      isLoading.set(true);
-      showProgressModal = true;
-      totalProductsLoaded = 0;
+    isLoading.set(true);
+    showProgressModal = true;
+    totalProductsLoaded = 0;
 
-      let evenPage = 0;
-      let oddPage = 1;
-      let hasMoreEvenPages = true;
-      let hasMoreOddPages = true;
-      const evenProducts: ProductInfo[] = [];
-      const oddProducts: ProductInfo[] = [];
+    await safeAsync(
+      async () => {
+        let evenPage = 0;
+        let oddPage = 1;
+        let hasMoreEvenPages = true;
+        let hasMoreOddPages = true;
+        const evenProducts: ProductInfo[] = [];
+        const oddProducts: ProductInfo[] = [];
 
-      // Load even and odd pages in parallel
-      while (hasMoreEvenPages || hasMoreOddPages) {
-        const promises: Promise<void>[] = [];
+        // Load even and odd pages in parallel for optimal performance
+        while (hasMoreEvenPages || hasMoreOddPages) {
+          const promises: Promise<void>[] = [];
 
-        if (hasMoreEvenPages) {
-          promises.push(
-            fetchProductPage(evenPage, brandName).then(({ products, hasMore }) => {
-              evenProducts.push(...products);
-              hasMoreEvenPages = hasMore;
-              evenPage += 2;
-            })
-          );
+          if (hasMoreEvenPages) {
+            promises.push(
+              fetchProductPage(evenPage, brandName).then(({ products, hasMore }) => {
+                evenProducts.push(...products);
+                hasMoreEvenPages = hasMore;
+                evenPage += 2;
+              })
+            );
+          }
+
+          if (hasMoreOddPages) {
+            promises.push(
+              fetchProductPage(oddPage, brandName).then(({ products, hasMore }) => {
+                oddProducts.push(...products);
+                hasMoreOddPages = hasMore;
+                oddPage += 2;
+              })
+            );
+          }
+
+          await Promise.all(promises);
+          totalProductsLoaded = evenProducts.length + oddProducts.length;
         }
 
-        if (hasMoreOddPages) {
-          promises.push(
-            fetchProductPage(oddPage, brandName).then(({ products, hasMore }) => {
-              oddProducts.push(...products);
-              hasMoreOddPages = hasMore;
-              oddPage += 2;
-            })
-          );
+        const allProducts = [...evenProducts, ...oddProducts];
+        originalData.set(allProducts);
+        tableData.set(allProducts);
+        toastSuccess(`Loaded ${allProducts.length} products successfully`);
+      },
+      {
+        errorMessage: 'Failed to load products',
+        onError: (error) => {
+          toastError(error);
+          originalData.set([]);
+          tableData.set([]);
         }
-
-        await Promise.all(promises);
-        totalProductsLoaded = evenProducts.length + oddProducts.length;
       }
+    );
 
-      const allProducts = [...evenProducts, ...oddProducts];
-      originalData.set(allProducts);
-      tableData.set(allProducts);
-      toastSuccess(`Loaded ${allProducts.length} products successfully`);
-    } catch (error) {
-      console.error('Error loading products:', error);
-      toastError('Failed to load products');
-      originalData.set([]);
-      tableData.set([]);
-    } finally {
-      isTableLoading = false;
-      isLoading.set(false);
-      showProgressModal = false;
-    }
+    isLoading.set(false);
+    showProgressModal = false;
   }
 
-  // Reactive statement to handle searching
+  // Reactive statement to handle searching with debouncing (optimized)
   $: {
-    const filtered = filterProducts($originalData, $searchFilters);
-    tableData.set(filtered);
-    currentPage.set(1);
+    clearTimeout(filterTimeout);
+    filterTimeout = window.setTimeout(() => {
+      const filtered = filterProducts($originalData, $searchFilters);
+      tableData.set(filtered);
+      currentPage.set(1);
+    }, 150); // 150ms debounce for smoother UX
   }
 
   // Column visibility handlers
@@ -255,6 +241,11 @@
     selectedProductForEdit = null;
   }
 
+  // Cleanup timeout on component destroy
+  onDestroy(() => {
+    clearTimeout(filterTimeout);
+  });
+
   // Load categories on component mount
   onMount(() => {
     loadCategories();
@@ -295,7 +286,7 @@
             <BrandDropdown
               id="brand-select"
               placeholder="Search brands..."
-              value={selectedBrandValue}
+              value={$selectedBrand}
               on:select={handleBrandSelect}
               on:clear={handleBrandClear}
             />
@@ -310,9 +301,9 @@
                 loadProducts();
               }
             }}
-            disabled={isTableLoading}
+            disabled={$isLoading}
           >
-            {#if isTableLoading}
+            {#if $isLoading}
               <div class="flex items-center">
                 <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                 Loading...
@@ -363,7 +354,7 @@
       columns={visibleColumnsList}
       products={$paginatedData}
       categories={categories}
-      isLoading={$isLoading || isTableLoading}
+      isLoading={$isLoading}
       searchFilters={$searchFilters}
       sortField={$sortField}
       sortDirection={$sortDirection}

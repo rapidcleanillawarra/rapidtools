@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import { updateProduct } from '$lib/services/products';
-  import type { ProductInfo } from './types';
+  import type { ProductInfo, CategoryTreeNode } from './types';
+  import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
   import CategoryDropdown from './CategoryDropdown.svelte';
   import KeywordPills from './KeywordPills.svelte';
@@ -15,6 +16,11 @@
 
   let isSaving = false;
   let formData: ProductInfo | null = null;
+
+  // Category hierarchy state
+  let categories: CategoryTreeNode[] = [];
+  let flattenedCategories: CategoryTreeNode[] = [];
+  let categoryMap = new Map<string, CategoryTreeNode>();
 
   // Reset form data when product changes (optimized type safety)
   $: if (product) {
@@ -29,6 +35,11 @@
     };
   } else {
     formData = null;
+  }
+
+  // Load categories when modal is shown
+  $: if (show && categories.length === 0) {
+    loadCategories();
   }
 
   function closeModal() {
@@ -63,6 +74,57 @@
 
   function handleKeywordsChange(event: CustomEvent<{ keywords: string[] }>) {
     formData = { ...formData, search_keywords: event.detail.keywords };
+  }
+
+  async function loadCategories() {
+    try {
+      const response = await fetch('/api/categories');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        // Build hierarchical structure
+        categories = buildCategoryHierarchy(data.data);
+        flattenedCategories = flattenCategoryTree(categories);
+
+        // Create a map for quick lookup
+        categoryMap.clear();
+        flattenedCategories.forEach(cat => {
+          categoryMap.set(cat.id, cat);
+        });
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      // Don't show error to user as this is background loading
+    }
+  }
+
+  function getCategoryByName(categoryName: string): CategoryTreeNode | null {
+    // Find category by name in the flattened categories
+    return flattenedCategories.find(cat => cat.name === categoryName) || null;
+  }
+
+  function getCategoryPath(categoryName: string): string {
+    const category = getCategoryByName(categoryName);
+    return category ? category.path : categoryName;
+  }
+
+  function getCategoryHierarchy(categoryName: string): { parent: string | null; children: CategoryTreeNode[] } {
+    const category = getCategoryByName(categoryName);
+    if (!category) return { parent: null, children: [] };
+
+    let parent = null;
+    if (category.parentCategoryId && category.parentCategoryId !== '0') {
+      const parentCategory = categoryMap.get(category.parentCategoryId);
+      parent = parentCategory ? parentCategory.name : null;
+    }
+
+    return {
+      parent,
+      children: category.children || []
+    };
   }
 </script>
 
@@ -132,14 +194,46 @@
           {#if product.categories && product.categories.length > 0}
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-2">Existing Categories</label>
-              <div class="flex flex-wrap gap-2">
-                {#each product.categories as category}
-                  <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                    {category}
-                  </span>
+              <div class="space-y-3">
+                {#each product.categories as categoryName}
+                  {@const categoryObj = getCategoryByName(categoryName)}
+                  {@const hierarchy = getCategoryHierarchy(categoryName)}
+                  <div class="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <div class="flex items-center justify-between">
+                      <div class="flex-1">
+                        {#if categoryObj}
+                          <div class="flex items-center gap-2">
+                            <div class="font-medium text-gray-900">{categoryObj.name}</div>
+                            {#if hierarchy.parent}
+                              <div class="text-sm text-gray-600">
+                                <span class="text-gray-500">under</span> <span class="font-medium text-blue-700">{hierarchy.parent}</span>
+                              </div>
+                            {/if}
+                          </div>
+                          {#if hierarchy.children && hierarchy.children.length > 0}
+                            <div class="text-sm text-gray-600 mt-2">
+                              <span class="font-medium">Contains:</span>
+                              <div class="flex flex-wrap gap-1 mt-1">
+                                {#each hierarchy.children.slice(0, 5) as child}
+                                  <span class="inline-flex items-center px-2 py-1 rounded text-xs bg-green-100 text-green-700">
+                                    {child.name}
+                                  </span>
+                                {/each}
+                                {#if hierarchy.children.length > 5}
+                                  <span class="text-xs text-gray-500">+{hierarchy.children.length - 5} more</span>
+                                {/if}
+                              </div>
+                            </div>
+                          {/if}
+                        {:else}
+                          <div class="font-medium text-gray-900">{categoryName}</div>
+                        {/if}
+                      </div>
+                    </div>
+                  </div>
                 {/each}
               </div>
-              <p class="mt-1 text-xs text-gray-500">These are the current categories assigned to this product</p>
+              <p class="mt-2 text-xs text-gray-500">These are the current categories assigned to this product, showing their parent and child relationships</p>
             </div>
           {:else}
             <div>

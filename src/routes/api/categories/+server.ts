@@ -1,31 +1,51 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { fetchCategories } from '$lib/services/categories';
 
 export const GET: RequestHandler = async () => {
   try {
-    const categoryData = await fetchCategories();
+    const payload = {
+      "Filter": {
+        "Active": true,
+        "OutputSelector": [
+          "ParentCategoryID",
+          "CategoryName"
+        ]
+      },
+      "action": "GetCategory"
+    };
 
-    // Transform the API response to match the expected format
-    const categories = categoryData.Category?.map(category => ({
-      id: category.CategoryID,
-      name: category.CategoryName,
-      parentId: category.ParentCategoryID,
-      value: category.CategoryName,
-      label: category.CategoryName,
-      categoryId: category.CategoryID,
-      parentCategoryId: category.ParentCategoryID
-    })) || [];
+    console.log('Making API call with payload:', JSON.stringify(payload, null, 2));
 
-    return json({
-      success: true,
-      data: categories
+    const url = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
+    console.log('API URL:', url);
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
     });
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    return json({
-      success: false,
-      error: 'Failed to fetch categories'
-    }, { status: 500 });
+
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Response error text:', errorText);
+      throw error(response.status, `HTTP error! status: ${response.status}, body: ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('Response data received successfully');
+
+    return json(data);
+  } catch (err) {
+    console.error('Error fetching categories:', err);
+    if (err instanceof Error) {
+      console.error('Error message:', err.message);
+      console.error('Error stack:', err.stack);
+    }
+    throw error(500, `Failed to fetch categories: ${err instanceof Error ? err.message : String(err)}`);
   }
-}; 
+};

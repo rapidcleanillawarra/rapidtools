@@ -583,6 +583,24 @@
             </div>
           {/if}
         </div>
+
+        <!-- Credentials Vault -->
+        <a
+          href="{base}/credentials-vault"
+          class="flex items-center gap-3 py-2.5 text-white text-base font-medium hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
+          class:px-4={!sidebarMinimized}
+          class:px-3={sidebarMinimized}
+          class:justify-center={sidebarMinimized}
+          on:click={closeSidebar}
+          title="Credentials Vault"
+        >
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+          </svg>
+          {#if !sidebarMinimized}
+            <span>Credentials Vault</span>
+          {/if}
+        </a>
       </nav>
 
       <!-- User Profile Section (Bottom of Sidebar) -->

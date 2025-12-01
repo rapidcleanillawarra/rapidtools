@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
+  import { get } from 'svelte/store';
   import Modal from '$lib/components/Modal.svelte';
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
@@ -8,6 +9,7 @@
   import { fetchCredentials, createCredential, updateCredential, deleteCredential } from './services';
   import type { Credential, CredentialFormData } from './types';
   import { emptyCredentialForm } from './types';
+  import { userProfile } from '$lib/userProfile';
 
   // State
   let credentials: Credential[] = [];
@@ -165,6 +167,53 @@
   }
 
 
+  async function handleRequestAccess(credential: Credential) {
+    try {
+      const currentUser = get(userProfile);
+
+      if (!currentUser || typeof currentUser !== 'object' || !('firstName' in currentUser) || !('lastName' in currentUser)) {
+        toastError('User profile not found. Please log in again.');
+        return;
+      }
+
+      const userName = `${currentUser.firstName} ${currentUser.lastName}`;
+      const credentialInfo = credential.website;
+
+      const htmlBody = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>Access Request</h2>
+          <p><strong>${userName}</strong> requests access for the <strong>${credentialInfo}</strong> credential.</p>
+          <div style="margin-top: 20px;">
+            <a href="" style="background-color: #10B981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; display: inline-block;">Approve</a>
+            <a href="" style="background-color: #EF4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Decline</a>
+          </div>
+        </div>
+      `.trim();
+
+      const payload = {
+        body: htmlBody,
+        action: 'credentials'
+      };
+
+      const response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        toastSuccess('Access request sent successfully');
+      } else {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error requesting access:', error);
+      toastError('Failed to send access request. Please try again.');
+    }
+  }
+
   function togglePasswordVisibility() {
     showPassword = !showPassword;
   }
@@ -254,6 +303,7 @@
               <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
                   <button
+                    on:click={() => handleRequestAccess(credential)}
                     class="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
                     title="Request access to this credential"
                   >

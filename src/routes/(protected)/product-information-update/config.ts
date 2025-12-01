@@ -5,7 +5,7 @@ export type ColumnConfig = {
   displayName: string;
   pillName: string;
   hasSearch: boolean;
-  renderType: 'text' | 'image' | 'boolean-icon';
+  renderType: 'text' | 'image' | 'boolean-icon' | 'button';
 };
 
 export const columns: ColumnConfig[] = [
@@ -13,6 +13,7 @@ export const columns: ColumnConfig[] = [
   { key: 'sku', displayName: 'SKU', pillName: 'SKU', hasSearch: true, renderType: 'text' },
   { key: 'name', displayName: 'Name', pillName: 'Name', hasSearch: true, renderType: 'text' },
   { key: 'brand', displayName: 'Brand', pillName: 'Brand', hasSearch: true, renderType: 'text' },
+  { key: 'gpt_info' as keyof ProductInfo, displayName: 'GPT Info', pillName: 'GPT Info', hasSearch: false, renderType: 'button' },
   { key: 'category_1', displayName: 'Categories', pillName: 'Categories', hasSearch: true, renderType: 'text' },
   { key: 'subtitle', displayName: 'Sub', pillName: 'Subtitle', hasSearch: false, renderType: 'boolean-icon' },
   { key: 'search_keywords', displayName: 'Keys', pillName: 'Keywords', hasSearch: false, renderType: 'boolean-icon' },

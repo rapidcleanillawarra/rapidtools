@@ -230,6 +230,16 @@
     selectedProductForEdit = null;
   }
 
+  // Handle GPT Info button click
+  function handleGptInfoClick(product: ProductInfo) {
+    const infoText = `Product Name: ${product.name}\nBrand: ${product.brand}\nSKU: ${product.sku}`;
+    navigator.clipboard.writeText(infoText).then(() => {
+      toastSuccess('Product info copied to clipboard');
+    }).catch(() => {
+      toastError('Failed to copy to clipboard');
+    });
+  }
+
   // Handle product save from edit modal
   function handleOptimisticUpdate(event: CustomEvent) {
     const { product } = event.detail;
@@ -385,6 +395,7 @@
       onSearchChange={handleSearchChange}
       onImageClick={handleImageClick}
       onRowClick={handleRowClick}
+      onGptInfoClick={handleGptInfoClick}
       hasData={$originalData.length > 0}
     />
 

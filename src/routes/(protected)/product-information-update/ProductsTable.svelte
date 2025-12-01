@@ -14,6 +14,7 @@
   export let onSearchChange: (key: keyof ProductInfo, value: string) => void;
   export let onImageClick: (product: ProductInfo) => void;
   export let onRowClick: (product: ProductInfo) => void;
+  export let onGptInfoClick: (product: ProductInfo) => void;
   export let hasData: boolean;
   export let categories: CategoryFlat[] = [];
 </script>
@@ -96,6 +97,17 @@
                   {:else}
                     <span class="text-gray-300">-</span>
                   {/if}
+                </td>
+              {:else if column.renderType === 'button'}
+                <td class="px-2 py-2 whitespace-nowrap">
+                  <button
+                    type="button"
+                    class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-1 px-2 rounded shadow-sm transition-colors duration-200"
+                    on:click|stopPropagation={() => onGptInfoClick(product)}
+                    title="Copy product info to clipboard"
+                  >
+                    GPT Info
+                  </button>
                 </td>
               {:else}
                 <td class="px-2 py-2 whitespace-nowrap {column.key === 'sku' || column.key === 'name' ? 'font-medium text-gray-900' : 'text-gray-500'} text-xs">

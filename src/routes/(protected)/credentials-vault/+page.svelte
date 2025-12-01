@@ -31,6 +31,9 @@
   // Password visibility
   let showPassword = false;
 
+  // Password visibility per credential in table
+  let visiblePasswords: Set<string> = new Set();
+
   // Search
   let searchQuery = '';
 
@@ -221,6 +224,27 @@
   function togglePasswordVisibility() {
     showPassword = !showPassword;
   }
+
+  // Copy text to clipboard
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toastSuccess('Copied to clipboard');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      toastError('Failed to copy to clipboard');
+    }
+  }
+
+  // Toggle password visibility for a specific credential in table
+  function toggleTablePasswordVisibility(credentialId: string) {
+    if (visiblePasswords.has(credentialId)) {
+      visiblePasswords.delete(credentialId);
+    } else {
+      visiblePasswords.add(credentialId);
+    }
+    visiblePasswords = visiblePasswords; // Trigger reactivity
+  }
 </script>
 
 <ToastContainer />
@@ -292,7 +316,6 @@
         <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-50">
             <tr>
-              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Access</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Website</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username/Email</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password</th>
@@ -306,23 +329,64 @@
             {#each filteredCredentials as credential (credential.id)}
               <tr class="hover:bg-gray-50">
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <button
-                    on:click={() => handleRequestAccess(credential)}
-                    class="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-                    title="Request access to this credential"
-                  >
-                    Request Access
-                  </button>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm font-medium text-gray-900">{credential.website}</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-900">{credential.username || '-'}</div>
+                  <div class="flex items-center gap-2">
+                    <div class="text-sm text-gray-900">{credential.username || '-'}</div>
+                    {#if credential.username}
+                      <button
+                        on:click={() => copyToClipboard(credential.username!)}
+                        class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-50 transition-colors"
+                        title="Copy username"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    {/if}
+                  </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
-                  <div class="text-sm text-gray-500 font-mono">
-                    {credential.password ? '••••••••' : '-'}
+                  <div class="flex items-center gap-2">
+                    <div class="text-sm text-gray-500 font-mono">
+                      {#if credential.password}
+                        {#if visiblePasswords.has(credential.id)}
+                          {credential.password}
+                        {:else}
+                          ••••••••
+                        {/if}
+                      {:else}
+                        -
+                      {/if}
+                    </div>
+                    {#if credential.password}
+                      <button
+                        on:click={() => toggleTablePasswordVisibility(credential.id)}
+                        class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-50 transition-colors"
+                        title={visiblePasswords.has(credential.id) ? "Hide password" : "Show password"}
+                      >
+                        {#if visiblePasswords.has(credential.id)}
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/>
+                          </svg>
+                        {:else}
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          </svg>
+                        {/if}
+                      </button>
+                      <button
+                        on:click={() => copyToClipboard(credential.password!)}
+                        class="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-50 transition-colors"
+                        title="Copy password"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    {/if}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">

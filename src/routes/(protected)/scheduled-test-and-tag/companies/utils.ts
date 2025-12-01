@@ -89,32 +89,41 @@ export async function deleteSchedule(id: string): Promise<void> {
   try {
     // Use the ID directly as the Firestore document ID
     const docRef = doc(db, 'stt', id);
-    
-    // First, delete all associated STT events
+
+    // First, soft delete all associated STT events
     const sttEventsQuery = query(
       collection(db, 'stt_events'),
-      where('schedule_id', '==', parseInt(id))
+      where('schedule_id', '==', parseInt(id)),
+      where('is_deleted', '!=', true) // Only soft delete non-deleted events
     );
-    
+
     const sttEventsSnapshot = await getDocs(sttEventsQuery);
-    const deletePromises = sttEventsSnapshot.docs.map(doc => deleteDoc(doc.ref));
-    
-    if (deletePromises.length > 0) {
-      await Promise.all(deletePromises);
-      console.log(`Deleted ${deletePromises.length} associated STT events`);
+    const softDeletePromises = sttEventsSnapshot.docs.map(doc =>
+      updateDoc(doc.ref, {
+        is_deleted: true,
+        deleted_at: serverTimestamp()
+      })
+    );
+
+    if (softDeletePromises.length > 0) {
+      await Promise.all(softDeletePromises);
+      console.log(`Soft deleted ${softDeletePromises.length} associated STT events`);
     }
-    
-    // Delete the schedule from Firestore
-    await deleteDoc(docRef);
-    
+
+    // Soft delete the schedule from Firestore
+    await updateDoc(docRef, {
+      isDeleted: true,
+      deletedAt: serverTimestamp()
+    });
+
     // Update local store
-    schedulesStore.update(schedules => 
+    schedulesStore.update(schedules =>
       schedules.filter(schedule => schedule.id !== id)
     );
-    
-    console.log('Schedule and associated events deleted successfully from Firestore');
+
+    console.log('Schedule and associated events soft deleted successfully from Firestore');
   } catch (error) {
-    console.error('Error deleting schedule from Firestore:', error);
+    console.error('Error soft deleting schedule from Firestore:', error);
     throw new Error('Failed to delete schedule. Please try again.');
   }
 }
@@ -127,9 +136,15 @@ export async function getScheduleById(id: string): Promise<Schedule | undefined>
 // Load schedules from Firestore
 export async function loadSchedulesFromFirestore(): Promise<void> {
   try {
-    const querySnapshot = await getDocs(query(collection(db, 'stt'), orderBy('createdAt', 'desc')));
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, 'stt'),
+        where('isDeleted', '!=', true), // Exclude soft deleted schedules
+        orderBy('createdAt', 'desc')
+      )
+    );
     const schedules: Schedule[] = [];
-    
+
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       schedules.push({
@@ -141,10 +156,12 @@ export async function loadSchedulesFromFirestore(): Promise<void> {
         information: data.information || [],
         notes: data.notes || [],
         createdAt: data.createdAt,
-        updatedAt: data.updatedAt
+        updatedAt: data.updatedAt,
+        deletedAt: data.deletedAt,
+        isDeleted: data.isDeleted
       });
     });
-    
+
     // Update local store with Firestore data
     schedulesStore.set(schedules);
     console.log('Schedules loaded from Firestore:', schedules.length);

@@ -29,6 +29,8 @@ export type Schedule = {
     notes: Note[];
     createdAt?: any; // Firestore timestamp
     updatedAt?: any; // Firestore timestamp
+    deletedAt?: any; // Firestore timestamp for soft delete
+    isDeleted?: boolean; // Soft delete flag
 };
 
 // Initial data

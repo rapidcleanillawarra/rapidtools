@@ -27,6 +27,8 @@ export interface STTEvent {
   updated_at?: any; // serverTimestamp
   created_by_uid?: string;
   created_by_email?: string;
+  deleted_at?: any; // serverTimestamp for soft delete
+  is_deleted?: boolean; // Soft delete flag
 }
 
 const COLLECTION_NAME = 'stt_events';
@@ -35,21 +37,25 @@ const COLLECTION_NAME = 'stt_events';
 export async function loadSTTEvents(startDate?: string, endDate?: string): Promise<STTEvent[]> {
   try {
     let q;
-    
+
     // If date range is provided, add date filters
     if (startDate && endDate) {
       q = query(
         collection(db, COLLECTION_NAME),
         where('start_date', '>=', startDate),
-        where('start_date', '<=', endDate)
+        where('start_date', '<=', endDate),
+        where('is_deleted', '!=', true) // Exclude soft deleted events
       );
     } else {
-      q = query(collection(db, COLLECTION_NAME));
+      q = query(
+        collection(db, COLLECTION_NAME),
+        where('is_deleted', '!=', true) // Exclude soft deleted events
+      );
     }
-    
+
     const querySnapshot = await getDocs(q);
     const events: STTEvent[] = [];
-    
+
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       events.push({
@@ -57,7 +63,7 @@ export async function loadSTTEvents(startDate?: string, endDate?: string): Promi
         ...data
       } as STTEvent);
     });
-    
+
     return events;
   } catch (error) {
     console.error('Error loading STT events:', error);
@@ -96,13 +102,16 @@ export async function updateSTTEvent(eventId: string, updates: Partial<STTEvent>
   }
 }
 
-// Delete an STT event
+// Soft delete an STT event
 export async function deleteSTTEvent(eventId: string): Promise<void> {
   try {
     const eventRef = doc(db, COLLECTION_NAME, eventId);
-    await deleteDoc(eventRef);
+    await updateDoc(eventRef, {
+      is_deleted: true,
+      deleted_at: serverTimestamp()
+    });
   } catch (error) {
-    console.error('Error deleting STT event:', error);
+    console.error('Error soft deleting STT event:', error);
     throw error;
   }
 }
@@ -113,9 +122,10 @@ export async function findEventByInfoAndSchedule(information_id: string, schedul
     const q = query(
       collection(db, COLLECTION_NAME),
       where('information_id', '==', information_id),
-      where('schedule_id', '==', schedule_id)
+      where('schedule_id', '==', schedule_id),
+      where('is_deleted', '!=', true) // Exclude soft deleted events
     );
-    
+
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const doc = querySnapshot.docs[0];
@@ -124,7 +134,7 @@ export async function findEventByInfoAndSchedule(information_id: string, schedul
         ...doc.data()
       } as STTEvent;
     }
-    
+
     return null;
   } catch (error) {
     console.error('Error finding STT event:', error);

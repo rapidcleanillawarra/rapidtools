@@ -39,6 +39,15 @@
   // Temporary storage for image operations across modal sessions
   let tempImageStorage = new Map<string, ImageOperation[]>();
 
+  // JSON import state
+  let jsonText: string = '';
+  let jsonFile: File | null = null;
+  let importErrors: string[] = [];
+  let showJsonImport: boolean = false;
+
+  // Placeholder text for JSON textarea
+  const jsonPlaceholder = '{"name": "Product Name", "description": "Product description...", ...}';
+
   // Reactive statement to ensure UI updates when category operations change
   $: effectiveCategories = getEffectiveCategories(product?.categories || [], categoryOperations);
 
@@ -281,6 +290,254 @@
 
     return effectiveCategories;
   }
+
+  // JSON import functions
+  function handleFileUpload(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file && file.type === 'application/json') {
+      jsonFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        jsonText = e.target?.result as string;
+      };
+      reader.readAsText(file);
+    } else if (file) {
+      toastError('Please select a valid JSON file');
+    }
+  }
+
+  function validateAndParseJson(jsonString: string): { valid: boolean; data?: Partial<ProductInfo>; errors: string[] } {
+    const errors: string[] = [];
+
+    if (!jsonString.trim()) {
+      errors.push('JSON content is empty');
+      return { valid: false, errors };
+    }
+
+    try {
+      const data = JSON.parse(jsonString);
+
+      // Validate structure - should be an object
+      if (typeof data !== 'object' || data === null) {
+        errors.push('JSON must be an object');
+        return { valid: false, errors };
+      }
+
+      // Validate known fields and their types
+      const allowedFields: (keyof ProductInfo)[] = [
+        'name', 'subtitle', 'description', 'short_description', 'specifications', 'features',
+        'search_keywords', 'seo_page_title', 'seo_meta_description', 'seo_page_heading',
+        'categories'
+      ];
+
+      const validatedData: Partial<ProductInfo> = {};
+
+      for (const [key, value] of Object.entries(data)) {
+        if (!allowedFields.includes(key as keyof ProductInfo)) {
+          errors.push(`Unknown field: ${key}`);
+          continue;
+        }
+
+        // Type validation
+        switch (key) {
+          case 'name':
+          case 'subtitle':
+          case 'description':
+          case 'short_description':
+          case 'specifications':
+          case 'features':
+          case 'seo_page_title':
+          case 'seo_meta_description':
+          case 'seo_page_heading':
+          case 'search_keywords':
+            if (typeof value === 'string') {
+              validatedData[key] = value.split(',').map(k => k.trim()).filter(k => k);
+            } else if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+              validatedData[key] = value;
+            } else {
+              errors.push(`Field '${key}' must be a string or array of strings`);
+            }
+            break;
+          case 'categories':
+            if (Array.isArray(value) && value.every(v => typeof v === 'string')) {
+              validatedData[key] = value;
+            } else {
+              errors.push(`Field '${key}' must be an array of strings`);
+            }
+            break;
+          default:
+            // Skip unknown fields
+            break;
+        }
+      }
+
+      return {
+        valid: errors.length === 0,
+        data: validatedData,
+        errors
+      };
+
+    } catch (error) {
+      errors.push(`Invalid JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      return { valid: false, errors };
+    }
+  }
+
+  function applyJsonImport() {
+    if (!formData) return;
+
+    const validation = validateAndParseJson(jsonText);
+
+    if (!validation.valid) {
+      importErrors = validation.errors;
+      return;
+    }
+
+    if (!validation.data) {
+      importErrors = ['No valid data found in JSON'];
+      return;
+    }
+
+    // Apply the validated data to formData
+    formData = {
+      ...formData,
+      ...validation.data
+    };
+
+    // Handle categories specially - convert to category operations if needed
+    if (validation.data.categories) {
+      // Reset existing category operations and set new categories
+      categoryOperations = [];
+
+      // For each category in the imported data, we need to add operations
+      // This is complex because we need to map category names to category IDs
+      // For now, we'll update the effective categories directly
+      // Note: This might need refinement based on how categories are handled
+      const currentCategories = product?.categories || [];
+      const importedCategories = validation.data.categories;
+
+      // Categories that need to be added
+      const categoriesToAdd = importedCategories.filter(cat => !currentCategories.includes(cat));
+      // Categories that need to be removed
+      const categoriesToRemove = currentCategories.filter(cat => !importedCategories.includes(cat));
+
+      // Add operations for categories to add
+      categoriesToAdd.forEach(catName => {
+        const category = getCategoryByName(catName);
+        if (category) {
+          categoryOperations = [...categoryOperations, { CategoryID: category.categoryId }];
+        }
+      });
+
+      // Add operations for categories to remove
+      categoriesToRemove.forEach(catName => {
+        const category = getCategoryByName(catName);
+        if (category) {
+          categoryOperations = [...categoryOperations, { CategoryID: category.categoryId, Delete: true }];
+        }
+      });
+    }
+
+    importErrors = [];
+    toastSuccess('JSON data imported successfully');
+    showJsonImport = false;
+  }
+
+  function clearJsonImport() {
+    jsonText = '';
+    jsonFile = null;
+    importErrors = [];
+  }
+
+  function exportToJson() {
+    if (!formData) return;
+
+    try {
+      // Create a clean export object with only the fields we support for import
+      const exportData: Partial<ProductInfo> = {};
+
+      // Copy supported fields from formData
+      const supportedFields: (keyof ProductInfo)[] = [
+        'name', 'subtitle', 'description', 'short_description', 'specifications', 'features',
+        'search_keywords', 'seo_page_title', 'seo_meta_description', 'seo_page_heading',
+        'categories'
+      ];
+
+      supportedFields.forEach(field => {
+        const value = formData[field];
+        if (value !== undefined && value !== null && value !== '') {
+          exportData[field] = value;
+        }
+      });
+
+      // Format the JSON with proper indentation
+      const jsonString = JSON.stringify(exportData, null, 2);
+
+      // Put the JSON in the textarea for easy copying
+      jsonText = jsonString;
+
+      // Clear any previous errors
+      importErrors = [];
+
+      toastSuccess('Product data exported to JSON');
+
+      // Scroll to make the textarea visible
+      showJsonImport = true;
+
+    } catch (error) {
+      console.error('Error exporting to JSON:', error);
+      importErrors = ['Failed to export data to JSON'];
+      toastError('Failed to export data to JSON');
+    }
+  }
+
+  function downloadJson() {
+    if (!formData) return;
+
+    try {
+      // Create a clean export object with only the fields we support for import
+      const exportData: Partial<ProductInfo> = {};
+
+      // Copy supported fields from formData
+      const supportedFields: (keyof ProductInfo)[] = [
+        'name', 'subtitle', 'description', 'short_description', 'specifications', 'features',
+        'search_keywords', 'seo_page_title', 'seo_meta_description', 'seo_page_heading',
+        'categories'
+      ];
+
+      supportedFields.forEach(field => {
+        const value = formData[field];
+        if (value !== undefined && value !== null && value !== '') {
+          exportData[field] = value;
+        }
+      });
+
+      // Format the JSON with proper indentation
+      const jsonString = JSON.stringify(exportData, null, 2);
+
+      // Create a blob and download it
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      // Create a temporary link element and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${formData.sku || 'product'}-export.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL object
+      URL.revokeObjectURL(url);
+
+      toastSuccess('JSON file downloaded successfully');
+
+    } catch (error) {
+      console.error('Error downloading JSON:', error);
+      toastError('Failed to download JSON file');
+    }
+  }
 </script>
 
 <Modal {show} on:close={closeModal} size="xl" style="max-width: 90vw;">
@@ -290,6 +547,126 @@
 
   <div slot="body" class="max-h-[80vh] overflow-y-auto space-y-6 p-6">
     {#if product}
+      <!-- JSON Import Section -->
+      <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-medium text-blue-900">Import from JSON</h3>
+          <button
+            type="button"
+            class="text-blue-600 hover:text-blue-800 text-sm underline"
+            on:click={() => showJsonImport = !showJsonImport}
+          >
+            {showJsonImport ? 'Hide' : 'Show'} Import Options
+          </button>
+        </div>
+
+        {#if showJsonImport}
+          <div class="space-y-4">
+            <!-- File Upload -->
+            <div>
+              <label class="block text-sm font-medium text-blue-800 mb-2">Upload JSON File</label>
+              <input
+                type="file"
+                accept=".json"
+                class="block w-full text-sm text-blue-900 border border-blue-300 rounded-md cursor-pointer bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                on:change={handleFileUpload}
+                disabled={isSaving}
+              />
+              <p class="mt-1 text-xs text-blue-600">Select a JSON file containing product data</p>
+            </div>
+
+            <!-- Or paste JSON -->
+            <div class="text-center text-sm text-blue-700 font-medium">OR</div>
+
+            <!-- JSON Textarea -->
+            <div>
+              <label class="block text-sm font-medium text-blue-800 mb-2">Paste JSON Data</label>
+              <textarea
+                class="w-full h-32 border border-blue-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+                placeholder={jsonPlaceholder}
+                bind:value={jsonText}
+                disabled={isSaving}
+              ></textarea>
+            </div>
+
+            <!-- Import Actions -->
+            <div class="flex items-center justify-between">
+              <div class="flex space-x-2">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  on:click={applyJsonImport}
+                  disabled={isSaving || !jsonText.trim()}
+                >
+                  Import JSON
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 border border-blue-300 text-blue-700 text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  on:click={clearJsonImport}
+                  disabled={isSaving}
+                >
+                  Clear
+                </button>
+              </div>
+              <div class="flex space-x-2">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                  on:click={exportToJson}
+                  disabled={isSaving}
+                >
+                  Export JSON
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 border border-green-600 text-green-700 text-sm rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                  on:click={downloadJson}
+                  disabled={isSaving}
+                >
+                  Download JSON
+                </button>
+              </div>
+            </div>
+
+            <!-- Import Errors -->
+            {#if importErrors.length > 0}
+              <div class="bg-red-50 border border-red-200 rounded-md p-3">
+                <h4 class="text-sm font-medium text-red-800 mb-2">Import Errors:</h4>
+                <ul class="text-sm text-red-700 space-y-1">
+                  {#each importErrors as error}
+                    <li>• {error}</li>
+                  {/each}
+                </ul>
+              </div>
+            {/if}
+
+            <!-- Help Text -->
+            <div class="bg-blue-100 border border-blue-200 rounded-md p-3">
+              <h4 class="text-sm font-medium text-blue-800 mb-2">Supported Fields:</h4>
+              <div class="text-sm text-blue-700 grid grid-cols-2 gap-1">
+                <div>• name</div>
+                <div>• subtitle</div>
+                <div>• description</div>
+                <div>• short_description</div>
+                <div>• specifications</div>
+                <div>• features</div>
+                <div>• search_keywords</div>
+                <div>• seo_page_title</div>
+                <div>• seo_meta_description</div>
+                <div>• seo_page_heading</div>
+                <div>• categories</div>
+              </div>
+              <p class="text-xs text-blue-600 mt-2">
+                Note: categories should be an array of strings. search_keywords can be a string (comma-separated) or array of strings.
+              </p>
+              <p class="text-xs text-blue-600 mt-1">
+                <strong>Export:</strong> Use "Export JSON" to copy data to the textarea, or "Download JSON" to save as a file.
+              </p>
+            </div>
+          </div>
+        {/if}
+      </div>
       <!-- Image Preview -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="md:col-span-1">

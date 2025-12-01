@@ -179,13 +179,17 @@
       const userName = `${currentUser.firstName} ${currentUser.lastName}`;
       const credentialInfo = credential.website;
 
+      const baseUrl = 'https://rapidcleanillawarra.github.io/rapidtools';
+      const approveUrl = `${baseUrl}/api/credentials?action=approve&user=${encodeURIComponent(userName)}&credential=${encodeURIComponent(credentialInfo)}&id=${credential.id}`;
+      const declineUrl = `${baseUrl}/api/credentials?action=decline&user=${encodeURIComponent(userName)}&credential=${encodeURIComponent(credentialInfo)}&id=${credential.id}`;
+
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2>Access Request</h2>
           <p><strong>${userName}</strong> requests access for the <strong>${credentialInfo}</strong> credential.</p>
           <div style="margin-top: 20px;">
-            <a href="" style="background-color: #10B981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; display: inline-block;">Approve</a>
-            <a href="" style="background-color: #EF4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Decline</a>
+            <a href="${approveUrl}" style="background-color: #10B981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px; display: inline-block;">Approve</a>
+            <a href="${declineUrl}" style="background-color: #EF4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Decline</a>
           </div>
         </div>
       `.trim();

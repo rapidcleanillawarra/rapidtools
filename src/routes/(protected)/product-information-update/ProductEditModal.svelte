@@ -3,11 +3,13 @@
   import Modal from '$lib/components/Modal.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
   import { updateProduct } from '$lib/services/products';
+  import { saveProductBackup } from '$lib/services/productBackup';
   import type { ProductInfo, CategoryTreeNode, CategoryOperation, ImageOperation } from './types';
   import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
   import { transformProductsData } from './productTransformer';
   import TinyMCEEditor from './TinyMCEEditor.svelte';
   import CategoryDropdown from './CategoryDropdown.svelte';
+  import BrandDropdown from './BrandDropdown.svelte';
   import KeywordPills from './KeywordPills.svelte';
   import ImageUploadComponent from './ImageUploadComponent.svelte';
 
@@ -117,6 +119,15 @@
     try {
       isSaving = true;
 
+      // Save backup of current product data before making changes
+      try {
+        await saveProductBackup(product.sku, product);
+        console.log('Product backup saved successfully before changes');
+      } catch (backupError) {
+        console.warn('Failed to save product backup, but continuing with update:', backupError);
+        // Continue with the update even if backup fails - don't block the user's action
+      }
+
       // Prepare formData with category and image operations
       const updateData = {
         ...formData,
@@ -165,6 +176,15 @@
     } finally {
       isSaving = false;
     }
+  }
+
+  function handleBrandSelect(event: CustomEvent) {
+    const brand = event.detail.brand;
+    formData = { ...formData, brand: brand.name };
+  }
+
+  function handleBrandClear() {
+    formData = { ...formData, brand: '' };
   }
 
   function handleInputChange(field: keyof ProductInfo, value: string | boolean | string[]) {
@@ -716,15 +736,16 @@
             </div>
           </div>
 
-          <!-- Brand (readonly) -->
+          <!-- Brand -->
           <div>
             <label for="brand" class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-            <input
-              id="brand"
-              type="text"
-              class="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-50"
+            <BrandDropdown
+              id="brand-select"
+              placeholder="Select a brand..."
               value={formData.brand || ''}
-              readonly
+              disabled={isSaving}
+              on:select={handleBrandSelect}
+              on:clear={handleBrandClear}
             />
           </div>
 

@@ -12,6 +12,7 @@
   let editorElement: HTMLElement;
   let editor: any = null;
   let isInitialized = false;
+  let isDestroying = false;
 
   async function initEditor() {
     if (!browser || !editorElement || isInitialized) return;
@@ -65,13 +66,16 @@
         content_css: `${base}/tinymce/skins/content/default/content.min.css`,
         setup: (ed: any) => {
           editor = ed;
-          
+
           ed.on('init', () => {
             ed.setContent(value || '');
           });
 
           ed.on('change keyup', () => {
-            value = ed.getContent();
+            // Prevent updates during component destruction
+            if (!isDestroying) {
+              value = ed.getContent();
+            }
           });
         }
       });
@@ -94,6 +98,8 @@
   onDestroy(() => {
     if (editor && browser) {
       try {
+        // Prevent event handlers from firing during destruction
+        isDestroying = true;
         editor.destroy();
       } catch (e) {
         console.error('Error destroying editor:', e);

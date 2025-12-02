@@ -45,10 +45,10 @@
   let jsonText: string = '';
   let jsonFile: File | null = null;
   let importErrors: string[] = [];
-  let showJsonImport: boolean = false;
+  let showJsonImport: boolean = true;
 
   // Manual input section state
-  let showManualInput: boolean = true;
+  let showManualInput: boolean = false;
 
   // Placeholder text for JSON textarea
   const jsonPlaceholder = '{"name": "Product Name", "description": "Product description...", ...}';
@@ -467,6 +467,7 @@
     importErrors = [];
     toastSuccess('JSON data imported successfully');
     showJsonImport = false;
+    showManualInput = true;
   }
 
   function clearJsonImport() {

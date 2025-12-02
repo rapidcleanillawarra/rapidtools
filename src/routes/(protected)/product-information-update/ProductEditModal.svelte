@@ -341,8 +341,6 @@
 
         // Type validation
         switch (key) {
-          case 'name':
-          case 'subtitle':
           case 'description':
           case 'short_description':
           case 'specifications':
@@ -350,6 +348,14 @@
           case 'seo_page_title':
           case 'seo_meta_description':
           case 'seo_page_heading':
+            if (typeof value === 'string') {
+              validatedData[key] = value;
+            } else {
+              errors.push(`Field '${key}' must be a string`);
+            }
+            break;
+          case 'name':
+          case 'subtitle':
           case 'search_keywords':
             if (typeof value === 'string') {
               validatedData[key] = value.split(',').map(k => k.trim()).filter(k => k);

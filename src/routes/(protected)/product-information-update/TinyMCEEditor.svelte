@@ -67,9 +67,7 @@
           editor = ed;
           
           ed.on('init', () => {
-            if (value) {
-              ed.setContent(value);
-            }
+            ed.setContent(value || '');
           });
 
           ed.on('change keyup', () => {

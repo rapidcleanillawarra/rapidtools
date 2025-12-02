@@ -563,41 +563,44 @@
       toastError('Failed to download JSON file');
     }
   }
+
+  function handleGptInfoClick() {
+    if (!formData) return;
+
+    const infoText = `Product Name: ${formData.name}\nBrand: ${formData.brand}\nSKU: ${formData.sku}`;
+    navigator.clipboard.writeText(infoText).then(() => {
+      toastSuccess('Product info copied to clipboard');
+    }).catch(() => {
+      toastError('Failed to copy to clipboard');
+    });
+  }
 </script>
 
 <Modal {show} on:close={closeModal} size="xl" style="max-width: 90vw;">
   <div slot="header">
-    <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold">Edit Product: {product?.name || 'Unknown Product'}</h2>
-      <div class="flex space-x-2">
-        <button
-          type="button"
-          class="px-3 py-1 text-sm border border-blue-300 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-          class:bg-blue-100={showJsonImport}
-          on:click={() => showJsonImport = !showJsonImport}
-        >
-          {showJsonImport ? 'Hide' : 'Show'} Import
-        </button>
-        <button
-          type="button"
-          class="px-3 py-1 text-sm border border-green-300 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-          class:bg-green-100={showManualInput}
-          on:click={() => showManualInput = !showManualInput}
-        >
-          {showManualInput ? 'Hide' : 'Show'} Manual Input
-        </button>
-      </div>
-    </div>
+    <h2 class="text-lg font-semibold">Edit Product: {product?.name || 'Unknown Product'}</h2>
   </div>
 
   <div slot="body" class="max-h-[80vh] overflow-y-auto space-y-6 p-6">
     {#if product}
       <!-- JSON Import Section -->
-      {#if showJsonImport}
-        <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-lg font-medium text-blue-900">Import from JSON</h3>
-          </div>
+      <div class="border border-blue-200 rounded-lg bg-blue-50">
+        <div
+          class="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-100 transition-colors"
+          on:click={() => showJsonImport = !showJsonImport}
+        >
+          <h3 class="text-lg font-medium text-blue-900">Import from JSON</h3>
+          <svg
+            class="w-5 h-5 text-blue-600 transform transition-transform duration-200 {showJsonImport ? 'rotate-180' : 'rotate-0'}"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+        {#if showJsonImport}
+          <div class="px-4 pb-4 space-y-4">
 
           <div class="space-y-4">
             <!-- File Upload -->
@@ -664,6 +667,14 @@
                 >
                   Download JSON
                 </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+                  on:click={handleGptInfoClick}
+                  disabled={isSaving}
+                >
+                  GPT Info
+                </button>
               </div>
             </div>
 
@@ -678,38 +689,31 @@
                 </ul>
               </div>
             {/if}
-
-            <!-- Help Text -->
-            <div class="bg-blue-100 border border-blue-200 rounded-md p-3">
-              <h4 class="text-sm font-medium text-blue-800 mb-2">Supported Fields:</h4>
-              <div class="text-sm text-blue-700 grid grid-cols-2 gap-1">
-                <div>• name</div>
-                <div>• subtitle</div>
-                <div>• description</div>
-                <div>• short_description</div>
-                <div>• specifications</div>
-                <div>• features</div>
-                <div>• search_keywords</div>
-                <div>• seo_page_title</div>
-                <div>• seo_meta_description</div>
-                <div>• seo_page_heading</div>
-                <div>• categories</div>
-              </div>
-              <p class="text-xs text-blue-600 mt-2">
-                Note: categories should be an array of strings. search_keywords can be a string (comma-separated) or array of strings.
-              </p>
-              <p class="text-xs text-blue-600 mt-1">
-                <strong>Export:</strong> Use "Export JSON" to copy data to the textarea, or "Download JSON" to save as a file.
-              </p>
-            </div>
           </div>
         </div>
-      {/if}
+        {/if}
+      </div>
 
       <!-- Manual Input Section -->
-      {#if showManualInput}
-        <!-- Image Preview -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div class="border border-green-200 rounded-lg bg-green-50">
+        <div
+          class="flex items-center justify-between p-4 cursor-pointer hover:bg-green-100 transition-colors"
+          on:click={() => showManualInput = !showManualInput}
+        >
+          <h3 class="text-lg font-medium text-green-900">Manual Product Information</h3>
+          <svg
+            class="w-5 h-5 text-green-600 transform transition-transform duration-200 {showManualInput ? 'rotate-180' : 'rotate-0'}"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </div>
+        {#if showManualInput}
+          <div class="px-4 pb-4 space-y-4">
+            <!-- Image Preview -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="md:col-span-1">
           <div class="block text-sm font-medium text-gray-700 mb-2">Product Image</div>
           {#if product.image}
@@ -979,7 +983,9 @@
           height={300}
         />
       </div>
-      {/if}
+          </div>
+        {/if}
+      </div>
     {/if}
   </div>
 

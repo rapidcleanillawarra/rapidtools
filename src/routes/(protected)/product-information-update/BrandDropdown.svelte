@@ -10,6 +10,7 @@
   export let value: string = '';
   export let placeholder: string = 'Search brands...';
   export let id: string | undefined = undefined;
+  export let disabled: boolean = false;
 
   let isOpen = false;
   let searchTerm = '';
@@ -173,11 +174,12 @@
       type="text"
       {id}
       {placeholder}
+      {disabled}
       value={selectedBrand ? selectedBrand.name : searchTerm}
       on:input={handleInput}
       on:focus={handleFocus}
       on:blur={handleBlur}
-      class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
       autocomplete="off"
     />
     <button

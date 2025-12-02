@@ -20,6 +20,9 @@ export const searchFilters = writable<Record<string, string>>({});
 // Selected brand
 export const selectedBrand = writable<string>('');
 
+// Selected SKUs (for multi-SKU filtering)
+export const selectedSkus = writable<string>('');
+
 // Column visibility stores with localStorage persistence
 const defaultVisibleColumns: Record<keyof ProductInfo, boolean> = {
   id: false, // Hidden by default as it's internal

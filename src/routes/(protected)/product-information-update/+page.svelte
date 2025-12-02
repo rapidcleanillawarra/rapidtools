@@ -10,6 +10,7 @@
     sortDirection,
     searchFilters,
     selectedBrand,
+    selectedSkus,
     visibleColumns,
     paginatedData
   } from './stores';
@@ -21,6 +22,7 @@
   import { safeAsync } from './errorHandler';
   import type { CategoryFlat } from './utils';
   import BrandDropdown from './BrandDropdown.svelte';
+  import SkuTextarea from './SkuTextarea.svelte';
   import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
   import TablePagination from './TablePagination.svelte';
   import ProductsTable from './ProductsTable.svelte';
@@ -74,21 +76,54 @@
   function handleBrandSelect(event: CustomEvent) {
     const brand = event.detail.brand;
     selectedBrand.set(brand.name);
+    // Clear SKU filter when brand is selected (only one filter allowed)
+    selectedSkus.set('');
     // Removed auto-submit - user must click Apply Filter button
   }
 
   // Handle brand clear
   function handleBrandClear() {
     selectedBrand.set('');
-    originalData.set([]);
-    tableData.set([]);
+    // Clear data only if both filters are now empty
+    if (!parseSkus($selectedSkus).length) {
+      originalData.set([]);
+      tableData.set([]);
+    }
+  }
+
+  // Parse SKUs from textarea input (split by newlines, trim, filter empty)
+  function parseSkus(skuText: string): string[] {
+    return skuText
+      .split('\n')
+      .map(sku => sku.trim())
+      .filter(sku => sku.length > 0);
+  }
+
+  // Handle SKU textarea input
+  function handleSkuInput(event: CustomEvent) {
+    const skusText = event.detail.value;
+    selectedSkus.set(skusText);
+    // Clear brand filter when SKUs are entered (only one filter allowed)
+    if (skusText.trim()) {
+      selectedBrand.set('');
+    }
+  }
+
+  // Handle SKU clear
+  function handleSkuClear() {
+    selectedSkus.set('');
+    // Clear data only if both filters are now empty
+    if (!$selectedBrand) {
+      originalData.set([]);
+      tableData.set([]);
+    }
   }
 
   // Fetch a single page of products
-  async function fetchProductPage(pageNum: number, brandName?: string): Promise<{ products: ProductInfo[], hasMore: boolean }> {
+  async function fetchProductPage(pageNum: number, brandName?: string, skus?: string[]): Promise<{ products: ProductInfo[], hasMore: boolean }> {
     // Call the products API directly instead of going through SvelteKit API route
     // This works in GitHub Pages static hosting
-    const productData = await fetchProducts(brandName, pageNum);
+    const productData = await fetchProducts(brandName, pageNum, skus);
 
     // Transform the API response using centralized transformer
     const products = productData.Item ? transformProductsData(productData.Item, brandName) : [];
@@ -99,8 +134,8 @@
     };
   }
 
-  // Load products by brand with parallel pagination
-  async function loadProducts(brandName?: string) {
+  // Load products by brand or SKUs with parallel pagination
+  async function loadProducts(brandName?: string, skus?: string[]) {
     isLoading.set(true);
     showProgressModal = true;
     totalProductsLoaded = 0;
@@ -120,7 +155,7 @@
 
           if (hasMoreEvenPages) {
             promises.push(
-              fetchProductPage(evenPage, brandName).then(({ products, hasMore }) => {
+              fetchProductPage(evenPage, brandName, skus).then(({ products, hasMore }) => {
                 evenProducts.push(...products);
                 hasMoreEvenPages = hasMore;
                 evenPage += 2;
@@ -130,7 +165,7 @@
 
           if (hasMoreOddPages) {
             promises.push(
-              fetchProductPage(oddPage, brandName).then(({ products, hasMore }) => {
+              fetchProductPage(oddPage, brandName, skus).then(({ products, hasMore }) => {
                 oddProducts.push(...products);
                 hasMoreOddPages = hasMore;
                 oddPage += 2;
@@ -194,7 +229,9 @@
 
   // Export handlers
   function handleExport(includeAllColumns: boolean) {
-    const result = exportCSV($tableData, columns, $visibleColumns, includeAllColumns, $selectedBrand);
+    const parsedSkus = parseSkus($selectedSkus);
+    const filterInfo = parsedSkus.length > 0 ? `SKUs_${parsedSkus.length}` : $selectedBrand;
+    const result = exportCSV($tableData, columns, $visibleColumns, includeAllColumns, filterInfo);
     if (result.success) {
       toastSuccess(result.message!);
     } else {
@@ -307,70 +344,102 @@
     <h1 class="text-2xl font-bold">Product Information Update</h1>
   </div>
 
-  <!-- Brand Selection -->
+  <!-- Filter Selection -->
   <div class="bg-white rounded-lg shadow p-6 mb-6">
-    <div class="flex gap-4">
-      <div class="flex-1 max-w-lg">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Brand Selection -->
+      <div>
         <label for="brand-select" class="block text-sm font-medium text-gray-700 mb-2">
-          Select Brand
+          Filter by Brand
         </label>
-        <div class="flex gap-4">
+        <div class="flex gap-2 mb-4">
           <div class="flex-1">
             <BrandDropdown
               id="brand-select"
               placeholder="Search brands..."
               value={$selectedBrand}
+              disabled={parseSkus($selectedSkus).length > 0}
               on:select={handleBrandSelect}
               on:clear={handleBrandClear}
             />
           </div>
-          <button
-            type="button"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-1 px-2 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap text-xs"
-            on:click={() => {
-              if ($selectedBrand) {
-                loadProducts($selectedBrand);
-              } else {
-                loadProducts();
-              }
-            }}
-            disabled={$isLoading}
-          >
-            {#if $isLoading}
-              <div class="flex items-center">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Loading...
-              </div>
-            {:else}
-              Apply Filter
-            {/if}
-          </button>
-          <button
-            type="button"
-            class="bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-2 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap text-xs"
-            on:click={() => handleExport(false)}
-            disabled={$tableData.length === 0}
-          >
-            Export Visible CSV
-          </button>
-          <button
-            type="button"
-            class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-1 px-2 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap text-xs"
-            on:click={() => handleExport(true)}
-            disabled={$tableData.length === 0}
-          >
-            Export All CSV
-          </button>
         </div>
-        <p class="mt-2 text-sm text-gray-500">
-          {#if $selectedBrand}
-            Showing products for brand: <strong>{$selectedBrand}</strong>
-          {:else}
-            Showing all products
-          {/if}
-        </p>
+        {#if parseSkus($selectedSkus).length > 0}
+          <p class="text-xs text-gray-500 mb-4">
+            Disabled because SKU filter is active
+          </p>
+        {/if}
+      </div>
+
+      <!-- SKU Selection -->
+      <div>
+        <SkuTextarea
+          value={$selectedSkus}
+          disabled={$selectedBrand !== ''}
+          on:input={handleSkuInput}
+          on:clear={handleSkuClear}
+        />
+        {#if $selectedBrand !== ''}
+          <p class="text-xs text-gray-500 mt-2">
+            Disabled because brand filter is active
+          </p>
+        {/if}
       </div>
     </div>
+
+    <!-- Action Buttons -->
+    <div class="flex gap-4 mt-6">
+      <button
+        type="button"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+        on:click={() => {
+          const parsedSkus = parseSkus($selectedSkus);
+          if (parsedSkus.length > 0) {
+            loadProducts(undefined, parsedSkus);
+          } else if ($selectedBrand) {
+            loadProducts($selectedBrand);
+          } else {
+            loadProducts();
+          }
+        }}
+        disabled={$isLoading}
+      >
+        {#if $isLoading}
+          <div class="flex items-center">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+            Loading...
+          </div>
+        {:else}
+          Apply Filter
+        {/if}
+      </button>
+      <button
+        type="button"
+        class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+        on:click={() => handleExport(false)}
+        disabled={$tableData.length === 0}
+      >
+        Export Visible CSV
+      </button>
+      <button
+        type="button"
+        class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
+        on:click={() => handleExport(true)}
+        disabled={$tableData.length === 0}
+      >
+        Export All CSV
+      </button>
+    </div>
+
+    <p class="mt-4 text-sm text-gray-500">
+      {#if parseSkus($selectedSkus).length > 0}
+        Showing products for <strong>{parseSkus($selectedSkus).length} SKU(s)</strong>
+      {:else if $selectedBrand}
+        Showing products for brand: <strong>{$selectedBrand}</strong>
+      {:else}
+        Showing all products
+      {/if}
+    </p>
   </div>
 
   <ColumnVisibilityControls

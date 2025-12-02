@@ -47,6 +47,9 @@
   let importErrors: string[] = [];
   let showJsonImport: boolean = false;
 
+  // Manual input section state
+  let showManualInput: boolean = true;
+
   // Placeholder text for JSON textarea
   const jsonPlaceholder = '{"name": "Product Name", "description": "Product description...", ...}';
 
@@ -564,25 +567,38 @@
 
 <Modal {show} on:close={closeModal} size="xl" style="max-width: 90vw;">
   <div slot="header">
-    Edit Product: {product?.name || 'Unknown Product'}
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold">Edit Product: {product?.name || 'Unknown Product'}</h2>
+      <div class="flex space-x-2">
+        <button
+          type="button"
+          class="px-3 py-1 text-sm border border-blue-300 rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          class:bg-blue-100={showJsonImport}
+          on:click={() => showJsonImport = !showJsonImport}
+        >
+          {showJsonImport ? 'Hide' : 'Show'} Import
+        </button>
+        <button
+          type="button"
+          class="px-3 py-1 text-sm border border-green-300 rounded-md hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+          class:bg-green-100={showManualInput}
+          on:click={() => showManualInput = !showManualInput}
+        >
+          {showManualInput ? 'Hide' : 'Show'} Manual Input
+        </button>
+      </div>
+    </div>
   </div>
 
   <div slot="body" class="max-h-[80vh] overflow-y-auto space-y-6 p-6">
     {#if product}
       <!-- JSON Import Section -->
-      <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-medium text-blue-900">Import from JSON</h3>
-          <button
-            type="button"
-            class="text-blue-600 hover:text-blue-800 text-sm underline"
-            on:click={() => showJsonImport = !showJsonImport}
-          >
-            {showJsonImport ? 'Hide' : 'Show'} Import Options
-          </button>
-        </div>
+      {#if showJsonImport}
+        <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-lg font-medium text-blue-900">Import from JSON</h3>
+          </div>
 
-        {#if showJsonImport}
           <div class="space-y-4">
             <!-- File Upload -->
             <div>
@@ -687,9 +703,12 @@
               </p>
             </div>
           </div>
-        {/if}
-      </div>
-      <!-- Image Preview -->
+        </div>
+      {/if}
+
+      <!-- Manual Input Section -->
+      {#if showManualInput}
+        <!-- Image Preview -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div class="md:col-span-1">
           <div class="block text-sm font-medium text-gray-700 mb-2">Product Image</div>
@@ -960,6 +979,7 @@
           height={300}
         />
       </div>
+      {/if}
     {/if}
   </div>
 

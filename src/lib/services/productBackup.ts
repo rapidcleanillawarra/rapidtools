@@ -2,6 +2,7 @@
 import { supabase } from '$lib/supabase';
 import { get } from 'svelte/store';
 import { currentUser } from '$lib/firebase';
+import { userProfile, fetchUserProfile } from '$lib/userProfile';
 import type { ProductInfo } from '../../routes/(protected)/product-information-update/types';
 
 export interface ProductBackupRecord {
@@ -23,14 +24,28 @@ export async function saveProductBackup(sku: string, productData: ProductInfo): 
 
     // Get current user for last_modified_by
     const currentUserData = get(currentUser);
+    let userProfileData = get(userProfile);
     let lastModifiedBy = null;
 
     if (currentUserData) {
-      // Use email as the identifier, fallback to display name or UID
-      lastModifiedBy = currentUserData.email ||
-                      currentUserData.displayName ||
-                      currentUserData.uid ||
-                      'Unknown User';
+      // If profile isn't loaded yet, try to fetch it synchronously
+      if (!userProfileData && currentUserData.uid) {
+        try {
+          userProfileData = await fetchUserProfile(currentUserData.uid);
+        } catch (error) {
+          console.warn('Could not fetch user profile for backup:', error);
+        }
+      }
+
+      // Use user profile name (firstName + lastName), fallback to email, then display name or UID
+      if (userProfileData && userProfileData.firstName && userProfileData.lastName) {
+        lastModifiedBy = `${userProfileData.firstName} ${userProfileData.lastName}`;
+      } else {
+        lastModifiedBy = currentUserData.email ||
+                        currentUserData.displayName ||
+                        currentUserData.uid ||
+                        'Unknown User';
+      }
     }
 
     const backupData = {

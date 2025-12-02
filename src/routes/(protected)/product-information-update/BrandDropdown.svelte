@@ -18,6 +18,7 @@
   let isLoading = false;
   let error: string | null = null;
   let selectedBrand: Brand | null = null;
+  let isDropdownInteracting = false; // Track if user is interacting with dropdown
 
   // Debounce search
   let searchTimeout: number;
@@ -53,7 +54,7 @@
       // Call the brands API directly instead of going through SvelteKit API route
       // This works in GitHub Pages static hosting
       const brandData = await fetchBrands();
-      
+
       // Transform the API response to match the expected format
       brands = brandData.Content?.map(brand => ({
         id: brand.ContentID,
@@ -62,8 +63,17 @@
         label: brand.ContentName,
         contentId: brand.ContentID
       })) || [];
-      
+
       filteredBrands = brands.slice(0, 10);
+
+      // If we have an initial value, try to find and select the matching brand
+      if (value && !selectedBrand) {
+        const matchingBrand = brands.find(brand => brand.name === value);
+        if (matchingBrand) {
+          selectedBrand = matchingBrand;
+          searchTerm = matchingBrand.name;
+        }
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load brands';
       console.error('Error loading brands:', err);
@@ -73,11 +83,37 @@
   }
 
   function selectBrand(brand: Brand) {
+    // Clear any pending blur timeout to prevent dropdown from closing prematurely
+    clearTimeout(blurTimeout);
+    isDropdownInteracting = false; // Reset interaction flag
     selectedBrand = brand;
     value = brand.name;
-    searchTerm = '';
+    searchTerm = brand.name;
     isOpen = false;
     dispatch('select', { brand });
+  }
+
+  function clearSelection() {
+    selectedBrand = null;
+    value = '';
+    searchTerm = '';
+    dispatch('clear');
+  }
+
+  // Handle value changes from parent component
+  $: if (value !== (selectedBrand ? selectedBrand.name : searchTerm)) {
+    if (value === '') {
+      clearSelection();
+    } else if (brands.length > 0) {
+      const matchingBrand = brands.find(brand => brand.name === value);
+      if (matchingBrand) {
+        selectedBrand = matchingBrand;
+        searchTerm = matchingBrand.name;
+      } else {
+        selectedBrand = null;
+        searchTerm = value;
+      }
+    }
   }
 
   function handleInput(event: Event) {
@@ -87,9 +123,9 @@
     // If user types something that doesn't match selected brand, clear selection
     if (selectedBrand && searchTerm !== selectedBrand.name) {
       selectedBrand = null;
-      value = searchTerm;
+      value = '';
       dispatch('clear');
-    } else {
+    } else if (!selectedBrand) {
       value = searchTerm;
     }
   }
@@ -111,7 +147,10 @@
   function handleBlur() {
     // Delay closing to allow for clicks on dropdown items
     blurTimeout = window.setTimeout(() => {
-      isOpen = false;
+      // Only close if user is not interacting with dropdown items
+      if (!isDropdownInteracting) {
+        isOpen = false;
+      }
     }, 200);
   }
 
@@ -119,6 +158,7 @@
   onDestroy(() => {
     clearTimeout(searchTimeout);
     clearTimeout(blurTimeout);
+    isDropdownInteracting = false; // Reset flag on destroy
   });
 
   // Load brands on mount
@@ -133,7 +173,7 @@
       type="text"
       {id}
       {placeholder}
-      bind:value={searchTerm}
+      value={selectedBrand ? selectedBrand.name : searchTerm}
       on:input={handleInput}
       on:focus={handleFocus}
       on:blur={handleBlur}
@@ -153,7 +193,12 @@
   </div>
 
   {#if isOpen}
-    <div class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+    <div
+      class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+      on:click|stopPropagation={() => {}}
+      on:mouseenter={() => isDropdownInteracting = true}
+      on:mouseleave={() => isDropdownInteracting = false}
+    >
       {#if isLoading}
         <div class="p-4">
           <SkeletonLoader type="text" height="1.25rem" className="mb-2" />

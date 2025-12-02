@@ -1,6 +1,27 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+interface PowerAutomateCategory {
+  CategoryID: string;
+  CategoryName: string;
+  ParentCategoryID: string;
+}
+
+interface PowerAutomateResponse {
+  Category?: PowerAutomateCategory[];
+  [key: string]: any;
+}
+
+interface CategoryFlat {
+  id: string;
+  name: string;
+  parentId: string;
+  value: string;
+  label: string;
+  categoryId: string;
+  parentCategoryId: string;
+}
+
 export const GET: RequestHandler = async () => {
   try {
     const payload = {
@@ -8,7 +29,8 @@ export const GET: RequestHandler = async () => {
         "Active": true,
         "OutputSelector": [
           "ParentCategoryID",
-          "CategoryName"
+          "CategoryName",
+          "CategoryID"
         ]
       },
       "action": "GetCategory"
@@ -36,10 +58,31 @@ export const GET: RequestHandler = async () => {
       throw error(response.status, `HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
-    const data = await response.json();
-    console.log('Response data received successfully');
+    const powerAutomateData: PowerAutomateResponse = await response.json();
+    console.log('Response data received successfully:', powerAutomateData);
 
-    return json(data);
+    // Transform Power Automate response to expected format
+    if (!powerAutomateData.Category || !Array.isArray(powerAutomateData.Category)) {
+      console.error('Invalid response structure:', powerAutomateData);
+      throw error(500, 'Invalid response structure from Power Automate API');
+    }
+
+    const categories: CategoryFlat[] = powerAutomateData.Category.map((cat: PowerAutomateCategory) => ({
+      id: cat.CategoryID,
+      name: cat.CategoryName,
+      parentId: cat.ParentCategoryID || '0',
+      value: cat.CategoryID,
+      label: cat.CategoryName,
+      categoryId: cat.CategoryID,
+      parentCategoryId: cat.ParentCategoryID || '0'
+    }));
+
+    console.log('Transformed categories:', categories.length, 'categories');
+
+    return json({
+      success: true,
+      data: categories
+    });
   } catch (err) {
     console.error('Error fetching categories:', err);
     if (err instanceof Error) {

@@ -74,7 +74,7 @@
   function handleBrandSelect(event: CustomEvent) {
     const brand = event.detail.brand;
     selectedBrand.set(brand.name);
-    loadProducts(brand.name);
+    // Removed auto-submit - user must click Apply Filter button
   }
 
   // Handle brand clear

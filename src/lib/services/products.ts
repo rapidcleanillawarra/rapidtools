@@ -8,6 +8,7 @@ export interface ProductApiData {
   Item?: Array<{
     SKU: string;
     Model?: string;
+    Brand?: string;
     Categories?: Array<{
       Category: any; // Can be object or array
     }>;
@@ -69,6 +70,7 @@ export async function fetchProducts(brand?: string | null, page: number = 0, sku
         "OutputSelector": [
           "SKU",
           "Model",
+          "Brand",
           "Categories",
           "Subtitle",
           "Description",
@@ -141,28 +143,23 @@ export async function updateProduct(productId: string, updateData: any): Promise
 
     // Add images if there are image operations
     if (updateData.imageOperations && updateData.imageOperations.length > 0) {
-      console.log('Processing image operations:', updateData.imageOperations);
       const processedImages = updateData.imageOperations.map((op: any) => {
         const processedOp = {
           Name: op.Name,
           ...(op.URL && { URL: op.URL }),
           ...(typeof op.Delete === 'boolean' && { Delete: op.Delete })
         };
-        console.log('Processed image operation:', op, '->', processedOp);
         return processedOp;
       });
       itemData.Images = {
         Image: processedImages
       };
-      console.log('Final Images array:', itemData.Images);
     }
 
     const payload = {
       "Item": [itemData],
       "action": "UpdateItem"
     };
-
-    console.log('Product update payload being sent:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(PRODUCTS_API_URL, {
       method: 'POST',
@@ -177,7 +174,6 @@ export async function updateProduct(productId: string, updateData: any): Promise
     }
 
     const data = await response.json();
-    console.log('Product updated successfully:', data);
     return data;
   } catch (error) {
     console.error('Error updating product:', error);

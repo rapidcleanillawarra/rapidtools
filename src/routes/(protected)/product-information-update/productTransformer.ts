@@ -27,7 +27,7 @@ export function transformProductData(product: any, brandName?: string): ProductI
     id: product.SKU,
     sku: product.SKU,
     name: product.Model || '',
-    brand: brandName || '',
+    brand: product.Brand || brandName || '',
     image: mainImageUrl, // Use the processed main image URL
     images: product.Images || [], // Store all images
     subtitle: product.Subtitle,

@@ -71,8 +71,6 @@
 
   // Automatically handle URL when it becomes valid
   function handleUrlAutomatically(imageName: string, url: string) {
-    console.log('Automatically using URL for', imageName, ':', url);
-
     // Remove any existing operation for this image
     imageOperations = imageOperations.filter(op => op.Name !== imageName);
 
@@ -82,7 +80,6 @@
       URL: url
     }];
 
-    console.log('Added automatic URL operation:', { Name: imageName, URL: url });
     dispatch('images-changed', { imageOperations });
   }
 
@@ -196,17 +193,11 @@
 
   // Delete an image
   function deleteImage(imageName: string) {
-    console.log('deleteImage called for:', imageName);
-    console.log('Current images:', images);
-    console.log('Current imageOperations before:', imageOperations);
-
     // Check if this is an existing image that needs to be marked for deletion
     const existingImage = images.find(img => img.Name === imageName);
-    console.log('Existing image found:', existingImage);
 
     // Check if there's already a delete operation for this image
     const existingDeleteOp = imageOperations.find(op => op.Name === imageName && op.Delete);
-    console.log('Existing delete operation found:', existingDeleteOp);
 
     if (existingImage && !existingDeleteOp) {
       // Mark for deletion only if not already marked
@@ -215,16 +206,11 @@
         Delete: true
       };
       imageOperations = [...imageOperations, deleteOperation];
-      console.log('Added delete operation:', deleteOperation);
     } else if (!existingImage) {
       // Remove from operations (was a new upload that's now cancelled)
       imageOperations = imageOperations.filter(op => op.Name !== imageName);
-      console.log('Removed operation for new upload');
-    } else {
-      console.log('Image already marked for deletion, ignoring duplicate click');
     }
 
-    console.log('Final imageOperations after delete:', imageOperations);
     dispatch('images-changed', { imageOperations });
   }
 
@@ -239,7 +225,6 @@
     // Check if not marked for deletion
     const deleteOp = imageOperations.find(op => op.Name === imageName && op.Delete);
     if (deleteOp) {
-      console.log('getImageUrl - image marked for deletion:', imageName);
       return null;
     }
 
@@ -247,21 +232,15 @@
     const existingImage = images.find(img => img.Name === imageName);
     if (existingImage?.URL && existingImage?.Timestamp) {
       const timestampParam = formatTimestampForImageUrl(existingImage.Timestamp);
-      const result = timestampParam ? `${existingImage.URL}?${timestampParam}` : existingImage.URL;
-      console.log('getImageUrl called for:', imageName, 'result:', result);
-      return result;
+      return timestampParam ? `${existingImage.URL}?${timestampParam}` : existingImage.URL;
     }
 
-    const result = existingImage?.URL || null;
-    console.log('getImageUrl called for:', imageName, 'result:', result);
-    return result;
+    return existingImage?.URL || null;
   }
 
   // Check if an image is marked for deletion
   function isImageDeleted(imageName: string): boolean {
-    const result = imageOperations.some(op => op.Name === imageName && op.Delete);
-    console.log('isImageDeleted called for:', imageName, 'result:', result, 'operations:', imageOperations.filter(op => op.Name === imageName));
-    return result;
+    return imageOperations.some(op => op.Name === imageName && op.Delete);
   }
 
 </script>
@@ -294,11 +273,7 @@
             <button
               type="button"
               on:click={() => {
-                console.log('Delete button clicked for Main');
-                console.log('Before delete - images:', images);
-                console.log('Before delete - imageOperations:', imageOperations);
                 deleteImage('Main');
-                console.log('After delete - imageOperations:', imageOperations);
               }}
               class="absolute top-2 right-2 bg-red-600 text-white rounded-full p-2 hover:bg-red-700 transition-colors z-10 shadow-lg"
               title="Remove image"
@@ -422,11 +397,7 @@
                   <button
                     type="button"
                     on:click={() => {
-                      console.log('Delete button clicked for', altName);
-                      console.log('Before delete - images:', images);
-                      console.log('Before delete - imageOperations:', imageOperations);
                       deleteImage(altName);
-                      console.log('After delete - imageOperations:', imageOperations);
                     }}
                     class="absolute top-1 right-1 bg-red-600 text-white rounded-full p-2 hover:bg-red-700 transition-colors z-10 shadow-lg"
                     title="Remove image"

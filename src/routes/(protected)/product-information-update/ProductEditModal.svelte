@@ -122,9 +122,7 @@
       // Save backup of current product data before making changes
       try {
         await saveProductBackup(product.sku, product);
-        console.log('Product backup saved successfully before changes');
       } catch (backupError) {
-        console.warn('Failed to save product backup, but continuing with update:', backupError);
         // Continue with the update even if backup fails - don't block the user's action
       }
 
@@ -135,17 +133,15 @@
         imageOperations: imageOperations.length > 0 ? imageOperations : undefined
       };
 
-      console.log('Saving product with image operations:', imageOperations);
-      console.log('Update data being sent:', updateData);
-
       // Call the products API directly instead of going through SvelteKit API route
       // This works in GitHub Pages static hosting
       const updateResponse = await updateProduct(product.sku, updateData);
+      console.log('Product update payload sent:', updateData);
       console.log('Update response:', updateResponse);
 
       // Transform the response to get updated product data
       const updatedProductData = updateResponse.Item && updateResponse.Item.length > 0
-        ? transformProductsData(updateResponse.Item, product?.brand)[0]
+        ? transformProductsData(updateResponse.Item, formData.brand)[0]
         : product;
 
       // Calculate final categories after operations are applied

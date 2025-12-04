@@ -17,7 +17,6 @@
   let activeTab = 'disable-product';
 
   // Modal state
-  let showDisableProductModal = false;
   let showDeleteOrderModal = false;
   let isSubmitting = false;
 
@@ -30,31 +29,20 @@
     // Initialize any necessary data
   });
 
-  // Product Disable Modal
-  function openDisableProductModal() {
-    productFormData = { ...emptyProductDisableForm };
-    showDisableProductModal = true;
-  }
-
-  function closeDisableProductModal() {
-    showDisableProductModal = false;
-    productFormData = { ...emptyProductDisableForm };
-  }
-
   async function handleDisableProduct() {
     if (!productFormData.sku.trim()) {
       toastError('SKU is required');
       return;
     }
 
-    if (!productFormData.reason.trim()) {
-      toastError('Reason for disabling is required');
+    if (!productFormData.replacementProductSku.trim()) {
+      toastError('Replacement product SKU is required');
       return;
     }
 
     isSubmitting = true;
     try {
-      await disableProduct(productFormData.sku, productFormData.reason);
+      await disableProduct(productFormData.sku, productFormData.replacementProductSku);
       closeDisableProductModal();
       toastSuccess('Product disabled successfully');
     } catch (err) {
@@ -147,41 +135,62 @@
   <!-- Tab Content -->
   {#if activeTab === 'disable-product'}
     <div class="bg-white rounded-lg shadow p-6">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h2 class="text-xl font-semibold text-gray-900">Disable Product</h2>
-          <p class="text-gray-600 mt-1">Disable a product by SKU to remove it from active listings</p>
-        </div>
-        <button
-          on:click={openDisableProductModal}
-          class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors flex items-center gap-2"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Disable Product
-        </button>
+      <div class="mb-6">
+        <h2 class="text-xl font-semibold text-gray-900">Disable Product</h2>
+        <p class="text-gray-600 mt-1">Disable a product by SKU to remove it from active listings</p>
       </div>
 
-      <!-- Product disable info -->
-      <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-        <div class="flex">
-          <svg class="w-5 h-5 text-orange-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+      <!-- Disable Product Form -->
+      <form on:submit|preventDefault={handleDisableProduct} class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <h3 class="text-sm font-medium text-orange-800">Important Notes</h3>
-            <div class="mt-2 text-sm text-orange-700">
-              <ul class="list-disc pl-5 space-y-1">
-                <li>Disabled products will be removed from active product listings</li>
-                <li>This action can be reversed by re-enabling the product</li>
-                <li>Existing orders containing this product will not be affected</li>
-                <li>A reason for disabling must be provided for audit purposes</li>
-              </ul>
-            </div>
+            <label for="product-sku" class="block text-sm font-medium text-gray-700 mb-1">
+              Product SKU <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="product-sku"
+              type="text"
+              bind:value={productFormData.sku}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter the product SKU to disable"
+              required
+            />
+          </div>
+          <div>
+            <label for="replacement-product-sku" class="block text-sm font-medium text-gray-700 mb-1">
+              Replacement Product SKU <span class="text-red-500">*</span>
+            </label>
+            <input
+              id="replacement-product-sku"
+              type="text"
+              bind:value={productFormData.replacementProductSku}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Enter the replacement product SKU"
+              required
+            />
           </div>
         </div>
-      </div>
+        <div class="flex justify-end">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            class="px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {#if isSubmitting}
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Disabling...
+            {:else}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Disable Product
+            {/if}
+          </button>
+        </div>
+      </form>
     </div>
   {:else if activeTab === 'delete-order'}
     <div class="bg-white rounded-lg shadow p-6">
@@ -200,102 +209,9 @@
           Delete Order
         </button>
       </div>
-
-      <!-- Order delete warning -->
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <div class="flex">
-          <svg class="w-5 h-5 text-red-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <div>
-            <h3 class="text-sm font-medium text-red-800">Warning: Destructive Action</h3>
-            <div class="mt-2 text-sm text-red-700">
-              <ul class="list-disc pl-5 space-y-1">
-                <li>This action cannot be undone</li>
-                <li>All order data will be permanently removed</li>
-                <li>Associated payments and customer records may be affected</li>
-                <li>A detailed reason for deletion must be provided</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   {/if}
 </div>
-
-<!-- Disable Product Modal -->
-<Modal show={showDisableProductModal} on:close={closeDisableProductModal} size="lg">
-  <span slot="header">Disable Product</span>
-  <div slot="body">
-    <form on:submit|preventDefault={handleDisableProduct} class="space-y-4">
-      <div>
-        <label for="product-sku" class="block text-sm font-medium text-gray-700 mb-1">
-          Product SKU <span class="text-red-500">*</span>
-        </label>
-        <input
-          id="product-sku"
-          type="text"
-          bind:value={productFormData.sku}
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-          placeholder="Enter the product SKU to disable"
-          required
-        />
-      </div>
-      <div>
-        <label for="product-reason" class="block text-sm font-medium text-gray-700 mb-1">
-          Reason for Disabling <span class="text-red-500">*</span>
-        </label>
-        <textarea
-          id="product-reason"
-          bind:value={productFormData.reason}
-          rows="4"
-          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
-          placeholder="Provide a detailed reason for disabling this product..."
-          required
-        ></textarea>
-      </div>
-      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-        <div class="flex">
-          <svg class="w-5 h-5 text-yellow-400 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <div class="text-sm text-yellow-800">
-            <p><strong>This action will:</strong></p>
-            <ul class="list-disc pl-5 mt-1">
-              <li>Remove the product from active listings</li>
-              <li>Keep the product data for potential re-enabling</li>
-              <li>Not affect existing orders</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </form>
-  </div>
-  <div slot="footer" class="flex justify-end gap-3">
-    <button
-      on:click={closeDisableProductModal}
-      class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-    >
-      Cancel
-    </button>
-    <button
-      on:click={handleDisableProduct}
-      disabled={isSubmitting}
-      class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-    >
-      {#if isSubmitting}
-        <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        Disabling...
-      {:else}
-        Disable Product
-      {/if}
-    </button>
-  </div>
-</Modal>
 
 <!-- Delete Order Modal -->
 <Modal show={showDeleteOrderModal} on:close={closeDeleteOrderModal} size="lg">

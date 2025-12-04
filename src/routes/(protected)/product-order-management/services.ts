@@ -2,17 +2,16 @@
  * Product & Order Management API service functions
  */
 
-import { cancelOrder } from '$lib/services/maropost';
 
 const PRODUCTS_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
-export async function disableProduct(sku: string, reason: string): Promise<any> {
+export async function disableProduct(sku: string, replacementProductSku: string): Promise<any> {
   if (!sku) {
     throw new Error('SKU is required for product disable operation');
   }
 
-  if (!reason) {
-    throw new Error('Reason is required for product disable operation');
+  if (!replacementProductSku) {
+    throw new Error('Replacement product SKU is required for product disable operation');
   }
 
   try {
@@ -20,8 +19,11 @@ export async function disableProduct(sku: string, reason: string): Promise<any> 
       "Item": [
         {
           "SKU": sku,
+          "Approved": false,
+          "Active": false,
           "IsActive": false,
-          "Notes": `Disabled: ${reason}`
+          "ApprovedForMobileStore": false,
+          "ApprovedForPOS": true
         }
       ],
       "action": "UpdateItem"
@@ -42,8 +44,17 @@ export async function disableProduct(sku: string, reason: string): Promise<any> 
     }
 
     const data = await response.json();
-    console.log('Product disabled successfully:', data);
-    return data;
+    console.log('API Response:', data);
+
+    // Check API response status
+    if (data.Ack === 'Success') {
+      console.log('Product disabled successfully:', data);
+      return data;
+    } else if (data.Ack === 'Warning' && data.Messages?.Warning?.Message) {
+      throw new Error(data.Messages.Warning.Message);
+    } else {
+      throw new Error('Unknown API response format');
+    }
   } catch (error) {
     console.error('Error disabling product:', error);
     throw error;
@@ -60,17 +71,44 @@ export async function deleteOrder(orderId: string, reason: string): Promise<any>
   }
 
   try {
-    console.log(`Deleting order ${orderId} with reason: ${reason}`);
+    const payload = {
+      "Order": [
+        {
+          "OrderID": orderId,
+          "OrderStatus": "Cancelled"
+        }
+      ],
+      "action": "UpdateOrder"
+    };
 
-    // Use the existing cancelOrder function from maropost service
-    // Note: This actually sets the order status to "Cancelled" rather than completely deleting it
-    // Complete deletion might require a different API endpoint
-    const result = await cancelOrder(orderId);
+    console.log('Cancelling order with payload:', payload);
 
-    console.log('Order deletion completed:', result);
-    return result;
+    const response = await fetch(PRODUCTS_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`DeleteOrder API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('API Response:', data);
+
+    // Check API response status
+    if (data.Ack === 'Success') {
+      console.log('Order cancelled successfully:', data);
+      return data;
+    } else if (data.Ack === 'Warning' && data.Messages?.Warning?.Message) {
+      throw new Error(data.Messages.Warning.Message);
+    } else {
+      throw new Error('Unknown API response format');
+    }
   } catch (error) {
-    console.error('Error deleting order:', error);
+    console.error('Error cancelling order:', error);
     throw error;
   }
 }

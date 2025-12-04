@@ -387,6 +387,11 @@
                 on:click={closeSidebar}
               >Customer Groups</a>
               <a
+                href="{base}/product-order-management"
+                class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
+                on:click={closeSidebar}
+              >Product Order Management</a>
+              <a
                 href="{base}/batch-payments"
                 class="block px-4 py-2 text-gray-300 text-sm hover:bg-gray-800 hover:text-yellow-400 rounded-lg transition"
                 on:click={closeSidebar}

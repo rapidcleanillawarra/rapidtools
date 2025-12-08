@@ -14,7 +14,15 @@
     visibleColumns,
     paginatedData
   } from './stores';
-  import { sortData, exportToCSV as exportCSV, filterProducts } from './utils';
+  import {
+    sortData,
+    exportToCSV as exportCSV,
+    filterProducts,
+    loadHighlightStatuses,
+    saveHighlightStatuses,
+    clearHighlightStatuses,
+    type HighlightStatus
+  } from './utils';
   import { columns, PRODUCTS_PER_API_PAGE } from './config';
   import type { ProductInfo } from './types';
   import { fetchProducts } from '$lib/services/products';
@@ -40,6 +48,7 @@
   let selectedProductForEdit: ProductInfo | null = null;
   let categories: CategoryFlat[] = [];
   let filterTimeout: number;
+  let highlightStatuses: Record<string, HighlightStatus> = {};
 
   // Load categories for display purposes
   async function loadCategories() {
@@ -269,6 +278,10 @@
 
   // Handle GPT Info button click
   function handleGptInfoClick(product: ProductInfo) {
+    if (product?.sku) {
+      applyHighlightStatus(product.sku, 'gpt');
+    }
+
     const infoText = `Product Name: ${product.name}\nBrand: ${product.brand}\nSKU: ${product.sku}`;
     navigator.clipboard.writeText(infoText).then(() => {
       toastSuccess('Product info copied to clipboard');
@@ -293,6 +306,10 @@
     originalData.update(data => data.map(p => p.id === product.id ? { ...product } : p));
     tableData.update(data => data.map(p => p.id === product.id ? { ...product } : p));
 
+    if (product.sku) {
+      applyHighlightStatus(product.sku, 'saved');
+    }
+
     showEditModal = false;
     selectedProductForEdit = null;
   }
@@ -309,6 +326,27 @@
     })();
   }
 
+  function applyHighlightStatus(sku: string, status: HighlightStatus) {
+    const existing = highlightStatuses[sku];
+    const nextStatus: HighlightStatus =
+      status === 'saved' ? 'saved' : existing === 'saved' ? 'saved' : 'gpt';
+
+    highlightStatuses = { ...highlightStatuses, [sku]: nextStatus };
+    saveHighlightStatuses(highlightStatuses);
+  }
+
+  function resetHighlights() {
+    highlightStatuses = {};
+    clearHighlightStatuses();
+  }
+
+  function handleModalGptInfo(event: CustomEvent<{ sku?: string; status?: HighlightStatus }>) {
+    const { sku } = event.detail;
+    if (sku) {
+      applyHighlightStatus(sku, 'gpt');
+    }
+  }
+
   // Cleanup timeout on component destroy
   onDestroy(() => {
     clearTimeout(filterTimeout);
@@ -317,6 +355,7 @@
   // Load categories on component mount
   onMount(() => {
     loadCategories();
+    highlightStatuses = loadHighlightStatuses();
   });
 </script>
 
@@ -335,6 +374,7 @@
   on:save={handleProductSave}
   on:optimistic-update={handleOptimisticUpdate}
   on:revert-optimistic={handleRevertOptimistic}
+  on:gpt-info={handleModalGptInfo}
 />
 
 <LoadingProgressModal show={showProgressModal} totalProducts={totalProductsLoaded} />
@@ -393,6 +433,7 @@
         type="button"
         class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg shadow-sm transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap"
         on:click={() => {
+          resetHighlights();
           const parsedSkus = parseSkus($selectedSkus);
           if (parsedSkus.length > 0) {
             loadProducts(undefined, parsedSkus);
@@ -456,6 +497,7 @@
       columns={visibleColumnsList}
       products={$paginatedData}
       categories={categories}
+      highlightStatuses={highlightStatuses}
       isLoading={$isLoading}
       searchFilters={$searchFilters}
       sortField={$sortField}

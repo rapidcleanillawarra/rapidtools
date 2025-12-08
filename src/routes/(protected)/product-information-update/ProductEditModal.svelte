@@ -45,7 +45,8 @@
   let jsonText: string = '';
   let jsonFile: File | null = null;
   let importErrors: string[] = [];
-  let showJsonImport: boolean = true;
+  let showJsonImport: boolean = false;
+  let showJsonUpload: boolean = false;
 
   // Manual input section state
   let showManualInput: boolean = false;
@@ -568,6 +569,11 @@
   function handleGptInfoClick() {
     if (!formData) return;
 
+    const sku = formData.sku || product?.sku;
+    if (sku) {
+      dispatch('gpt-info', { sku, status: 'gpt' });
+    }
+
     const infoText = `Product Name: ${formData.name}\nBrand: ${formData.brand}\nSKU: ${formData.sku}`;
     navigator.clipboard.writeText(infoText).then(() => {
       toastSuccess('Product info copied to clipboard');
@@ -605,17 +611,32 @@
 
           <div class="space-y-4">
             <!-- File Upload -->
-            <div>
-              <label class="block text-sm font-medium text-blue-800 mb-2">Upload JSON File</label>
-              <input
-                type="file"
-                accept=".json"
-                class="block w-full text-sm text-blue-900 border border-blue-300 rounded-md cursor-pointer bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                on:change={handleFileUpload}
+            <div class="flex items-center justify-between border border-blue-200 rounded-md px-3 py-2 bg-white">
+              <div class="text-sm text-blue-900 font-medium">Show upload controls</div>
+              <button
+                type="button"
+                class="px-3 py-1.5 text-sm rounded-md border border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                on:click={() => showJsonUpload = !showJsonUpload}
                 disabled={isSaving}
-              />
-              <p class="mt-1 text-xs text-blue-600">Select a JSON file containing product data</p>
+                aria-pressed={showJsonUpload}
+              >
+                {showJsonUpload ? 'Hide Upload' : 'Show Upload'}
+              </button>
             </div>
+
+            {#if showJsonUpload}
+              <div>
+                <label class="block text-sm font-medium text-blue-800 mb-2">Upload JSON File</label>
+                <input
+                  type="file"
+                  accept=".json"
+                  class="block w-full text-sm text-blue-900 border border-blue-300 rounded-md cursor-pointer bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  on:change={handleFileUpload}
+                  disabled={isSaving}
+                />
+                <p class="mt-1 text-xs text-blue-600">Select a JSON file containing product data</p>
+              </div>
+            {/if}
 
             <!-- Or paste JSON -->
             <div class="text-center text-sm text-blue-700 font-medium">OR</div>
@@ -627,6 +648,7 @@
                 class="w-full h-32 border border-blue-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
                 placeholder={jsonPlaceholder}
                 bind:value={jsonText}
+                on:focus={(e) => e.currentTarget.select()}
                 disabled={isSaving}
               ></textarea>
             </div>

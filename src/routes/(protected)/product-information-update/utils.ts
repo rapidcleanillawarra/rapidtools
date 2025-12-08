@@ -1,6 +1,12 @@
 import type { ProductInfo, CategoryTreeNode } from './types';
 import type { ColumnConfig } from './config';
 
+export type HighlightStatus = 'gpt' | 'saved';
+
+const HIGHLIGHT_STORAGE_KEY = 'product-row-highlights';
+
+const hasLocalStorage = () => typeof localStorage !== 'undefined';
+
 export function getSortIcon(field: keyof ProductInfo, currentField: keyof ProductInfo, direction: 'asc' | 'desc'): string {
   if (field !== currentField) {
     return '↕️';
@@ -295,4 +301,36 @@ export function formatTimestampForImageUrl(timestamp: string): string {
 
   const [, day, month, year, hour, minute, second] = match;
   return `${year}${month}${day}${hour}${minute}${second}`;
+}
+
+export function loadHighlightStatuses(): Record<string, HighlightStatus> {
+  if (!hasLocalStorage()) return {};
+
+  try {
+    const raw = localStorage.getItem(HIGHLIGHT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) as Record<string, HighlightStatus> : {};
+  } catch (error) {
+    console.error('Failed to load highlight statuses:', error);
+    return {};
+  }
+}
+
+export function saveHighlightStatuses(statuses: Record<string, HighlightStatus>): void {
+  if (!hasLocalStorage()) return;
+
+  try {
+    localStorage.setItem(HIGHLIGHT_STORAGE_KEY, JSON.stringify(statuses));
+  } catch (error) {
+    console.error('Failed to save highlight statuses:', error);
+  }
+}
+
+export function clearHighlightStatuses(): void {
+  if (!hasLocalStorage()) return;
+
+  try {
+    localStorage.removeItem(HIGHLIGHT_STORAGE_KEY);
+  } catch (error) {
+    console.error('Failed to clear highlight statuses:', error);
+  }
 }

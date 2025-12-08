@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ProductInfo } from './types';
   import type { ColumnConfig } from './config';
-  import type { CategoryFlat } from './utils';
+  import type { CategoryFlat, HighlightStatus } from './utils';
   import { getSortIcon, getCellContent } from './utils';
 
   export let columns: ColumnConfig[];
@@ -17,6 +17,7 @@
   export let onGptInfoClick: (product: ProductInfo) => void;
   export let hasData: boolean;
   export let categories: CategoryFlat[] = [];
+  export let highlightStatuses: Record<string, HighlightStatus> = {};
 </script>
 
 <div class="overflow-x-auto">
@@ -69,7 +70,17 @@
         </tr>
       {:else}
         {#each products as product (`${product.sku}-${product.id}`)}
-          <tr class="hover:bg-gray-50 cursor-pointer" on:click={() => onRowClick(product)}>
+          {@const highlight = highlightStatuses?.[product.sku]}
+          <tr
+            class={`hover:bg-gray-50 cursor-pointer transition-colors ${
+              highlight === 'saved'
+                ? 'bg-green-50 border-l-4 border-green-300'
+                : highlight === 'gpt'
+                  ? 'bg-yellow-50 border-l-4 border-yellow-300'
+                  : ''
+            }`}
+            on:click={() => onRowClick(product)}
+          >
             {#each columns as column (column.key)}
               {#if column.renderType === 'image'}
                 <td class="px-2 py-2 whitespace-nowrap">

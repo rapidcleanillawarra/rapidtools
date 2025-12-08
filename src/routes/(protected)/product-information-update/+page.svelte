@@ -49,6 +49,7 @@
   let categories: CategoryFlat[] = [];
   let filterTimeout: number;
   let highlightStatuses: Record<string, HighlightStatus> = {};
+  let lastFiltersSig = '';
 
   // Load categories for display purposes
   async function loadCategories() {
@@ -211,7 +212,17 @@
     filterTimeout = window.setTimeout(() => {
       const filtered = filterProducts($originalData, $searchFilters);
       tableData.set(filtered);
-      currentPage.set(1);
+      const currentSig = JSON.stringify($searchFilters);
+      const filtersChanged = currentSig !== lastFiltersSig;
+      lastFiltersSig = currentSig;
+
+      const totalPages = Math.max(1, Math.ceil(filtered.length / $itemsPerPage));
+
+      if (filtersChanged) {
+        currentPage.set(1);
+      } else {
+        currentPage.update(page => Math.min(page, totalPages));
+      }
     }, 150); // 150ms debounce for smoother UX
   }
 

@@ -7,7 +7,12 @@ export const tableData = writable<ProductInfo[]>([]);
 export const isLoading = writable(false);
 
 // Pagination stores
-export const currentPage = writable(1);
+const storedPage =
+  typeof window !== 'undefined'
+    ? Number(localStorage.getItem('product-info-current-page')) || 1
+    : 1;
+
+export const currentPage = writable<number>(storedPage);
 export const itemsPerPage = writable(10);
 
 // Sorting stores
@@ -56,6 +61,13 @@ export const visibleColumns = writable<Record<keyof ProductInfo, boolean>>(initi
 visibleColumns.subscribe(value => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('product-info-visible-columns', JSON.stringify(value));
+  }
+});
+
+// Persist current page across sessions
+currentPage.subscribe(value => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('product-info-current-page', String(value));
   }
 });
 

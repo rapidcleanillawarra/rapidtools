@@ -658,22 +658,12 @@
               <div class="flex space-x-2">
                 <button
                   type="button"
-                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  on:click={applyJsonImport}
-                  disabled={isSaving || !jsonText.trim()}
-                >
-                  Import JSON
-                </button>
-                <button
-                  type="button"
                   class="px-3 py-1.5 border border-blue-300 text-blue-700 text-sm rounded-md hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   on:click={clearJsonImport}
                   disabled={isSaving}
                 >
                   Clear
                 </button>
-              </div>
-              <div class="flex space-x-2">
                 <button
                   type="button"
                   class="px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
@@ -697,6 +687,16 @@
                   disabled={isSaving}
                 >
                   GPT Info
+                </button>
+              </div>
+              <div class="flex space-x-2">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  on:click={applyJsonImport}
+                  disabled={isSaving || !jsonText.trim()}
+                >
+                  Import JSON
                 </button>
               </div>
             </div>

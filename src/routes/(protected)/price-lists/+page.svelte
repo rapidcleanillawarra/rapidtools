@@ -2,6 +2,9 @@
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
+  import { currentUser } from '$lib/firebase';
+  import { supabase } from '$lib/supabase';
 
   type Row = { sku: string; price: string };
   type RowError = { sku?: string; price?: string };
@@ -13,6 +16,7 @@
 
   let rows: Row[] = createEmptyRows();
   let mounted = false;
+  let submitting = false;
 
   const sanitizePrice = (raw: string): string => {
     const numericOnly = raw.replace(/[^0-9.]/g, '');
@@ -161,15 +165,45 @@
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (submitting) return;
     const validRows = rows
       .map((row) => ({ row, errors: validateRow(row) }))
       .filter(({ errors }) => !errors.sku && !errors.price)
       .map(({ row }) => row);
 
-    // Replace with API call when available
-    console.log('Submitting rows:', validRows);
-    goto(`${base}/price-lists/build-price-list`);
+    if (!validRows.length) {
+      console.warn('No valid rows to submit');
+      return;
+    }
+
+    const user = get(currentUser);
+    const actor = user?.email || user?.uid || 'unknown';
+    const timestamp = new Date().toISOString();
+
+    submitting = true;
+    try {
+      const payload = {
+        sku_data: validRows,
+        price_list_data: null,
+        created_by: actor,
+        updated_by: actor,
+        created_at: timestamp,
+        updated_at: timestamp
+      };
+
+      const { error } = await supabase.from('price_lists').insert(payload);
+      if (error) {
+        console.error('Failed to save price list', error);
+        return;
+      }
+
+      goto(`${base}/price-lists/build-price-list`);
+    } catch (error) {
+      console.error('Unexpected error saving price list', error);
+    } finally {
+      submitting = false;
+    }
   };
 
   onMount(() => {
@@ -204,11 +238,12 @@
         Clear all
       </button>
       <button
-        class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+        class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
         type="button"
         on:click={handleSubmit}
+        disabled={submitting}
       >
-        Submit
+        {submitting ? 'Submitting...' : 'Submit'}
       </button>
     </div>
 

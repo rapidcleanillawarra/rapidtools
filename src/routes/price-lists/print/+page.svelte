@@ -29,15 +29,15 @@
 		}
 	};
 
-	onMount(() => {
-		// Auto-trigger print after a short delay to allow images to load
-		if (!data.error && data.items.length > 0 && !printTriggered) {
-			printTriggered = true;
-			setTimeout(() => {
-				handlePrint();
-			}, 2000);
-		}
-	});
+onMount(() => {
+	// Auto-trigger print after a short delay to allow images to load
+	if (!data.error && data.items.length > 0 && !printTriggered) {
+		printTriggered = true;
+		setTimeout(() => {
+			handlePrint();
+		}, 2000);
+	}
+});
 </script>
 
 <svelte:head>
@@ -75,27 +75,33 @@
 			<p class="empty-message">This price list doesn't contain any items yet.</p>
 		</div>
 	{:else}
-		<!-- Print header (repeats on each page via position: fixed) -->
-		<div class="print-header">
-			<div class="print-header-inner">
-				<img
-					src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-					alt="RapidClean"
-					class="print-logo"
-				/>
-				<h1 class="document-title">{data.filename || 'Price List'}</h1>
-			</div>
-		</div>
-
-		<!-- Print footer with page numbers -->
-		<div class="print-footer">
-			<span class="page-number"></span>
-		</div>
-
 		<div class="catalog-content">
+			<!-- Header for the first page -->
+			<div class="page-break-header">
+				<div class="page-break-header-inner">
+					<img
+						src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+						alt="RapidClean"
+						class="print-logo"
+					/>
+					<h1 class="document-title">{data.filename || 'Price List'}</h1>
+					<span class="page-counter" aria-hidden="true"></span>
+				</div>
+			</div>
+
 			{#each data.items as item}
 				{#if item.kind === 'static' && item.staticType === 'page_break'}
-					<div class="page-break"></div>
+					<div class="page-break-header is-break">
+						<div class="page-break-header-inner">
+							<img
+								src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+								alt="RapidClean"
+								class="print-logo"
+							/>
+							<h2 class="document-title">{data.filename || 'Price List'}</h2>
+							<span class="page-counter" aria-hidden="true"></span>
+						</div>
+					</div>
 				{:else if item.kind === 'static' && item.staticType === 'range'}
 					<div class="range-header">
 						<span class="range-label">{item.value || 'Range'}</span>
@@ -221,22 +227,8 @@
 		transform: translateY(0);
 	}
 
-	/* Print header (visible when printing) */
-	.print-header {
-		display: none;
-	}
-
-	.print-header-inner {
-		background: #222222;
-		color: #fff;
-		padding: 16px 24px;
-		display: flex;
-		align-items: center;
-		gap: 20px;
-	}
-
 	.print-logo {
-		height: 40px;
+		height: 30px;
 		width: auto;
 	}
 
@@ -247,9 +239,10 @@
 		flex: 1;
 	}
 
-	/* Print footer (visible when printing) */
-	.print-footer {
-		display: none;
+	.page-counter {
+		color: #fff;
+		font-weight: 600;
+		letter-spacing: 0.04em;
 	}
 
 	/* Error state */
@@ -311,12 +304,13 @@
 	}
 
 	/* Catalog content */
-	.catalog-content {
-		padding: 24px;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-		gap: 20px;
-	}
+.catalog-content {
+	padding: 24px;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 20px;
+	counter-reset: page;
+}
 
 	/* Range header - Green accent */
 	.range-header {
@@ -325,7 +319,6 @@
 		color: #fff;
 		padding: 16px 24px;
 		border-radius: 8px;
-		margin-top: 16px;
 	}
 
 	.range-header:first-child {
@@ -353,10 +346,29 @@
 		font-weight: 600;
 	}
 
-	/* Page break */
-	.page-break {
-		display: none;
-	}
+/* Page break headers */
+.page-break-header {
+	grid-column: 1 / -1;
+	margin: 8px 0 16px;
+	counter-increment: page;
+}
+
+.page-break-header-inner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	background: #222222;
+	color: #fff;
+	padding: 12px 16px;
+	border-radius: 0;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.page-break-header.is-break {
+	break-before: page;
+	page-break-before: always;
+}
 
 	/* Product card */
 	.product-card {
@@ -376,7 +388,7 @@
 	.product-image-container {
 		width: 100%;
 		height: 180px;
-		background: #f9fafb;
+	background: #fff;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -384,10 +396,10 @@
 	}
 
 	.product-image {
-		max-width: 100%;
-		max-height: 100%;
-		object-fit: contain;
-		padding: 12px;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	padding: 0;
 	}
 
 	.no-image {
@@ -449,12 +461,8 @@
 	/* Print styles */
 	@media print {
 		@page {
-			margin: 0;
+			margin: 20px;
 			size: A4;
-		}
-
-		@page :first {
-			margin-top: 0;
 		}
 
 		:global(html),
@@ -476,56 +484,19 @@
 			display: none !important;
 		}
 
-		/* Fixed header that repeats on every page */
 		.print-header {
-			display: block !important;
-			position: fixed;
-			top: 0;
-			left: 0;
-			right: 0;
-			z-index: 1000;
+			display: none !important;
 		}
 
-		.print-header-inner {
-			padding: 12px 20px;
-		}
-
-		.print-logo {
-			height: 32px;
-		}
-
-		.document-title {
-			font-size: 1.25rem;
-		}
-
-		/* Fixed footer with page numbers */
-		.print-footer {
-			display: block !important;
-			position: fixed;
-			bottom: 0;
-			left: 0;
-			right: 0;
-			background: #fff;
-			padding: 8px 20px;
-			text-align: center;
-			font-size: 0.75rem;
-			color: #666;
-			border-top: 1px solid #e5e7eb;
-		}
-
-		.page-number::after {
-			content: counter(page);
-			counter-increment: page;
-		}
-
-		.print-footer::before {
-			content: "Page ";
+		.page-counter::after {
+			content: 'Page ' counter(page);
 		}
 
 		/* Content area with margins for fixed header/footer */
 		.catalog-content {
-			padding: 80px 20px 50px 20px;
+			padding: 20px 20px 32px 20px;
 			gap: 12px;
+			/* Two columns to target ~6 items per page (3 rows) */
 			grid-template-columns: repeat(3, 1fr);
 			margin: 0;
 		}
@@ -535,6 +506,7 @@
 			page-break-inside: avoid;
 			box-shadow: none;
 			border: 1px solid #d1d5db;
+			min-height: 320px;
 		}
 
 		.product-card:hover {
@@ -542,7 +514,7 @@
 		}
 
 		.product-image-container {
-			height: 100px;
+			height: 140px;
 		}
 
 		.product-details {
@@ -570,7 +542,6 @@
 		.range-header {
 			break-after: avoid;
 			page-break-after: avoid;
-			margin-top: 12px;
 			padding: 10px 16px;
 		}
 
@@ -588,12 +559,13 @@
 			font-size: 0.875rem;
 		}
 
-		.page-break {
-			display: block;
-			grid-column: 1 / -1;
-			height: 0;
-			break-before: page;
-			page-break-before: always;
+		.page-break-header {
+			margin: 6px 0;
+		}
+
+		.page-break-header-inner {
+			padding: 10px 14px;
+			box-shadow: none;
 		}
 
 		.error-container,

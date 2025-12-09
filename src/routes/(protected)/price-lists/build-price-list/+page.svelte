@@ -826,7 +826,7 @@
             </div>
             <span class="text-xs text-gray-500">{builderItems.length} items</span>
           </div>
-          <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto">
+          <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto max-h-[65vh]">
             {#if builderItems.length === 0}
               <p class="text-xs text-gray-500">Drop SKUs or static blocks here to build your list.</p>
             {:else}

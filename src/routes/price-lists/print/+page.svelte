@@ -484,10 +484,6 @@ onMount(() => {
 			display: none !important;
 		}
 
-		.print-header {
-			display: none !important;
-		}
-
 		.page-counter::after {
 			content: 'Page ' counter(page);
 		}
@@ -560,7 +556,11 @@ onMount(() => {
 		}
 
 		.page-break-header {
-			margin: 6px 0;
+			margin: 8px 0 16px;
+		}
+
+		.page-break-header.is-break {
+			margin: 16px 0 6px;
 		}
 
 		.page-break-header-inner {

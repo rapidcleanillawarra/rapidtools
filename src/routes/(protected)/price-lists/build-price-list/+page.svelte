@@ -624,26 +624,6 @@
         <p class="text-sm text-gray-600">Review and finalize the latest saved price list.</p>
       </div>
       <div class="flex flex-wrap items-center gap-3">
-        {#if saveMessage}
-          <span class="text-xs text-gray-600">{saveMessage}</span>
-        {/if}
-        <button
-          type="button"
-          class={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-            saving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-          }`}
-          on:click={saveBuilderRemote}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          on:click={printBuilder}
-        >
-          Print
-        </button>
         <a
           class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           href="{base}/price-lists"
@@ -671,12 +651,73 @@
         {/if}
       </div>
 
-      <div class="grid gap-6 lg:grid-cols-2">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <div class="bg-white px-4 py-3 border border-gray-200 rounded-lg space-y-3">
+          <div class="grid gap-3 sm:grid-cols-[2fr,1fr,auto] items-end">
+            <div>
+              <label class="text-xs font-semibold text-gray-700" for="new-sku">SKU</label>
+              <input
+                id="new-sku"
+                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter SKU"
+                bind:value={newSku}
+              />
+            </div>
+            <div>
+              <label class="text-xs font-semibold text-gray-700" for="new-price">Discounted Price</label>
+              <input
+                id="new-price"
+                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0.00"
+                bind:value={newPrice}
+                inputmode="decimal"
+              />
+            </div>
+            <div class="flex sm:justify-end">
+              <button
+                type="button"
+                class="w-full sm:w-auto inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                on:click={addSkuRow}
+                disabled={checkingSku}
+              >
+                {checkingSku ? 'Checking…' : 'Add SKU'}
+              </button>
+            </div>
+          </div>
+          {#if addSkuError}
+            <p class="text-xs text-red-600">{addSkuError}</p>
+          {/if}
+          {#if addSkuSuccess}
+            <p class="text-xs text-green-700">{addSkuSuccess}</p>
+          {/if}
+          {#if detailError}
+            <p class="text-xs text-orange-600">{detailError}</p>
+          {/if}
+        </div>
+
+        <div class="bg-white px-4 py-3 border border-gray-200 rounded-lg space-y-3">
+          <p class="text-sm font-semibold text-gray-800">Static blocks</p>
+          <div class="flex flex-wrap gap-2">
+            {#each staticItems as item}
+              {@const styles = getStaticStyle(item.type)}
+              <button
+                class={`flex items-center gap-2 rounded-md border ${styles.border} ${styles.bg} px-3 py-2 text-xs font-semibold ${styles.text} shadow-sm transition ${styles.hover} ${styles.active}`}
+                draggable="true"
+                on:dragstart={(e) => handleStaticDragStart(e, item)}
+              >
+                <span class={`h-2.5 w-2.5 rounded-full ${styles.dot}`} aria-hidden="true"></span>
+                {item.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+      </div>
+
+      <div class="grid gap-6 lg:grid-cols-2 items-stretch lg:min-h-[70vh]">
         <div class="space-y-0 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
             <div>
               <p class="text-sm font-semibold text-gray-800">SKU & Prices</p>
-              <p class="text-xs text-gray-500">Loaded from the latest saved price list.</p>
             </div>
             {#if loading}
               <span class="text-xs text-blue-600">Loading…</span>
@@ -687,75 +728,14 @@
             {/if}
           </div>
 
-          <div class="bg-white px-4 py-3 border-b border-gray-200">
-            <p class="text-sm font-semibold text-gray-800">Static blocks</p>
-            <div class="mt-2 flex flex-wrap gap-2">
-              {#each staticItems as item}
-                {@const styles = getStaticStyle(item.type)}
-                <button
-                  class={`flex items-center gap-2 rounded-md border ${styles.border} ${styles.bg} px-3 py-2 text-xs font-semibold ${styles.text} shadow-sm transition ${styles.hover} ${styles.active}`}
-                  draggable="true"
-                  on:dragstart={(e) => handleStaticDragStart(e, item)}
-                >
-                  <span class={`h-2.5 w-2.5 rounded-full ${styles.dot}`} aria-hidden="true"></span>
-                  {item.label}
-                </button>
-              {/each}
-            </div>
-          </div>
-
-          <div class="bg-white px-4 py-3 border-b border-gray-200 space-y-3">
-            <p class="text-sm font-semibold text-gray-800">Add SKU</p>
-            <div class="grid gap-3 sm:grid-cols-[2fr,1fr,auto] items-end">
-              <div>
-                <label class="text-xs font-semibold text-gray-700" for="new-sku">SKU</label>
-                <input
-                  id="new-sku"
-                  class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter SKU"
-                  bind:value={newSku}
-                />
-              </div>
-              <div>
-                <label class="text-xs font-semibold text-gray-700" for="new-price">Discounted Price</label>
-                <input
-                  id="new-price"
-                  class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="0.00"
-                  bind:value={newPrice}
-                  inputmode="decimal"
-                />
-              </div>
-              <div class="flex sm:justify-end">
-                <button
-                  type="button"
-                  class="w-full sm:w-auto inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                  on:click={addSkuRow}
-                  disabled={checkingSku}
-                >
-                  {checkingSku ? 'Checking…' : 'Add SKU'}
-                </button>
-              </div>
-            </div>
-            {#if addSkuError}
-              <p class="text-xs text-red-600">{addSkuError}</p>
-            {/if}
-            {#if addSkuSuccess}
-              <p class="text-xs text-green-700">{addSkuSuccess}</p>
-            {/if}
-            {#if detailError}
-              <p class="text-xs text-orange-600">{detailError}</p>
-            {/if}
-          </div>
-
           <div class="max-h-[500px] overflow-auto">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
               <thead class="bg-gray-50">
                 <tr>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">Discounted Price</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">RRP (Original)</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">Disc Price</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">RRP</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 bg-white">
@@ -813,7 +793,7 @@
         </div>
 
         <div
-          class="rounded-lg border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-gray-800 min-h-[300px] flex flex-col gap-3"
+          class="rounded-lg border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-gray-800 min-h-[300px] flex flex-col gap-3 h-full min-h-0 lg:h-[70vh] lg:max-h-[70vh] overflow-hidden"
           role="list"
           aria-label="Builder dropzone"
           on:dragover={handleDragOver}
@@ -826,7 +806,7 @@
             </div>
             <span class="text-xs text-gray-500">{builderItems.length} items</span>
           </div>
-          <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto max-h-[65vh]">
+          <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto min-h-0 max-h-full">
             {#if builderItems.length === 0}
               <p class="text-xs text-gray-500">Drop SKUs or static blocks here to build your list.</p>
             {:else}
@@ -877,6 +857,9 @@
                             </span>
                           {/if}
                         </div>
+                        {#if item.kind === 'sku' && item.model}
+                          <p class="text-xs text-gray-700">{item.model}</p>
+                        {/if}
 
                         {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
                           <input
@@ -911,6 +894,29 @@
             {/if}
           </div>
         </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-3 pt-2">
+        {#if saveMessage}
+          <span class="text-xs text-gray-600">{saveMessage}</span>
+        {/if}
+        <button
+          type="button"
+          class={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            saving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+          }`}
+          on:click={saveBuilderRemote}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          on:click={printBuilder}
+        >
+          Print
+        </button>
       </div>
     </div>
   </div>

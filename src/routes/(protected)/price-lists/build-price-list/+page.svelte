@@ -556,8 +556,8 @@
   };
 
   const printBuilder = () => {
-    if (typeof window !== 'undefined') {
-      window.print();
+    if (typeof window !== 'undefined' && priceListId) {
+      window.open(`${base}/price-lists/print?id=${priceListId}`, '_blank');
     }
   };
 

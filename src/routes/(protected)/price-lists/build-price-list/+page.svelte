@@ -6,7 +6,14 @@
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { supabase } from '$lib/supabase';
 
-  type Row = { sku: string; price: string };
+  type Row = {
+    sku: string;
+    price: string;
+    model?: string;
+    rrp?: string;
+    imageUrl?: string;
+    hasDescription?: boolean;
+  };
   type BuilderItem = Row & {
     id: string;
     kind: 'sku' | 'static';
@@ -31,6 +38,7 @@
   let addSkuError = '';
   let addSkuSuccess = '';
   let checkingSku = false;
+  let detailError = '';
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -69,7 +77,7 @@
   let errorMessage = '';
   const BUILDER_STORAGE_KEY = 'price-list-builder-state';
   const skuCheckUrl =
-    'https://prod-03.australiasoutheast.logic.azure.com:443/workflows/151bc47e0ba4447b893d1c9fea9af46f/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bRyr_oW-ud06XlU5VLhBqQ7tyU__jD3clEOGIEhax-Q';
+    'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
   const getStaticStyle = (type: StaticItem['type']) => staticColorMap[type] ?? staticColorMap.page_break;
 
@@ -111,11 +119,26 @@
             kind: item.kind ?? 'sku',
             staticType: item.staticType,
             value: item.value,
-            sourceIndex: item.sourceIndex
+            sourceIndex: item.sourceIndex,
+            rrp: item.rrp,
+            model: item.model,
+            imageUrl: item.imageUrl,
+            hasDescription: item.hasDescription
           }))
         : [];
       builderItems = serverBuilder;
       syncRowsWithBuilder();
+      const skusToEnrich = getAllSkus();
+      if (skusToEnrich.length) {
+        try {
+          const detailMap = await fetchSkuDetails(skusToEnrich);
+          mergeSkuDetails(detailMap);
+          mergeBuilderDetails(detailMap);
+        } catch (err) {
+          console.error('Failed to load SKU details', err);
+          detailError = 'Unable to load SKU details.';
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load price list', err);
       errorMessage = 'Unable to load price list. Please try again.';
@@ -186,13 +209,119 @@
 
   const sanitizePrice = (raw: string) => raw.replace(/[^0-9.]/g, '');
 
-  const checkSkuExists = async (sku: string) => {
+  const getAllSkus = () => {
+    const set = new Set<string>();
+    rows.forEach((r) => r.sku && set.add(r.sku));
+    builderItems.forEach((b) => {
+      if (b.kind === 'sku' && b.sku) set.add(b.sku);
+    });
+    return Array.from(set).filter(Boolean);
+  };
+
+  const getMainImage = (images: any[] = []) => {
+    if (!Array.isArray(images)) return '';
+    const main = images.find((img) => img?.Name === 'Main' && img?.URL);
+    if (main?.URL) return main.URL;
+    const first = images.find((img) => img?.URL);
+    return first?.URL ?? '';
+  };
+
+  const fetchSkuDetails = async (skus: string[]) => {
+    if (!skus.length) return {};
+    const payload = {
+      Filter: {
+        SKU: skus,
+        OutputSelector: ['SKU', 'Model', 'Images', 'RRP', 'ShortDescription']
+      },
+      action: 'GetItem'
+    };
+
     const response = await fetch(skuCheckUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ SKU: [sku] })
+      body: JSON.stringify(payload)
     });
     const data = await response.json();
+    console.log('SKU detail response', data);
+    if (data?.Ack !== 'Success') {
+      throw new Error('SKU detail fetch failed');
+    }
+    const map: Record<string, { model?: string; rrp?: string; imageUrl?: string; hasDescription?: boolean }> = {};
+    (data.Item ?? []).forEach((item: any) => {
+      const sku = item?.SKU;
+      if (!sku) return;
+      map[sku] = {
+        model: item?.Model ?? '',
+        rrp: item?.RRP?.toString?.() ?? '',
+        imageUrl: getMainImage(item?.Images),
+        hasDescription: Boolean(item?.ShortDescription)
+      };
+    });
+    return map;
+  };
+
+  const mergeSkuDetails = (details: Record<string, { model?: string; rrp?: string; imageUrl?: string; hasDescription?: boolean }>) => {
+    if (!details || typeof details !== 'object') return;
+    rows = rows.map((row) => {
+      const detail = details[row.sku];
+      if (!detail) return row;
+      return {
+        ...row,
+        model: detail.model || row.model,
+        rrp: detail.rrp || row.rrp,
+        imageUrl: detail.imageUrl || row.imageUrl,
+        hasDescription: detail.hasDescription ?? row.hasDescription
+      };
+    });
+  };
+
+  const mergeBuilderDetails = (details: Record<string, { model?: string; rrp?: string; imageUrl?: string; hasDescription?: boolean }>) => {
+    if (!details || typeof details !== 'object') return;
+    console.log('Builder SKU detail map', details);
+    builderItems = builderItems.map((item) => {
+      if (item.kind !== 'sku') return item;
+      const detail = details[item.sku];
+      if (!detail) return item;
+      return {
+        ...item,
+        model: detail.model || item.model,
+        rrp: detail.rrp || item.rrp,
+        imageUrl: detail.imageUrl || item.imageUrl,
+        hasDescription: detail.hasDescription ?? item.hasDescription
+      };
+    });
+  };
+
+  const getPriceHighlight = (row: { price?: string; rrp?: string }) => {
+    const price = Number(row.price);
+    const rrp = Number(row.rrp);
+    if (!Number.isFinite(price) || !Number.isFinite(rrp)) return '';
+    if (price < rrp) return 'bg-green-50 text-green-800 font-semibold';
+    if (price > rrp) return 'bg-red-50 text-red-800 font-semibold';
+    return '';
+  };
+
+  const checkSkuExists = async (sku: string) => {
+    const payload = {
+      Filter: {
+        SKU: [sku],
+        OutputSelector: ['SKU']
+      },
+      action: 'GetItem'
+    };
+
+    const response = await fetch(skuCheckUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`SKU check failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('SKU exists check response', data);
     if (data?.Ack !== 'Success') {
       throw new Error('SKU check failed');
     }
@@ -225,6 +354,14 @@
       }
 
       rows = [...rows, { sku, price }];
+      try {
+        const detailMap = await fetchSkuDetails([sku]);
+        mergeSkuDetails(detailMap);
+        mergeBuilderDetails(detailMap);
+      } catch (err) {
+        console.error('Failed to fetch SKU details', err);
+        detailError = 'Unable to load extra details for the SKU.';
+      }
       newSku = '';
       newPrice = '';
       addSkuSuccess = 'SKU added.';
@@ -583,6 +720,9 @@
             {#if addSkuSuccess}
               <p class="text-xs text-green-700">{addSkuSuccess}</p>
             {/if}
+            {#if detailError}
+              <p class="text-xs text-orange-600">{detailError}</p>
+            {/if}
           </div>
 
           <div class="max-h-[500px] overflow-auto">
@@ -592,31 +732,55 @@
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">Discounted Price</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">RRP (Original)</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 bg-white">
                 {#if loading}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-gray-600" colspan="3">Loading...</td>
+                    <td class="px-4 py-3 text-sm text-gray-600" colspan="4">Loading...</td>
                   </tr>
                 {:else if errorMessage}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-red-600" colspan="3">{errorMessage}</td>
+                    <td class="px-4 py-3 text-sm text-red-600" colspan="4">{errorMessage}</td>
                   </tr>
                 {:else if rows.length === 0}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-gray-600" colspan="3">No price list data found.</td>
+                    <td class="px-4 py-3 text-sm text-gray-600" colspan="4">No price list data found.</td>
                   </tr>
                 {:else}
                   {#each rows as row, index}
+                    {@const priceClass = getPriceHighlight(row)}
                     <tr
                       draggable="true"
                       on:dragstart={(e) => handleDragStart(e, row, index)}
                       class="hover:bg-gray-50"
                     >
                       <td class="px-4 py-3 text-gray-700">{index + 1}</td>
-                      <td class="px-4 py-3 text-gray-800">{row.sku}</td>
-                      <td class="px-4 py-3 text-gray-800">{row.price}</td>
+                      <td class="px-4 py-3 text-gray-800">
+                        <div class="flex items-center gap-3">
+                          <div class="h-12 w-12 overflow-hidden rounded border border-gray-200 bg-gray-50 flex items-center justify-center">
+                            {#if row.imageUrl}
+                              <img src={row.imageUrl} alt={row.sku} class="h-full w-full object-cover" loading="lazy" />
+                            {:else}
+                              <span class="text-xs text-gray-500">No image</span>
+                            {/if}
+                          </div>
+                          <div class="space-y-1">
+                            <p class="font-semibold text-gray-900">{row.sku}</p>
+                            {#if row.model}
+                              <p class="text-xs text-gray-600">{row.model}</p>
+                            {/if}
+                            {#if row.hasDescription}
+                              <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
+                                Has description
+                              </span>
+                            {/if}
+                          </div>
+                        </div>
+                      </td>
+                      <td class={`px-4 py-3 text-gray-800 ${priceClass}`}>{row.price}</td>
+                      <td class="px-4 py-3 text-gray-800">{row.rrp ?? '—'}</td>
                     </tr>
                   {/each}
                 {/if}
@@ -653,42 +817,59 @@
                 on:drop={handleExternalDrop}
               >
                 {#each builderItems as item, idx (item.id)}
+                  {@const staticStyle = getStaticStyle(item.staticType ?? 'page_break')}
                   <li
-                    class="flex items-start justify-between rounded-md border border-gray-200 bg-white px-3 py-2 shadow-sm text-sm cursor-move gap-3"
+                    class={`flex items-start justify-between rounded-md border px-3 py-2 shadow-sm text-sm cursor-move gap-3 ${
+                      item.kind === 'static'
+                        ? `${staticStyle.bg} ${staticStyle.border}`
+                        : 'bg-white border-gray-200'
+                    }`}
                     draggable="true"
                     on:dragstart={(e) => handleBuilderDragStart(e, idx)}
                     on:dragover={handleBuilderDragOver}
                     on:drop={(e) => handleBuilderDrop(e, idx)}
                   >
-                    <div class="flex-1 space-y-1">
-                      <div class="flex items-center gap-2">
-                        {#if item.kind === 'static'}
-                          <span
-                            class={`h-2.5 w-2.5 rounded-full ${getStaticStyle(item.staticType ?? 'page_break').dot}`}
-                            aria-hidden="true"
-                          ></span>
-                        {/if}
-                        <p class="font-semibold text-gray-900">{item.sku}</p>
-                        {#if item.kind === 'static' && item.staticType === 'page_break'}
-                          <span class="text-xs rounded bg-gray-100 px-2 py-0.5 text-gray-700">Page Break</span>
-                        {:else if item.kind === 'static' && item.staticType === 'range'}
-                          <span class="text-xs rounded bg-blue-50 px-2 py-0.5 text-blue-700">Range</span>
-                        {:else if item.kind === 'static' && item.staticType === 'category'}
-                          <span class="text-xs rounded bg-green-50 px-2 py-0.5 text-green-700">Category</span>
+                    <div class="flex-1 flex gap-3">
+                      {#if item.kind === 'sku'}
+                        <div class="h-12 w-12 overflow-hidden rounded border border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
+                          {#if item.imageUrl}
+                            <img src={item.imageUrl} alt={item.sku} class="h-full w-full object-cover" loading="lazy" />
+                          {:else}
+                            <span class="text-[10px] text-gray-500 text-center px-1">No image</span>
+                          {/if}
+                        </div>
+                      {/if}
+                      <div class="space-y-1 flex-1">
+                        <div class="flex items-center gap-2">
+                          {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
+                            <p class="font-semibold text-gray-900 sr-only">{item.sku}</p>
+                          {:else}
+                            <p class="font-semibold text-gray-900">{item.sku}</p>
+                          {/if}
+                          {#if item.kind === 'static' && item.staticType === 'page_break'}
+                            <span class="text-xs rounded bg-gray-100 px-2 py-0.5 text-gray-700">Page Break</span>
+                          {:else if item.kind === 'sku' && item.hasDescription}
+                            <span class="text-[11px] inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 border border-blue-200">
+                              Has description
+                            </span>
+                          {/if}
+                        </div>
+
+                        {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
+                          <input
+                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder={item.staticType === 'range' ? 'Enter range' : 'Enter category'}
+                            bind:value={item.value}
+                          />
+                        {:else if item.kind === 'static' && item.staticType === 'page_break'}
+                          <p class="text-xs text-gray-600">Page separator</p>
+                        {:else}
+                          <p class={`text-xs ${getPriceHighlight(item)}`}>Price: {item.price}</p>
+                          {#if item.rrp}
+                            <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
+                          {/if}
                         {/if}
                       </div>
-
-                      {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
-                        <input
-                          class="w-full rounded-md border border-gray-300 px-3 py-2 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder={item.staticType === 'range' ? 'Enter range' : 'Enter category'}
-                          bind:value={item.value}
-                        />
-                      {:else if item.kind === 'static' && item.staticType === 'page_break'}
-                        <p class="text-xs text-gray-600">Page separator</p>
-                      {:else}
-                        <p class="text-xs text-gray-600">Price: {item.price}</p>
-                      {/if}
                     </div>
                     <div class="flex items-center gap-3">
                       <span class="text-xs text-gray-400">#{idx + 1}</span>

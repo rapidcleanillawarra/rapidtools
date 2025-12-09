@@ -108,6 +108,7 @@
           }))
         : [];
       builderItems = serverBuilder;
+      syncRowsWithBuilder();
     } catch (err: any) {
       console.error('Failed to load price list', err);
       errorMessage = 'Unable to load price list. Please try again.';
@@ -160,6 +161,20 @@
     if (byIndex >= 0) {
       rows = [...rows.slice(0, byIndex), ...rows.slice(byIndex + 1)];
     }
+  };
+
+  const syncRowsWithBuilder = () => {
+    let nextRows = [...rows];
+    builderItems = builderItems.map((item) => {
+      if (item.kind !== 'sku') return item;
+      const matchIndex = nextRows.findIndex((r) => r.sku === item.sku && r.price === item.price);
+      if (matchIndex >= 0) {
+        nextRows.splice(matchIndex, 1);
+        return { ...item, sourceIndex: item.sourceIndex ?? matchIndex };
+      }
+      return item;
+    });
+    rows = nextRows;
   };
 
   const insertBuilderItemFromEvent = (event: DragEvent, insertIndex?: number) => {
@@ -308,6 +323,7 @@
       const parsed = JSON.parse(stored);
       if (parsed?.builderItems && Array.isArray(parsed.builderItems)) {
         builderItems = parsed.builderItems;
+        syncRowsWithBuilder();
       }
       if (parsed?.filename) {
         filename = parsed.filename;
@@ -372,6 +388,8 @@
     loadLatestPriceList(priceListId).then(() => {
       if (builderItems.length === 0) {
         loadBuilderFromStorage();
+      } else {
+        syncRowsWithBuilder();
       }
     });
   });

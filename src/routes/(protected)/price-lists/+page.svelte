@@ -1,12 +1,18 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
+  import { onMount } from 'svelte';
+
   type Row = { sku: string; price: string };
   type RowError = { sku?: string; price?: string };
 
   const createEmptyRow = (): Row => ({ sku: '', price: '' });
   const createEmptyRows = (count = 5): Row[] => Array.from({ length: count }, createEmptyRow);
 
+  const STORAGE_KEY = 'price-lists-rows';
+
   let rows: Row[] = createEmptyRows();
-  let copyState = 'Copy CSV';
+  let mounted = false;
 
   const sanitizePrice = (raw: string): string => {
     const numericOnly = raw.replace(/[^0-9.]/g, '');
@@ -39,11 +45,13 @@
   };
 
   $: rowErrors = rows.map(validateRow);
-  $: csvPreview = rows
-    .filter((row) => row.sku.trim() || row.price.trim())
-    .map((row) => `${row.sku.trim()},${row.price.trim()}`)
-    .join('\n');
-
+  $: if (mounted && typeof localStorage !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    } catch (error) {
+      console.error('Failed to persist price list rows', error);
+    }
+  }
   const updateSku = (index: number, value: string) => {
     rows = rows.map((row, i) => (i === index ? { ...row, sku: value } : row));
   };
@@ -56,6 +64,23 @@
   const ensureRowCapacity = (targetLength: number) => {
     if (rows.length >= targetLength) return;
     rows = [...rows, ...createEmptyRows(targetLength - rows.length)];
+  };
+
+  const loadRowsFromStorage = () => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) return;
+      const normalized = parsed.map((row: Partial<Row>) => ({
+        sku: (row?.sku ?? '').toString(),
+        price: sanitizePrice((row?.price ?? '').toString())
+      }));
+      rows = normalized.length ? normalized : createEmptyRows();
+    } catch (error) {
+      console.error('Failed to load price list rows', error);
+    }
   };
 
   const getClipboardText = async (event: ClipboardEvent): Promise<string> => {
@@ -131,49 +156,26 @@
 
   const clearRows = () => {
     rows = createEmptyRows();
-  };
-
-  const handlePasteText = (text: string) => {
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (!lines.length) return;
-
-    const parsed: Row[] = lines.map((line) => {
-      const [skuRaw = '', priceRaw = ''] = line.split(/\t|,/);
-      return {
-        sku: skuRaw.trim(),
-        price: sanitizePrice(priceRaw)
-      };
-    });
-
-    rows = parsed;
-  };
-
-  const onPasteIntoArea = (event: ClipboardEvent) => {
-    const text = event.clipboardData?.getData('text') ?? '';
-    if (text) {
-      event.preventDefault();
-      handlePasteText(text);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(STORAGE_KEY);
     }
   };
 
-  const copyCsv = async () => {
-    if (typeof navigator === 'undefined' || !navigator.clipboard || !csvPreview) return;
+  const handleSubmit = () => {
+    const validRows = rows
+      .map((row) => ({ row, errors: validateRow(row) }))
+      .filter(({ errors }) => !errors.sku && !errors.price)
+      .map(({ row }) => row);
 
-    try {
-      await navigator.clipboard.writeText(csvPreview);
-      copyState = 'Copied!';
-      setTimeout(() => {
-        copyState = 'Copy CSV';
-      }, 1500);
-    } catch (error) {
-      console.error('Failed to copy CSV', error);
-      copyState = 'Copy failed';
-    }
+    // Replace with API call when available
+    console.log('Submitting rows:', validRows);
+    goto(`${base}/price-lists/build-price-list`);
   };
+
+  onMount(() => {
+    mounted = true;
+    loadRowsFromStorage();
+  });
 </script>
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
@@ -195,13 +197,6 @@
         Add row
       </button>
       <button
-        class="rounded-md bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 ring-1 ring-inset ring-blue-200 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        type="button"
-        on:click={() => addRows(10)}
-      >
-        Add 10 rows
-      </button>
-      <button
         class="rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         type="button"
         on:click={clearRows}
@@ -209,12 +204,11 @@
         Clear all
       </button>
       <button
-        class="rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-800 ring-1 ring-inset ring-gray-300 transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
         type="button"
-        on:click={copyCsv}
-        disabled={!csvPreview}
+        on:click={handleSubmit}
       >
-        {copyState}
+        Submit
       </button>
     </div>
 
@@ -233,36 +227,36 @@
           </thead>
           <tbody class="divide-y divide-gray-100 bg-white">
             {#each rows as row, index}
-              <tr class={rowErrors[index].sku || rowErrors[index].price ? 'bg-red-50/60' : ''}>
+              <tr class={rowErrors?.[index]?.sku || rowErrors?.[index]?.price ? 'bg-red-50/60' : ''}>
                 <td class="whitespace-nowrap px-4 py-3 text-gray-700">{index + 1}</td>
                 <td class="px-4 py-3">
                   <input
                     class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      rowErrors[index].sku ? 'border-red-400 bg-white' : 'border-gray-200 bg-gray-50'
+                      rowErrors?.[index]?.sku ? 'border-red-400 bg-white' : 'border-gray-200 bg-gray-50'
                     }`}
                     name={`sku-${index}`}
                     placeholder="SKU"
                     value={row.sku}
-                  on:paste={(event) => handleCellPaste(event, index, 'sku')}
+                    on:paste={(event) => handleCellPaste(event, index, 'sku')}
                     on:input={(event) => updateSku(index, event.currentTarget.value)}
                   />
-                  {#if rowErrors[index].sku}
+                  {#if rowErrors?.[index]?.sku}
                     <p class="mt-1 text-xs text-red-600">{rowErrors[index].sku}</p>
                   {/if}
                 </td>
                 <td class="px-4 py-3">
                   <input
                     class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      rowErrors[index].price ? 'border-red-400 bg-white' : 'border-gray-200 bg-gray-50'
+                      rowErrors?.[index]?.price ? 'border-red-400 bg-white' : 'border-gray-200 bg-gray-50'
                     }`}
                     inputmode="decimal"
                     name={`price-${index}`}
                     placeholder="0.00"
                     value={row.price}
-                  on:paste={(event) => handleCellPaste(event, index, 'price')}
+                    on:paste={(event) => handleCellPaste(event, index, 'price')}
                     on:input={(event) => updatePrice(index, event.currentTarget.value)}
                   />
-                  {#if rowErrors[index].price}
+                  {#if rowErrors?.[index]?.price}
                     <p class="mt-1 text-xs text-red-600">{rowErrors[index].price}</p>
                   {/if}
                 </td>
@@ -282,41 +276,7 @@
         </table>
       </div>
 
-      <div class="space-y-4">
-        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-          <p class="font-semibold text-gray-800">Bulk paste tips</p>
-          <ul class="mt-2 list-disc space-y-1 pl-5">
-            <li>Two columns: SKU in the first column, discounted price in the second.</li>
-            <li>Tabs or commas are accepted between columns (Excel-friendly).</li>
-            <li>Currency symbols and commas are removed automatically.</li>
-            <li>Prices must be greater than zero and up to two decimals.</li>
-          </ul>
-        </div>
-
-        <div class="space-y-2">
-          <label class="text-sm font-semibold text-gray-800" for="bulk-paste">Paste from clipboard</label>
-          <textarea
-            id="bulk-paste"
-            class="h-32 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="SKU[TAB]Price\nSKU2[TAB]Price2"
-            on:paste|preventDefault={onPasteIntoArea}
-          ></textarea>
-          <p class="text-xs text-gray-600">
-            Pasting will replace the current table rows. Supported separators: tab or comma.
-          </p>
-        </div>
-
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="text-sm font-semibold text-gray-800" for="csv-preview">CSV preview</label>
-            <span class="text-xs text-gray-500">{csvPreview ? 'Ready to copy' : 'No data yet'}</span>
-          </div>
-          <pre
-            id="csv-preview"
-            class="h-36 overflow-auto rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-800"
-          >{csvPreview || 'sku,price'}</pre>
-        </div>
-      </div>
+      <div></div>
     </div>
   </div>
 </div>

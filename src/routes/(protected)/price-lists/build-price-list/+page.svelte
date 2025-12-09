@@ -4,12 +4,13 @@
   import { supabase } from '$lib/supabase';
 
   type Row = { sku: string; price: string };
-  type BuilderItem = Row & { id: string };
+  type BuilderItem = Row & { id: string; kind: 'sku' | 'static'; staticType?: 'page_break' | 'range' | 'category'; value?: string };
   type StaticItem = { id: string; label: string; type: 'page_break' | 'range' | 'category' };
 
   let filename = '';
   let rows: Row[] = [];
   let builderItems: BuilderItem[] = [];
+  let draggingIndex: number | null = null;
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -20,7 +21,8 @@
 
   const toBuilderItem = (row: Row, index: number): BuilderItem => ({
     id: `${row.sku || 'row'}-${index}-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`,
-    ...row
+    ...row,
+    kind: 'sku'
   });
 
   const loadLatestPriceList = async () => {
@@ -69,6 +71,13 @@
     event.dataTransfer && (event.dataTransfer.effectAllowed = 'copy');
   };
 
+  const handleBuilderDragStart = (event: DragEvent, index: number) => {
+    draggingIndex = index;
+    event.dataTransfer?.setData('builder-index', index.toString());
+    event.dataTransfer?.setData('text/plain', builderItems[index]?.sku ?? '');
+    event.dataTransfer && (event.dataTransfer.effectAllowed = 'move');
+  };
+
   const handleDrop = (event: DragEvent) => {
     event.preventDefault();
     const data = event.dataTransfer?.getData('application/json');
@@ -82,7 +91,10 @@
           {
             id: `${item.id}-${builderItems.length}`,
             sku: item.label,
-            price: item.type
+            price: '',
+            kind: 'static',
+            staticType: item.type,
+            value: ''
           }
         ];
         return;
@@ -105,6 +117,33 @@
   const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
     event.dataTransfer && (event.dataTransfer.dropEffect = 'copy');
+  };
+
+  const handleBuilderDragOver = (event: DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer && (event.dataTransfer.dropEffect = 'move');
+  };
+
+  const handleBuilderDrop = (event: DragEvent, targetIndex: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceIndexStr = event.dataTransfer?.getData('builder-index');
+
+    if (sourceIndexStr) {
+      const sourceIndex = parseInt(sourceIndexStr, 10);
+      if (!Number.isNaN(sourceIndex) && sourceIndex !== targetIndex) {
+        const next = [...builderItems];
+        const [moved] = next.splice(sourceIndex, 1);
+        next.splice(targetIndex, 0, moved);
+        builderItems = next;
+      }
+      draggingIndex = null;
+      return;
+    }
+
+    // If not a reorder, treat as a normal drop to append
+    handleDrop(event);
   };
 
   onMount(() => {
@@ -139,7 +178,7 @@
       </div>
 
       <div class="grid gap-6 lg:grid-cols-2">
-        <div class="rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="space-y-0 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
           <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
             <div>
               <p class="text-sm font-semibold text-gray-800">SKU & Prices</p>
@@ -153,7 +192,23 @@
               <span class="text-xs text-gray-500">{rows.length} items</span>
             {/if}
           </div>
-          <div class="max-h-[600px] overflow-auto">
+
+          <div class="bg-white px-4 py-3 border-b border-gray-200">
+            <p class="text-sm font-semibold text-gray-800">Static blocks</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              {#each staticItems as item}
+                <button
+                  class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100 active:bg-blue-200"
+                  draggable="true"
+                  on:dragstart={(e) => handleStaticDragStart(e, item)}
+                >
+                  {item.label}
+                </button>
+              {/each}
+            </div>
+          </div>
+
+          <div class="max-h-[500px] overflow-auto">
             <table class="min-w-full divide-y divide-gray-200 text-sm">
               <thead class="bg-gray-50">
                 <tr>
@@ -193,51 +248,60 @@
           </div>
         </div>
 
-        <div class="space-y-4">
-          <div class="rounded-lg border border-dashed border-gray-300 bg-white/70 p-4">
-            <p class="text-sm font-semibold text-gray-800">Static blocks</p>
-            <div class="mt-2 flex flex-wrap gap-2">
-              {#each staticItems as item}
-                <button
-                  class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-100 active:bg-blue-200"
-                  draggable="true"
-                  on:dragstart={(e) => handleStaticDragStart(e, item)}
-                >
-                  {item.label}
-                </button>
-              {/each}
+        <div
+          class="rounded-lg border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-gray-800 min-h-[300px] flex flex-col gap-3"
+          on:dragover={handleDragOver}
+          on:drop={handleDrop}
+        >
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="font-semibold text-gray-900">Builder</p>
+              <p class="text-xs text-gray-600">Drag SKUs or static blocks to add here.</p>
             </div>
+            <span class="text-xs text-gray-500">{builderItems.length} items</span>
           </div>
-
-          <div
-            class="rounded-lg border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-gray-800 min-h-[300px] flex flex-col gap-3"
-            on:dragover={handleDragOver}
-            on:drop={handleDrop}
-          >
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="font-semibold text-gray-900">Builder</p>
-                <p class="text-xs text-gray-600">Drag SKUs or static blocks to add here.</p>
-              </div>
-              <span class="text-xs text-gray-500">{builderItems.length} items</span>
-            </div>
-            <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto">
-              {#if builderItems.length === 0}
-                <p class="text-xs text-gray-500">Drop SKUs or static blocks here to build your list.</p>
-              {:else}
-                <ul class="space-y-2">
-                  {#each builderItems as item, idx}
-                    <li class="flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 shadow-sm text-sm">
-                      <div>
+          <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto">
+            {#if builderItems.length === 0}
+              <p class="text-xs text-gray-500">Drop SKUs or static blocks here to build your list.</p>
+            {:else}
+              <ul class="space-y-2">
+                {#each builderItems as item, idx (item.id)}
+                  <li
+                    class="flex items-start justify-between rounded-md border border-gray-200 bg-white px-3 py-2 shadow-sm text-sm cursor-move gap-3"
+                    draggable="true"
+                    on:dragstart={(e) => handleBuilderDragStart(e, idx)}
+                    on:dragover={handleBuilderDragOver}
+                    on:drop={(e) => handleBuilderDrop(e, idx)}
+                  >
+                    <div class="flex-1 space-y-1">
+                      <div class="flex items-center gap-2">
                         <p class="font-semibold text-gray-900">{item.sku}</p>
-                        <p class="text-xs text-gray-600">Value: {item.price}</p>
+                        {#if item.kind === 'static' && item.staticType === 'page_break'}
+                          <span class="text-xs rounded bg-gray-100 px-2 py-0.5 text-gray-700">Page Break</span>
+                        {:else if item.kind === 'static' && item.staticType === 'range'}
+                          <span class="text-xs rounded bg-blue-50 px-2 py-0.5 text-blue-700">Range</span>
+                        {:else if item.kind === 'static' && item.staticType === 'category'}
+                          <span class="text-xs rounded bg-green-50 px-2 py-0.5 text-green-700">Category</span>
+                        {/if}
                       </div>
-                      <span class="text-xs text-gray-400">#{idx + 1}</span>
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-            </div>
+
+                      {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
+                        <input
+                          class="w-full rounded-md border border-gray-300 px-3 py-2 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder={item.staticType === 'range' ? 'Enter range' : 'Enter category'}
+                          bind:value={item.value}
+                        />
+                      {:else if item.kind === 'static' && item.staticType === 'page_break'}
+                        <p class="text-xs text-gray-600">Page separator</p>
+                      {:else}
+                        <p class="text-xs text-gray-600">Price: {item.price}</p>
+                      {/if}
+                    </div>
+                    <span class="text-xs text-gray-400">#{idx + 1}</span>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
           </div>
         </div>
       </div>

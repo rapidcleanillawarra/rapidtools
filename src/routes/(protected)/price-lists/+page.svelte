@@ -8,6 +8,14 @@
 
   type Row = { sku: string; price: string };
   type RowError = { sku?: string; price?: string };
+  type PriceListRecord = {
+    id: string;
+    filename: string;
+    created_at?: string;
+    updated_at?: string;
+    sku_data?: Row[];
+    price_list_data?: any[];
+  };
 
   const createEmptyRow = (): Row => ({ sku: '', price: '' });
   const createEmptyRows = (count = 5): Row[] => Array.from({ length: count }, createEmptyRow);
@@ -17,6 +25,9 @@
   let rows: Row[] = createEmptyRows();
   let mounted = false;
   let submitting = false;
+  let priceLists: PriceListRecord[] = [];
+  let loadingPriceLists = false;
+  let priceListsError = '';
 
   const sanitizePrice = (raw: string): string => {
     const numericOnly = raw.replace(/[^0-9.]/g, '');
@@ -206,9 +217,35 @@
     }
   };
 
+  const loadPriceLists = async () => {
+    loadingPriceLists = true;
+    priceListsError = '';
+    try {
+      const { data, error } = await supabase
+        .from('price_lists')
+        .select('id, filename, created_at, updated_at, sku_data, price_list_data')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      priceLists = Array.isArray(data) ? data : [];
+    } catch (error) {
+      console.error('Failed to load price lists', error);
+      priceListsError = 'Unable to load price lists.';
+    } finally {
+      loadingPriceLists = false;
+    }
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString();
+  };
+
   onMount(() => {
     mounted = true;
     loadRowsFromStorage();
+    loadPriceLists();
   });
 </script>
 
@@ -311,7 +348,55 @@
         </table>
       </div>
 
-      <div></div>
+      <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div class="border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-gray-800">Saved price lists</p>
+            <p class="text-xs text-gray-500">Loaded from Supabase</p>
+          </div>
+          {#if loadingPriceLists}
+            <span class="text-xs text-blue-600">Loading…</span>
+          {:else}
+            <span class="text-xs text-gray-500">{priceLists.length} items</span>
+          {/if}
+        </div>
+
+        {#if priceListsError}
+          <div class="px-4 py-3 text-sm text-red-600">{priceListsError}</div>
+        {:else if loadingPriceLists}
+          <div class="px-4 py-3 space-y-2">
+            <div class="h-10 rounded bg-gray-100 animate-pulse"></div>
+            <div class="h-10 rounded bg-gray-100 animate-pulse"></div>
+          </div>
+        {:else if priceLists.length === 0}
+          <div class="px-4 py-4 text-sm text-gray-600">No saved price lists found.</div>
+        {:else}
+          <ul class="divide-y divide-gray-100">
+            {#each priceLists as item}
+              <li class="px-4 py-3 space-y-1">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold text-gray-900">{item.filename || 'Untitled'}</p>
+                    <p class="text-xs text-gray-500">
+                      Updated {formatDate(item.updated_at) || formatDate(item.created_at) || '—'}
+                    </p>
+                  </div>
+                  <a
+                    class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                    href={`${base}/price-lists/build-price-list?id=${item.id}`}
+                  >
+                    Open
+                  </a>
+                </div>
+                <div class="text-xs text-gray-600 flex gap-3">
+                  <span>SKUs: {Array.isArray(item.sku_data) ? item.sku_data.length : 0}</span>
+                  <span>Builder items: {Array.isArray(item.price_list_data) ? item.price_list_data.length : 0}</span>
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </div>
     </div>
   </div>
 </div>

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { base } from '$app/paths';
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { dndzone, type DndEvent } from 'svelte-dnd-action';
   import { supabase } from '$lib/supabase';
@@ -19,6 +21,11 @@
   let builderItems: BuilderItem[] = [];
   let draggingIndex: number | null = null;
   let builderListEl: HTMLUListElement | null = null;
+  let latestPriceListId: string | number | null = null;
+  let saving = false;
+  let filenameError = '';
+  let saveMessage = '';
+  let priceListId: string | null = null;
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -55,6 +62,7 @@
   };
   let loading = true;
   let errorMessage = '';
+  const BUILDER_STORAGE_KEY = 'price-list-builder-state';
 
   const getStaticStyle = (type: StaticItem['type']) => staticColorMap[type] ?? staticColorMap.page_break;
 
@@ -65,21 +73,21 @@
     sourceIndex: index
   });
 
-  const loadLatestPriceList = async () => {
+  const loadLatestPriceList = async (id: string) => {
     loading = true;
     errorMessage = '';
     try {
       const { data, error } = await supabase
         .from('price_lists')
-        .select('id, filename, sku_data')
-        .order('created_at', { ascending: false })
-        .limit(1)
+        .select('id, filename, sku_data, price_list_data')
+        .eq('id', id)
         .single();
 
       if (error) {
         throw error;
       }
 
+      latestPriceListId = data?.id ?? null;
       filename = data?.filename ?? '';
       rows = Array.isArray(data?.sku_data)
         ? data.sku_data.map((item: any) => ({
@@ -87,7 +95,19 @@
             price: item?.price?.toString() ?? ''
           }))
         : [];
-      builderItems = [];
+
+      const serverBuilder = Array.isArray(data?.price_list_data)
+        ? (data.price_list_data as BuilderItem[]).map((item, idx) => ({
+            id: item.id ?? `${item.sku || 'item'}-${idx}-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`,
+            sku: item.sku ?? '',
+            price: item.price ?? '',
+            kind: item.kind ?? 'sku',
+            staticType: item.staticType,
+            value: item.value,
+            sourceIndex: item.sourceIndex
+          }))
+        : [];
+      builderItems = serverBuilder;
     } catch (err: any) {
       console.error('Failed to load price list', err);
       errorMessage = 'Unable to load price list. Please try again.';
@@ -264,8 +284,96 @@
     }
   };
 
+  const saveBuilderLocally = () => {
+    if (typeof localStorage === 'undefined') {
+      saveMessage = 'Save unavailable (no local storage).';
+      return;
+    }
+    try {
+      const payload = { filename, builderItems };
+      localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(payload));
+      saveMessage = 'Builder saved locally.';
+      setTimeout(() => (saveMessage = ''), 2500);
+    } catch (err) {
+      console.error('Failed to save builder', err);
+      saveMessage = 'Save failed.';
+    }
+  };
+
+  const loadBuilderFromStorage = () => {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const stored = localStorage.getItem(BUILDER_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (parsed?.builderItems && Array.isArray(parsed.builderItems)) {
+        builderItems = parsed.builderItems;
+      }
+      if (parsed?.filename) {
+        filename = parsed.filename;
+      }
+    } catch (err) {
+      console.error('Failed to load saved builder', err);
+    }
+  };
+
+  const printBuilder = () => {
+    if (typeof window !== 'undefined') {
+      window.print();
+    }
+  };
+
+  const saveBuilderRemote = async () => {
+    filenameError = '';
+    if (!filename.trim()) {
+      filenameError = 'Filename is required';
+      saveMessage = '';
+      return;
+    }
+
+    saving = true;
+    saveMessage = '';
+
+    const payload = {
+      filename,
+      price_list_data: builderItems
+    };
+
+    try {
+      if (latestPriceListId) {
+        const { error } = await supabase.from('price_lists').update(payload).eq('id', latestPriceListId);
+        if (error) throw error;
+      } else {
+        const { error, data } = await supabase
+          .from('price_lists')
+          .insert({ ...payload, sku_data: rows })
+          .select('id')
+          .single();
+        if (error) throw error;
+        latestPriceListId = data?.id ?? latestPriceListId;
+      }
+      saveBuilderLocally();
+      saveMessage = 'Saved to cloud.';
+    } catch (err) {
+      console.error('Failed to save builder to Supabase', err);
+      saveMessage = 'Save failed. Please try again.';
+    } finally {
+      saving = false;
+    }
+  };
+
   onMount(() => {
-    loadLatestPriceList();
+    priceListId = $page.url.searchParams.get('id');
+    if (!priceListId) {
+      goto(`${base}/price-lists`);
+      return;
+    }
+
+    loadLatestPriceList(priceListId).then(() => {
+      if (builderItems.length === 0) {
+        loadBuilderFromStorage();
+      }
+    });
   });
 </script>
 
@@ -276,12 +384,34 @@
         <h1 class="text-2xl font-semibold text-gray-900">Build Price List</h1>
         <p class="text-sm text-gray-600">Review and finalize the latest saved price list.</p>
       </div>
-      <a
-        class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        href="{base}/price-lists"
-      >
-        ← Back to price lists
-      </a>
+      <div class="flex flex-wrap items-center gap-3">
+        {#if saveMessage}
+          <span class="text-xs text-gray-600">{saveMessage}</span>
+        {/if}
+        <button
+          type="button"
+          class={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            saving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+          }`}
+          on:click={saveBuilderRemote}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          on:click={printBuilder}
+        >
+          Print
+        </button>
+        <a
+          class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          href="{base}/price-lists"
+        >
+          ← Back
+        </a>
+      </div>
     </div>
 
     <div class="bg-white shadow p-5 rounded-lg space-y-4">
@@ -289,10 +419,17 @@
         <label class="text-sm font-semibold text-gray-800" for="filename">Filename</label>
         <input
           id="filename"
-          class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            filenameError ? 'border-red-400 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500'
+          }`}
           placeholder="Enter filename"
           bind:value={filename}
+          aria-invalid={filenameError ? 'true' : 'false'}
+          required
         />
+        {#if filenameError}
+          <p class="text-xs text-red-600">{filenameError}</p>
+        {/if}
       </div>
 
       <div class="grid gap-6 lg:grid-cols-2">

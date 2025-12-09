@@ -21,6 +21,8 @@
   const createEmptyRows = (count = 5): Row[] => Array.from({ length: count }, createEmptyRow);
 
   const STORAGE_KEY = 'price-lists-rows';
+  const skuCheckUrl =
+    'https://prod-03.australiasoutheast.logic.azure.com:443/workflows/151bc47e0ba4447b893d1c9fea9af46f/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bRyr_oW-ud06XlU5VLhBqQ7tyU__jD3clEOGIEhax-Q';
 
   let rows: Row[] = createEmptyRows();
   let mounted = false;
@@ -28,6 +30,12 @@
   let priceLists: PriceListRecord[] = [];
   let loadingPriceLists = false;
   let priceListsError = '';
+  let missingSkus: string[] = [];
+  let showMissingModal = false;
+  let skuCheckError = '';
+  let deletingId: string | null = null;
+  let confirmDeleteId: string | null = null;
+  let confirmDeleteName = '';
 
   const sanitizePrice = (raw: string): string => {
     const numericOnly = raw.replace(/[^0-9.]/g, '');
@@ -176,8 +184,29 @@
     }
   };
 
+  const checkMissingSkus = async (skus: string[]): Promise<string[]> => {
+    if (!skus.length) return [];
+    const response = await fetch(skuCheckUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ SKU: skus })
+    });
+
+    const data = await response.json();
+    if (data?.Ack !== 'Success') {
+      throw new Error('SKU check failed');
+    }
+
+    const existingSet = new Set((data.Item ?? []).map((item: any) => item.SKU));
+    return skus.filter((sku) => !existingSet.has(sku));
+  };
+
   const handleSubmit = async () => {
     if (submitting) return;
+    skuCheckError = '';
+    missingSkus = [];
+    showMissingModal = false;
+
     const validRows = rows
       .map((row) => ({ row, errors: validateRow(row) }))
       .filter(({ errors }) => !errors.sku && !errors.price)
@@ -194,6 +223,13 @@
 
     submitting = true;
     try {
+      const missing = await checkMissingSkus(validRows.map((row) => row.sku));
+      if (missing.length) {
+        missingSkus = missing;
+        showMissingModal = true;
+        return;
+      }
+
       const payload = {
         sku_data: validRows,
         price_list_data: null,
@@ -212,6 +248,7 @@
       goto(`${base}/price-lists/build-price-list`);
     } catch (error) {
       console.error('Unexpected error saving price list', error);
+      skuCheckError = 'SKU validation failed. Please try again.';
     } finally {
       submitting = false;
     }
@@ -232,6 +269,33 @@
       priceListsError = 'Unable to load price lists.';
     } finally {
       loadingPriceLists = false;
+    }
+  };
+
+  const requestDelete = (item: PriceListRecord) => {
+    confirmDeleteId = item.id;
+    confirmDeleteName = item.filename || 'Untitled';
+  };
+
+  const cancelDelete = () => {
+    confirmDeleteId = null;
+    confirmDeleteName = '';
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    deletingId = confirmDeleteId;
+    priceListsError = '';
+    try {
+      const { error } = await supabase.from('price_lists').delete().eq('id', confirmDeleteId);
+      if (error) throw error;
+      priceLists = priceLists.filter((item) => item.id !== confirmDeleteId);
+    } catch (error) {
+      console.error('Failed to delete price list', error);
+      priceListsError = 'Unable to delete price list. Please try again.';
+    } finally {
+      deletingId = null;
+      cancelDelete();
     }
   };
 
@@ -283,6 +347,9 @@
         {submitting ? 'Submitting...' : 'Submit'}
       </button>
     </div>
+    {#if skuCheckError}
+      <p class="text-sm text-red-600">{skuCheckError}</p>
+    {/if}
 
     <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
       <div class="overflow-auto rounded-lg border border-gray-200 shadow-sm">
@@ -299,12 +366,19 @@
           </thead>
           <tbody class="divide-y divide-gray-100 bg-white">
             {#each rows as row, index}
-              <tr class={rowErrors?.[index]?.sku || rowErrors?.[index]?.price ? 'bg-red-50/60' : ''}>
+              {@const isMissing = missingSkus.includes(row.sku.trim())}
+              <tr
+                class={`${rowErrors?.[index]?.sku || rowErrors?.[index]?.price ? 'bg-red-50/60' : ''} ${isMissing ? 'bg-amber-50' : ''}`}
+              >
                 <td class="whitespace-nowrap px-4 py-3 text-gray-700">{index + 1}</td>
                 <td class="px-4 py-3">
                   <input
                     class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      rowErrors?.[index]?.sku ? 'border-red-400 bg-white' : 'border-gray-200 bg-gray-50'
+                      rowErrors?.[index]?.sku
+                        ? 'border-red-400 bg-white'
+                        : isMissing
+                          ? 'border-amber-400 bg-white'
+                          : 'border-gray-200 bg-gray-50'
                     }`}
                     name={`sku-${index}`}
                     placeholder="SKU"
@@ -314,6 +388,8 @@
                   />
                   {#if rowErrors?.[index]?.sku}
                     <p class="mt-1 text-xs text-red-600">{rowErrors[index].sku}</p>
+                  {:else if isMissing}
+                    <p class="mt-1 text-xs text-amber-700">SKU not found in system</p>
                   {/if}
                 </td>
                 <td class="px-4 py-3">
@@ -381,12 +457,22 @@
                       Updated {formatDate(item.updated_at) || formatDate(item.created_at) || '—'}
                     </p>
                   </div>
-                  <a
-                    class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
-                    href={`${base}/price-lists/build-price-list?id=${item.id}`}
-                  >
-                    Open
-                  </a>
+                  <div class="flex items-center gap-2">
+                    <a
+                      class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                      href={`${base}/price-lists/build-price-list?id=${item.id}`}
+                    >
+                      Open
+                    </a>
+                    <button
+                      class="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      type="button"
+                      on:click={() => requestDelete(item)}
+                      disabled={!!deletingId}
+                    >
+                      {deletingId === item.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
                 </div>
                 <div class="text-xs text-gray-600 flex gap-3">
                   <span>SKUs: {Array.isArray(item.sku_data) ? item.sku_data.length : 0}</span>
@@ -399,5 +485,60 @@
       </div>
     </div>
   </div>
+
+  {#if showMissingModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 class="text-lg font-semibold text-gray-900">Some SKUs were not found</h2>
+        <p class="mt-2 text-sm text-gray-700">
+          The following SKUs are not in the system. Please remove them from the table, then try saving again.
+        </p>
+        <ul class="mt-3 max-h-40 overflow-auto divide-y divide-gray-100 rounded border border-gray-200 bg-gray-50">
+          {#each missingSkus as sku}
+            <li class="px-3 py-2 text-sm text-gray-900">{sku}</li>
+          {/each}
+        </ul>
+        <div class="mt-4 flex justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            on:click={() => (showMissingModal = false)}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if confirmDeleteId}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h2 class="text-lg font-semibold text-gray-900">Delete price list?</h2>
+        <p class="mt-2 text-sm text-gray-700">
+          Are you sure you want to delete <span class="font-semibold">{confirmDeleteName}</span>? This action
+          cannot be undone.
+        </p>
+        <div class="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            class="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            on:click={cancelDelete}
+            disabled={!!deletingId}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            on:click={confirmDelete}
+            disabled={!!deletingId}
+          >
+            {deletingId ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>
 

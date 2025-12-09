@@ -88,7 +88,7 @@
     sourceIndex: index
   });
 
-  const loadLatestPriceList = async (id: string) => {
+  const loadLatestPriceList = async (id: string): Promise<boolean> => {
     loading = true;
     errorMessage = '';
     try {
@@ -104,15 +104,38 @@
 
       latestPriceListId = data?.id ?? null;
       filename = data?.filename ?? '';
-      rows = Array.isArray(data?.sku_data)
-        ? data.sku_data.map((item: any) => ({
+      let skuData: any = data?.sku_data ?? [];
+      if (typeof skuData === 'string') {
+        try {
+          skuData = JSON.parse(skuData);
+        } catch (parseErr) {
+          console.error('Failed to parse sku_data', parseErr);
+          skuData = [];
+        }
+      }
+      rows = Array.isArray(skuData)
+        ? skuData.map((item: any) => ({
             sku: item?.sku?.toString() ?? '',
-            price: item?.price?.toString() ?? ''
+            price: item?.price?.toString() ?? '',
+            model: item?.model,
+            rrp: item?.rrp,
+            imageUrl: item?.imageUrl,
+            hasDescription: item?.hasDescription
           }))
         : [];
 
-      const serverBuilder = Array.isArray(data?.price_list_data)
-        ? (data.price_list_data as BuilderItem[]).map((item, idx) => ({
+      let priceListData: any = data?.price_list_data ?? [];
+      if (typeof priceListData === 'string') {
+        try {
+          priceListData = JSON.parse(priceListData);
+        } catch (parseErr) {
+          console.error('Failed to parse price_list_data', parseErr);
+          priceListData = [];
+        }
+      }
+
+      const serverBuilder = Array.isArray(priceListData)
+        ? (priceListData as BuilderItem[]).map((item, idx) => ({
             id: item.id ?? `${item.sku || 'item'}-${idx}-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`,
             sku: item.sku ?? '',
             price: item.price ?? '',
@@ -139,11 +162,13 @@
           detailError = 'Unable to load SKU details.';
         }
       }
+      return serverBuilder.length > 0;
     } catch (err: any) {
       console.error('Failed to load price list', err);
       errorMessage = 'Unable to load price list. Please try again.';
       rows = [];
       builderItems = [];
+      return false;
     } finally {
       loading = false;
     }
@@ -583,10 +608,8 @@
       return;
     }
 
-    loadLatestPriceList(priceListId).then(() => {
-      if (builderItems.length === 0) {
-        loadBuilderFromStorage();
-      } else {
+    loadLatestPriceList(priceListId).then((hasBuilder) => {
+      if (hasBuilder) {
         syncRowsWithBuilder();
       }
     });

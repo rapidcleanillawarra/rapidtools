@@ -26,6 +26,11 @@
   let filenameError = '';
   let saveMessage = '';
   let priceListId: string | null = null;
+  let newSku = '';
+  let newPrice = '';
+  let addSkuError = '';
+  let addSkuSuccess = '';
+  let checkingSku = false;
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -63,6 +68,8 @@
   let loading = true;
   let errorMessage = '';
   const BUILDER_STORAGE_KEY = 'price-list-builder-state';
+  const skuCheckUrl =
+    'https://prod-03.australiasoutheast.logic.azure.com:443/workflows/151bc47e0ba4447b893d1c9fea9af46f/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bRyr_oW-ud06XlU5VLhBqQ7tyU__jD3clEOGIEhax-Q';
 
   const getStaticStyle = (type: StaticItem['type']) => staticColorMap[type] ?? staticColorMap.page_break;
 
@@ -175,6 +182,59 @@
       return item;
     });
     rows = nextRows;
+  };
+
+  const sanitizePrice = (raw: string) => raw.replace(/[^0-9.]/g, '');
+
+  const checkSkuExists = async (sku: string) => {
+    const response = await fetch(skuCheckUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ SKU: [sku] })
+    });
+    const data = await response.json();
+    if (data?.Ack !== 'Success') {
+      throw new Error('SKU check failed');
+    }
+    const existingSkus = new Set((data.Item ?? []).map((item: any) => item.SKU));
+    return existingSkus.has(sku);
+  };
+
+  const addSkuRow = async () => {
+    addSkuError = '';
+    addSkuSuccess = '';
+    const sku = newSku.trim();
+    const price = sanitizePrice(newPrice.trim());
+
+    if (!sku || !price) {
+      addSkuError = 'SKU and price are required';
+      return;
+    }
+
+    if (rows.some((row) => row.sku === sku)) {
+      addSkuError = 'SKU already exists in the list';
+      return;
+    }
+
+    checkingSku = true;
+    try {
+      const exists = await checkSkuExists(sku);
+      if (!exists) {
+        addSkuError = 'SKU not found in the system. Please request the product first.';
+        return;
+      }
+
+      rows = [...rows, { sku, price }];
+      newSku = '';
+      newPrice = '';
+      addSkuSuccess = 'SKU added.';
+      setTimeout(() => (addSkuSuccess = ''), 2000);
+    } catch (err) {
+      console.error('Failed to verify SKU', err);
+      addSkuError = 'Unable to verify SKU. Please try again.';
+    } finally {
+      checkingSku = false;
+    }
   };
 
   const insertBuilderItemFromEvent = (event: DragEvent, insertIndex?: number) => {
@@ -352,7 +412,8 @@
 
     const payload = {
       filename,
-      price_list_data: builderItems
+      price_list_data: builderItems,
+      sku_data: rows
     };
 
     try {
@@ -481,6 +542,47 @@
                 </button>
               {/each}
             </div>
+          </div>
+
+          <div class="bg-white px-4 py-3 border-b border-gray-200 space-y-3">
+            <p class="text-sm font-semibold text-gray-800">Add SKU</p>
+            <div class="grid gap-3 sm:grid-cols-[2fr,1fr,auto] items-end">
+              <div>
+                <label class="text-xs font-semibold text-gray-700" for="new-sku">SKU</label>
+                <input
+                  id="new-sku"
+                  class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter SKU"
+                  bind:value={newSku}
+                />
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-gray-700" for="new-price">Discounted Price</label>
+                <input
+                  id="new-price"
+                  class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                  bind:value={newPrice}
+                  inputmode="decimal"
+                />
+              </div>
+              <div class="flex sm:justify-end">
+                <button
+                  type="button"
+                  class="w-full sm:w-auto inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  on:click={addSkuRow}
+                  disabled={checkingSku}
+                >
+                  {checkingSku ? 'Checking…' : 'Add SKU'}
+                </button>
+              </div>
+            </div>
+            {#if addSkuError}
+              <p class="text-xs text-red-600">{addSkuError}</p>
+            {/if}
+            {#if addSkuSuccess}
+              <p class="text-xs text-green-700">{addSkuSuccess}</p>
+            {/if}
           </div>
 
           <div class="max-h-[500px] overflow-auto">

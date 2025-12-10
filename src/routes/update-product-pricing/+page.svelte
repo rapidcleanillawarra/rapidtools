@@ -43,16 +43,11 @@
     getTotalPages,
     handleSort
   } from './stores';
-  import type { MultiSelectOption, SelectOption } from './types';
+  import type { SelectOption } from './types';
 
   // Interface for Select component events
   interface SelectChangeEvent {
     detail: SelectOption | null;
-  }
-
-  // Interface for MultiSelect component events
-  interface MultiSelectChangeEvent {
-    detail: SelectOption[] | null;
   }
 
   // Interfaces for API response
@@ -89,9 +84,6 @@
     Ack: string;
   }
 
-  // Store previous category selections for each product
-  let previousCategorySelections = new Map<string, SelectOption[]>();
-  
   // API Endpoints
   const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
   const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
@@ -198,7 +190,8 @@
           client_price: parseFloat(clientPrice),
           rrp: parseFloat(item.RRP || '0'),
           inventory_id: item.InventoryID || '',
-          tax_free: item.TaxFreeItem === 'True'
+          tax_free: item.TaxFreeItem === 'True',
+          remove_pricegroups: false
         };
         return transformed;
       });
@@ -616,12 +609,6 @@
                 Primary Supplier {getSortIcon('primary_supplier')}
               </th>
               <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px] cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('category')}
-              >
-                Category {getSortIcon('category')}
-              </th>
-              <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
                 on:click={() => handleSortClick('purchase_price')}
               >
@@ -652,6 +639,9 @@
                 on:click={() => handleSortClick('rrp')}
               >
                 List Price {getSortIcon('rrp')}
+              </th>
+              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
+                Remove PriceGroups
               </th>
               <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[80px]">
                 Tax Free
@@ -732,103 +722,6 @@
                   {/if}
                 </td>
                 <td class="px-2 py-1 text-sm">
-                  {#if $loadingCategories}
-                    <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-                  {:else if $categoryError}
-                    <div class="text-red-600 text-xs">{$categoryError}</div>
-                  {:else}
-                    <div class="relative">
-                      <Select
-                        items={$categories}
-                        value={product.category ? $categories.filter(c => product.category.includes(c.value)) : []}
-                        placeholder="Select Categories"
-                        clearable={false}
-                        searchable={true}
-                        multiple={true}
-                        on:select={() => {
-                          console.log('select event for', product.sku);
-                        }}
-                        on:input={(e: MultiSelectChangeEvent) => {
-                          // Get current selection
-                          const currentSelection = e.detail || [];
-                          
-                          // Get previous selection for this product
-                          const prevSelection = previousCategorySelections.get(product.sku) || [];
-                          
-                          // Add more detailed logging
-                          console.log('Category change detected:', {
-                            sku: product.sku,
-                            productName: product.product_name,
-                            previousSelection: prevSelection.map(item => `${item.label} (${item.value})`),
-                            currentSelection: currentSelection.map(item => `${item.label} (${item.value})`),
-                            changeType: prevSelection.length > currentSelection.length ? 'Item removed' : 
-                                       prevSelection.length < currentSelection.length ? 'Item added' : 'Items reordered'
-                          });
-                          
-                          // Find removed items by comparing previous with current
-                          const removedItems = prevSelection.filter(
-                            (prev: SelectOption) => !currentSelection.some((curr: SelectOption) => curr.value === prev.value)
-                          );
-                          
-                          // If exactly one item was removed, log which one it was
-                          if (removedItems.length === 1) {
-                            const removedItem = removedItems[0];
-                            console.log('Item removed:', {
-                              item: removedItem.label,
-                              value: removedItem.value,
-                              method: 'User clicked X button or used backspace/delete key'
-                            });
-                            // You can add specific logic here for when an item is removed
-                          }
-                          
-                          // Find added items
-                          const addedItems = currentSelection.filter(
-                            (curr: SelectOption) => !prevSelection.some((prev: SelectOption) => prev.value === curr.value)
-                          );
-                          
-                          // If items were added, log them
-                          if (addedItems.length > 0) {
-                            console.log('Items added:', addedItems.map(item => ({
-                              item: item.label,
-                              value: item.value
-                            })));
-                          }
-                          
-                          // Ensure original_category is initialized if it doesn't exist
-                          if (!product.original_category) {
-                            product.original_category = product.category ? [...product.category] : [];
-                          }
-                          
-                          // Update the current categories
-                          product.category = e.detail ? e.detail.map((item: SelectOption) => item.value) : [];
-                          
-                          // Find and set the category names when category IDs change
-                          if (e.detail && e.detail.length) {
-                            product.category_name = e.detail.map((item: SelectOption) => item.label);
-                          } else {
-                            product.category_name = [];
-                          }
-                          
-                          // Store current selection as previous for next change
-                          previousCategorySelections.set(product.sku, [...currentSelection]);
-                          
-                          $products = $products;
-                        }}
-                      />
-                      <!-- Display selected categories as badges/tags -->
-                      {#if product.category && product.category.length > 0}
-                        <div class="mt-1 flex flex-wrap gap-1">
-                          {#each product.category_name as catName, idx}
-                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                              {catName}
-                            </span>
-                          {/each}
-                        </div>
-                      {/if}
-                    </div>
-                  {/if}
-                </td>
-                <td class="px-2 py-1 text-sm">
                   <input
                     type="number"
                     bind:value={product.purchase_price}
@@ -871,6 +764,17 @@
                     on:input={() => calculatePrices(product, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
                     step="0.01"
+                  />
+                </td>
+                <td class="px-2 py-1 text-sm text-center">
+                  <input
+                    type="checkbox"
+                    bind:checked={product.remove_pricegroups}
+                    on:change={() => {
+                      // reflect change in store
+                      $products = $products;
+                    }}
+                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </td>
                 <td class="px-2 py-1 text-sm">

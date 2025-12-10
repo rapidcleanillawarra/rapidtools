@@ -7,6 +7,7 @@ export const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:
 export const categoriesUrl = 'https://prod-47.australiasoutheast.logic.azure.com:443/workflows/0d67bc8f1bb64e78a2495f13a7498081/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fJJzmNyuARuwEcNCoMuWwMS9kmWZQABw9kJXsUj9Wk8';
 export const updatePricingUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 export const filterProductsUrl = 'https://prod-19.australiasoutheast.logic.azure.com:443/workflows/67422be18c5e4af0ad9291110dedb2fd/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=N_VRTyaFEkOUGjtwu8O56_L-qY6xwvHuGWEOvqKsoAk';
+export const priceGroupsUrl = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
 // State stores
 export const products = writable<any[]>([]);
@@ -15,13 +16,16 @@ export const filteredProducts = writable<any[]>([]);
 export const brands = writable<SelectOption[]>([]);
 export const suppliers = writable<SelectOption[]>([]);
 export const categories = writable<SelectOption[]>([]);
+export const priceGroups = writable<any[]>([]);
 export const loading = writable(false);
 export const loadingBrands = writable(false);
 export const loadingSuppliers = writable(false);
 export const loadingCategories = writable(false);
+export const loadingPriceGroups = writable(false);
 export const brandError = writable('');
 export const supplierError = writable('');
 export const categoryError = writable('');
+export const priceGroupError = writable('');
 export const selectedRows = writable(new Set<string>());
 export const selectAll = writable(false);
 export const submitLoading = writable(false);
@@ -232,6 +236,47 @@ export async function fetchCategories() {
   }
 }
 
+// Fetch all price groups using provided payload/endpoint
+export async function fetchPriceGroups() {
+  loadingPriceGroups.set(true);
+  priceGroupError.set('');
+  try {
+    const payload = {
+      Filter: {
+        SKU: "customer_groups",
+        OutputSelector: ["PriceGroups"]
+      },
+      action: "GetItem"
+    };
+
+    const response = await fetch(priceGroupsUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    const items = Array.isArray(data.Item) ? data.Item : data.Item ? [data.Item] : [];
+    const groups = items.flatMap((item: any) => item?.PriceGroups?.PriceGroup || []);
+
+    priceGroups.set(groups);
+    return { success: true, data: groups };
+  } catch (err: unknown) {
+    const error = err as Error;
+    priceGroupError.set(error.message || 'Failed to load price groups');
+    priceGroups.set([]);
+    return { success: false, message: error.message || 'Failed to load price groups' };
+  } finally {
+    loadingPriceGroups.set(false);
+  }
+}
+
 // Function to handle select all checkbox
 export function handleSelectAll(checked: boolean) {
   selectAll.set(checked);
@@ -263,24 +308,18 @@ export async function handleSubmitChecked() {
       currentSelectedRows = value;
     })();
 
-    console.log('Submit Checked: Selected rows count:', currentSelectedRows.size);
-
     products.update(prods => {
       selectedProducts.push(...prods.filter(prod => currentSelectedRows.has(prod.sku)));
       return prods;
     });
 
     if (selectedProducts.length === 0) {
-      console.log('Submit Checked: No products selected');
       submitLoading.set(false);
       return { success: false, message: 'No products selected' };
     }
 
-    console.log('Submit Checked: Selected products:', selectedProducts);
-
     // Verify and update category information before constructing the payload
     const verifyAndUpdateCategoryInfo = (products: any[]) => {
-      console.log('Verifying category information before submission...');
       return products.map(prod => {
         // Ensure category arrays are properly initialized
         if (!prod.category) {
@@ -295,12 +334,10 @@ export async function handleSubmitChecked() {
         
         // Verify categories are properly formatted
         if (prod.category && !Array.isArray(prod.category)) {
-          console.warn(`Converting non-array category to array for product ${prod.sku}`);
           prod.category = [prod.category];
         }
         
         if (prod.original_category && !Array.isArray(prod.original_category)) {
-          console.warn(`Converting non-array original_category to array for product ${prod.sku}`);
           prod.original_category = [prod.original_category];
         }
         
@@ -316,8 +353,42 @@ export async function handleSubmitChecked() {
     // Apply the verification and update to selected products
     const verifiedProducts = verifyAndUpdateCategoryInfo(selectedProducts);
 
+  // Ensure price groups data is available (always fetch fresh when deletion requested)
+  let priceGroupsSnapshot = get(priceGroups);
+  const requiresPriceGroupDeletion = verifiedProducts.some(prod => prod.remove_pricegroups);
+  if (requiresPriceGroupDeletion) {
+    const result = await fetchPriceGroups();
+    // Prefer freshly returned data if available
+    if (result?.success && Array.isArray(result.data)) {
+      priceGroupsSnapshot = result.data;
+    } else {
+      priceGroupsSnapshot = get(priceGroups);
+    }
+  }
+
     const payload = {
-      "Item": verifiedProducts.map(prod => {
+    "Item": verifiedProducts.map(prod => {
+      // Helper to normalize price group identifiers from API data
+      const extractPriceGroupIds = (raw: any): string[] => {
+        if (!raw) return [];
+
+        // If the raw object already looks like a price group entry
+        const maybeId = raw.Group ?? raw.GroupID ?? raw.group;
+        if (maybeId) return [maybeId];
+
+        // If the raw object has a nested PriceGroup property
+        if (raw.PriceGroup) {
+          return extractPriceGroupIds(raw.PriceGroup);
+        }
+
+        // If the raw value is an array, flatten all entries
+        if (Array.isArray(raw)) {
+          return raw.flatMap((entry: any) => extractPriceGroupIds(entry));
+        }
+
+        return [];
+      };
+
         // Create the base product object
         const productObject: any = {
           "SKU": prod.sku,
@@ -327,19 +398,32 @@ export async function handleSubmitChecked() {
           "RRP": prod.rrp.toString(),
           "Misc02": prod.client_mup.toString(),  // client MUP
           "Misc09": prod.retail_mup.toString(),  // retail MUP
-          "TaxFreeItem": prod.tax_free || false,
-          "PriceGroups": {
-            "PriceGroup": [
-              {
-                "Group": "1",
-                "Price": prod.rrp.toString()
-              },
-              {
-                "Group": "2",
-                "Price": prod.client_price.toString()
-              }
-            ]
-          }
+          "TaxFreeItem": prod.tax_free || false
+        };
+
+        // Handle price groups, optionally deleting all except 1 and 2 when flagged
+        const allPriceGroups = priceGroupsSnapshot || [];
+        // Compute groups to delete; fallback to common groups if API returns none
+        const extractedGroups = extractPriceGroupIds(allPriceGroups)
+          .filter((groupId: string | undefined) => groupId && groupId !== "1" && groupId !== "2");
+
+        const fallbackGroups = ["3", "4", "5", "6", "7", "8", "9", "10"];
+        const groupsToDelete = (extractedGroups.length > 0 ? extractedGroups : fallbackGroups)
+          .map((groupId: string) => ({ "Group": groupId, "Delete": true }));
+
+        productObject.PriceGroups = {
+          "PriceGroup": [
+            {
+              "Group": "1",
+              "Price": prod.rrp.toString()
+            },
+            {
+              "Group": "2",
+              // Use list price (rrp) for group 2 per request
+              "Price": prod.rrp.toString()
+            },
+            ...(prod.remove_pricegroups ? groupsToDelete : [])
+          ]
         };
         
         // Handle category changes with deletion for removed categories
@@ -378,7 +462,6 @@ export async function handleSubmitChecked() {
       "action": "UpdateItem"
     };
 
-    console.log('API Endpoint:', updatePricingUrl);
     console.log('PAYLOAD FOR REVIEW:', JSON.stringify(payload, null, 2));
     
     // Send to API
@@ -388,8 +471,6 @@ export async function handleSubmitChecked() {
       body: JSON.stringify(payload)
     });
 
-    console.log('Submit Checked: Response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Submit Checked: API Error response:', errorText);
@@ -397,7 +478,6 @@ export async function handleSubmitChecked() {
     }
 
     const data = await response.json();
-    console.log('Response Data:', data);
 
     // Check if data.Item exists and has SKUs
     if (data.Item && data.Ack === "Success") {
@@ -407,8 +487,6 @@ export async function handleSubmitChecked() {
           .map((item: any) => item.SKU)
           .filter(Boolean)
       );
-      
-      console.log('Successfully updated SKUs:', Array.from(updatedSkus));
       
       // Simply mark products as updated if their SKU is in the response
       products.update(prods => 
@@ -588,7 +666,8 @@ export async function handleFilterSubmit(filters: {
           rrp: parseFloat(item.RRP || '0'),
           client_mup: parseFloat(item.Misc02 || '0'),
           retail_mup: parseFloat(item.Misc09 || '0'),
-          tax_free: item.TaxFreeItem === 'True'
+          tax_free: item.TaxFreeItem === 'True',
+          remove_pricegroups: false
         };
       });
 

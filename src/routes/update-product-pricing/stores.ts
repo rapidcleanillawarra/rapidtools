@@ -462,8 +462,6 @@ export async function handleSubmitChecked() {
       "action": "UpdateItem"
     };
 
-    console.log('PAYLOAD FOR REVIEW:', JSON.stringify(payload, null, 2));
-    
     // Send to API
     const response = await fetch(updatePricingUrl, {
       method: 'POST',
@@ -473,7 +471,6 @@ export async function handleSubmitChecked() {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Submit Checked: API Error response:', errorText);
       throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
@@ -503,16 +500,9 @@ export async function handleSubmitChecked() {
     
     // If we get here, the response didn't contain the expected data
     submitLoading.set(false);
-    console.error('Submit Checked: API returned invalid response:', data);
     throw new Error('Failed to update products: Invalid response format');
   } catch (err: unknown) {
     const error = err as Error;
-    console.error('Submit Checked: Error occurred:', error);
-    console.error('Submit Checked: Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
     submitLoading.set(false);
     return { success: false, message: error.message || 'Failed to update products' };
   }
@@ -562,8 +552,6 @@ export async function handleFilterSubmit(filters: {
       payload.category = filters.categoryFilter.map(cat => cat.value);
     }
 
-    console.log('Filter payload:', payload);
-
     // If no filters are applied, restore the original product list
     if (Object.keys(payload).length === 0) {
       originalProducts.subscribe(value => {
@@ -597,8 +585,6 @@ export async function handleFilterSubmit(filters: {
         ]
       }
     };
-    console.log('Request payload:', JSON.stringify(payloadForAPI, null, 2));
-    console.log('Making API call to:', filterProductsUrl);
 
     // Make API call with filter payload
     const response = await fetch(filterProductsUrl, {
@@ -607,16 +593,12 @@ export async function handleFilterSubmit(filters: {
       body: JSON.stringify(payloadForAPI)
     });
 
-    console.log('API Response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('API Error response:', errorText);
       throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('API Response data:', JSON.stringify(data, null, 2));
 
     // Process the filtered products
     if (data.Item && data.Ack === "Success") {
@@ -681,7 +663,6 @@ export async function handleFilterSubmit(filters: {
     throw new Error('Failed to filter products: Invalid response format');
   } catch (err: unknown) {
     const error = err as Error;
-    console.error('Filter Error:', error);
     loading.set(false);
     return { success: false, message: error.message || 'Failed to filter products' };
   }

@@ -96,9 +96,6 @@
 
   // Client-side data fetching function
   async function loadProducts() {
-    console.log('\n========== CLIENT LOAD START ==========');
-    console.log('🕒 Client-side load function called at:', new Date().toISOString());
-    
     try {
       loading.set(true);
       
@@ -123,9 +120,6 @@
         }
       };
       
-      console.log('📤 Request Body:', JSON.stringify(requestBody, null, 2));
-      console.log('⏳ Making API request...');
-      
       const response = await fetch(productsApiUrl, {
         method: 'POST',
         headers: { 
@@ -134,48 +128,26 @@
         },
         body: JSON.stringify(requestBody)
       });
-
-      console.log('📥 Response received');
-      console.log('Status:', response.status, response.statusText);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Response not OK. Error text:', errorText);
         throw new Error(`Failed to load products: ${response.status} ${response.statusText}. Error: ${errorText}`);
       }
 
       const responseText = await response.text();
-      console.log('📄 Raw response text length:', responseText.length);
       
       const data = JSON.parse(responseText) as ApiResponse;
-      console.log('✅ Parsed API response:', {
-        status: response.status,
-        dataReceived: !!data,
-        itemCount: data.Item?.length || 0,
-        ack: data.Ack,
-        currentTime: data.CurrentTime
-      });
 
       if (!data.Item) {
-        console.warn('⚠️ No Item array in response');
         return [];
       }
 
-      console.log('🔄 Transforming data...');
       const transformedProducts = (data.Item || []).map((item: ProductItem) => {
         const clientPrice = item.PriceGroups?.[0]?.PriceGroup?.find(
           pg => pg.Group === "Default Client Group" || pg.GroupID === "2"
         )?.Price || '0';
 
         const category = Array.isArray(item.Categories) ? item.Categories[0] || '' : '';
-        
-        // Debug TaxFreeItem transformation
-        console.log(`🔍 TaxFreeItem debug for ${item.SKU}:`, {
-          rawValue: item.TaxFreeItem,
-          type: typeof item.TaxFreeItem,
-          comparison: item.TaxFreeItem === 'True',
-          result: item.TaxFreeItem === 'True'
-        });
         
         const transformed = {
           sku: item.SKU || '',
@@ -196,23 +168,9 @@
         return transformed;
       });
 
-      console.log('✨ Final products array length:', transformedProducts.length);
-      if (transformedProducts.length > 0) {
-        console.log('📝 Sample product:', JSON.stringify(transformedProducts[0], null, 2));
-      }
-      console.log('========== CLIENT LOAD END ==========\n');
-      
       return transformedProducts;
     } catch (err: unknown) {
       const error = err as Error;
-      console.error('❌ ========== CLIENT LOAD ERROR ==========');
-      console.error('Error loading products:', error);
-      console.error('Full error details:', {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
-      console.error('========== CLIENT LOAD ERROR END ==========\n');
       toastError('Failed to load products. Please try again.');
       return [];
     } finally {
@@ -221,9 +179,7 @@
   }
 
 
-  // Add logging to filter submit
   async function handleFilterClick() {
-    console.log('Filter button clicked');
     const result = await handleFilterSubmit({
       skuFilter: $skuFilter,
       productNameFilter: $productNameFilter,
@@ -239,8 +195,6 @@
   }
 
   onMount(async () => {
-    console.log('Component mounted');
-    
     // Load products and reference data in parallel
     const [loadedProducts] = await Promise.all([
       loadProducts(),
@@ -250,8 +204,6 @@
     ]);
     
     if (loadedProducts && Array.isArray(loadedProducts)) {
-      console.log('Setting initial products:', loadedProducts.length);
-      
       // Ensure all products have original_category initialized
       const productsWithOriginalCategory = loadedProducts.map(product => {
         if (!product.original_category && product.category) {
@@ -266,12 +218,6 @@
       $originalProducts = [...productsWithOriginalCategory];
       $products = [...productsWithOriginalCategory];
       $filteredProducts = [...productsWithOriginalCategory];
-      
-      console.log('Current data state after load:', {
-        originalProducts: $originalProducts.length,
-        products: $products.length,
-        filteredProducts: $filteredProducts.length
-      });
     }
   });
 
@@ -297,11 +243,6 @@
       total: $products.length
     };
     
-    // Debug log to track updated products when products change
-    const updatedCount = $products.filter(p => p.updated).length;
-    if (updatedCount > 0) {
-      console.log('DEBUG - Products with updated flag during reactive update:', updatedCount);
-    }
   }
 
   // Watch for sort changes
@@ -464,7 +405,6 @@
           <button
             class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             on:click={() => {
-              console.log('Reset filters clicked');
               $skuFilter = '';
               $productNameFilter = '';
               $brandFilter = null;
@@ -491,8 +431,6 @@
       <button
         class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
         on:click={async () => {
-          console.log('Submit button clicked, checking category data...');
-          
           // Ensure all category data is synchronized before submission
           $products = $products.map(product => {
             // Make sure category arrays are initialized properly
@@ -508,7 +446,6 @@
             
             // Make sure the categories are properly formatted as arrays
             if (product.category && !Array.isArray(product.category)) {
-              console.warn(`Converting non-array category to array for product ${product.sku}`);
               product.category = [product.category];
             }
             
@@ -518,29 +455,14 @@
           // Now submit the data with verified categories
           const result = await handleSubmitChecked();
           if (result.success) {
-            console.log('DEBUG - Submission successful');
-            
-            // Log the first updated product in detail
-            const updatedProducts = $products.filter(p => $selectedRows.has(p.sku));
-            console.log('DEBUG - Number of products with updated flag:', updatedProducts.length);
-            
-            console.log('DEBUG - Selected rows after update:', Array.from($selectedRows));
-            
             // Ensure all updated products stay marked as updated
             $products = $products.map(product => {
               if ($selectedRows.has(product.sku)) {
                 const updatedProduct = { ...product, updated: true };
-                console.log(`DEBUG - Setting updated=true for ${product.sku}`);
                 return updatedProduct;
               }
               return product;
             });
-            
-            // Log the products again after ensuring they're marked as updated
-            console.log('DEBUG - Products with updated flag after reassignment:', 
-              $products.filter(p => p.updated).length
-            );
-            
             toastSuccess(result.message);
           } else {
             toastError(result.message);
@@ -670,7 +592,6 @@
                         newSet.delete(product.sku);
                         $selectedRows = newSet;
                       }
-                      console.log('Selected rows count after change:', $selectedRows.size);
                     }}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />

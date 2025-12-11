@@ -52,43 +52,55 @@ interface Product {
   category_name: string[];
   original_category: string[];
   purchase_price: number;
-  client_price: number;
+  markup: number;
   rrp: number;
   client_mup: number;
   retail_mup: number;
 }
 
 // Function to calculate client price and RRP
-export function calculatePrices(product: any, source: 'mup' | 'price' = 'mup') {
+export function calculatePrices(product: any, source: 'markup' | 'price' = 'markup') {
   const purchasePrice = parseFloat(product.purchase_price?.toString() || '0');
 
-  if (source === 'mup') {
-    const clientMup = parseFloat(product.client_mup?.toString() || '0');
-    const retailMup = parseFloat(product.retail_mup?.toString() || '0');
+  if (source === 'markup') {
+    const markup = parseFloat(
+      product.markup?.toString() ||
+      product.client_mup?.toString() ||
+      product.retail_mup?.toString() ||
+      '0'
+    );
 
-    if (purchasePrice && clientMup) {
-      product.client_price = parseFloat((purchasePrice * clientMup).toFixed(2));
-    }
+    const safeMarkup = isNaN(markup) ? 0 : markup;
+    product.markup = safeMarkup;
 
-    if (purchasePrice && retailMup) {
-      product.rrp = parseFloat((purchasePrice * retailMup).toFixed(2));
+    if (purchasePrice && safeMarkup) {
+      const calculatedPrice = parseFloat((purchasePrice * safeMarkup).toFixed(2));
+      product.rrp = calculatedPrice;
     }
   } else {
-    const clientPrice = parseFloat(product.client_price?.toString() || '0');
     const rrp = parseFloat(product.rrp?.toString() || '0');
-
-    if (purchasePrice && clientPrice) {
-      product.client_mup = parseFloat((clientPrice / purchasePrice).toFixed(2));
-    }
+    let markup = 0;
 
     if (purchasePrice && rrp) {
-      product.retail_mup = parseFloat((rrp / purchasePrice).toFixed(2));
+      markup = rrp / purchasePrice;
+    }
+
+    if (markup) {
+      product.markup = parseFloat(markup.toFixed(2));
+
+      const syncedPrice = parseFloat((purchasePrice * product.markup).toFixed(2));
+      product.rrp = syncedPrice;
     }
   }
 
+  // Keep legacy fields in sync for downstream payload generation
+  const normalizedMarkup = product.markup ?? 0;
+  product.client_mup = normalizedMarkup;
+  product.retail_mup = normalizedMarkup;
+
   // Ensure all values are properly formatted
-  if (product.client_price) product.client_price = parseFloat(product.client_price.toFixed(2));
   if (product.rrp) product.rrp = parseFloat(product.rrp.toFixed(2));
+  if (product.markup) product.markup = parseFloat(product.markup.toFixed(2));
   if (product.client_mup) product.client_mup = parseFloat(product.client_mup.toFixed(2));
   if (product.retail_mup) product.retail_mup = parseFloat(product.retail_mup.toFixed(2));
 
@@ -96,34 +108,19 @@ export function calculatePrices(product: any, source: 'mup' | 'price' = 'mup') {
   products.update(p => p);
 }
 
-// Function to apply client MUP to all rows
-export function applyClientMupToAll() {
+// Function to apply markup to all rows
+export function applyMarkupToAll() {
   products.update(prods => {
     if (prods.length === 0) return prods;
     
     const firstProduct = prods[0];
-    const clientMupVal = firstProduct.client_mup;
+    const markupVal = firstProduct.markup ?? firstProduct.client_mup ?? firstProduct.retail_mup ?? 0;
     
     return prods.map((prod, idx) => {
       if (idx === 0) return prod;
-      prod.client_mup = clientMupVal;
-      calculatePrices(prod);
-      return prod;
-    });
-  });
-}
-
-// Function to apply retail MUP to all rows
-export function applyRetailMupToAll() {
-  products.update(prods => {
-    if (prods.length === 0) return prods;
-    
-    const firstProduct = prods[0];
-    const retailMupVal = firstProduct.retail_mup;
-    
-    return prods.map((prod, idx) => {
-      if (idx === 0) return prod;
-      prod.retail_mup = retailMupVal;
+      prod.markup = markupVal;
+      prod.client_mup = markupVal;
+      prod.retail_mup = markupVal;
       calculatePrices(prod);
       return prod;
     });
@@ -337,7 +334,6 @@ export async function handleSubmitChecked() {
   try {
     const selectedProducts: Array<{
       sku: string;
-      client_price: number;
       rrp: number;
       [key: string]: any;
     }> = [];
@@ -429,14 +425,17 @@ export async function handleSubmitChecked() {
       };
 
         // Create the base product object
+        const markupValue = parseFloat(
+          (prod.markup ?? prod.client_mup ?? prod.retail_mup ?? 0).toString()
+        );
         const productObject: any = {
           "SKU": prod.sku,
           "Brand": prod.brand,
           "PrimarySupplier": prod.primary_supplier,
           "DefaultPurchasePrice": prod.purchase_price.toString(),
           "RRP": prod.rrp.toString(),
-          "Misc02": prod.client_mup.toString(),  // client MUP
-          "Misc09": prod.retail_mup.toString(),  // retail MUP
+          "Misc02": markupValue.toString(),  // client MUP (markup)
+          "Misc09": markupValue.toString(),  // retail MUP (markup)
           "TaxFreeItem": prod.tax_free || false
         };
 
@@ -698,10 +697,15 @@ export async function handleFilterSubmit(filters: {
           category_name: categoryNames,
           original_category: [...categoryIds],
           purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
-          client_price: 0,
-          rrp: parseFloat(item.RRP || '0'),
-          client_mup: parseFloat(item.Misc02 || '0'),
-          retail_mup: parseFloat(item.Misc09 || '0'),
+          rrp: (() => {
+            const purchasePrice = parseFloat(item.DefaultPurchasePrice || '0');
+            const markup = parseFloat(item.Misc02 || item.Misc09 || '0');
+            if (purchasePrice && markup) return parseFloat((purchasePrice * markup).toFixed(2));
+            return parseFloat(item.RRP || '0');
+          })(),
+          markup: parseFloat(item.Misc02 || item.Misc09 || '0'),
+          client_mup: parseFloat(item.Misc02 || item.Misc09 || '0'),
+          retail_mup: parseFloat(item.Misc02 || item.Misc09 || '0'),
           tax_free: item.TaxFreeItem === 'True',
           remove_pricegroups: false
         };

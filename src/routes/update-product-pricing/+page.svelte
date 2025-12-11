@@ -27,8 +27,7 @@
     supplierFilter,
     categoryFilter,
     calculatePrices,
-    applyClientMupToAll,
-    applyRetailMupToAll,
+  applyMarkupToAll,
     fetchBrands,
     fetchSuppliers,
     fetchCategories,
@@ -148,7 +147,15 @@
           pg => pg.Group === "Default Client Group" || pg.GroupID === "2"
         )?.Price || '0';
 
+        const markup = parseFloat(item.Misc02 || item.Misc09 || '0');
         const category = Array.isArray(item.Categories) ? item.Categories[0] || '' : '';
+        const purchasePrice = parseFloat(item.DefaultPurchasePrice || '0');
+        const calculatedPrice = purchasePrice && markup
+          ? parseFloat((purchasePrice * markup).toFixed(2))
+          : parseFloat(clientPrice);
+        const listPrice = purchasePrice && markup
+          ? calculatedPrice
+          : parseFloat(item.RRP || '0');
         
         const transformed = {
           sku: item.SKU || '',
@@ -157,11 +164,11 @@
           primary_supplier: item.PrimarySupplier || '',
           category: category,
           original_category: category,
-          purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
-          client_mup: parseFloat(item.Misc02 || '0'),
-          retail_mup: parseFloat(item.Misc09 || '0'),
-          client_price: parseFloat(clientPrice),
-          rrp: parseFloat(item.RRP || '0'),
+          purchase_price: purchasePrice,
+          markup,
+          client_mup: markup,
+          retail_mup: markup,
+          rrp: listPrice,
           inventory_id: item.InventoryID || '',
           tax_free: item.TaxFreeItem === 'True',
           remove_pricegroups: false
@@ -313,15 +320,6 @@
     
     if (!product.purchase_price) return statuses;
 
-    // Check client price ratio
-    if (product.client_price) {
-      const clientRatio = (product.purchase_price / product.client_price) * 100;
-      if (clientRatio >= 85) {
-        statuses.push('PP>CP');
-      }
-    }
-
-    // Check RRP ratio
     if (product.rrp) {
       const rrpRatio = (product.purchase_price / product.rrp) * 100;
       if (rrpRatio >= 85) {
@@ -550,24 +548,11 @@
                 Purchase Price {getSortIcon('purchase_price')}
               </th>
               <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
-                Client MUP
+                Markup
                 <button 
                   class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
-                  on:click={applyClientMupToAll}
+                  on:click={applyMarkupToAll}
                 >Apply All</button>
-              </th>
-              <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px]">
-                Retail MUP
-                <button 
-                  class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
-                  on:click={applyRetailMupToAll}
-                >Apply All</button>
-              </th>
-              <th 
-                class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
-                on:click={() => handleSortClick('client_price')}
-              >
-                Client Price {getSortIcon('client_price')}
               </th>
               <th 
                 class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
@@ -667,26 +652,8 @@
                 <td class="px-2 py-1 text-sm">
                   <input
                     type="number"
-                    bind:value={product.client_mup}
-                    on:input={() => calculatePrices(product, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                    step="0.01"
-                  />
-                </td>
-                <td class="px-2 py-1 text-sm">
-                  <input
-                    type="number"
-                    bind:value={product.retail_mup}
-                    on:input={() => calculatePrices(product, 'mup')}
-                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
-                    step="0.01"
-                  />
-                </td>
-                <td class="px-2 py-1 text-sm">
-                  <input
-                    type="number"
-                    bind:value={product.client_price}
-                    on:input={() => calculatePrices(product, 'price')}
+                    bind:value={product.markup}
+                    on:input={() => calculatePrices(product, 'markup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
                     step="0.01"
                   />

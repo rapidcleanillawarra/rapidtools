@@ -18,8 +18,11 @@
 			staticType?: 'page_break' | 'range' | 'category';
 			value?: string;
 		}>;
+		mode?: 'thumb' | 'list';
 		error?: string;
 	};
+
+	$: isListMode = data.mode === 'list';
 
 	let printTriggered = false;
 
@@ -75,73 +78,169 @@ onMount(() => {
 			<p class="empty-message">This price list doesn't contain any items yet.</p>
 		</div>
 	{:else}
-		<div class="catalog-content">
-			<!-- Header for the first page -->
-			<div class="page-break-header">
-				<div class="page-break-header-inner">
-					<img
-						src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-						alt="RapidClean"
-						class="print-logo"
-					/>
-					<h1 class="document-title">{data.filename || 'Price List'}</h1>
-					<span class="page-counter" aria-hidden="true"></span>
+		{#if isListMode}
+			<div class="list-content">
+				<!-- Header for the first page -->
+				<div class="page-break-header">
+					<div class="page-break-header-inner">
+						<img
+							src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+							alt="RapidClean"
+							class="print-logo"
+						/>
+						<h1 class="document-title">{data.filename || 'Price List'}</h1>
+						<span class="page-counter" aria-hidden="true"></span>
+					</div>
 				</div>
-			</div>
 
-			{#each data.items as item}
-				{#if item.kind === 'static' && item.staticType === 'page_break'}
-					<div class="page-break-header is-break">
-						<div class="page-break-header-inner">
-							<img
-								src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-								alt="RapidClean"
-								class="print-logo"
-							/>
-							<h2 class="document-title">{data.filename || 'Price List'}</h2>
-							<span class="page-counter" aria-hidden="true"></span>
-						</div>
+				<table class="list-table">
+					<tbody>
+						{#each data.items as item, index}
+							{@const prevItem = index > 0 ? data.items[index - 1] : null}
+							{@const shouldShowHeaderBeforeSku = item.kind === 'sku' && (index === 0 || (prevItem && prevItem.kind === 'static' && prevItem.staticType !== 'category'))}
+							
+							{#if item.kind === 'static' && item.staticType === 'page_break'}
+								<tr class="page-break-row">
+									<td colspan="6" class="page-break-cell">
+										<div class="page-break-header is-break">
+											<div class="page-break-header-inner">
+												<img
+													src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+													alt="RapidClean"
+													class="print-logo"
+												/>
+												<h2 class="document-title">{data.filename || 'Price List'}</h2>
+												<span class="page-counter" aria-hidden="true"></span>
+											</div>
+										</div>
+									</td>
+								</tr>
+							{:else if item.kind === 'static' && item.staticType === 'range'}
+								<tr class="range-row">
+									<td colspan="6" class="range-cell">
+										<span class="range-label">{item.value || 'Range'}</span>
+									</td>
+								</tr>
+							{:else if item.kind === 'static' && item.staticType === 'category'}
+								<tr class="category-row">
+									<td colspan="6" class="category-cell">
+										<span class="category-label">{item.value || 'Category'}</span>
+									</td>
+								</tr>
+								<!-- Table header after category -->
+								<tr class="table-header-row">
+									<th class="col-image">Image</th>
+									<th class="col-sku">SKU</th>
+									<th class="col-model">Model</th>
+									<th class="col-description">Description</th>
+									<th class="col-price">Price</th>
+									<th class="col-rrp">Order #</th>
+								</tr>
+							{:else if item.kind === 'sku'}
+								{#if shouldShowHeaderBeforeSku}
+									<!-- Table header before first SKU if no category before -->
+									<tr class="table-header-row">
+										<th class="col-image">Image</th>
+										<th class="col-sku">SKU</th>
+										<th class="col-model">Model</th>
+										<th class="col-description">Description</th>
+										<th class="col-price">Price</th>
+										<th class="col-rrp">Order #</th>
+									</tr>
+								{/if}
+								<tr class="list-item-row">
+									<td class="col-image">
+										{#if item.imageUrl}
+											<img
+												src={item.imageUrl}
+												alt={item.model || item.sku}
+												class="list-image"
+												loading="lazy"
+											/>
+										{:else}
+											<div class="no-image-small">No Image</div>
+										{/if}
+									</td>
+									<td class="col-sku">{item.sku}</td>
+									<td class="col-model">{item.model || '—'}</td>
+									<td class="col-description">{item.shortDescription || '—'}</td>
+									<td class="col-price">${item.price || '—'}</td>
+									<td class="col-rrp"></td>
+								</tr>
+							{/if}
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{:else}
+			<div class="catalog-content">
+				<!-- Header for the first page -->
+				<div class="page-break-header">
+					<div class="page-break-header-inner">
+						<img
+							src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+							alt="RapidClean"
+							class="print-logo"
+						/>
+						<h1 class="document-title">{data.filename || 'Price List'}</h1>
+						<span class="page-counter" aria-hidden="true"></span>
 					</div>
-				{:else if item.kind === 'static' && item.staticType === 'range'}
-					<div class="range-header">
-						<span class="range-label">{item.value || 'Range'}</span>
-					</div>
-				{:else if item.kind === 'static' && item.staticType === 'category'}
-					<div class="category-header">
-						<span class="category-label">{item.value || 'Category'}</span>
-					</div>
-				{:else if item.kind === 'sku'}
-					<div class="product-card">
-						<div class="product-image-container">
-							{#if item.imageUrl}
+				</div>
+
+				{#each data.items as item}
+					{#if item.kind === 'static' && item.staticType === 'page_break'}
+						<div class="page-break-header is-break">
+							<div class="page-break-header-inner">
 								<img
-									src={item.imageUrl}
-									alt={item.model || item.sku}
-									class="product-image"
-									loading="lazy"
+									src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
+									alt="RapidClean"
+									class="print-logo"
 								/>
-							{:else}
-								<div class="no-image">
-									<span>No Image</span>
-								</div>
-							{/if}
-						</div>
-						<div class="product-details">
-							<p class="product-sku">{item.sku}</p>
-							{#if item.model}
-								<p class="product-model">{item.model}</p>
-							{/if}
-							<div class="product-pricing">
-								<span class="product-price">${item.price}</span>
+								<h2 class="document-title">{data.filename || 'Price List'}</h2>
+								<span class="page-counter" aria-hidden="true"></span>
 							</div>
-							{#if item.shortDescription}
-								<p class="product-description">{item.shortDescription}</p>
-							{/if}
 						</div>
-					</div>
-				{/if}
-			{/each}
-		</div>
+					{:else if item.kind === 'static' && item.staticType === 'range'}
+						<div class="range-header">
+							<span class="range-label">{item.value || 'Range'}</span>
+						</div>
+					{:else if item.kind === 'static' && item.staticType === 'category'}
+						<div class="category-header">
+							<span class="category-label">{item.value || 'Category'}</span>
+						</div>
+					{:else if item.kind === 'sku'}
+						<div class="product-card">
+							<div class="product-image-container">
+								{#if item.imageUrl}
+									<img
+										src={item.imageUrl}
+										alt={item.model || item.sku}
+										class="product-image"
+										loading="lazy"
+									/>
+								{:else}
+									<div class="no-image">
+										<span>No Image</span>
+									</div>
+								{/if}
+							</div>
+							<div class="product-details">
+								<p class="product-sku">{item.sku}</p>
+								{#if item.model}
+									<p class="product-model">{item.model}</p>
+								{/if}
+								<div class="product-pricing">
+									<span class="product-price">${item.price}</span>
+								</div>
+								{#if item.shortDescription}
+									<p class="product-description">{item.shortDescription}</p>
+								{/if}
+							</div>
+						</div>
+					{/if}
+				{/each}
+			</div>
+		{/if}
 	{/if}
 </div>
 
@@ -213,18 +312,7 @@ onMount(() => {
 		font-weight: 600;
 		border-radius: 8px;
 		cursor: pointer;
-		transition: all 0.2s ease;
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-	}
-
-	.print-button:hover {
-		background: #6fa030;
-		transform: translateY(-1px);
-		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-	}
-
-	.print-button:active {
-		transform: translateY(0);
 	}
 
 	.print-logo {
@@ -312,6 +400,162 @@ onMount(() => {
 	counter-reset: page;
 }
 
+	/* List content */
+	.list-content {
+		padding: 24px;
+		counter-reset: page;
+	}
+
+	.list-table {
+		width: 100%;
+		border-collapse: collapse;
+		background: #fff;
+		font-size: 0.875rem;
+	}
+
+	.list-table thead {
+		background: #222222;
+		color: #fff;
+	}
+
+	.list-table th {
+		padding: 12px 8px;
+		text-align: left;
+		font-weight: 600;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		border-bottom: 2px solid #80BB3D;
+	}
+
+	.list-table td {
+		padding: 10px 8px;
+		border-bottom: 1px solid #e5e7eb;
+		vertical-align: top;
+	}
+
+
+	.table-header-row {
+		background: #6c6c6c;
+		color: #fff;
+	}
+
+	.table-header-row th {
+		padding: 12px 8px;
+		text-align: left;
+		font-weight: 600;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		border-bottom: 2px solid #80BB3D;
+		color: #fff;
+	}
+
+	.col-image {
+		width: 80px;
+		text-align: center;
+	}
+
+	.col-sku {
+		width: 120px;
+		font-weight: 600;
+		color: #6b7280;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+	}
+
+	.col-model {
+		width: 180px;
+		font-weight: 500;
+	}
+
+	.col-description {
+		min-width: 250px;
+		color: #4b5563;
+		line-height: 1.5;
+	}
+
+	.col-price {
+		width: 100px;
+		font-weight: 700;
+		color: #80BB3D;
+		font-size: 1rem;
+		text-align: left;
+	}
+
+	.col-rrp {
+		width: 100px;
+		color: #6b7280;
+		text-align: right;
+	}
+
+	.list-image {
+		width: 60px;
+		height: 60px;
+		object-fit: contain;
+		border: 1px solid #e5e7eb;
+		border-radius: 4px;
+		background: #fff;
+	}
+
+	.no-image-small {
+		width: 60px;
+		height: 60px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid #e5e7eb;
+		border-radius: 4px;
+		background: #f9fafb;
+		color: #9ca3af;
+		font-size: 0.65rem;
+		text-align: center;
+		padding: 4px;
+	}
+
+	.page-break-row {
+		break-before: page;
+		page-break-before: always;
+	}
+
+	.page-break-cell {
+		padding: 0;
+		border: none;
+	}
+
+	.range-row {
+		background: #80BB3D;
+	}
+
+	.range-cell {
+		padding: 12px 16px;
+		border: none;
+	}
+
+	.range-cell .range-label {
+		color: #fff;
+		font-size: 1.125rem;
+		font-weight: 700;
+	}
+
+	.category-row {
+		background: #222222;
+		margin-top: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.category-cell {
+		padding: 10px 16px;
+		border: none;
+		border-left: 4px solid #80BB3D;
+	}
+
+	.category-cell .category-label {
+		color: #fff;
+		font-size: 0.9375rem;
+		font-weight: 600;
+	}
+
 	/* Range header - Green accent */
 	.range-header {
 		grid-column: 1 / -1;
@@ -376,13 +620,8 @@ onMount(() => {
 		border: 1px solid #e5e7eb;
 		border-radius: 12px;
 		overflow: hidden;
-		transition: box-shadow 0.2s ease;
 		display: flex;
 		flex-direction: column;
-	}
-
-	.product-card:hover {
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 	}
 
 	.product-image-container {
@@ -497,16 +736,89 @@ onMount(() => {
 			margin: 0;
 		}
 
+		.list-content {
+			padding: 20px 20px 32px 20px;
+			margin: 0;
+		}
+
+		.list-table {
+			font-size: 0.75rem;
+		}
+
+		.list-table th {
+			padding: 8px 6px;
+			font-size: 0.65rem;
+		}
+
+		.table-header-row {
+			background: #6c6c6c !important;
+			color: #fff !important;
+		}
+
+		.table-header-row th {
+			padding: 8px 6px;
+			font-size: 0.65rem;
+			border-bottom: 2px solid #80BB3D;
+			color: #fff !important;
+		}
+
+		.list-table td {
+			padding: 8px 6px;
+		}
+
+		.col-image {
+			width: 60px;
+		}
+
+		.col-sku {
+			width: 100px;
+		}
+
+		.col-model {
+			width: 150px;
+		}
+
+		.col-description {
+			min-width: 200px;
+		}
+
+		.col-price {
+			width: 80px;
+			text-align: left;
+		}
+
+		.col-rrp {
+			width: 80px;
+		}
+
+		.list-image {
+			width: 50px;
+			height: 50px;
+		}
+
+		.no-image-small {
+			width: 50px;
+			height: 50px;
+			font-size: 0.6rem;
+		}
+
+		.list-item-row {
+			break-inside: avoid;
+			page-break-inside: avoid;
+		}
+
+		.range-row,
+		.category-row {
+			break-after: avoid;
+			page-break-after: avoid;
+		}
+
 		.product-card {
 			break-inside: avoid;
 			page-break-inside: avoid;
 			box-shadow: none;
 			border: 1px solid #d1d5db;
 			min-height: 320px;
-		}
-
-		.product-card:hover {
-			box-shadow: none;
 		}
 
 		.product-image-container {
@@ -606,6 +918,21 @@ onMount(() => {
 	@media screen and (max-width: 480px) {
 		.catalog-content {
 			grid-template-columns: 1fr;
+		}
+
+		.list-content {
+			padding: 16px;
+			overflow-x: auto;
+		}
+
+		.list-table {
+			font-size: 0.75rem;
+			min-width: 600px;
+		}
+
+		.list-table th,
+		.list-table td {
+			padding: 8px 4px;
 		}
 	}
 </style>

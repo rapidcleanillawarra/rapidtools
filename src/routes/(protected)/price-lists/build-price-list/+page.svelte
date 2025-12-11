@@ -555,9 +555,9 @@
     }
   };
 
-  const printBuilder = () => {
+  const printBuilder = (mode: 'thumb' | 'list' = 'thumb') => {
     if (typeof window !== 'undefined' && priceListId) {
-      window.open(`${base}/price-lists/print?id=${priceListId}`, '_blank');
+      window.open(`${base}/price-lists/print?id=${priceListId}&mode=${mode}`, '_blank');
     }
   };
 
@@ -912,10 +912,17 @@
         </button>
         <button
           type="button"
-          class="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-800 shadow-sm transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          on:click={printBuilder}
+          class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+          on:click={() => printBuilder('thumb')}
         >
-          Print
+          Print as Thumb
+        </button>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 rounded-md bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
+          on:click={() => printBuilder('list')}
+        >
+          Print as List
         </button>
       </div>
     </div>

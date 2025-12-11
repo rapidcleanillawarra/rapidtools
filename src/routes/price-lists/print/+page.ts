@@ -19,6 +19,7 @@ type PriceListData = {
 	id: string | null;
 	filename: string;
 	items: PriceListItem[];
+	mode?: 'thumb' | 'list';
 	error?: string;
 };
 
@@ -87,12 +88,14 @@ const fetchSkuDetails = async (
 
 export const load: PageLoad = async ({ url }) => {
 	const id = url.searchParams.get('id');
+	const mode = (url.searchParams.get('mode') || 'thumb') as 'thumb' | 'list';
 
 	if (!id) {
 		return {
 			id: null,
 			filename: '',
 			items: [],
+			mode,
 			error: 'No price list ID provided'
 		} satisfies PriceListData;
 	}
@@ -106,12 +109,13 @@ export const load: PageLoad = async ({ url }) => {
 
 		if (error) {
 			console.error('Supabase error:', error);
-			return {
-				id,
-				filename: '',
-				items: [],
-				error: 'Price list not found'
-			} satisfies PriceListData;
+		return {
+			id,
+			filename: '',
+			items: [],
+			mode,
+			error: 'Price list not found'
+		} satisfies PriceListData;
 		}
 
 		let items: PriceListItem[] = [];
@@ -150,7 +154,8 @@ export const load: PageLoad = async ({ url }) => {
 		return {
 			id: data.id,
 			filename: data.filename || 'Price List',
-			items
+			items,
+			mode
 		} satisfies PriceListData;
 	} catch (err) {
 		console.error('Unexpected error:', err);
@@ -158,6 +163,7 @@ export const load: PageLoad = async ({ url }) => {
 			id,
 			filename: '',
 			items: [],
+			mode,
 			error: 'Failed to load price list'
 		} satisfies PriceListData;
 	}

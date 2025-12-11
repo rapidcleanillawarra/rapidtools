@@ -36,6 +36,7 @@
   let deletingId: string | null = null;
   let confirmDeleteId: string | null = null;
   let confirmDeleteName = '';
+  let duplicatingId: string | null = null;
 
   const sanitizePrice = (raw: string): string => {
     const numericOnly = raw.replace(/[^0-9.]/g, '');
@@ -306,6 +307,42 @@
     return d.toLocaleString();
   };
 
+  const duplicatePriceList = async (item: PriceListRecord) => {
+    if (!item.id || duplicatingId) return;
+    duplicatingId = item.id;
+    priceListsError = '';
+    try {
+      const user = get(currentUser);
+      const actor = user?.email || user?.uid || 'unknown';
+      const timestamp = new Date().toISOString();
+      
+      // Create a new filename with "Copy" suffix
+      const originalFilename = item.filename || 'Untitled';
+      const newFilename = `${originalFilename} - Copy`;
+      
+      const payload = {
+        filename: newFilename,
+        sku_data: item.sku_data || [],
+        price_list_data: item.price_list_data || null,
+        created_by: actor,
+        updated_by: actor,
+        created_at: timestamp,
+        updated_at: timestamp
+      };
+
+      const { error } = await supabase.from('price_lists').insert(payload);
+      if (error) throw error;
+      
+      // Reload the price lists to show the new duplicate
+      await loadPriceLists();
+    } catch (error) {
+      console.error('Failed to duplicate price list', error);
+      priceListsError = 'Unable to duplicate price list. Please try again.';
+    } finally {
+      duplicatingId = null;
+    }
+  };
+
   onMount(() => {
     mounted = true;
     loadRowsFromStorage();
@@ -465,10 +502,18 @@
                       Open
                     </a>
                     <button
+                      class="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      type="button"
+                      on:click={() => duplicatePriceList(item)}
+                      disabled={!!duplicatingId || !!deletingId}
+                    >
+                      {duplicatingId === item.id ? 'Duplicating…' : 'Duplicate'}
+                    </button>
+                    <button
                       class="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60 disabled:cursor-not-allowed"
                       type="button"
                       on:click={() => requestDelete(item)}
-                      disabled={!!deletingId}
+                      disabled={!!deletingId || !!duplicatingId}
                     >
                       {deletingId === item.id ? 'Deleting…' : 'Delete'}
                     </button>

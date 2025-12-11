@@ -10,14 +10,11 @@
     filteredProducts,
     brands,
     suppliers,
-    categories,
     loading,
     loadingBrands,
     loadingSuppliers,
-    loadingCategories,
     brandError,
     supplierError,
-    categoryError,
     selectedRows,
     selectAll,
     submitLoading,
@@ -25,12 +22,10 @@
     productNameFilter,
     brandFilter,
     supplierFilter,
-    categoryFilter,
     calculatePrices,
   applyMarkupToAll,
     fetchBrands,
     fetchSuppliers,
-    fetchCategories,
     fetchPriceGroups,
     handleSelectAll,
     handleSubmitChecked,
@@ -192,8 +187,7 @@
       skuFilter: $skuFilter,
       productNameFilter: $productNameFilter,
       brandFilter: $brandFilter,
-      supplierFilter: $supplierFilter,
-      categoryFilter: $categoryFilter
+      supplierFilter: $supplierFilter
     });
     if (result.success) {
       toastSuccess(result.message);
@@ -211,8 +205,7 @@
       loadProducts(),
       fetchPriceGroups(),
       fetchBrands(),
-      fetchSuppliers(),
-      fetchCategories()
+      fetchSuppliers()
     ]);
 
     // Log the price groups retrieved on mount
@@ -338,7 +331,7 @@
     <!-- Filter Form -->
     <div class="mb-6 bg-white rounded-lg shadow">
       <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label for="sku_filter" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
             <textarea
@@ -392,24 +385,6 @@
               />
             {/if}
           </div>
-          
-          <div>
-            <label for="category_filter" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            {#if $loadingCategories}
-              <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-            {:else if $categoryError}
-              <div class="text-red-600 text-xs">{$categoryError}</div>
-            {:else}
-              <Select
-                items={$categories}
-                bind:value={$categoryFilter}
-                placeholder="Select Categories"
-                clearable={false}
-                searchable={true}
-                multiple={true}
-              />
-            {/if}
-          </div>
         </div>
         
         <div class="mt-4 flex justify-end space-x-4">
@@ -420,7 +395,6 @@
               $productNameFilter = '';
               $brandFilter = null;
               $supplierFilter = null;
-              $categoryFilter = [];
               $products = [...$originalProducts];
               $filteredProducts = [...$originalProducts];
             }}

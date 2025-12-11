@@ -35,7 +35,6 @@ export const skuFilter = writable('');
 export const productNameFilter = writable('');
 export const brandFilter = writable<SelectOption | null>(null);
 export const supplierFilter = writable<SelectOption | null>(null);
-export const categoryFilter = writable<MultiSelectOption[]>([]);
 
 // Pagination and sorting stores
 export const currentPage = writable(1);
@@ -567,7 +566,6 @@ export async function handleFilterSubmit(filters: {
   productNameFilter: string;
   brandFilter: SelectOption | null;
   supplierFilter: SelectOption | null;
-  categoryFilter: MultiSelectOption[];
 }) {
   loading.set(true);
   try {
@@ -598,11 +596,6 @@ export async function handleFilterSubmit(filters: {
     // Add supplier filter
     if (filters.supplierFilter) {
       payload.supplier = filters.supplierFilter.value;
-    }
-
-    // Add category filter
-    if (filters.categoryFilter && filters.categoryFilter.length > 0) {
-      payload.category = filters.categoryFilter.map(cat => cat.value);
     }
 
     // If no filters are applied, restore the original product list

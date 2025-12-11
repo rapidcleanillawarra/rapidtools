@@ -262,10 +262,49 @@ export async function fetchPriceGroups() {
 
     const data = await response.json();
 
+    // Log the full response for debugging to ensure parsing matches API shape
+    console.log('Price groups API raw response:', data);
+
+    // Gather groups from multiple possible shapes
     const items = Array.isArray(data.Item) ? data.Item : data.Item ? [data.Item] : [];
-    const groups = items.flatMap((item: any) => item?.PriceGroups?.PriceGroup || []);
+
+    // Handle both array and object shapes for PriceGroups on each item
+    const extractPriceGroupsFromItem = (item: any) => {
+      if (!item?.PriceGroups) return [];
+      const pg = item.PriceGroups;
+      if (Array.isArray(pg)) {
+        return pg.flatMap((entry: any) => {
+          if (!entry) return [];
+          if (Array.isArray(entry.PriceGroup)) return entry.PriceGroup;
+          if (entry.PriceGroup) return [entry.PriceGroup];
+          return [];
+        });
+      }
+      if (Array.isArray(pg.PriceGroup)) return pg.PriceGroup;
+      if (pg.PriceGroup) return [pg.PriceGroup];
+      return [];
+    };
+
+    const groupsFromItems = items.flatMap((item: any) => extractPriceGroupsFromItem(item));
+
+    const messageGroups = data?.message?.PriceGroups?.PriceGroup || data?.message?.PriceGroup || [];
+    const topLevelGroups = data?.PriceGroups?.PriceGroup || data?.PriceGroup || [];
+
+    // Normalize to a single flat array
+    const groups = [
+      ...groupsFromItems,
+      ...(Array.isArray(messageGroups) ? messageGroups : [messageGroups].filter(Boolean)),
+      ...(Array.isArray(topLevelGroups) ? topLevelGroups : [topLevelGroups].filter(Boolean))
+    ].filter(Boolean);
+
+    // Simplified list of identifiers for debugging/inspection
+    const groupIdentifiers = groups.map((g: any) => ({
+      groupId: g?.GroupID ?? g?.Group ?? '',
+      groupName: g?.Group ?? ''
+    }));
 
     priceGroups.set(groups);
+    console.log('Price group identifiers:', groupIdentifiers);
     return { success: true, data: groups };
   } catch (err: unknown) {
     const error = err as Error;
@@ -372,8 +411,8 @@ export async function handleSubmitChecked() {
       const extractPriceGroupIds = (raw: any): string[] => {
         if (!raw) return [];
 
-        // If the raw object already looks like a price group entry
-        const maybeId = raw.Group ?? raw.GroupID ?? raw.group;
+        // If the raw object already looks like a price group entry, prefer the ID
+        const maybeId = raw.GroupID ?? raw.Group ?? raw.group;
         if (maybeId) return [maybeId];
 
         // If the raw object has a nested PriceGroup property
@@ -403,13 +442,25 @@ export async function handleSubmitChecked() {
 
         // Handle price groups, optionally deleting all except 1 and 2 when flagged
         const allPriceGroups = priceGroupsSnapshot || [];
-        // Compute groups to delete; fallback to common groups if API returns none
-        const extractedGroups = extractPriceGroupIds(allPriceGroups)
-          .filter((groupId: string | undefined) => groupId && groupId !== "1" && groupId !== "2");
 
+        // Collect all non-1/2 group IDs from snapshot AND the product itself
+        const productGroupIds = extractPriceGroupIds(
+          (prod as any).PriceGroups ?? (prod as any).priceGroups ?? (prod as any).price_groups
+        );
+
+        const extractedGroups = [
+          ...extractPriceGroupIds(allPriceGroups),
+          ...productGroupIds
+        ].filter((groupId: string | undefined) => groupId && groupId !== "1" && groupId !== "2");
+
+        // Fallback list when API returns nothing and product has none
         const fallbackGroups = ["3", "4", "5", "6", "7", "8", "9", "10"];
-        const groupsToDelete = (extractedGroups.length > 0 ? extractedGroups : fallbackGroups)
-          .map((groupId: string) => ({ "Group": groupId, "Delete": true }));
+
+        // Deduplicate while preserving order
+        const uniqueGroups = Array.from(new Set(extractedGroups.length > 0 ? extractedGroups : fallbackGroups));
+
+        // Build delete entries for every non-1/2 group
+        const groupsToDelete = uniqueGroups.map((groupId: string) => ({ "Group": groupId, "Delete": true }));
 
         productObject.PriceGroups = {
           "PriceGroup": [
@@ -461,6 +512,9 @@ export async function handleSubmitChecked() {
       }),
       "action": "UpdateItem"
     };
+
+    // Temporary log to inspect the outgoing payload for submit checked
+    console.log('Submitting checked products payload:', payload);
 
     // Send to API
     const response = await fetch(updatePricingUrl, {

@@ -32,6 +32,7 @@
     fetchBrands,
     fetchSuppliers,
     fetchCategories,
+    fetchPriceGroups,
     handleSelectAll,
     handleSubmitChecked,
     handleFilterSubmit,
@@ -194,14 +195,26 @@
     }
   }
 
+  // Store price groups fetched on page load for debugging/inspection
+  let priceGroupList: any[] = [];
+
   onMount(async () => {
     // Load products and reference data in parallel
-    const [loadedProducts] = await Promise.all([
+    const [loadedProducts, priceGroupResult] = await Promise.all([
       loadProducts(),
+      fetchPriceGroups(),
       fetchBrands(),
       fetchSuppliers(),
       fetchCategories()
     ]);
+
+    // Log the price groups retrieved on mount
+    if (priceGroupResult?.success && Array.isArray(priceGroupResult.data)) {
+      priceGroupList = priceGroupResult.data;
+      console.log('Price groups loaded on mount:', priceGroupList);
+    } else {
+      console.log('Price groups failed to load on mount:', priceGroupResult);
+    }
     
     if (loadedProducts && Array.isArray(loadedProducts)) {
       // Ensure all products have original_category initialized

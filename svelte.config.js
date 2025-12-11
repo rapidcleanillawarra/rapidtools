@@ -1,6 +1,15 @@
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+// Derive base/assets automatically for GitHub Pages while allowing overrides.
+const repoParts = (process.env.GITHUB_REPOSITORY || '').split('/');
+const repoOwner = repoParts[0] || 'rapidcleanillawarra';
+const repoName = repoParts[1] || 'rapidtools';
+const isProd = process.env.NODE_ENV === 'production';
+const basePath = process.env.BASE_PATH ?? (isProd ? `/${repoName}` : '');
+const assetsPath =
+	process.env.ASSETS_PATH ?? (isProd ? `https://${repoOwner}.github.io/${repoName}` : '');
+
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
 	// Consult https://svelte.dev/docs/kit/integrations
@@ -19,8 +28,8 @@ const config = {
 			strict: true
 		}),
 		paths: {
-			base: process.env.NODE_ENV === 'production' ? '/rapidtools' : '',
-			assets: process.env.NODE_ENV === 'production' ? 'https://rapidcleanillawarra.github.io/rapidtools' : ''
+			base: basePath,
+			assets: assetsPath
 		},
 		prerender: {
 			handleHttpError: ({ path, referrer, message }) => {

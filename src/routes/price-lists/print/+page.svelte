@@ -516,11 +516,18 @@ onMount(() => {
 	.page-break-row {
 		break-before: page;
 		page-break-before: always;
+		border: none;
+	}
+
+	.page-break-row td {
+		border-top: none !important;
+		border-bottom: none !important;
 	}
 
 	.page-break-cell {
-		padding: 0;
+		padding: 12px 16px;
 		border: none;
+		border-top: none !important;
 	}
 
 	.range-row {
@@ -540,14 +547,11 @@ onMount(() => {
 
 	.category-row {
 		background: #222222;
-		margin-top: 0.5rem;
-		margin-bottom: 0.5rem;
 	}
 
 	.category-cell {
-		padding: 10px 16px;
+		padding: 18px 16px;
 		border: none;
-		border-left: 4px solid #80BB3D;
 	}
 
 	.category-cell .category-label {
@@ -593,7 +597,7 @@ onMount(() => {
 /* Page break headers */
 .page-break-header {
 	grid-column: 1 / -1;
-	margin: 8px 0 16px;
+	margin: 4px 0 8px;
 	counter-increment: page;
 }
 
@@ -601,10 +605,10 @@ onMount(() => {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 16px;
+	gap: 8px;
 	background: #222222;
 	color: #fff;
-	padding: 12px 16px;
+	padding: 0;
 	border-radius: 0;
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
@@ -868,15 +872,15 @@ onMount(() => {
 		}
 
 		.page-break-header {
-			margin: 8px 0 16px;
+			margin: 4px 0 8px;
 		}
 
 		.page-break-header.is-break {
-			margin: 16px 0 6px;
+			margin: 8px 0 4px;
 		}
 
 		.page-break-header-inner {
-			padding: 10px 14px;
+			padding: 0;
 			box-shadow: none;
 		}
 

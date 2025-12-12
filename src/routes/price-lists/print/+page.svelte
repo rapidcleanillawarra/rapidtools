@@ -438,6 +438,7 @@ onMount(() => {
 	.table-header-row {
 		background: #6c6c6c;
 		color: #fff;
+		border: none;
 	}
 
 	.table-header-row th {
@@ -447,7 +448,11 @@ onMount(() => {
 		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
+		border: none !important;
+		border-top: none !important;
 		border-bottom: 2px solid #80BB3D;
+		border-left: none !important;
+		border-right: none !important;
 		color: #fff;
 	}
 
@@ -520,23 +525,43 @@ onMount(() => {
 	}
 
 	.page-break-row td {
+		border: none !important;
 		border-top: none !important;
 		border-bottom: none !important;
+		border-left: none !important;
+		border-right: none !important;
 	}
 
 	.page-break-cell {
-		padding: 12px 16px;
-		border: none;
+		padding: 0 !important;
+		margin: 100px !important;
+		border: none !important;
 		border-top: none !important;
+		border-bottom: none !important;
+		border-left: none !important;
+		border-right: none !important;
 	}
 
 	.range-row {
 		background: #80BB3D;
+		border: none;
+	}
+
+	.range-row td {
+		border: none !important;
+		border-top: none !important;
+		border-bottom: none !important;
+		border-left: none !important;
+		border-right: none !important;
 	}
 
 	.range-cell {
 		padding: 12px 16px;
-		border: none;
+		border: none !important;
+		border-top: none !important;
+		border-bottom: none !important;
+		border-left: none !important;
+		border-right: none !important;
 	}
 
 	.range-cell .range-label {
@@ -547,11 +572,24 @@ onMount(() => {
 
 	.category-row {
 		background: #222222;
+		border: none;
+	}
+
+	.category-row td {
+		border: none !important;
+		border-top: none !important;
+		border-bottom: none !important;
+		border-left: none !important;
+		border-right: none !important;
 	}
 
 	.category-cell {
 		padding: 18px 16px;
-		border: none;
+		border: none !important;
+		border-top: none !important;
+		border-bottom: none !important;
+		border-left: none !important;
+		border-right: none !important;
 	}
 
 	.category-cell .category-label {
@@ -608,7 +646,7 @@ onMount(() => {
 	gap: 8px;
 	background: #222222;
 	color: #fff;
-	padding: 0;
+	padding: 8px 12px;
 	border-radius: 0;
 	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
@@ -880,7 +918,7 @@ onMount(() => {
 		}
 
 		.page-break-header-inner {
-			padding: 0;
+			padding: 8px 12px;
 			box-shadow: none;
 		}
 

@@ -129,27 +129,27 @@ onMount(() => {
 								</tr>
 								<!-- Table header after category -->
 								<tr class="table-header-row">
-									<th class="col-image">Image</th>
-									<th class="col-sku">SKU</th>
-									<th class="col-model">Model</th>
-									<th class="col-description">Description</th>
-									<th class="col-price">Price</th>
-									<th class="col-rrp">Order #</th>
+									<th class="col-image table-header-cell">Image</th>
+									<th class="col-sku table-header-cell">SKU</th>
+									<th class="col-model table-header-cell">Model</th>
+									<th class="col-description table-header-cell">Description</th>
+									<th class="col-price table-header-cell">Price</th>
+									<th class="col-rrp table-header-cell">Order #</th>
 								</tr>
 							{:else if item.kind === 'sku'}
 								{#if shouldShowHeaderBeforeSku}
 									<!-- Table header before first SKU if no category before -->
 									<tr class="table-header-row">
-										<th class="col-image">Image</th>
-										<th class="col-sku">SKU</th>
-										<th class="col-model">Model</th>
-										<th class="col-description">Description</th>
-										<th class="col-price">Price</th>
-										<th class="col-rrp">Order #</th>
+										<th class="col-image table-header-cell">Image</th>
+										<th class="col-sku table-header-cell">SKU</th>
+										<th class="col-model table-header-cell">Model</th>
+										<th class="col-description table-header-cell">Description</th>
+										<th class="col-price table-header-cell">Price</th>
+										<th class="col-rrp table-header-cell">Order #</th>
 									</tr>
 								{/if}
 								<tr class="list-item-row">
-									<td class="col-image">
+									<td class="col-image table-cell">
 										{#if item.imageUrl}
 											<img
 												src={item.imageUrl}
@@ -161,11 +161,11 @@ onMount(() => {
 											<div class="no-image-small">No Image</div>
 										{/if}
 									</td>
-									<td class="col-sku">{item.sku}</td>
-									<td class="col-model">{item.model || '—'}</td>
-									<td class="col-description">{item.shortDescription || '—'}</td>
-									<td class="col-price">${item.price || '—'}</td>
-									<td class="col-rrp"></td>
+									<td class="col-sku table-cell">{item.sku}</td>
+									<td class="col-model table-cell">{item.model || '—'}</td>
+									<td class="col-description table-cell">{item.shortDescription || '—'}</td>
+									<td class="col-price table-cell">${item.price || '—'}</td>
+									<td class="col-rrp table-cell"></td>
 								</tr>
 							{/if}
 						{/each}
@@ -413,12 +413,14 @@ onMount(() => {
 		font-size: 0.875rem;
 	}
 
-	.list-table thead {
-		background: #222222;
-		color: #fff;
+	/* Base table cell styling */
+	.table-cell {
+		padding: 10px 8px;
+		border-bottom: 1px solid #e5e7eb;
+		vertical-align: top;
 	}
 
-	.list-table th {
+	.table-header-cell {
 		padding: 12px 8px;
 		text-align: left;
 		font-weight: 600;
@@ -428,26 +430,13 @@ onMount(() => {
 		border-bottom: 2px solid #80BB3D;
 	}
 
-	.list-table td {
-		padding: 10px 8px;
-		border-bottom: 1px solid #e5e7eb;
-		vertical-align: top;
-	}
-
-
 	.table-header-row {
 		background: #6c6c6c;
 		color: #fff;
 		border: none;
 	}
 
-	.table-header-row th {
-		padding: 12px 8px;
-		text-align: left;
-		font-weight: 600;
-		font-size: 0.75rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
+	.table-header-row .table-header-cell {
 		border: none !important;
 		border-top: none !important;
 		border-bottom: 2px solid #80BB3D;
@@ -556,7 +545,7 @@ onMount(() => {
 	}
 
 	.range-cell {
-		padding: 12px 16px;
+		padding: 8px 12px;
 		border: none !important;
 		border-top: none !important;
 		border-bottom: none !important;
@@ -573,6 +562,7 @@ onMount(() => {
 	.category-row {
 		background: #222222;
 		border: none;
+		margin-top: 12px;
 	}
 
 	.category-row td {
@@ -584,7 +574,7 @@ onMount(() => {
 	}
 
 	.category-cell {
-		padding: 18px 16px;
+		padding: 12px 12px;
 		border: none !important;
 		border-top: none !important;
 		border-bottom: none !important;
@@ -648,12 +638,12 @@ onMount(() => {
 	color: #fff;
 	padding: 8px 12px;
 	border-radius: 0;
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 .page-break-header.is-break {
 	break-before: page;
 	page-break-before: always;
+	margin-top: 20px;
 }
 
 	/* Product card */
@@ -769,6 +759,11 @@ onMount(() => {
 			content: 'Page ' counter(page);
 		}
 
+		.page-break-header.is-break .page-counter {
+			font-size: 1.1rem;
+			font-weight: 500;
+		}
+
 		/* Content area with margins for fixed header/footer */
 		.catalog-content {
 			padding: 20px 20px 32px 20px;
@@ -787,7 +782,7 @@ onMount(() => {
 			font-size: 0.75rem;
 		}
 
-		.list-table th {
+		.table-header-cell {
 			padding: 8px 6px;
 			font-size: 0.65rem;
 		}
@@ -797,14 +792,14 @@ onMount(() => {
 			color: #fff !important;
 		}
 
-		.table-header-row th {
+		.table-header-row .table-header-cell {
 			padding: 8px 6px;
 			font-size: 0.65rem;
 			border-bottom: 2px solid #80BB3D;
 			color: #fff !important;
 		}
 
-		.list-table td {
+		.table-cell {
 			padding: 8px 6px;
 		}
 
@@ -914,7 +909,7 @@ onMount(() => {
 		}
 
 		.page-break-header.is-break {
-			margin: 8px 0 4px;
+			margin: 20px 0 4px;
 		}
 
 		.page-break-header-inner {
@@ -972,8 +967,8 @@ onMount(() => {
 			min-width: 600px;
 		}
 
-		.list-table th,
-		.list-table td {
+		.table-header-cell,
+		.table-cell {
 			padding: 8px 4px;
 		}
 	}

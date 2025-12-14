@@ -57,73 +57,109 @@ interface Product {
   retail_mup: number;
 }
 
-// Function to calculate client price and RRP
-export function calculatePrices(product: any, source: 'markup' | 'price' = 'markup') {
-  const purchasePrice = parseFloat(product.purchase_price?.toString() || '0');
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+  const n = parseFloat(String(value ?? ''));
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function round2(n: number): number {
+  return Number.isFinite(n) ? parseFloat(n.toFixed(2)) : 0;
+}
+
+function computePricing(product: any, source: 'markup' | 'price' = 'markup') {
+  const purchasePrice = toNumber(product.purchase_price, 0);
+  let markup = toNumber(product.markup ?? product.client_mup ?? product.retail_mup, 0);
+  let rrp = toNumber(product.rrp, 0);
 
   if (source === 'markup') {
-    const markup = parseFloat(
-      product.markup?.toString() ||
-      product.client_mup?.toString() ||
-      product.retail_mup?.toString() ||
-      '0'
-    );
-
-    const safeMarkup = isNaN(markup) ? 0 : markup;
-    product.markup = safeMarkup;
-
-    if (purchasePrice && safeMarkup) {
-      const calculatedPrice = parseFloat((purchasePrice * safeMarkup).toFixed(2));
-      product.rrp = calculatedPrice;
+    if (purchasePrice && markup) {
+      rrp = round2(purchasePrice * markup);
     }
   } else {
-    const rrp = parseFloat(product.rrp?.toString() || '0');
-    let markup = 0;
-
     if (purchasePrice && rrp) {
-      markup = rrp / purchasePrice;
+      markup = round2(rrp / purchasePrice);
     }
-
-    if (markup) {
-      product.markup = parseFloat(markup.toFixed(2));
-
-      const syncedPrice = parseFloat((purchasePrice * product.markup).toFixed(2));
-      product.rrp = syncedPrice;
+    if (purchasePrice && markup) {
+      rrp = round2(purchasePrice * markup);
     }
   }
 
   // Keep legacy fields in sync for downstream payload generation
-  const normalizedMarkup = product.markup ?? 0;
-  product.client_mup = normalizedMarkup;
-  product.retail_mup = normalizedMarkup;
+  return {
+    ...product,
+    purchase_price: purchasePrice,
+    markup: round2(markup),
+    client_mup: round2(markup),
+    retail_mup: round2(markup),
+    rrp: round2(rrp)
+  };
+}
 
-  // Ensure all values are properly formatted
-  if (product.rrp) product.rrp = parseFloat(product.rrp.toFixed(2));
-  if (product.markup) product.markup = parseFloat(product.markup.toFixed(2));
-  if (product.client_mup) product.client_mup = parseFloat(product.client_mup.toFixed(2));
-  if (product.retail_mup) product.retail_mup = parseFloat(product.retail_mup.toFixed(2));
+function updateProductBySkuInternal(list: any[], sku: string, updater: (p: any) => any): any[] {
+  const idx = list.findIndex(p => p?.sku === sku);
+  if (idx === -1) return list;
+  const next = updater(list[idx]);
+  if (next === list[idx]) return list;
+  const copy = list.slice();
+  copy[idx] = next;
+  return copy;
+}
 
-  // Update the store
-  products.update(p => p);
+export function updateProductBySku(sku: string, patch: Record<string, unknown>) {
+  products.update(list =>
+    updateProductBySkuInternal(list, sku, p => ({ ...p, ...patch }))
+  );
+}
+
+export function updateProductPricingBySku(
+  sku: string,
+  patch: Record<string, unknown>,
+  source: 'markup' | 'price' = 'markup'
+) {
+  products.update(list =>
+    updateProductBySkuInternal(list, sku, p => computePricing({ ...p, ...patch }, source))
+  );
+}
+
+// Back-compat: keep signature used by the page, but update immutably.
+export function calculatePrices(product: any, source: 'markup' | 'price' = 'markup') {
+  if (!product?.sku) return;
+  updateProductPricingBySku(product.sku, {
+    purchase_price: product.purchase_price,
+    markup: product.markup,
+    rrp: product.rrp
+  }, source);
 }
 
 // Function to apply markup to all rows
 export function applyMarkupToAll() {
   products.update(prods => {
     if (prods.length === 0) return prods;
-    
-    const firstProduct = prods[0];
-    const markupVal = firstProduct.markup ?? firstProduct.client_mup ?? firstProduct.retail_mup ?? 0;
-    
+    const first = prods[0];
+    const markupVal = toNumber(first.markup ?? first.client_mup ?? first.retail_mup, 0);
+
     return prods.map((prod, idx) => {
-      if (idx === 0) return prod;
-      prod.markup = markupVal;
-      prod.client_mup = markupVal;
-      prod.retail_mup = markupVal;
-      calculatePrices(prod);
-      return prod;
+      if (idx === 0) return computePricing(prod, 'markup');
+      return computePricing({ ...prod, markup: markupVal }, 'markup');
     });
   });
+}
+
+export function toggleRowSelected(sku: string, checked: boolean) {
+  selectedRows.update(set => {
+    const next = new Set(set);
+    if (checked) next.add(sku);
+    else next.delete(sku);
+    const total = get(products).length;
+    selectAll.set(total > 0 && next.size === total);
+    return next;
+  });
+}
+
+export function clearSelection() {
+  selectedRows.set(new Set<string>());
+  selectAll.set(false);
 }
 
 // Function to fetch brands
@@ -196,6 +232,128 @@ export async function fetchSuppliers() {
     supplierError.set(error.message || 'Failed to load suppliers');
   } finally {
     loadingSuppliers.set(false);
+  }
+}
+
+function extractCategories(raw: any): { ids: string[]; names: string[] } {
+  if (!raw) return { ids: [], names: [] };
+
+  // Shape 1: ["123","456"]
+  if (Array.isArray(raw) && raw.every(v => typeof v === 'string')) {
+    const ids = (raw as string[]).filter(Boolean);
+    return { ids, names: [] };
+  }
+
+  // Shape 2 (Vend-ish): [{ Category: { CategoryID, CategoryName } }]
+  if (Array.isArray(raw)) {
+    const ids: string[] = [];
+    const names: string[] = [];
+    raw.forEach(entry => {
+      const c = entry?.Category ?? entry;
+      const id = c?.CategoryID ?? c?.CategoryId ?? c?.id;
+      const name = c?.CategoryName ?? c?.Category ?? c?.name;
+      if (id) ids.push(String(id));
+      if (name) names.push(String(name));
+    });
+    return { ids: ids.filter(Boolean), names: names.filter(Boolean) };
+  }
+
+  return { ids: [], names: [] };
+}
+
+function transformApiItemToProduct(item: any) {
+  const { ids: categoryIds, names: categoryNames } = extractCategories(item?.Categories);
+  const purchasePrice = toNumber(item?.DefaultPurchasePrice, 0);
+  const markup = toNumber(item?.Misc02 || item?.Misc09, 0);
+  const listPrice =
+    purchasePrice && markup ? round2(purchasePrice * markup) : toNumber(item?.RRP, 0);
+
+  return {
+    sku: item?.SKU || '',
+    inventory_id: item?.InventoryID || '',
+    product_name: item?.Model || '',
+    brand: item?.Brand || '',
+    primary_supplier: item?.PrimarySupplier || '',
+    category: categoryIds,
+    category_name: categoryNames,
+    original_category: [...categoryIds],
+    purchase_price: purchasePrice,
+    markup,
+    client_mup: markup,
+    retail_mup: markup,
+    rrp: listPrice,
+    tax_free: item?.TaxFreeItem === 'True' || item?.TaxFreeItem === true,
+    remove_pricegroups: false
+  };
+}
+
+// Fetch all products (unfiltered)
+export async function fetchAllProducts() {
+  loading.set(true);
+  try {
+    const requestBody = {
+      Filter: {
+        SKU: "",
+        Active: true,
+        OutputSelector: [
+          "SKU",
+          "Model",
+          "Categories",
+          "Brand",
+          "PrimarySupplier",
+          "RRP",
+          "DefaultPurchasePrice",
+          "PriceGroups",
+          "Misc02",
+          "Misc09",
+          "InventoryID",
+          "TaxFreeItem"
+        ]
+      }
+    };
+
+    const response = await fetch(filterProductsUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to load products: ${response.status} ${response.statusText}. Error: ${errorText}`);
+    }
+
+    // Some endpoints occasionally return non-JSON content-type; parse defensively.
+    const text = await response.text();
+    const data = JSON.parse(text);
+
+    if (data?.Ack !== "Success" || !data?.Item) {
+      products.set([]);
+      originalProducts.set([]);
+      filteredProducts.set([]);
+      return { success: false, message: 'Failed to load products: Invalid response format' };
+    }
+
+    const items = Array.isArray(data.Item) ? data.Item : [data.Item];
+    const prods = items.map(transformApiItemToProduct);
+
+    originalProducts.set(prods);
+    products.set(prods);
+    filteredProducts.set(prods);
+    currentPage.set(1);
+
+    return { success: true, message: 'Products loaded' };
+  } catch (err: unknown) {
+    const error = err as Error;
+    products.set([]);
+    originalProducts.set([]);
+    filteredProducts.set([]);
+    return { success: false, message: error.message || 'Failed to load products' };
+  } finally {
+    loading.set(false);
   }
 }
 
@@ -316,11 +474,7 @@ export async function fetchPriceGroups() {
 export function handleSelectAll(checked: boolean) {
   selectAll.set(checked);
   if (checked) {
-    const allSkus = new Set<string>();
-    products.update(prods => {
-      prods.forEach(prod => allSkus.add(prod.sku));
-      return prods;
-    });
+    const allSkus = new Set<string>(get(products).map(p => p.sku));
     selectedRows.set(allSkus);
   } else {
     selectedRows.set(new Set<string>());
@@ -331,21 +485,9 @@ export function handleSelectAll(checked: boolean) {
 export async function handleSubmitChecked() {
   submitLoading.set(true);
   try {
-    const selectedProducts: Array<{
-      sku: string;
-      rrp: number;
-      [key: string]: any;
-    }> = [];
-    
-    let currentSelectedRows: Set<string> = new Set<string>();
-    selectedRows.subscribe(value => {
-      currentSelectedRows = value;
-    })();
-
-    products.update(prods => {
-      selectedProducts.push(...prods.filter(prod => currentSelectedRows.has(prod.sku)));
-      return prods;
-    });
+    const currentSelectedRows = get(selectedRows);
+    const currentProducts = get(products);
+    const selectedProducts = currentProducts.filter(prod => currentSelectedRows.has(prod.sku));
 
     if (selectedProducts.length === 0) {
       submitLoading.set(false);
@@ -600,10 +742,9 @@ export async function handleFilterSubmit(filters: {
 
     // If no filters are applied, restore the original product list
     if (Object.keys(payload).length === 0) {
-      originalProducts.subscribe(value => {
-        products.set([...value]);
-        filteredProducts.set([...value]);
-      })();
+      const original = get(originalProducts);
+      products.set([...original]);
+      filteredProducts.set([...original]);
       loading.set(false);
       return { success: true, message: 'All products loaded' };
     }
@@ -649,63 +790,11 @@ export async function handleFilterSubmit(filters: {
     // Process the filtered products
     if (data.Item && data.Ack === "Success") {
       const filteredItems = Array.isArray(data.Item) ? data.Item : [data.Item];
-      const filteredProds = filteredItems.map((item: { 
-        SKU?: string;
-        InventoryID?: string;
-        Model?: string;
-        Brand?: string;
-        PrimarySupplier?: string;
-        DefaultPurchasePrice?: string;
-        RRP?: string;
-        Misc02?: string;
-        Misc09?: string;
-        TaxFreeItem?: string;
-        Categories?: Array<{
-          Category: {
-            CategoryID: string;
-            CategoryName: string;
-          }
-        }>
-      }) => {
-        // Extract category information
-        const categoryIds: string[] = [];
-        const categoryNames: string[] = [];
-        
-        if (item.Categories) {
-          item.Categories.forEach(catEntry => {
-            if (catEntry.Category) {
-              categoryIds.push(catEntry.Category.CategoryID);
-              categoryNames.push(catEntry.Category.CategoryName);
-            }
-          });
-        }
-
-        return {
-          sku: item.SKU || '',
-          inventory_id: item.InventoryID || '',
-          product_name: item.Model || '',
-          brand: item.Brand || '',
-          primary_supplier: item.PrimarySupplier || '',
-          category: categoryIds,
-          category_name: categoryNames,
-          original_category: [...categoryIds],
-          purchase_price: parseFloat(item.DefaultPurchasePrice || '0'),
-          rrp: (() => {
-            const purchasePrice = parseFloat(item.DefaultPurchasePrice || '0');
-            const markup = parseFloat(item.Misc02 || item.Misc09 || '0');
-            if (purchasePrice && markup) return parseFloat((purchasePrice * markup).toFixed(2));
-            return parseFloat(item.RRP || '0');
-          })(),
-          markup: parseFloat(item.Misc02 || item.Misc09 || '0'),
-          client_mup: parseFloat(item.Misc02 || item.Misc09 || '0'),
-          retail_mup: parseFloat(item.Misc02 || item.Misc09 || '0'),
-          tax_free: item.TaxFreeItem === 'True',
-          remove_pricegroups: false
-        };
-      });
+      const filteredProds = filteredItems.map(transformApiItemToProduct);
 
       products.set(filteredProds);
       filteredProducts.set(filteredProds);
+      currentPage.set(1);
       loading.set(false);
       return { success: true, message: 'Products filtered successfully' };
     }

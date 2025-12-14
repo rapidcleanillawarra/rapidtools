@@ -22,11 +22,11 @@
     productNameFilter,
     brandFilter,
     supplierFilter,
-    calculatePrices,
-  applyMarkupToAll,
+    applyMarkupToAll,
     fetchBrands,
     fetchSuppliers,
     fetchPriceGroups,
+    fetchAllProducts,
     handleSelectAll,
     handleSubmitChecked,
     handleFilterSubmit,
@@ -36,152 +36,10 @@
     sortDirection,
     getPaginatedProducts,
     getTotalPages,
-    handleSort
+    toggleRowSelected,
+    updateProductBySku,
+    updateProductPricingBySku
   } from './stores';
-  import type { SelectOption } from './types';
-
-  // Interface for Select component events
-  interface SelectChangeEvent {
-    detail: SelectOption | null;
-  }
-
-  // Interfaces for API response
-  interface PriceGroupDetail {
-    Multiple: string;
-    Price: string;
-    MaximumQuantity: string;
-    MinimumQuantity: string;
-    MultipleStartQuantity: string;
-    Group: string;
-    GroupID: string;
-  }
-
-  interface ProductItem {
-    PrimarySupplier: string;
-    Categories: string[];
-    RRP: string;
-    Model: string;
-    InventoryID: string;
-    Brand: string;
-    Misc09: string;
-    DefaultPurchasePrice: string;
-    PriceGroups: Array<{
-      PriceGroup: PriceGroupDetail[];
-    }>;
-    SKU: string;
-    Misc02: string;
-    TaxFreeItem: string;
-  }
-
-  interface ApiResponse {
-    Item: ProductItem[];
-    CurrentTime: string;
-    Ack: string;
-  }
-
-  // API Endpoints
-  const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
-  const suppliersUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/da5c5708146642768d63293d2bbb9668/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=-n0W0PxlF1G83xHYHGoEOhv3XmHXWlesbRk5NcgNT9w';
-  const categoriesUrl = 'https://prod-47.australiasoutheast.logic.azure.com:443/workflows/0d67bc8f1bb64e78a2495f13a7498081/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fJJzmNyuARuwEcNCoMuWwMS9kmWZQABw9kJXsUj9Wk8';
-  const updatePricingUrl = 'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
-  const productsApiUrl = 'https://prod-19.australiasoutheast.logic.azure.com:443/workflows/67422be18c5e4af0ad9291110dedb2fd/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=N_VRTyaFEkOUGjtwu8O56_L-qY6xwvHuGWEOvqKsoAk';
-
-  // Remove server-side data dependency
-  // export let data: { products: any[] };
-
-  // Client-side data fetching function
-  async function loadProducts() {
-    try {
-      loading.set(true);
-      
-      const requestBody = {
-        Filter: {
-          SKU: "",
-          Active: true,
-          OutputSelector: [
-            "SKU",
-            "Model",
-            "Categories",
-            "Brand",
-            "PrimarySupplier",
-            "RRP",
-            "DefaultPurchasePrice",
-            "PriceGroups",
-            "Misc02",
-            "Misc09",
-            "InventoryID",
-            "TaxFreeItem"
-          ]
-        }
-      };
-      
-      const response = await fetch(productsApiUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestBody)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to load products: ${response.status} ${response.statusText}. Error: ${errorText}`);
-      }
-
-      const responseText = await response.text();
-      
-      const data = JSON.parse(responseText) as ApiResponse;
-
-      if (!data.Item) {
-        return [];
-      }
-
-      const transformedProducts = (data.Item || []).map((item: ProductItem) => {
-        const clientPrice = item.PriceGroups?.[0]?.PriceGroup?.find(
-          pg => pg.Group === "Default Client Group" || pg.GroupID === "2"
-        )?.Price || '0';
-
-        const markup = parseFloat(item.Misc02 || item.Misc09 || '0');
-        const category = Array.isArray(item.Categories) ? item.Categories[0] || '' : '';
-        const purchasePrice = parseFloat(item.DefaultPurchasePrice || '0');
-        const calculatedPrice = purchasePrice && markup
-          ? parseFloat((purchasePrice * markup).toFixed(2))
-          : parseFloat(clientPrice);
-        const listPrice = purchasePrice && markup
-          ? calculatedPrice
-          : parseFloat(item.RRP || '0');
-        
-        const transformed = {
-          sku: item.SKU || '',
-          product_name: item.Model || '',
-          brand: item.Brand || '',
-          primary_supplier: item.PrimarySupplier || '',
-          category: category,
-          original_category: category,
-          purchase_price: purchasePrice,
-          markup,
-          client_mup: markup,
-          retail_mup: markup,
-          rrp: listPrice,
-          inventory_id: item.InventoryID || '',
-          tax_free: item.TaxFreeItem === 'True',
-          remove_pricegroups: false
-        };
-        return transformed;
-      });
-
-      return transformedProducts;
-    } catch (err: unknown) {
-      const error = err as Error;
-      toastError('Failed to load products. Please try again.');
-      return [];
-    } finally {
-      loading.set(false);
-    }
-  }
-
-
   async function handleFilterClick() {
     const result = await handleFilterSubmit({
       skuFilter: $skuFilter,
@@ -196,41 +54,29 @@
     }
   }
 
-  // Store price groups fetched on page load for debugging/inspection
-  let priceGroupList: any[] = [];
+  async function submitCheckedRows() {
+    const result = await handleSubmitChecked();
+    if (result.success) toastSuccess(result.message);
+    else toastError(result.message);
+  }
+
+  function onNumberInput(e: Event): number {
+    const target = e.target as HTMLInputElement | null;
+    if (!target) return 0;
+    const n = parseFloat(target.value);
+    return Number.isFinite(n) ? n : 0;
+  }
 
   onMount(async () => {
     // Load products and reference data in parallel
-    const [loadedProducts, priceGroupResult] = await Promise.all([
-      loadProducts(),
+    const [productsResult] = await Promise.all([
+      fetchAllProducts(),
       fetchPriceGroups(),
       fetchBrands(),
       fetchSuppliers()
     ]);
-
-    // Log the price groups retrieved on mount
-    if (priceGroupResult?.success && Array.isArray(priceGroupResult.data)) {
-      priceGroupList = priceGroupResult.data;
-      console.log('Price groups loaded on mount:', priceGroupList);
-    } else {
-      console.log('Price groups failed to load on mount:', priceGroupResult);
-    }
-    
-    if (loadedProducts && Array.isArray(loadedProducts)) {
-      // Ensure all products have original_category initialized
-      const productsWithOriginalCategory = loadedProducts.map(product => {
-        if (!product.original_category && product.category) {
-          return {
-            ...product,
-            original_category: [...(Array.isArray(product.category) ? product.category : [product.category])]
-          };
-        }
-        return product;
-      });
-      
-      $originalProducts = [...productsWithOriginalCategory];
-      $products = [...productsWithOriginalCategory];
-      $filteredProducts = [...productsWithOriginalCategory];
+    if (productsResult && !productsResult.success) {
+      toastError(productsResult.message || 'Failed to load products. Please try again.');
     }
   });
 
@@ -243,32 +89,15 @@
     total: 0
   };
 
-  // Add reactive statements for pagination and sorting
+  $: totalPages = getTotalPages($products.length);
+  $: paginatedProducts = getPaginatedProducts($products);
   $: {
-    // Recalculate pagination and sorting
-    paginatedProducts = getPaginatedProducts($products);
-    totalPages = getTotalPages($products.length);
-    
-    // Update current page items info
-    currentPageItems = {
-      start: ($currentPage - 1) * $itemsPerPage + 1,
-      end: Math.min($currentPage * $itemsPerPage, $products.length),
-      total: $products.length
-    };
-    
+    const total = $products.length;
+    const start = total === 0 ? 0 : ($currentPage - 1) * $itemsPerPage + 1;
+    const end = total === 0 ? 0 : Math.min($currentPage * $itemsPerPage, total);
+    currentPageItems = { start, end, total };
   }
-
-  // Watch for sort changes
-  $: if ($sortField !== null || $sortDirection) {
-    paginatedProducts = getPaginatedProducts($products);
-  }
-
-  // Reset to first page when products length changes
-  let previousLength = $products.length;
-  $: if ($products && $products.length !== previousLength) {
-    previousLength = $products.length;
-    currentPage.set(1);
-  }
+  $: if ($currentPage > totalPages) currentPage.set(totalPages);
 
   // Function to handle page change
   function handlePageChange(newPage: number) {
@@ -415,44 +244,7 @@
     <div class="flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-sm py-4 z-50 border-b border-gray-200 shadow-sm">
       <button
         class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px]"
-        on:click={async () => {
-          // Ensure all category data is synchronized before submission
-          $products = $products.map(product => {
-            // Make sure category arrays are initialized properly
-            if (!product.category) {
-              product.category = [];
-            }
-            if (!product.category_name) {
-              product.category_name = [];
-            }
-            if (!product.original_category) {
-              product.original_category = product.category ? [...product.category] : [];
-            }
-            
-            // Make sure the categories are properly formatted as arrays
-            if (product.category && !Array.isArray(product.category)) {
-              product.category = [product.category];
-            }
-            
-            return product;
-          });
-          
-          // Now submit the data with verified categories
-          const result = await handleSubmitChecked();
-          if (result.success) {
-            // Ensure all updated products stay marked as updated
-            $products = $products.map(product => {
-              if ($selectedRows.has(product.sku)) {
-                const updatedProduct = { ...product, updated: true };
-                return updatedProduct;
-              }
-              return product;
-            });
-            toastSuccess(result.message);
-          } else {
-            toastError(result.message);
-          }
-        }}
+        on:click={submitCheckedRows}
         disabled={$selectedRows.size === 0 || $submitLoading}
       >
         {#if $submitLoading}
@@ -557,13 +349,7 @@
                     checked={$selectedRows.has(product.sku)}
                     on:change={(event) => {
                       const target = event.target as HTMLInputElement;
-                      if (target.checked) {
-                        $selectedRows = new Set([...$selectedRows, product.sku]);
-                      } else {
-                        const newSet = new Set($selectedRows);
-                        newSet.delete(product.sku);
-                        $selectedRows = newSet;
-                      }
+                      toggleRowSelected(product.sku, target.checked);
                     }}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -580,18 +366,19 @@
                   {:else if $brandError}
                     <div class="text-red-600 text-xs">{$brandError}</div>
                   {:else}
-                    <div class="relative">
-                      <Select
-                        items={$brands}
-                        value={$brands.find(b => b.value === product.brand)}
-                        placeholder="Select Brand"
-                        clearable={false}
-                        on:change={(e: SelectChangeEvent) => {
-                          product.brand = e.detail?.value || '';
-                          $products = $products;
-                        }}
-                      />
-                    </div>
+                    <select
+                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1 bg-white"
+                      value={product.brand}
+                      on:change={(e) => {
+                        const target = e.target as HTMLSelectElement;
+                        updateProductBySku(product.sku, { brand: target.value });
+                      }}
+                    >
+                      <option value="">Select Brand</option>
+                      {#each $brands as b (b.value)}
+                        <option value={b.value}>{b.label}</option>
+                      {/each}
+                    </select>
                   {/if}
                 </td>
                 <td class="px-2 py-1 text-sm">
@@ -600,25 +387,26 @@
                   {:else if $supplierError}
                     <div class="text-red-600 text-xs">{$supplierError}</div>
                   {:else}
-                    <div class="relative">
-                      <Select
-                        items={$suppliers}
-                        value={$suppliers.find(s => s.value === product.primary_supplier)}
-                        placeholder="Select Supplier"
-                        clearable={false}
-                        on:change={(e: SelectChangeEvent) => {
-                          product.primary_supplier = e.detail?.value || '';
-                          $products = $products;
-                        }}
-                      />
-                    </div>
+                    <select
+                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1 bg-white"
+                      value={product.primary_supplier}
+                      on:change={(e) => {
+                        const target = e.target as HTMLSelectElement;
+                        updateProductBySku(product.sku, { primary_supplier: target.value });
+                      }}
+                    >
+                      <option value="">Select Supplier</option>
+                      {#each $suppliers as s (s.value)}
+                        <option value={s.value}>{s.label}</option>
+                      {/each}
+                    </select>
                   {/if}
                 </td>
                 <td class="px-2 py-1 text-sm">
                   <input
                     type="number"
-                    bind:value={product.purchase_price}
-                    on:input={() => calculatePrices(product)}
+                    value={product.purchase_price}
+                    on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
                     step="0.01"
                   />
@@ -626,8 +414,8 @@
                 <td class="px-2 py-1 text-sm">
                   <input
                     type="number"
-                    bind:value={product.markup}
-                    on:input={() => calculatePrices(product, 'markup')}
+                    value={product.markup}
+                    on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
                     step="0.01"
                   />
@@ -635,8 +423,8 @@
                 <td class="px-2 py-1 text-sm">
                   <input
                     type="number"
-                    bind:value={product.rrp}
-                    on:input={() => calculatePrices(product, 'price')}
+                    value={product.rrp}
+                    on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
                     class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
                     step="0.01"
                   />
@@ -644,10 +432,10 @@
                 <td class="px-2 py-1 text-sm text-center">
                   <input
                     type="checkbox"
-                    bind:checked={product.remove_pricegroups}
-                    on:change={() => {
-                      // reflect change in store
-                      $products = $products;
+                    checked={product.remove_pricegroups}
+                    on:change={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      updateProductBySku(product.sku, { remove_pricegroups: target.checked });
                     }}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
@@ -655,7 +443,11 @@
                 <td class="px-2 py-1 text-sm">
                   <input
                     type="checkbox"
-                    bind:checked={product.tax_free}
+                    checked={product.tax_free}
+                    on:change={(e) => {
+                      const target = e.target as HTMLInputElement;
+                      updateProductBySku(product.sku, { tax_free: target.checked });
+                    }}
                     class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </td>

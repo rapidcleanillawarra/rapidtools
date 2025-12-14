@@ -452,40 +452,40 @@
                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td class="px-2 py-1 text-sm break-words">
+                    <td class="px-2 py-1 text-xs break-words">
                       <a href={`https://www.rapidsupplies.com.au/_cpanel/products/view?id=${product.inventory_id}`} target="_blank" class="text-blue-600 hover:underline">
                         {product.sku}
                       </a>
                     </td>
-                    <td class="px-2 py-1 text-sm break-words">{product.product_name}</td>
-                    <td class="px-2 py-1 text-sm">
+                    <td class="px-2 py-1 text-xs break-words">{product.product_name}</td>
+                    <td class="px-2 py-1 text-xs">
                       <input
                         type="number"
                         value={product.purchase_price}
                         on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
                         step="0.01"
                       />
                     </td>
-                    <td class="px-2 py-1 text-sm">
+                    <td class="px-2 py-1 text-xs">
                       <input
                         type="number"
                         value={product.markup}
                         on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
                         step="0.01"
                       />
                     </td>
-                    <td class="px-2 py-1 text-sm">
+                    <td class="px-2 py-1 text-xs">
                       <input
                         type="number"
                         value={product.rrp}
                         on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm h-7 px-1"
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
                         step="0.01"
                       />
                     </td>
-                    <td class="px-2 py-1 text-sm text-center">
+                    <td class="px-2 py-1 text-xs text-center">
                       <input
                         type="checkbox"
                         checked={product.remove_pricegroups}
@@ -496,7 +496,7 @@
                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td class="px-2 py-1 text-sm">
+                    <td class="px-2 py-1 text-xs">
                       <input
                         type="checkbox"
                         checked={product.tax_free}
@@ -507,7 +507,7 @@
                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td class="px-2 py-1 text-sm flex gap-2">
+                    <td class="px-2 py-1 text-xs flex gap-2">
                       {#each getPriceComparisonStatus(product) as status}
                         <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${
                           status === 'PP>CP' 

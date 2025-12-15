@@ -22,6 +22,7 @@
   export let getMainImage: (product: any) => string | null;
   export let getPriceComparisonStatus: (product: any) => string[];
   export let onNumberInput: (e: Event) => number;
+  export let onOpenPhotoViewer: (product: any) => void;
 
   function formatMarkupDisplay(value: unknown): string {
     const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
@@ -125,14 +126,19 @@
             </td>
             <td class="px-2 py-1 text-xs">
               {#if mainImage}
-                <div class="flex items-center">
+                <button
+                  type="button"
+                  class="flex items-center"
+                  on:click={() => onOpenPhotoViewer(product)}
+                  aria-label={`Open photo viewer for ${product.product_name || product.sku}`}
+                >
                   <img
                     src={mainImage}
                     alt={`Main image for ${product.product_name || product.sku}`}
-                    class="h-12 w-12 object-contain border rounded bg-gray-50"
+                    class="h-12 w-12 object-contain border rounded bg-gray-50 hover:ring-2 hover:ring-blue-500"
                     loading="lazy"
                   />
-                </div>
+                </button>
               {:else}
                 <span class="text-[10px] text-gray-400">No image</span>
               {/if}

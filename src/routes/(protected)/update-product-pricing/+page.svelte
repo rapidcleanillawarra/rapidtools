@@ -7,6 +7,7 @@
   import PaginationControls from './components/PaginationControls.svelte';
   import ProductsTable from './components/ProductsTable.svelte';
   import ConfirmSaveModal from './components/ConfirmSaveModal.svelte';
+  import PhotoViewerModal from './components/PhotoViewerModal.svelte';
   import {
     products,
     originalProducts,
@@ -83,6 +84,9 @@
   });
 
   // Declare reactive variables
+  let searchSku = '';
+  let searchProductName = '';
+  let visibleProducts: any[] = [];
   let paginatedProducts: any[] = [];
   let totalPages = 0;
   let currentPageItems = {
@@ -92,12 +96,37 @@
   };
   let showConfirmSave = false;
   let originalMap: Map<string, any> = new Map();
+  let photoViewerOpen = false;
+  let photoViewerImages: string[] = [];
+  let photoViewerIndex = 0;
+  let photoViewerTitle = '';
   $: originalMap = new Map($originalProducts.map(p => [p.sku, p]));
 
-  $: totalPages = getTotalPages($products.length, $itemsPerPage);
-  $: paginatedProducts = getPaginatedProducts($products, $currentPage, $itemsPerPage, $sortField, $sortDirection);
   $: {
-    const total = $products.length;
+    const skuNeedle = searchSku.trim().toLowerCase();
+    const nameNeedle = searchProductName.trim().toLowerCase();
+    visibleProducts =
+      !skuNeedle && !nameNeedle
+        ? $products
+        : $products.filter((p: any) => {
+            const skuHay = String(p?.sku ?? '').toLowerCase();
+            const nameHay = String(p?.product_name ?? '').toLowerCase();
+            const skuOk = !skuNeedle || skuHay.includes(skuNeedle);
+            const nameOk = !nameNeedle || nameHay.includes(nameNeedle);
+            return skuOk && nameOk;
+          });
+  }
+
+  $: totalPages = getTotalPages(visibleProducts.length, $itemsPerPage);
+  $: paginatedProducts = getPaginatedProducts(
+    visibleProducts,
+    $currentPage,
+    $itemsPerPage,
+    $sortField,
+    $sortDirection
+  );
+  $: {
+    const total = visibleProducts.length;
     const start = total === 0 ? 0 : ($currentPage - 1) * $itemsPerPage + 1;
     const end = total === 0 ? 0 : Math.min($currentPage * $itemsPerPage, total);
     currentPageItems = { start, end, total };
@@ -120,8 +149,8 @@
 
   // Function to get sort icon
   function getSortIcon(field: string): string {
-    if ($sortField !== field) return 'â†•ï¸';
-    return $sortDirection === 'asc' ? 'â†‘' : 'â†“';
+    if ($sortField !== field) return '';
+    return $sortDirection === 'asc' ? '^' : 'v';
   }
 
   // Get the main product image URL (prefers a "Main" named image, falls back to the first)
@@ -162,6 +191,43 @@
 
     return statuses;
   }
+
+  function pickImageUrl(img: any): string | null {
+    if (!img) return null;
+    return (
+      img.URL ||
+      img.url ||
+      img.LargeURL ||
+      img.largeUrl ||
+      img.LargeThumbURL ||
+      img.largeThumbUrl ||
+      img.MediumThumbURL ||
+      img.mediumThumbUrl ||
+      img.ThumbURL ||
+      img.thumbUrl ||
+      null
+    );
+  }
+
+  function openPhotoViewer(product: any) {
+    const imagesRaw = product?.Images || product?.images || [];
+    const images = Array.isArray(imagesRaw) ? imagesRaw : [imagesRaw];
+    const urls = images
+      .map((img: any) => pickImageUrl(img))
+      .filter((u: any) => typeof u === 'string' && u.length > 0) as string[];
+
+    const uniqueUrls = Array.from(new Set(urls));
+
+    const mainIndex = images.findIndex(
+      (img: any) => String(img?.Name || img?.name || '').toLowerCase() === 'main'
+    );
+
+    photoViewerImages = uniqueUrls;
+    photoViewerIndex =
+      mainIndex >= 0 && uniqueUrls[mainIndex] ? mainIndex : 0;
+    photoViewerTitle = product?.product_name || product?.sku || 'Product image';
+    photoViewerOpen = true;
+  }
 </script>
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
@@ -188,6 +254,46 @@
 
       <!-- Middle column: table -->
       <section class="middle-col">
+        <div class="mb-3 rounded-md bg-white p-3 shadow-sm ring-1 ring-gray-200">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1" for="search_sku">Search SKU</label>
+              <input
+                id="search_sku"
+                type="text"
+                bind:value={searchSku}
+                class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
+                placeholder="Type to filter current list"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1" for="search_product_name">Search Product Name</label>
+              <input
+                id="search_product_name"
+                type="text"
+                bind:value={searchProductName}
+                class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
+                placeholder="Type to filter current list"
+              />
+            </div>
+          </div>
+          {#if searchSku.trim() || searchProductName.trim()}
+            <div class="mt-2 flex justify-end">
+              <button
+                type="button"
+                class="text-xs text-blue-600 hover:text-blue-800"
+                on:click={() => {
+                  searchSku = '';
+                  searchProductName = '';
+                  currentPage.set(1);
+                }}
+              >
+                Clear search
+              </button>
+            </div>
+          {/if}
+        </div>
+
         <PaginationControls
           placement="top"
           currentPage={$currentPage}
@@ -198,7 +304,7 @@
         <!-- Products Table -->
         <ProductsTable
           loading={$loading}
-          productsLength={$products.length}
+          productsLength={visibleProducts.length}
           {paginatedProducts}
           {originalMap}
           selectedRows={$selectedRows}
@@ -213,6 +319,7 @@
           {getMainImage}
           {getPriceComparisonStatus}
           {onNumberInput}
+          onOpenPhotoViewer={openPhotoViewer}
         />
         <!-- Bottom pagination controls -->
         <PaginationControls
@@ -232,6 +339,15 @@
   loading={$submitLoading}
   onCancel={() => (showConfirmSave = false)}
   onConfirm={confirmAndSubmit}
+/>
+
+<PhotoViewerModal
+  open={photoViewerOpen}
+  images={photoViewerImages}
+  index={photoViewerIndex}
+  title={photoViewerTitle}
+  onClose={() => (photoViewerOpen = false)}
+  onIndexChange={(next) => (photoViewerIndex = next)}
 />
 
 <style>

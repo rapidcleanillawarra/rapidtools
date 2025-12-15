@@ -818,12 +818,18 @@ export async function handleFilterSubmit(filters: {
 }
 
 // Get paginated and sorted products
-export function getPaginatedProducts(allProducts: any[]): any[] {
+export function getPaginatedProducts(
+  allProducts: any[],
+  page?: number,
+  perPage?: number,
+  sortFieldOverride?: string,
+  sortDirectionOverride?: 'asc' | 'desc'
+): any[] {
   let sorted = [...allProducts];
   
   // Apply sorting if a sort field is selected
-  const currentSortField = get(sortField);
-  const currentSortDirection = get(sortDirection);
+  const currentSortField = sortFieldOverride ?? get(sortField);
+  const currentSortDirection = sortDirectionOverride ?? get(sortDirection);
   
   if (currentSortField) {
     sorted.sort((a, b) => {
@@ -859,22 +865,22 @@ export function getPaginatedProducts(allProducts: any[]): any[] {
   }
   
   // Get pagination values
-  const perPage = get(itemsPerPage);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / perPage));
-  const page = Math.max(1, Math.min(get(currentPage), totalPages));
+  const perPageValue = perPage ?? get(itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / perPageValue));
+  const pageValue = Math.max(1, Math.min(page ?? get(currentPage), totalPages));
   
   // Calculate slice indices
-  const start = (page - 1) * perPage;
-  const end = Math.min(start + perPage, sorted.length);
+  const start = (pageValue - 1) * perPageValue;
+  const end = Math.min(start + perPageValue, sorted.length);
   
   // Return the paginated slice
   return sorted.slice(start, end);
 }
 
 // Get total number of pages
-export function getTotalPages(totalItems: number): number {
-  const perPage = get(itemsPerPage);
-  const pages = Math.max(1, Math.ceil(totalItems / perPage));
+export function getTotalPages(totalItems: number, perPage?: number): number {
+  const perPageValue = perPage ?? get(itemsPerPage);
+  const pages = Math.max(1, Math.ceil(totalItems / perPageValue));
   return pages;
 }
 

@@ -1,13 +1,15 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import Select from 'svelte-select';
 
   import { toastSuccess, toastError } from '$lib/utils/toast';
+  import FiltersPanel from './components/FiltersPanel.svelte';
+  import PaginationControls from './components/PaginationControls.svelte';
+  import ProductsTable from './components/ProductsTable.svelte';
+  import ConfirmSaveModal from './components/ConfirmSaveModal.svelte';
   import {
     products,
     originalProducts,
-    filteredProducts,
     brands,
     suppliers,
     loading,
@@ -89,6 +91,7 @@
     total: 0
   };
   let showConfirmSave = false;
+  let originalMap: Map<string, any> = new Map();
   $: originalMap = new Map($originalProducts.map(p => [p.sku, p]));
 
   $: totalPages = getTotalPages($products.length, $itemsPerPage);
@@ -110,16 +113,6 @@
     }
   }
 
-  // Function to handle items per page change
-  function handleItemsPerPageChange(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    const value = parseInt(select.value);
-    if (!isNaN(value)) {
-      itemsPerPage.set(value);
-      currentPage.set(1); // Reset to first page when changing items per page
-    }
-  }
-
   async function confirmAndSubmit() {
     showConfirmSave = false;
     await submitCheckedRows();
@@ -127,8 +120,8 @@
 
   // Function to get sort icon
   function getSortIcon(field: string): string {
-    if ($sortField !== field) return '↕️';
-    return $sortDirection === 'asc' ? '↑' : '↓';
+    if ($sortField !== field) return 'â†•ï¸';
+    return $sortDirection === 'asc' ? 'â†‘' : 'â†“';
   }
 
   // Get the main product image URL (prefers a "Main" named image, falls back to the first)
@@ -176,527 +169,70 @@
     <h2 class="text-2xl font-bold mb-6 text-gray-900">Update Product Pricing</h2>
 
     <div class="three-col-layout">
-      <!-- Left column: filters -->
-      <aside class="left-col">
-        <div class="bg-white rounded-lg shadow">
-          <div class="p-6">
-            <div class="grid grid-cols-1 gap-4">
-              <div>
-                <label for="sku_filter" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-                <textarea
-                  id="sku_filter"
-                  bind:value={$skuFilter}
-                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  rows="4"
-                  placeholder="Enter one SKU per line"
-                ></textarea>
-              </div>
-
-              <div>
-                <label for="product_name_filter" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                <input
-                  type="text"
-                  id="product_name_filter"
-                  bind:value={$productNameFilter}
-                  class="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter product name"
-                />
-              </div>
-
-              <div>
-                <label for="brand_filter" class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                {#if $loadingBrands}
-                  <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-                {:else if $brandError}
-                  <div class="text-red-600 text-xs">{$brandError}</div>
-                {:else}
-                  <Select
-                    items={$brands}
-                    bind:value={$brandFilter}
-                    placeholder="Select Brand"
-                    clearable={false}
-                  />
-                {/if}
-              </div>
-
-              <div>
-                <label for="supplier_filter" class="block text-sm font-medium text-gray-700 mb-1">Primary Supplier</label>
-                {#if $loadingSuppliers}
-                  <div class="animate-pulse bg-gray-200 h-7 rounded"></div>
-                {:else if $supplierError}
-                  <div class="text-red-600 text-xs">{$supplierError}</div>
-                {:else}
-                  <Select
-                    items={$suppliers}
-                    bind:value={$supplierFilter}
-                    placeholder="Select Supplier"
-                    clearable={false}
-                  />
-                {/if}
-              </div>
-            </div>
-
-            <div class="mt-4 flex justify-end">
-              <button
-                class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                on:click={handleFilterClick}
-              >
-                Apply Filters
-              </button>
-            </div>
-          </div>
-        </div>
-        <div class="mt-4 bg-white rounded-lg shadow p-4 space-y-2">
-          <h3 class="text-sm font-semibold text-gray-800">Actions</h3>
-          <button
-            class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
-            on:click={() => (showConfirmSave = true)}
-            disabled={$selectedRows.size === 0 || $submitLoading}
-          >
-            {#if $submitLoading}
-              <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-              Updating...
-            {:else}
-              Save
-            {/if}
-          </button>
-        </div>
-      </aside>
+      <FiltersPanel
+        {skuFilter}
+        {productNameFilter}
+        {brandFilter}
+        {supplierFilter}
+        {brands}
+        {suppliers}
+        {loadingBrands}
+        {loadingSuppliers}
+        {brandError}
+        {supplierError}
+        {selectedRows}
+        {submitLoading}
+        onApplyFilters={handleFilterClick}
+        onRequestSave={() => (showConfirmSave = true)}
+      />
 
       <!-- Middle column: table -->
       <section class="middle-col">
-
-        <!-- Add items per page selector before the pagination controls -->
-        <div class="mb-4 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-6">
-          <div class="flex flex-1 justify-center gap-2 sm:hidden">
-            <button
-              class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              on:click={() => handlePageChange($currentPage - 1)}
-              disabled={$currentPage === 1}
-            >
-              Previous
-            </button>
-            <button
-              class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              on:click={() => handlePageChange($currentPage + 1)}
-              disabled={$currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
-
-          <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-center sm:gap-4">
-            <div>
-              <p class="text-xs text-gray-700">{currentPageItems.start}-{currentPageItems.end} / {currentPageItems.total}</p>
-            </div>
-            <div>
-              <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                <button
-                  class="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                  on:click={() => handlePageChange($currentPage - 1)}
-                  disabled={$currentPage === 1}
-                >
-                  <span class="sr-only">Previous</span>
-                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-
-                <!-- Show ellipsis and limited page numbers -->
-                {#if totalPages <= 7}
-                  {#each Array(totalPages) as _, i}
-                    <button
-                      class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === i + 1 ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'}"
-                      on:click={() => handlePageChange(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  {/each}
-                {:else}
-                  <!-- First page -->
-                  <button
-                    class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === 1 ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
-                    on:click={() => handlePageChange(1)}
-                  >
-                    1
-                  </button>
-
-                  <!-- Left ellipsis -->
-                  {#if $currentPage > 3}
-                    <span class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
-                  {/if}
-
-                  <!-- Pages around current page -->
-                  {#each Array(3) as _, i}
-                    {#if $currentPage - 1 + i > 1 && $currentPage - 1 + i < totalPages}
-                      <button
-                        class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === $currentPage - 1 + i ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
-                        on:click={() => handlePageChange($currentPage - 1 + i)}
-                      >
-                        {$currentPage - 1 + i}
-                      </button>
-                    {/if}
-                  {/each}
-
-                  <!-- Right ellipsis -->
-                  {#if $currentPage < totalPages - 2}
-                    <span class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
-                  {/if}
-
-                  <!-- Last page -->
-                  <button
-                    class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
-                    on:click={() => handlePageChange(totalPages)}
-                  >
-                    {totalPages}
-                  </button>
-                {/if}
-
-                <button
-                  class="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                  on:click={() => handlePageChange($currentPage + 1)}
-                  disabled={$currentPage === totalPages}
-                >
-                  <span class="sr-only">Next</span>
-                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-
+        <PaginationControls
+          placement="top"
+          currentPage={$currentPage}
+          {totalPages}
+          {currentPageItems}
+          onPageChange={handlePageChange}
+        />
         <!-- Products Table -->
-        <div class="overflow-x-auto">
-          {#if $loading}
-            <div class="flex justify-center items-center py-8">
-              <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
-            </div>
-          {:else if $products.length === 0}
-            <div class="text-center py-8 text-gray-500">
-              No products found
-            </div>
-          {:else}
-            <table class="min-w-full divide-y divide-gray-200">
-              <thead class="bg-gray-50">
-                <tr>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <input
-                      type="checkbox"
-                      bind:checked={$selectAll}
-                      on:change={(e) => {
-                        const target = e.target as HTMLInputElement | null;
-                        if (target) {
-                          handleSelectAll(target.checked);
-                        }
-                      }}
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                  </th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    IMG
-                  </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('sku')}
-                  >
-                    SKU {getSortIcon('sku')}
-                  </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('product_name')}
-                  >
-                    Product Name {getSortIcon('product_name')}
-                  </th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price Info
-                  </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('purchase_price')}
-                  >
-                    Purchase Price {getSortIcon('purchase_price')}
-                  </th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Markup
-                    <button 
-                      class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
-                      on:click={applyMarkupToAll}
-                    >Apply All</button>
-                  </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('rrp')}
-                  >
-                    List Price {getSortIcon('rrp')}
-                  </th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Remove PriceGroups
-                  </th>
-                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tax Free
-                  </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('updated')}
-                  >
-                    Status {getSortIcon('updated')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="bg-white divide-y divide-gray-200">
-                {#each paginatedProducts as product (product.sku)}
-                  {@const mainImage = getMainImage(product)}
-                  {@const original = originalMap.get(product.sku) ?? product}
-                  <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
-                    <td class="px-2 py-1 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={$selectedRows.has(product.sku)}
-                        on:change={(event) => {
-                          const target = event.target as HTMLInputElement;
-                          toggleRowSelected(product.sku, target.checked);
-                        }}
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      {#if mainImage}
-                        <div class="flex items-center">
-                          <img
-                            src={mainImage}
-                            alt={`Main image for ${product.product_name || product.sku}`}
-                            class="h-12 w-12 object-contain border rounded bg-gray-50"
-                            loading="lazy"
-                          />
-                        </div>
-                      {:else}
-                        <span class="text-[10px] text-gray-400">No image</span>
-                      {/if}
-                    </td>
-                    <td class="px-2 py-1 text-xs break-words">
-                      <a href={`https://www.rapidsupplies.com.au/_cpanel/products/view?id=${product.inventory_id}`} target="_blank" class="text-blue-600 hover:underline">
-                        {product.sku}
-                      </a>
-                    </td>
-                    <td class="px-2 py-1 text-xs break-words">{product.product_name}</td>
-                    <td class="px-2 py-1 text-xs">
-                      <div class="space-y-1 text-[11px] text-gray-800">
-                        <div>Purchase: {original?.purchase_price}</div>
-                        <div>Markup: {original?.markup}</div>
-                        <div>List: {original?.rrp}</div>
-                      </div>
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      <input
-                        type="number"
-                        value={product.purchase_price}
-                        on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                        step="0.01"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      <input
-                        type="number"
-                        value={product.markup}
-                        on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                        step="0.01"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      <input
-                        type="number"
-                        value={product.rrp}
-                        on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                        step="0.01"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs text-center">
-                      <input
-                        type="checkbox"
-                        checked={product.remove_pricegroups}
-                        on:change={(e) => {
-                          const target = e.target as HTMLInputElement;
-                          updateProductBySku(product.sku, { remove_pricegroups: target.checked });
-                        }}
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={product.tax_free}
-                        on:change={(e) => {
-                          const target = e.target as HTMLInputElement;
-                          updateProductBySku(product.sku, { tax_free: target.checked });
-                        }}
-                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs flex gap-2">
-                      {#each getPriceComparisonStatus(product) as status}
-                        <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${
-                          status === 'PP>CP' 
-                            ? 'bg-purple-900' 
-                            : 'bg-red-900'
-                        }`}>
-                          {status}
-                        </span>
-                      {/each}
-                      {#if product.updated}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          Updated
-                        </span>
-                      {/if}
-                    </td>
-                  </tr>
-                {/each}
-              </tbody>
-            </table>
-          {/if}
-        </div>
-
+        <ProductsTable
+          loading={$loading}
+          productsLength={$products.length}
+          {paginatedProducts}
+          {originalMap}
+          selectedRows={$selectedRows}
+          selectAll={$selectAll}
+          onSelectAll={handleSelectAll}
+          onToggleRowSelected={toggleRowSelected}
+          onApplyMarkupToAll={applyMarkupToAll}
+          onUpdateProductBySku={updateProductBySku}
+          onUpdateProductPricingBySku={updateProductPricingBySku}
+          onSortClick={handleSortClick}
+          {getSortIcon}
+          {getMainImage}
+          {getPriceComparisonStatus}
+          {onNumberInput}
+        />
         <!-- Bottom pagination controls -->
-        <div class="mt-4 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
-          <div class="flex flex-1 justify-center gap-2 sm:hidden">
-            <button
-              class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              on:click={() => handlePageChange($currentPage - 1)}
-              disabled={$currentPage === 1}
-            >
-              Previous
-            </button>
-            <button
-              class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              on:click={() => handlePageChange($currentPage + 1)}
-              disabled={$currentPage === totalPages}
-            >
-              Next
-            </button>
-          </div>
-
-          <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-center sm:gap-4">
-            <div>
-              <p class="text-xs text-gray-700">{currentPageItems.start}-{currentPageItems.end} / {currentPageItems.total}</p>
-            </div>
-            <div>
-              <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-                <button
-                  class="relative inline-flex items-center rounded-l-md px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                  on:click={() => handlePageChange($currentPage - 1)}
-                  disabled={$currentPage === 1}
-                >
-                  <span class="sr-only">Previous</span>
-                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-
-                <!-- Show ellipsis and limited page numbers -->
-                {#if totalPages <= 7}
-                  {#each Array(totalPages) as _, i}
-                    <button
-                      class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === i + 1 ? 'bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'}"
-                      on:click={() => handlePageChange(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  {/each}
-                {:else}
-                  <!-- First page -->
-                  <button
-                    class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === 1 ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
-                    on:click={() => handlePageChange(1)}
-                  >
-                    1
-                  </button>
-
-                  <!-- Left ellipsis -->
-                  {#if $currentPage > 3}
-                    <span class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
-                  {/if}
-
-                  <!-- Pages around current page -->
-                  {#each Array(3) as _, i}
-                    {#if $currentPage - 1 + i > 1 && $currentPage - 1 + i < totalPages}
-                      <button
-                        class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === $currentPage - 1 + i ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
-                        on:click={() => handlePageChange($currentPage - 1 + i)}
-                      >
-                        {$currentPage - 1 + i}
-                      </button>
-                    {/if}
-                  {/each}
-
-                  <!-- Right ellipsis -->
-                  {#if $currentPage < totalPages - 2}
-                    <span class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-700 ring-1 ring-inset ring-gray-300">...</span>
-                  {/if}
-
-                  <!-- Last page -->
-                  <button
-                    class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold {$currentPage === totalPages ? 'bg-blue-600 text-white' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50'}"
-                    on:click={() => handlePageChange(totalPages)}
-                  >
-                    {totalPages}
-                  </button>
-                {/if}
-
-                <button
-                  class="relative inline-flex items-center rounded-r-md px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-                  on:click={() => handlePageChange($currentPage + 1)}
-                  disabled={$currentPage === totalPages}
-                >
-                  <span class="sr-only">Next</span>
-                  <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
+        <PaginationControls
+          placement="bottom"
+          currentPage={$currentPage}
+          {totalPages}
+          {currentPageItems}
+          onPageChange={handlePageChange}
+        />
       </section>
 
     </div>
   </div>
 </div>
-
-{#if showConfirmSave}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-    <div class="w-full max-w-md rounded-lg bg-white shadow-xl">
-      <div class="border-b px-4 py-3">
-        <h3 class="text-base font-semibold text-gray-900">Confirm Save</h3>
-      </div>
-      <div class="px-4 py-3 text-sm text-gray-700">
-        Are you sure you want to save updates for the selected rows?
-      </div>
-      <div class="flex justify-end gap-2 border-t px-4 py-3">
-        <button
-          class="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          on:click={() => (showConfirmSave = false)}
-          disabled={$submitLoading}
-        >
-          Cancel
-        </button>
-        <button
-          class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
-          on:click={confirmAndSubmit}
-          disabled={$submitLoading}
-        >
-          {#if $submitLoading}
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-          {/if}
-          Save
-        </button>
-      </div>
-    </div>
-  </div>
-{/if}
+<ConfirmSaveModal
+  open={showConfirmSave}
+  loading={$submitLoading}
+  onCancel={() => (showConfirmSave = false)}
+  onConfirm={confirmAndSubmit}
+/>
 
 <style>
   .three-col-layout {

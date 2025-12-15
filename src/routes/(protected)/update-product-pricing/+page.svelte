@@ -108,8 +108,8 @@
   }
 
   function markupHint(value: number): PercentHint {
-    if (value > 0) return { text: `Addition: +${value}`, cls: 'text-green-700' };
-    if (value < 0) return { text: `Addition: ${value}`, cls: 'text-red-700' };
+    if (value > 0) return { text: `Adjustment: +${value}%`, cls: 'text-green-700' };
+    if (value < 0) return { text: `Adjustment: ${value}%`, cls: 'text-red-700' };
     return { text: 'No change', cls: 'text-gray-500' };
   }
 
@@ -144,7 +144,7 @@
     for (const sku of selected) {
       const base = originalMap.get(sku)?.markup ?? $products.find((p: any) => p?.sku === sku)?.markup;
       const baseNum = toNumber(base, 0);
-      const next = Math.max(0, baseNum + addition);
+      const next = baseNum + addition;
       updateProductPricingBySku(sku, { markup: next }, 'markup');
     }
   }
@@ -377,7 +377,7 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="markup_increase">
-                Markup Addition
+                Markup
               </label>
               <div class="flex gap-2 items-center">
                 <input

@@ -61,8 +61,8 @@
 
   function formatMarkupInputValue(value: unknown): string {
     const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
-    if (!Number.isFinite(n) || n <= 0) return '';
-    const out = n < 4 ? Math.max(0, (n - 1) * 100) : n;
+    if (!Number.isFinite(n)) return '';
+    const out = n < 4 ? (n - 1) * 100 : n;
     return Number.isInteger(out) ? String(out) : out.toFixed(2).replace(/\.?0+$/, '');
   }
 

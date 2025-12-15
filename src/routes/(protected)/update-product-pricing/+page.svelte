@@ -75,82 +75,67 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
-  function applyPurchasePriceIncrease(direction: 1 | -1) {
-    const amount = toNumber(purchasePriceIncrease, 0);
-    if (!amount) {
-      toastError('Enter a valid purchase price change amount.');
-      return;
-    }
+  type PercentHint = { text: string; cls: string };
+  function percentHint(pct: number): PercentHint {
+    if (pct > 0) return { text: `Increase by ${pct}%`, cls: 'text-green-700' };
+    if (pct < 0) return { text: `Decrease by ${Math.abs(pct)}%`, cls: 'text-red-700' };
+    return { text: 'No change', cls: 'text-gray-500' };
+  }
 
+  function getSelectedSkusOrToast(): string[] | null {
     const selected = Array.from($selectedRows);
     if (selected.length === 0) {
-      toastError('Select at least one row to apply purchase price change.');
-      return;
+      toastError('Select at least one row first.');
+      return null;
     }
+    return selected;
+  }
 
-    const delta = direction * amount;
+  function applyPurchasePricePercentChange() {
+    const pct = toNumber(purchasePriceIncrease, 0);
+    const selected = getSelectedSkusOrToast();
+    if (!selected) return;
+
+    const factor = 1 + pct / 100;
     for (const sku of selected) {
-      const prod = $products.find((p: any) => p?.sku === sku);
-      if (!prod) continue;
-      const next = Math.max(0, toNumber(prod.purchase_price, 0) + delta);
+      const base = originalMap.get(sku)?.purchase_price ?? $products.find((p: any) => p?.sku === sku)?.purchase_price;
+      const baseNum = toNumber(base, 0);
+      const next = Math.max(0, baseNum * factor);
       updateProductPricingBySku(sku, { purchase_price: next }, 'markup');
     }
   }
 
-  function applyMarkupIncrease(direction: 1 | -1) {
-    const amount = toNumber(markupIncrease, 0);
-    if (!amount) {
-      toastError('Enter a valid markup change amount.');
-      return;
-    }
+  function applyMarkupPercentChange() {
+    const pct = toNumber(markupIncrease, 0);
+    const selected = getSelectedSkusOrToast();
+    if (!selected) return;
 
-    const selected = Array.from($selectedRows);
-    if (selected.length === 0) {
-      toastError('Select at least one row to apply markup change.');
-      return;
-    }
-
-    const delta = direction * amount;
+    const factor = 1 + pct / 100;
     for (const sku of selected) {
-      const prod = $products.find((p: any) => p?.sku === sku);
-      if (!prod) continue;
-
-      const currentMarkup = toNumber(prod.markup, 0);
-      const percentMode = currentMarkup > 0 && currentMarkup < 4;
-
-      let nextMarkup = currentMarkup;
-      if (percentMode) {
-        const pct = Math.max(0, (currentMarkup - 1) * 100 + delta);
-        nextMarkup = 1 + pct / 100;
-      } else {
-        nextMarkup = Math.max(0, currentMarkup + delta);
-      }
-
-      updateProductPricingBySku(sku, { markup: nextMarkup }, 'markup');
+      const base = originalMap.get(sku)?.markup ?? $products.find((p: any) => p?.sku === sku)?.markup;
+      const baseNum = toNumber(base, 0);
+      const next = Math.max(0, baseNum * factor);
+      updateProductPricingBySku(sku, { markup: next }, 'markup');
     }
   }
 
-  function applyListPriceIncrease(direction: 1 | -1) {
-    const amount = toNumber(listPriceIncrease, 0);
-    if (!amount) {
-      toastError('Enter a valid list price change amount.');
-      return;
-    }
+  function applyListPricePercentChange() {
+    const pct = toNumber(listPriceIncrease, 0);
+    const selected = getSelectedSkusOrToast();
+    if (!selected) return;
 
-    const selected = Array.from($selectedRows);
-    if (selected.length === 0) {
-      toastError('Select at least one row to apply list price change.');
-      return;
-    }
-
-    const delta = direction * amount;
+    const factor = 1 + pct / 100;
     for (const sku of selected) {
-      const prod = $products.find((p: any) => p?.sku === sku);
-      if (!prod) continue;
-      const next = Math.max(0, toNumber(prod.rrp, 0) + delta);
+      const base = originalMap.get(sku)?.rrp ?? $products.find((p: any) => p?.sku === sku)?.rrp;
+      const baseNum = toNumber(base, 0);
+      const next = Math.max(0, baseNum * factor);
       updateProductPricingBySku(sku, { rrp: next }, 'price');
     }
   }
+
+  $: purchasePriceIncreaseHint = percentHint(toNumber(purchasePriceIncrease, 0));
+  $: markupIncreaseHint = percentHint(toNumber(markupIncrease, 0));
+  $: listPriceIncreaseHint = percentHint(toNumber(listPriceIncrease, 0));
 
   onMount(async () => {
     // Load products and reference data in parallel
@@ -368,97 +353,49 @@
               <label class="block text-xs font-medium text-gray-700 mb-1" for="purchase_price_increase">
                 Purchase Price Increase
               </label>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  on:click={() => applyPurchasePriceIncrease(-1)}
-                  disabled={$selectedRows.size === 0}
-                >
-                  -
-                </button>
+              <div class="flex gap-2 items-center">
                 <input
                   id="purchase_price_increase"
                   type="number"
                   bind:value={purchasePriceIncrease}
                   class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
                   step="0.01"
-                  min="0"
+                  on:change={applyPurchasePricePercentChange}
                 />
-                <button
-                  type="button"
-                  class="rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  on:click={() => applyPurchasePriceIncrease(1)}
-                  disabled={$selectedRows.size === 0}
-                >
-                  +
-                </button>
               </div>
-              <div class="mt-1 text-[10px] text-gray-500">Applies to selected rows</div>
+              <div class={`mt-1 text-[10px] ${purchasePriceIncreaseHint.cls}`}>{purchasePriceIncreaseHint.text}</div>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="markup_increase">
                 Markup Increase
               </label>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  on:click={() => applyMarkupIncrease(-1)}
-                  disabled={$selectedRows.size === 0}
-                >
-                  -
-                </button>
+              <div class="flex gap-2 items-center">
                 <input
                   id="markup_increase"
                   type="number"
                   bind:value={markupIncrease}
                   class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
                   step="0.01"
-                  min="0"
+                  on:change={applyMarkupPercentChange}
                 />
-                <button
-                  type="button"
-                  class="rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  on:click={() => applyMarkupIncrease(1)}
-                  disabled={$selectedRows.size === 0}
-                >
-                  +
-                </button>
               </div>
-              <div class="mt-1 text-[10px] text-gray-500">Percent mode if markup &lt; 4</div>
+              <div class={`mt-1 text-[10px] ${markupIncreaseHint.cls}`}>{markupIncreaseHint.text}</div>
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="list_price_increase">
                 List Price Increase
               </label>
-              <div class="flex gap-2">
-                <button
-                  type="button"
-                  class="rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  on:click={() => applyListPriceIncrease(-1)}
-                  disabled={$selectedRows.size === 0}
-                >
-                  -
-                </button>
+              <div class="flex gap-2 items-center">
                 <input
                   id="list_price_increase"
                   type="number"
                   bind:value={listPriceIncrease}
                   class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
                   step="0.01"
-                  min="0"
+                  on:change={applyListPricePercentChange}
                 />
-                <button
-                  type="button"
-                  class="rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  on:click={() => applyListPriceIncrease(1)}
-                  disabled={$selectedRows.size === 0}
-                >
-                  +
-                </button>
               </div>
-              <div class="mt-1 text-[10px] text-gray-500">Applies to selected rows</div>
+              <div class={`mt-1 text-[10px] ${listPriceIncreaseHint.cls}`}>{listPriceIncreaseHint.text}</div>
             </div>
           </div>
           {#if searchSku.trim() || searchProductName.trim()}

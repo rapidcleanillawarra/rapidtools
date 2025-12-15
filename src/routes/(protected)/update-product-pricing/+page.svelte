@@ -421,24 +421,14 @@
                   >
                     Product Name {getSortIcon('product_name')}
                   </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('purchase_price')}
-                  >
-                    Purchase Price {getSortIcon('purchase_price')}
-                  </th>
                   <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Markup
-                    <button 
-                      class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
-                      on:click={applyMarkupToAll}
-                    >Apply All</button>
-                  </th>
-                  <th 
-                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    on:click={() => handleSortClick('rrp')}
-                  >
-                    List Price {getSortIcon('rrp')}
+                    <div class="flex items-center justify-between gap-2">
+                      <span>Price Info</span>
+                      <button 
+                        class="text-blue-600 hover:text-blue-800 text-[10px] px-2 py-1 rounded"
+                        on:click={applyMarkupToAll}
+                      >Apply All</button>
+                    </div>
                   </th>
                   <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Remove PriceGroups
@@ -490,31 +480,32 @@
                     </td>
                     <td class="px-2 py-1 text-xs break-words">{product.product_name}</td>
                     <td class="px-2 py-1 text-xs">
-                      <input
-                        type="number"
-                        value={product.purchase_price}
-                        on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                        step="0.01"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      <input
-                        type="number"
-                        value={product.markup}
-                        on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                        step="0.01"
-                      />
-                    </td>
-                    <td class="px-2 py-1 text-xs">
-                      <input
-                        type="number"
-                        value={product.rrp}
-                        on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
-                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                        step="0.01"
-                      />
+                      <div class="grid grid-cols-1 gap-1">
+                        <label class="text-[10px] text-gray-600">Purchase</label>
+                        <input
+                          type="number"
+                          value={product.purchase_price}
+                          on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
+                          step="0.01"
+                        />
+                        <label class="text-[10px] text-gray-600">Markup</label>
+                        <input
+                          type="number"
+                          value={product.markup}
+                          on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
+                          step="0.01"
+                        />
+                        <label class="text-[10px] text-gray-600">List</label>
+                        <input
+                          type="number"
+                          value={product.rrp}
+                          on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
+                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
+                          step="0.01"
+                        />
+                      </div>
                     </td>
                     <td class="px-2 py-1 text-xs text-center">
                       <input

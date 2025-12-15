@@ -89,6 +89,7 @@
   let visibleProducts: any[] = [];
   let paginatedProducts: any[] = [];
   let totalPages = 0;
+  let leftCollapsed = false;
   let currentPageItems = {
     start: 0,
     end: 0,
@@ -234,8 +235,9 @@
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
     <h2 class="text-2xl font-bold mb-6 text-gray-900">Update Product Pricing</h2>
 
-    <div class="three-col-layout">
+    <div class="three-col-layout" class:collapsed={leftCollapsed}>
       <FiltersPanel
+        collapsed={leftCollapsed}
         {skuFilter}
         {productNameFilter}
         {brandFilter}
@@ -250,6 +252,7 @@
         {submitLoading}
         onApplyFilters={handleFilterClick}
         onRequestSave={() => (showConfirmSave = true)}
+        onToggleCollapse={() => (leftCollapsed = !leftCollapsed)}
       />
 
       <!-- Middle column: table -->
@@ -362,6 +365,14 @@
     .three-col-layout {
       grid-template-columns: 280px minmax(0, 1fr);
     }
+
+    .three-col-layout.collapsed {
+      grid-template-columns: 56px minmax(0, 1fr);
+    }
+  }
+
+  .three-col-layout.collapsed {
+    grid-template-columns: 1fr;
   }
 
   .left-col,

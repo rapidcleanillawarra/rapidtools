@@ -27,6 +27,7 @@
   function formatMarkupDisplay(value: unknown): string {
     const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
     if (!Number.isFinite(n)) return '';
+    if (n <= 0) return '';
     if (n < 4) {
       const pct = Math.max(0, (n - 1) * 100);
       const txt =
@@ -34,6 +35,67 @@
       return `${txt}%`;
     }
     return Number.isInteger(n) ? String(n) : String(n).replace(/\.?0+$/, '');
+  }
+
+  function formatMarkupInputValue(value: unknown): string {
+    const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    if (!Number.isFinite(n) || n <= 0) return '';
+    const out = n < 4 ? Math.max(0, (n - 1) * 100) : n;
+    return Number.isInteger(out) ? String(out) : out.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  function toNumber(value: unknown): number | null {
+    const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function deltaClass(delta: number): string {
+    if (delta > 0) return 'text-green-700';
+    if (delta < 0) return 'text-red-700';
+    return 'text-gray-400';
+  }
+
+  function formatSigned(delta: number, formatter: (n: number) => string, prefix = ''): string {
+    const sign = delta > 0 ? '+' : delta < 0 ? '-' : '';
+    return `${sign}${prefix}${formatter(Math.abs(delta))}`;
+  }
+
+  function formatMoney(n: number): string {
+    return n.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  function moneyDelta(current: unknown, original: unknown): { txt: string; cls: string } | null {
+    const cur = toNumber(current);
+    const orig = toNumber(original);
+    if (cur === null || orig === null) return null;
+    const delta = cur - orig;
+    if (delta === 0) return null;
+    return { txt: formatSigned(delta, formatMoney, '$'), cls: deltaClass(delta) };
+  }
+
+  function formatNumberCompact(n: number): string {
+    return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+  }
+
+  function computeMarkupDisplayValue(markup: unknown, percentMode: boolean): number | null {
+    const n = toNumber(markup);
+    if (n === null) return null;
+    if (percentMode) return Math.max(0, (n - 1) * 100);
+    return n;
+  }
+
+  function markupDelta(productMarkup: unknown, originalMarkup: unknown): { txt: string; cls: string } | null {
+    const currentMarkup = toNumber(productMarkup);
+    if (currentMarkup === null) return null;
+    const percentMode = currentMarkup > 0 && currentMarkup < 4;
+
+    const cur = computeMarkupDisplayValue(productMarkup, percentMode);
+    const orig = computeMarkupDisplayValue(originalMarkup, percentMode);
+    if (cur === null || orig === null) return null;
+
+    const delta = cur - orig;
+    if (delta === 0) return null;
+    return { txt: formatSigned(delta, formatNumberCompact), cls: deltaClass(delta) };
   }
 </script>
 
@@ -180,15 +242,41 @@
                 class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
                 step="0.01"
               />
+              {#if true}
+                {@const ppDelta = moneyDelta(product.purchase_price, original?.purchase_price)}
+                {#if ppDelta}
+                  <div class={`mt-0.5 text-[10px] ${ppDelta.cls}`}>{ppDelta.txt}</div>
+                {/if}
+              {/if}
             </td>
             <td class="px-2 py-1 text-xs">
               <input
                 type="number"
-                value={product.markup}
-                on:input={(e) => onUpdateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
+                value={formatMarkupInputValue(product.markup)}
+                on:input={(e) => {
+                  const target = e.target as HTMLInputElement | null;
+                  if (!target) return;
+                  if (!target.value) return;
+
+                  const current =
+                    typeof product.markup === 'number'
+                      ? product.markup
+                      : parseFloat(String(product.markup ?? ''));
+                  const percentMode = Number.isFinite(current) && current > 0 && current < 4;
+
+                  const n = parseFloat(target.value);
+                  if (!Number.isFinite(n)) return;
+                  const next = percentMode ? 1 + Math.max(0, n) / 100 : n;
+                  onUpdateProductPricingBySku(product.sku, { markup: next }, 'markup');
+                }}
                 class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                step="0.01"
               />
+              {#if true}
+                {@const mupDelta = markupDelta(product.markup, original?.markup)}
+                {#if mupDelta}
+                  <div class={`mt-0.5 text-[10px] ${mupDelta.cls}`}>{mupDelta.txt}</div>
+                {/if}
+              {/if}
             </td>
             <td class="px-2 py-1 text-xs">
               <input
@@ -198,6 +286,12 @@
                 class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
                 step="0.01"
               />
+              {#if true}
+                {@const rrpDelta = moneyDelta(product.rrp, original?.rrp)}
+                {#if rrpDelta}
+                  <div class={`mt-0.5 text-[10px] ${rrpDelta.cls}`}>{rrpDelta.txt}</div>
+                {/if}
+              {/if}
             </td>
             <td class="px-2 py-1 text-xs text-center">
               <input

@@ -21,10 +21,24 @@
 
   export let onApplyFilters: () => void;
   export let onRequestSave: () => void;
+  export let onToggleCollapse: () => void;
+  export let collapsed: boolean = false;
 </script>
 
 <!-- Left column: filters -->
 <aside class="left-col">
+  {#if collapsed}
+    <div class="bg-white rounded-lg shadow p-2 flex flex-col items-center gap-2">
+      <button
+        type="button"
+        class="w-full rounded border border-gray-300 bg-white px-2 py-2 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+        on:click={onToggleCollapse}
+        aria-label="Expand filters panel"
+      >
+        Show Filters
+      </button>
+    </div>
+  {:else}
   <div class="bg-white rounded-lg shadow">
     <div class="p-6">
       <div class="grid grid-cols-1 gap-4">
@@ -84,12 +98,21 @@
       </div>
 
       <div class="mt-4 flex justify-end">
-        <button
-          class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          on:click={onApplyFilters}
-        >
-          Apply Filters
-        </button>
+        <div class="flex w-full gap-2">
+          <button
+            class="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            on:click={onApplyFilters}
+          >
+            Apply Filters
+          </button>
+          <button
+            type="button"
+            class="whitespace-nowrap rounded border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            on:click={onToggleCollapse}
+          >
+            Collapse
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -109,5 +132,5 @@
       {/if}
     </button>
   </div>
+  {/if}
 </aside>
-

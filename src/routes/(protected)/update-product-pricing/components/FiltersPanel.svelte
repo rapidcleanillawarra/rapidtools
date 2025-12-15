@@ -26,19 +26,22 @@
 </script>
 
 <!-- Left column: filters -->
-<aside class="left-col">
-  {#if collapsed}
-    <div class="bg-white rounded-lg shadow p-2 flex flex-col items-center gap-2">
-      <button
-        type="button"
-        class="w-full rounded border border-gray-300 bg-white px-2 py-2 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
-        on:click={onToggleCollapse}
-        aria-label="Expand filters panel"
-      >
-        Show Filters
-      </button>
-    </div>
-  {:else}
+<aside class="left-col" class:collapsed>
+  <div class="bg-white rounded-lg shadow relative">
+    <!-- Toggle button -->
+    <button
+      type="button"
+      class="absolute -left-3 top-4 z-10 bg-white border border-gray-300 rounded-full p-1 shadow-md hover:bg-gray-50 transition-colors"
+      class:rotated={collapsed}
+      on:click={onToggleCollapse}
+      aria-label={collapsed ? "Expand filters panel" : "Collapse filters panel"}
+    >
+      <svg class="w-4 h-4 text-gray-600 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+    </button>
+
+    {#if !collapsed}
   <div class="bg-white rounded-lg shadow">
     <div class="p-6">
       <div class="grid grid-cols-1 gap-4">
@@ -97,40 +100,41 @@
         </div>
       </div>
 
-      <div class="mt-4 flex justify-end">
-        <div class="flex w-full gap-2">
-          <button
-            class="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            on:click={onApplyFilters}
-          >
-            Apply Filters
-          </button>
-          <button
-            type="button"
-            class="whitespace-nowrap rounded border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50"
-            on:click={onToggleCollapse}
-          >
-            Collapse
-          </button>
-        </div>
+      <div class="mt-4">
+        <button
+          class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          on:click={onApplyFilters}
+        >
+          Apply Filters
+        </button>
       </div>
     </div>
   </div>
 
-  <div class="mt-4 bg-white rounded-lg shadow p-4 space-y-2">
-    <h3 class="text-sm font-semibold text-gray-800">Actions</h3>
-    <button
-      class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
-      on:click={onRequestSave}
-      disabled={$selectedRows.size === 0 || $submitLoading}
-    >
-      {#if $submitLoading}
-        <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
-        Updating...
-      {:else}
-        Save
-      {/if}
-    </button>
-  </div>
+    <div class="mt-4 bg-white rounded-lg shadow p-4 space-y-2">
+      <h3 class="text-sm font-semibold text-gray-800">Actions</h3>
+      <button
+        class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+        on:click={onRequestSave}
+        disabled={$selectedRows.size === 0 || $submitLoading}
+      >
+        {#if $submitLoading}
+          <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+          Updating...
+        {:else}
+          Save
+        {/if}
+      </button>
+    </div>
   {/if}
 </aside>
+
+<style>
+  .left-col {
+    transition: width 0.3s ease-in-out;
+  }
+
+  .rotated {
+    transform: rotate(180deg);
+  }
+</style>

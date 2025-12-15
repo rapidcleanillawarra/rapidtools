@@ -489,6 +489,7 @@
     grid-template-columns: 1fr;
     gap: 1.5rem;
     align-items: start;
+    transition: grid-template-columns 0.3s ease-in-out;
   }
 
   @media (min-width: 1024px) {
@@ -508,5 +509,6 @@
   .left-col,
   .middle-col {
     min-width: 0;
+    transition: all 0.3s ease-in-out;
   }
 </style> 

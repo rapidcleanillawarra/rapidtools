@@ -24,6 +24,23 @@
   export let onNumberInput: (e: Event) => number;
   export let onOpenPhotoViewer: (product: any) => void;
 
+  let baselineBySku = new Map<string, { purchase_price: unknown; markup: unknown; rrp: unknown }>();
+  $: {
+    let changed = false;
+    for (const product of paginatedProducts ?? []) {
+      const sku = product?.sku;
+      if (!sku || baselineBySku.has(sku)) continue;
+      const baseline = originalMap.get(sku) ?? product;
+      baselineBySku.set(sku, {
+        purchase_price: baseline?.purchase_price,
+        markup: baseline?.markup,
+        rrp: baseline?.rrp
+      });
+      changed = true;
+    }
+    if (changed) baselineBySku = new Map(baselineBySku);
+  }
+
   function formatMarkupDisplay(value: unknown): string {
     const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
     if (!Number.isFinite(n)) return '';
@@ -191,7 +208,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#each paginatedProducts as product (product.sku)}
           {@const mainImage = getMainImage(product)}
-          {@const original = originalMap.get(product.sku) ?? product}
+          {@const original = baselineBySku.get(product.sku) ?? originalMap.get(product.sku) ?? product}
           <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
             <td class="px-2 py-1 whitespace-nowrap">
               <input

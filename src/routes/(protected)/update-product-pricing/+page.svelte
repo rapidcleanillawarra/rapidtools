@@ -41,9 +41,34 @@
     getTotalPages,
     toggleRowSelected,
     updateProductBySku,
-    updateProductPricingBySku
+    updateProductPricingBySku,
+    clearSelection
   } from './stores';
+
+  function resetControlSection() {
+    searchSku = '';
+    searchProductName = '';
+    purchasePriceIncrease = 0;
+    markupIncrease = 0;
+    listPriceIncrease = 0;
+    currentPage.set(1);
+  }
+
+  function applyAdjustments() {
+    const selected = getSelectedSkusOrToast();
+    if (!selected) return;
+
+    const purchasePct = toNumber(purchasePriceIncrease, 0);
+    const markupPct = toNumber(markupIncrease, 0);
+    const listPct = toNumber(listPriceIncrease, 0);
+
+    if (purchasePct !== 0) applyPurchasePricePercentChange();
+    if (markupPct !== 0) applyMarkupPercentChange();
+    if (listPct !== 0) applyListPricePercentChange();
+  }
   async function handleFilterClick() {
+    resetControlSection();
+    clearSelection();
     const result = await handleFilterSubmit({
       skuFilter: $skuFilter,
       productNameFilter: $productNameFilter,
@@ -77,8 +102,8 @@
 
   type PercentHint = { text: string; cls: string };
   function percentHint(pct: number): PercentHint {
-    if (pct > 0) return { text: `Increase by ${pct}%`, cls: 'text-green-700' };
-    if (pct < 0) return { text: `Decrease by ${Math.abs(pct)}%`, cls: 'text-red-700' };
+    if (pct > 0) return { text: `Adjustment: +${pct}%`, cls: 'text-green-700' };
+    if (pct < 0) return { text: `Adjustment: ${pct}%`, cls: 'text-red-700' };
     return { text: 'No change', cls: 'text-gray-500' };
   }
 
@@ -153,9 +178,9 @@
   // Declare reactive variables
   let searchSku = '';
   let searchProductName = '';
-  let purchasePriceIncrease = 0.01;
-  let markupIncrease = 1;
-  let listPriceIncrease = 0.01;
+  let purchasePriceIncrease = 0;
+  let markupIncrease = 0;
+  let listPriceIncrease = 0;
   let visibleProducts: any[] = [];
   let paginatedProducts: any[] = [];
   let totalPages = 0;
@@ -351,7 +376,7 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="purchase_price_increase">
-                Purchase Price Increase
+                Purchase Price Adjustment
               </label>
               <div class="flex gap-2 items-center">
                 <input
@@ -367,7 +392,7 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="markup_increase">
-                Markup Increase
+                Markup Adjustment
               </label>
               <div class="flex gap-2 items-center">
                 <input
@@ -383,7 +408,7 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="list_price_increase">
-                List Price Increase
+                List Price Adjustment
               </label>
               <div class="flex gap-2 items-center">
                 <input
@@ -398,8 +423,20 @@
               <div class={`mt-1 text-[10px] ${listPriceIncreaseHint.cls}`}>{listPriceIncreaseHint.text}</div>
             </div>
           </div>
-          {#if searchSku.trim() || searchProductName.trim()}
-            <div class="mt-2 flex justify-end">
+          <div class="mt-2 flex items-center justify-between gap-2">
+            <button
+              type="button"
+              class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={$selectedRows.size === 0 ||
+                (toNumber(purchasePriceIncrease, 0) === 0 &&
+                  toNumber(markupIncrease, 0) === 0 &&
+                  toNumber(listPriceIncrease, 0) === 0)}
+              on:click={applyAdjustments}
+            >
+              Apply adjustments
+            </button>
+
+            {#if searchSku.trim() || searchProductName.trim()}
               <button
                 type="button"
                 class="text-xs text-blue-600 hover:text-blue-800"
@@ -411,8 +448,8 @@
               >
                 Clear search
               </button>
-            </div>
-          {/if}
+            {/if}
+          </div>
         </div>
 
         <PaginationControls

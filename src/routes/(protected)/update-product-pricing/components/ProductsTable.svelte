@@ -195,6 +195,9 @@
             List Price {getSortIcon('rrp')}
           </th>
           <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Difference
+          </th>
+          <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Remove PriceGroups
           </th>
           <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -228,7 +231,7 @@
               placeholder="Search Product Name"
             />
           </th>
-          <th class="px-2 py-1" colspan="7">
+          <th class="px-2 py-1" colspan="8">
             {#if searchSku.trim() || searchProductName.trim()}
               <button
                 type="button"
@@ -244,7 +247,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#if productsLength === 0}
           <tr>
-            <td colspan="11" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="12" class="px-2 py-8 text-center text-gray-500">
               No products found
             </td>
           </tr>
@@ -252,6 +255,9 @@
           {#each paginatedProducts as product (product.sku)}
             {@const mainImage = getMainImage(product)}
             {@const original = baselineBySku.get(product.sku) ?? originalMap.get(product.sku) ?? product}
+            {@const currentDiff = (toNumber(product.rrp) ?? 0) - (toNumber(product.purchase_price) ?? 0)}
+            {@const originalDiff = (toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0)}
+            {@const diffDelta = currentDiff - originalDiff}
             <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
               <td class="px-2 py-1 whitespace-nowrap">
                 <input
@@ -307,6 +313,10 @@
                     <tr>
                       <td class="pr-2 text-gray-600">List</td>
                       <td>${original?.rrp}</td>
+                    </tr>
+                    <tr>
+                      <td class="pr-2 text-gray-600">Difference</td>
+                      <td>${formatMoney((toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0))}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -364,6 +374,11 @@
                   {@const rrpDelta = moneyDeltaAlways(product.rrp, original?.rrp)}
                   <div class={`field_number_changes mt-0.5 text-[10px] ${rrpDelta.cls}`}>{rrpDelta.txt || '$0'}</div>
                 {/if}
+              </td>
+              <td class="px-2 py-1 text-xs text-center">
+                <span class={diffDelta !== 0 ? deltaClass(diffDelta) : ''}>
+                  ${formatMoney(currentDiff)}
+                </span>
               </td>
               <td class="px-2 py-1 text-xs text-center">
                 <input

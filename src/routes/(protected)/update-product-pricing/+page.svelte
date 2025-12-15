@@ -63,7 +63,7 @@
     const listPct = toNumber(listPriceIncrease, 0);
 
     if (purchasePct !== 0) applyPurchasePricePercentChange();
-    if (markupPct !== 0) applyMarkupPercentChange();
+    if (markupPct !== 0) applyMarkupAddition();
     if (listPct !== 0) applyListPricePercentChange();
   }
   async function handleFilterClick() {
@@ -107,6 +107,12 @@
     return { text: 'No change', cls: 'text-gray-500' };
   }
 
+  function markupHint(value: number): PercentHint {
+    if (value > 0) return { text: `Addition: +${value}`, cls: 'text-green-700' };
+    if (value < 0) return { text: `Addition: ${value}`, cls: 'text-red-700' };
+    return { text: 'No change', cls: 'text-gray-500' };
+  }
+
   function getSelectedSkusOrToast(): string[] | null {
     const selected = Array.from($selectedRows);
     if (selected.length === 0) {
@@ -130,16 +136,15 @@
     }
   }
 
-  function applyMarkupPercentChange() {
-    const pct = toNumber(markupIncrease, 0);
+  function applyMarkupAddition() {
+    const addition = toNumber(markupIncrease, 0);
     const selected = getSelectedSkusOrToast();
     if (!selected) return;
 
-    const factor = 1 + pct / 100;
     for (const sku of selected) {
       const base = originalMap.get(sku)?.markup ?? $products.find((p: any) => p?.sku === sku)?.markup;
       const baseNum = toNumber(base, 0);
-      const next = Math.max(0, baseNum * factor);
+      const next = Math.max(0, baseNum + addition);
       updateProductPricingBySku(sku, { markup: next }, 'markup');
     }
   }
@@ -159,7 +164,7 @@
   }
 
   $: purchasePriceIncreaseHint = percentHint(toNumber(purchasePriceIncrease, 0));
-  $: markupIncreaseHint = percentHint(toNumber(markupIncrease, 0));
+  $: markupIncreaseHint = markupHint(toNumber(markupIncrease, 0));
   $: listPriceIncreaseHint = percentHint(toNumber(listPriceIncrease, 0));
 
   onMount(async () => {
@@ -372,7 +377,7 @@
             </div>
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="markup_increase">
-                Markup Adjustment
+                Markup Addition
               </label>
               <div class="flex gap-2 items-center">
                 <input
@@ -381,7 +386,7 @@
                   bind:value={markupIncrease}
                   class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
                   step="0.01"
-                  on:change={applyMarkupPercentChange}
+                  on:change={applyMarkupAddition}
                 />
               </div>
               <div class={`mt-1 text-[10px] ${markupIncreaseHint.cls}`}>{markupIncreaseHint.text}</div>
@@ -407,10 +412,7 @@
             <button
               type="button"
               class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={$selectedRows.size === 0 ||
-                (toNumber(purchasePriceIncrease, 0) === 0 &&
-                  toNumber(markupIncrease, 0) === 0 &&
-                  toNumber(listPriceIncrease, 0) === 0)}
+              disabled={$selectedRows.size === 0}
               on:click={applyAdjustments}
             >
               Apply adjustments

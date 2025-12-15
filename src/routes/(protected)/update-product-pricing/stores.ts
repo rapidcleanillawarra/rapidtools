@@ -274,6 +274,9 @@ function transformApiItemToProduct(item: any) {
     product_name: item?.Model || '',
     brand: item?.Brand || '',
     primary_supplier: item?.PrimarySupplier || '',
+    // keep raw price group payload for downstream extraction
+    PriceGroups: item?.PriceGroups ?? [],
+    Images: item?.Images ?? [],
     category: categoryIds,
     category_name: categoryNames,
     original_category: [...categoryIds],
@@ -294,11 +297,12 @@ export async function fetchAllProducts() {
     const requestBody = {
       Filter: {
         SKU: "",
-        Active: true,
+        IsActive: true,
+        Page: 0,
+        Limit: 100,
         OutputSelector: [
           "SKU",
           "Model",
-          "Categories",
           "Brand",
           "PrimarySupplier",
           "RRP",
@@ -307,9 +311,11 @@ export async function fetchAllProducts() {
           "Misc02",
           "Misc09",
           "InventoryID",
-          "TaxFreeItem"
+          "TaxFreeItem",
+          "Images"
         ]
-      }
+      },
+      action: "GetItem"
     };
 
     const response = await fetch(filterProductsUrl, {
@@ -755,11 +761,12 @@ export async function handleFilterSubmit(filters: {
         SKU: payload.sku || '',
         Name: payload.productName || '',
         Brand: payload.brand || '',
-        Active: true,
+        IsActive: true,
+        Page: 0,
+        Limit: 100,
         OutputSelector: [
           "SKU",
           "Model",
-          "Categories",
           "Brand",
           "PrimarySupplier",
           "RRP",
@@ -768,7 +775,8 @@ export async function handleFilterSubmit(filters: {
           "Misc02",
           "Misc09",
           "InventoryID",
-          "TaxFreeItem"
+          "TaxFreeItem",
+          "Images"
         ]
       },
       "action": "GetItem"

@@ -124,6 +124,17 @@
     return $sortDirection === 'asc' ? '↑' : '↓';
   }
 
+  // Get the main product image URL (prefers a "Main" named image, falls back to the first)
+  function getMainImage(product: any): string | null {
+    const images = product?.Images || product?.images || [];
+    if (!Array.isArray(images) || images.length === 0) return null;
+    const main = images.find(
+      (img: any) => (img?.Name || img?.name || '').toLowerCase() === 'main'
+    );
+    const chosen = main || images[0];
+    return chosen?.ThumbURL || chosen?.MediumThumbURL || chosen?.URL || null;
+  }
+
   // Function to handle sorting
   function handleSortClick(field: string) {
     if ($sortField === field) {
@@ -393,6 +404,9 @@
                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
+                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[120px]">
+                    Main
+                  </th>
                   <th 
                     class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[100px] cursor-pointer hover:bg-gray-100"
                     on:click={() => handleSortClick('sku')}
@@ -440,6 +454,7 @@
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 {#each paginatedProducts as product (product.sku)}
+                  {@const mainImage = getMainImage(product)}
                   <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
                     <td class="px-2 py-1 whitespace-nowrap">
                       <input
@@ -451,6 +466,21 @@
                         }}
                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
+                    </td>
+                    <td class="px-2 py-1 text-xs">
+                      {#if mainImage}
+                        <div class="flex items-center gap-2">
+                          <img
+                            src={mainImage}
+                            alt={`Main image for ${product.product_name || product.sku}`}
+                            class="h-12 w-12 object-contain border rounded bg-gray-50"
+                            loading="lazy"
+                          />
+                          <span class="text-[10px] text-gray-600">Main</span>
+                        </div>
+                      {:else}
+                        <span class="text-[10px] text-gray-400">No image</span>
+                      {/if}
                     </td>
                     <td class="px-2 py-1 text-xs break-words">
                       <a href={`https://www.rapidsupplies.com.au/_cpanel/products/view?id=${product.inventory_id}`} target="_blank" class="text-blue-600 hover:underline">
@@ -528,7 +558,7 @@
               </tbody>
               <tfoot class="bg-gray-50">
                 <tr>
-                  <td colspan="9" class="px-2 py-4 text-center">
+                  <td colspan="10" class="px-2 py-4 text-center">
                     <button
                       class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[160px] mx-auto"
                       on:click={submitCheckedRows}

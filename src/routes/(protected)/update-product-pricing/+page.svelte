@@ -218,7 +218,7 @@
     visibleProducts,
     $currentPage,
     $itemsPerPage,
-    $sortField,
+    $sortField || undefined,
     $sortDirection
   );
   $: {
@@ -353,27 +353,7 @@
       <!-- Middle column: table -->
       <section class="middle-col">
         <div class="control-section mb-3 rounded-md bg-white p-3 shadow-sm ring-1 ring-gray-200">
-          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1" for="search_sku">Search SKU</label>
-              <input
-                id="search_sku"
-                type="text"
-                bind:value={searchSku}
-                class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
-                placeholder="Type to filter current list"
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1" for="search_product_name">Search Product Name</label>
-              <input
-                id="search_product_name"
-                type="text"
-                bind:value={searchProductName}
-                class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
-                placeholder="Type to filter current list"
-              />
-            </div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <label class="block text-xs font-medium text-gray-700 mb-1" for="purchase_price_increase">
                 Purchase Price Adjustment
@@ -435,20 +415,6 @@
             >
               Apply adjustments
             </button>
-
-            {#if searchSku.trim() || searchProductName.trim()}
-              <button
-                type="button"
-                class="text-xs text-blue-600 hover:text-blue-800"
-                on:click={() => {
-                  searchSku = '';
-                  searchProductName = '';
-                  currentPage.set(1);
-                }}
-              >
-                Clear search
-              </button>
-            {/if}
           </div>
         </div>
 
@@ -467,6 +433,15 @@
           {originalMap}
           selectedRows={$selectedRows}
           selectAll={$selectAll}
+          {searchSku}
+          {searchProductName}
+          onSearchSkuChange={(value) => searchSku = value}
+          onSearchProductNameChange={(value) => searchProductName = value}
+          onClearSearch={() => {
+            searchSku = '';
+            searchProductName = '';
+            currentPage.set(1);
+          }}
           onSelectAll={handleSelectAll}
           onToggleRowSelected={toggleRowSelected}
           onApplyMarkupToAll={applyMarkupToAll}

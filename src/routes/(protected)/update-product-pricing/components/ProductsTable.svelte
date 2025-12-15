@@ -73,6 +73,13 @@
     return { txt: formatSigned(delta, formatMoney, '$'), cls: deltaClass(delta) };
   }
 
+  function moneyDeltaAlways(current: unknown, original: unknown): { txt: string; cls: string } {
+    const cur = toNumber(current) ?? 0;
+    const orig = toNumber(original) ?? 0;
+    const delta = cur - orig;
+    return { txt: formatSigned(delta, formatMoney, '$'), cls: deltaClass(delta) };
+  }
+
   function formatNumberCompact(n: number): string {
     return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
   }
@@ -95,6 +102,17 @@
 
     const delta = cur - orig;
     if (delta === 0) return null;
+    return { txt: formatSigned(delta, formatNumberCompact), cls: deltaClass(delta) };
+  }
+
+  function markupDeltaAlways(productMarkup: unknown, originalMarkup: unknown): { txt: string; cls: string } {
+    const currentMarkup = toNumber(productMarkup) ?? 0;
+    const percentMode = currentMarkup > 0 && currentMarkup < 4;
+
+    const cur = computeMarkupDisplayValue(productMarkup, percentMode) ?? 0;
+    const orig = computeMarkupDisplayValue(originalMarkup, percentMode) ?? 0;
+
+    const delta = cur - orig;
     return { txt: formatSigned(delta, formatNumberCompact), cls: deltaClass(delta) };
   }
 </script>
@@ -243,10 +261,8 @@
                 step="0.01"
               />
               {#if true}
-                {@const ppDelta = moneyDelta(product.purchase_price, original?.purchase_price)}
-                {#if ppDelta}
-                  <div class={`mt-0.5 text-[10px] ${ppDelta.cls}`}>{ppDelta.txt}</div>
-                {/if}
+                {@const ppDelta = moneyDeltaAlways(product.purchase_price, original?.purchase_price)}
+                <div class={`field_number_changes mt-0.5 text-[10px] ${ppDelta.cls}`}>{ppDelta.txt || '$0'}</div>
               {/if}
             </td>
             <td class="px-2 py-1 text-xs">
@@ -272,10 +288,8 @@
                 class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
               />
               {#if true}
-                {@const mupDelta = markupDelta(product.markup, original?.markup)}
-                {#if mupDelta}
-                  <div class={`mt-0.5 text-[10px] ${mupDelta.cls}`}>{mupDelta.txt}</div>
-                {/if}
+                {@const mupDelta = markupDeltaAlways(product.markup, original?.markup)}
+                <div class={`field_number_changes mt-0.5 text-[10px] ${mupDelta.cls}`}>{mupDelta.txt || '0'}</div>
               {/if}
             </td>
             <td class="px-2 py-1 text-xs">
@@ -287,10 +301,8 @@
                 step="0.01"
               />
               {#if true}
-                {@const rrpDelta = moneyDelta(product.rrp, original?.rrp)}
-                {#if rrpDelta}
-                  <div class={`mt-0.5 text-[10px] ${rrpDelta.cls}`}>{rrpDelta.txt}</div>
-                {/if}
+                {@const rrpDelta = moneyDeltaAlways(product.rrp, original?.rrp)}
+                <div class={`field_number_changes mt-0.5 text-[10px] ${rrpDelta.cls}`}>{rrpDelta.txt || '$0'}</div>
               {/if}
             </td>
             <td class="px-2 py-1 text-xs text-center">

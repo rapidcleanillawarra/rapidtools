@@ -89,6 +89,7 @@
     total: 0
   };
   let showConfirmSave = false;
+  $: originalMap = new Map($originalProducts.map(p => [p.sku, p]));
 
   $: totalPages = getTotalPages($products.length, $itemsPerPage);
   $: paginatedProducts = getPaginatedProducts($products, $currentPage, $itemsPerPage, $sortField, $sortDirection);
@@ -235,22 +236,9 @@
               </div>
             </div>
 
-            <div class="mt-4 flex justify-end space-x-4">
+            <div class="mt-4 flex justify-end">
               <button
-                class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                on:click={() => {
-                  $skuFilter = '';
-                  $productNameFilter = '';
-                  $brandFilter = null;
-                  $supplierFilter = null;
-                  $products = [...$originalProducts];
-                  $filteredProducts = [...$originalProducts];
-                }}
-              >
-                Reset Filters
-              </button>
-              <button
-                class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 on:click={handleFilterClick}
               >
                 Apply Filters
@@ -422,13 +410,26 @@
                     Product Name {getSortIcon('product_name')}
                   </th>
                   <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <div class="flex items-center justify-between gap-2">
-                      <span>Price Info</span>
-                      <button 
-                        class="text-blue-600 hover:text-blue-800 text-[10px] px-2 py-1 rounded"
-                        on:click={applyMarkupToAll}
-                      >Apply All</button>
-                    </div>
+                    Price Info
+                  </th>
+                  <th 
+                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    on:click={() => handleSortClick('purchase_price')}
+                  >
+                    Purchase Price {getSortIcon('purchase_price')}
+                  </th>
+                  <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Markup
+                    <button 
+                      class="ml-1 text-blue-600 hover:text-blue-800 text-xs"
+                      on:click={applyMarkupToAll}
+                    >Apply All</button>
+                  </th>
+                  <th 
+                    class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    on:click={() => handleSortClick('rrp')}
+                  >
+                    List Price {getSortIcon('rrp')}
                   </th>
                   <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Remove PriceGroups
@@ -447,6 +448,7 @@
               <tbody class="bg-white divide-y divide-gray-200">
                 {#each paginatedProducts as product (product.sku)}
                   {@const mainImage = getMainImage(product)}
+                  {@const original = originalMap.get(product.sku) ?? product}
                   <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
                     <td class="px-2 py-1 whitespace-nowrap">
                       <input
@@ -480,32 +482,38 @@
                     </td>
                     <td class="px-2 py-1 text-xs break-words">{product.product_name}</td>
                     <td class="px-2 py-1 text-xs">
-                      <div class="grid grid-cols-1 gap-1">
-                        <label class="text-[10px] text-gray-600">Purchase</label>
-                        <input
-                          type="number"
-                          value={product.purchase_price}
-                          on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
-                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                          step="0.01"
-                        />
-                        <label class="text-[10px] text-gray-600">Markup</label>
-                        <input
-                          type="number"
-                          value={product.markup}
-                          on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
-                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                          step="0.01"
-                        />
-                        <label class="text-[10px] text-gray-600">List</label>
-                        <input
-                          type="number"
-                          value={product.rrp}
-                          on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
-                          class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
-                          step="0.01"
-                        />
+                      <div class="space-y-1 text-[11px] text-gray-800">
+                        <div>Purchase: {original?.purchase_price}</div>
+                        <div>Markup: {original?.markup}</div>
+                        <div>List: {original?.rrp}</div>
                       </div>
+                    </td>
+                    <td class="px-2 py-1 text-xs">
+                      <input
+                        type="number"
+                        value={product.purchase_price}
+                        on:input={(e) => updateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
+                        step="0.01"
+                      />
+                    </td>
+                    <td class="px-2 py-1 text-xs">
+                      <input
+                        type="number"
+                        value={product.markup}
+                        on:input={(e) => updateProductPricingBySku(product.sku, { markup: onNumberInput(e) }, 'markup')}
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
+                        step="0.01"
+                      />
+                    </td>
+                    <td class="px-2 py-1 text-xs">
+                      <input
+                        type="number"
+                        value={product.rrp}
+                        on:input={(e) => updateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
+                        class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1"
+                        step="0.01"
+                      />
                     </td>
                     <td class="px-2 py-1 text-xs text-center">
                       <input

@@ -80,7 +80,7 @@
     let filtered = [...workshops];
     console.log('[APPLY_FILTERS] After copying workshops:', filtered.length);
 
-    // Apply combined search filter (customer name, order ID, work order)
+    // Apply combined search filter (customer name, order ID, work order, company name, machine name)
     if (searchFilter) {
       const beforeSearch = filtered.length;
       const searchTerm = searchFilter.toLowerCase();
@@ -88,7 +88,10 @@
         const customerMatch = workshop.customer_name?.toLowerCase().includes(searchTerm);
         const orderIdMatch = workshop.order_id?.toLowerCase().includes(searchTerm);
         const workOrderMatch = workshop.clients_work_order?.toLowerCase().includes(searchTerm);
-        return customerMatch || orderIdMatch || workOrderMatch;
+        const companyMatch = workshop.customer_data?.BillingAddress?.BillCompany?.toLowerCase().includes(searchTerm);
+        const machineMakeMatch = workshop.make_model?.toLowerCase().includes(searchTerm);
+        const machineProductMatch = workshop.product_name?.toLowerCase().includes(searchTerm);
+        return customerMatch || orderIdMatch || workOrderMatch || companyMatch || machineMakeMatch || machineProductMatch;
       });
       console.log('[APPLY_FILTERS] Search filter applied:', searchFilter, 'Before:', beforeSearch, 'After:', filtered.length);
     }
@@ -656,7 +659,7 @@
             type="text"
             bind:value={searchFilter}
             on:input={applyFilters}
-            placeholder="Search customer, order ID, work order..."
+            placeholder="Search customer, company, machine, order ID, work order..."
             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
           />
         </div>

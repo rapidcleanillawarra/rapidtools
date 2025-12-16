@@ -268,6 +268,20 @@
           {/if}
         </h4>
         <p class="text-xs text-gray-500 truncate">{workshop.customer_name}</p>
+        {#if workshop.customer_data?.BillingAddress?.BillCompany}
+          <p class="text-xs text-gray-400 truncate">Company: {workshop.customer_data.BillingAddress.BillCompany}</p>
+        {/if}
+        <p class="text-xs text-gray-400 truncate">
+          {#if workshop.make_model && workshop.product_name}
+            Machine: {workshop.make_model} - {workshop.product_name}
+          {:else if workshop.make_model}
+            Machine: {workshop.make_model}
+          {:else if workshop.product_name}
+            Machine: {workshop.product_name}
+          {:else}
+            Machine: N/A
+          {/if}
+        </p>
       </div>
     </div>
 

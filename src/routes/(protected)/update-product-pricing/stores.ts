@@ -264,9 +264,8 @@ function extractCategories(raw: any): { ids: string[]; names: string[] } {
 function transformApiItemToProduct(item: any) {
   const { ids: categoryIds, names: categoryNames } = extractCategories(item?.Categories);
   const purchasePrice = toNumber(item?.DefaultPurchasePrice, 0);
-  const markup = toNumber(item?.Misc02 || item?.Misc09, 0);
-  const listPrice =
-    purchasePrice && markup ? round2(purchasePrice * markup) : toNumber(item?.RRP, 0);
+  const listPrice = toNumber(item?.RRP, 0);
+  const markup = purchasePrice > 0 ? round2(listPrice / purchasePrice) : 0;
 
   return {
     sku: item?.SKU || '',

@@ -25,7 +25,6 @@
     productNameFilter,
     brandFilter,
     supplierFilter,
-    applyMarkupToAll,
     fetchBrands,
     fetchSuppliers,
     fetchPriceGroups,
@@ -364,14 +363,14 @@
                 Purchase Price Adjustment
               </label>
               <div class="flex gap-2 items-center">
-                <input
-                  id="purchase_price_increase"
-                  type="number"
-                  bind:value={purchasePriceIncrease}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
-                  step="0.01"
-                  on:change={applyPurchasePricePercentChange}
-                />
+                  <input
+                    id="purchase_price_increase"
+                    type="number"
+                    bind:value={purchasePriceIncrease}
+                    class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2 no-spinner"
+                    step="0.01"
+                    on:change={applyPurchasePricePercentChange}
+                  />
               </div>
               <div class={`mt-1 text-[10px] ${purchasePriceIncreaseHint.cls}`}>{purchasePriceIncreaseHint.text}</div>
             </div>
@@ -384,7 +383,7 @@
                   id="markup_increase"
                   type="number"
                   bind:value={markupIncrease}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
+                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2 no-spinner"
                   step="0.01"
                   on:change={applyMarkupAddition}
                 />
@@ -400,7 +399,7 @@
                   id="list_price_increase"
                   type="number"
                   bind:value={listPriceIncrease}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2"
+                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-8 px-2 no-spinner"
                   step="0.01"
                   on:change={applyListPricePercentChange}
                 />
@@ -446,7 +445,6 @@
           }}
           onSelectAll={handleSelectAll}
           onToggleRowSelected={toggleRowSelected}
-          onApplyMarkupToAll={applyMarkupToAll}
           onUpdateProductBySku={updateProductBySku}
           onUpdateProductPricingBySku={updateProductPricingBySku}
           onSortClick={handleSortClick}
@@ -512,5 +510,18 @@
   .middle-col {
     min-width: 0;
     transition: all 0.3s ease-in-out;
+  }
+
+  /* Hide number input spinner controls */
+  .no-spinner::-webkit-outer-spin-button,
+  .no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+  }
+
+  .no-spinner[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
   }
 </style> 

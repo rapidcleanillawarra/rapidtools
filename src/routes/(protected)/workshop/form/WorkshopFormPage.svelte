@@ -1999,151 +1999,196 @@
       pdf: `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Tag Sticker</title>
   <style>
-    /* Basic reset */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
+    /* PDF-friendly reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      background-color: #f4f4f4;
+      background: #f4f4f4;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      font-size: 11px;
       padding: 20px;
-      font-size: 12px; /* Smaller base font */
     }
-    
+
+    /* Sticker container */
     .sticker {
-      background-color: #fff;
-      width: 500px; /* Fixed width */
-      border-radius: 8px;
-      border: 1px solid #cccccc; /* PDF-friendly border */
-      padding: 20px;
-      text-align: center;
-      word-wrap: break-word;
+      width: 520px;
+      background: #ffffff;
+      border: 1px solid #cfcfcf;
+      border-radius: 10px;
+      padding: 16px 16px 14px 16px;
     }
 
-    /* Simple accent bar that works well in PDF */
+    /* Top accent + header */
     .accent-bar {
-      height: 6px;
-      background-color: #2c7a7b;
-      margin: -20px -20px 12px -20px; /* full-bleed top bar */
-      border-radius: 8px 8px 0 0;
+      height: 8px;
+      background: #2c7a7b;
+      border-radius: 8px;
+      margin-bottom: 10px;
     }
-    
+
+    .header {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+    .header td {
+      vertical-align: middle;
+    }
+
     .title {
-      font-size: 20px; /* Smaller title font */
+      font-size: 18px;
       font-weight: 700;
-      margin-bottom: 12px;
-      color: #333;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 8px;
+      color: #1f2937;
+      padding: 2px 0 6px 0;
     }
-    
-    .info {
-      text-align: left;
-      margin: 8px 0;
-      font-size: 12px;
-      color: #555;
+
+    .subtle {
+      font-size: 10px;
+      color: #6b7280;
+      padding-top: 2px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    /* Data table */
+    table.tag {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed; /* stable columns in PDF */
+      border: 1px solid #d9d9d9;
+      overflow: hidden;
+    }
+
+    table.tag th, table.tag td {
+      border-bottom: 1px solid #e6e6e6;
+      padding: 8px 10px;
+      vertical-align: top;
+      word-wrap: break-word;
       overflow-wrap: break-word;
-      padding-top: 6px;
     }
 
-    /* Dashed separators between rows for a clean tag look */
-    .info + .info {
-      border-top: 1px dashed #e0e0e0;
+    table.tag tr:last-child th,
+    table.tag tr:last-child td {
+      border-bottom: none;
     }
-    
-    .info .label {
-      font-weight: bold;
-      color: #000;
-      margin-bottom: 2px;
+
+    table.tag th {
+      width: 32%;
+      background: #f7f7f7;
+      text-align: left;
+      font-size: 10px;
+      color: #111827;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    table.tag td {
       font-size: 11px;
+      color: #374151;
     }
-    
-    .info .value {
-      white-space: normal;
+
+    .value {
       text-decoration: underline;
-      font-size: 11px;
     }
 
-    /* Make the fault description able to handle longer text nicely */
-    .info.fault-description .value {
+    /* Fault description as a block */
+    .fault {
       text-decoration: none;
-      border: 1px solid #e0e0e0;
-      padding: 4px;
-      border-radius: 4px;
-      font-size: 11px;
+      border: 1px solid #e1e1e1;
+      padding: 8px;
+      background: #ffffff;
+      min-height: 48px;
+      white-space: pre-wrap;
     }
   </style>
 </head>
+
 <body>
   <div class="sticker">
     <div class="accent-bar"></div>
 
-    <!-- Generated ID as the main title -->
-    <div class="title">
-      # ${finalOrderId || 'N/A'}
-    </div>
+    <table class="header">
+      <tr>
+        <td class="title"># ${finalOrderId || 'N/A'}</td>
+        <td class="subtle">Date Issued: ${dateIssued || ''}</td>
+      </tr>
+    </table>
 
-    <div class="info">
-      <div class="label">Client Work Order:</div>
-      <div class="value">${clientsWorkOrder || ''}</div>
-    </div>
+    <table class="tag">
+      <tr>
+        <th>Client Work Order</th>
+        <td><span class="value">${clientsWorkOrder || ''}</span></td>
+      </tr>
 
-    <div class="info">
-      <div class="label">Product Name:</div>
-      <div class="value">${productName || ''}</div>
-    </div>
+      <tr>
+        <th>Product Name</th>
+        <td><span class="value">${productName || ''}</span></td>
+      </tr>
 
-    <div class="info">
-      <div class="label">Customer Name:</div>
-      <div class="value">${customerName || ''}</div>
-    </div>
+      <tr>
+        <th>Customer Name</th>
+        <td><span class="value">${customerName || ''}</span></td>
+      </tr>
 
-    <div class="info">
-      <div class="label">Company:</div>
-      <div class="value">${selectedCustomer?.BillingAddress?.BillCompany || ''}</div>
-    </div>
+      <tr>
+        <th>Company</th>
+        <td><span class="value">${selectedCustomer?.BillingAddress?.BillCompany || ''}</span></td>
+      </tr>
 
-    ${optionalContacts && optionalContacts.length > 0 ? optionalContacts.map((contact, index) => `
-    <div class="info">
-      <div class="label">Contact ${index + 1}:</div>
-      <div class="value">${contact.name}${contact.number ? `, Phone: ${contact.number}` : ''}${contact.email ? `, Email: ${contact.email}` : ''}</div>
-    </div>
-    `).join('') : ''}
+      <!-- Contacts in a nested table (Name / Phone / Email separated) -->
+      ${optionalContacts && optionalContacts.length > 0 ? `
+        <tr>
+          <th>Contacts</th>
+          <td style="padding:0;">
+            <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+              <tr>
+                <th style="width:34%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px;">Name</th>
+                <th style="width:33%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px;">Phone</th>
+                <th style="width:33%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px;">Email</th>
+              </tr>
 
-    <div class="info">
-      <div class="label">Date Issued:</div>
-      <div class="value">${dateIssued}</div>
-    </div>
+              ${optionalContacts.map((contact) => `
+              <tr>
+                <td style="border-bottom:1px solid #e6e6e6; padding:6px 8px; word-wrap:break-word; overflow-wrap:break-word;">
+                  <span style="text-decoration:underline;">${contact.name || ''}</span>
+                </td>
+                <td style="border-bottom:1px solid #e6e6e6; padding:6px 8px; word-wrap:break-word; overflow-wrap:break-word;">
+                  <span style="text-decoration:underline;">${contact.number || ''}</span>
+                </td>
+                <td style="border-bottom:1px solid #e6e6e6; padding:6px 8px; word-wrap:break-word; overflow-wrap:break-word;">
+                  <span style="text-decoration:underline;">${contact.email || ''}</span>
+                </td>
+              </tr>
+              `).join('')}
 
-    <div class="info">
-      <div class="label">Make / Model:</div>
-      <div class="value">${makeModel || ''}</div>
-    </div>
+            </table>
+          </td>
+        </tr>
+      ` : ''}
 
-    <div class="info">
-      <div class="label">Serial Number:</div>
-      <div class="value">${serialNumber || ''}</div>
-    </div>
+      <tr>
+        <th>Make / Model</th>
+        <td><span class="value">${makeModel || ''}</span></td>
+      </tr>
 
-    <div class="info">
-      <div class="label">Site Location:</div>
-      <div class="value">${siteLocation || ''}</div>
-    </div>
+      <tr>
+        <th>Serial Number</th>
+        <td><span class="value">${serialNumber || ''}</span></td>
+      </tr>
 
-    <div class="info fault-description">
-      <div class="label">Fault Description:</div>
-      <div class="value">${faultDescription || ''}</div>
-    </div>
+      <tr>
+        <th>Site Location</th>
+        <td><span class="value">${siteLocation || ''}</span></td>
+      </tr>
+
+      <tr>
+        <th>Fault Description</th>
+        <td><div class="fault">${faultDescription || ''}</div></td>
+      </tr>
+    </table>
   </div>
 </body>
 </html>`,

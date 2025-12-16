@@ -160,7 +160,12 @@
 
             <!-- Optional Contacts -->
             <div class="md:col-span-2 mt-6">
-              <label class="block text-sm font-medium text-gray-700 mb-3">Contacts</label>
+              <label class="block text-sm font-medium text-gray-700 mb-3">
+                Contacts
+                {#if workshopStatus === 'new' || workshopStatus === null}
+                  <span class="text-red-500">*</span>
+                {/if}
+              </label>
               <ContactsManager
                 bind:this={contactsManager}
                 bind:contacts={optionalContacts}

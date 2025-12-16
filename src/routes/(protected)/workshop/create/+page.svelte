@@ -1841,11 +1841,11 @@
   }
 
   /**
-   * Generates a tag payload with product name, client work order, customer name, order ID, and date issued
+   * Generates a notification payload with HTML content for PDF, email, and Teams
    * @param {string|null} orderId - The order ID to use (if provided, otherwise uses existing/generated)
-   * @returns {Object} JSON payload object with camelCase field names
+   * @returns {Object} JSON payload object with HTML content for notifications
    */
-  function generateTag(orderId?: string | null) {
+  function generateNotificationPayload(orderId?: string | null) {
     // Use provided orderId, or fall back to existing/generated
     const finalOrderId = orderId || existingOrderId || generatedOrderId || null;
 
@@ -1945,22 +1945,176 @@
     }
 
     const payload = {
-      productName: productName || '',
-      clientsWorkOrder: clientsWorkOrder || '',
-      customerName: customerName || '',
       orderId: finalOrderId,
+      clientsWorkOrder: clientsWorkOrder || '',
+      productName: productName || '',
+      customerName: customerName || '',
       dateIssued: dateIssued,
       makeModel: makeModel || '',
       serialNumber: serialNumber || '',
       siteLocation: siteLocation || '',
-      faultDescription: faultDescription || ''
+      faultDescription: faultDescription || '',
+      pdf: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tag Sticker</title>
+  <style>
+    /* Basic reset */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #f4f4f4;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+      font-size: 12px; /* Smaller base font */
+    }
+
+    .sticker {
+      background-color: #fff;
+      width: 500px; /* Fixed width */
+      border-radius: 8px;
+      border: 1px solid #cccccc; /* PDF-friendly border */
+      padding: 20px;
+      text-align: center;
+      word-wrap: break-word;
+    }
+
+    /* Simple accent bar that works well in PDF */
+    .accent-bar {
+      height: 6px;
+      background-color: #2c7a7b;
+      margin: -20px -20px 12px -20px; /* full-bleed top bar */
+      border-radius: 8px 8px 0 0;
+    }
+
+    .title {
+      font-size: 20px; /* Smaller title font */
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #333;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 8px;
+    }
+
+    .info {
+      text-align: left;
+      margin: 8px 0;
+      font-size: 12px;
+      color: #555;
+      overflow-wrap: break-word;
+      padding-top: 6px;
+    }
+
+    /* Dashed separators between rows for a clean tag look */
+    .info + .info {
+      border-top: 1px dashed #e0e0e0;
+    }
+
+    .info .label {
+      font-weight: bold;
+      color: #000;
+      margin-bottom: 2px;
+      font-size: 11px;
+    }
+
+    .info .value {
+      white-space: normal;
+      text-decoration: underline;
+      font-size: 11px;
+    }
+
+    /* Make the fault description able to handle longer text nicely */
+    .info.fault-description .value {
+      text-decoration: none;
+      border: 1px solid #e0e0e0;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sticker">
+    <div class="accent-bar"></div>
+
+    <!-- Generated ID as the main title -->
+    <div class="title">
+      # ${finalOrderId || 'N/A'}
+    </div>
+
+    <div class="info">
+      <div class="label">Client Work Order:</div>
+      <div class="value">${clientsWorkOrder || ''}</div>
+    </div>
+
+    <div class="info">
+      <div class="label">Product Name:</div>
+      <div class="value">${productName || ''}</div>
+    </div>
+
+    <div class="info">
+      <div class="label">Customer Name:</div>
+      <div class="value">${customerName || ''}</div>
+    </div>
+
+    <div class="info">
+      <div class="label">Company:</div>
+      <div class="value">${selectedCustomer?.BillingAddress?.BillCompany || ''}</div>
+    </div>
+
+    ${optionalContacts && optionalContacts.length > 0 ? optionalContacts.map((contact, index) => `
+    <div class="info">
+      <div class="label">Contact ${index + 1}:</div>
+      <div class="value">${contact.name}${contact.number ? `, Phone: ${contact.number}` : ''}${contact.email ? `, Email: ${contact.email}` : ''}</div>
+    </div>
+    `).join('') : ''}
+
+    <div class="info">
+      <div class="label">Date Issued:</div>
+      <div class="value">${dateIssued}</div>
+    </div>
+
+    <div class="info">
+      <div class="label">Make / Model:</div>
+      <div class="value">${makeModel || ''}</div>
+    </div>
+
+    <div class="info">
+      <div class="label">Serial Number:</div>
+      <div class="value">${serialNumber || ''}</div>
+    </div>
+
+    <div class="info">
+      <div class="label">Site Location:</div>
+      <div class="value">${siteLocation || ''}</div>
+    </div>
+
+    <div class="info fault-description">
+      <div class="label">Fault Description:</div>
+      <div class="value">${faultDescription || ''}</div>
+    </div>
+  </div>
+</body>
+</html>`,
+      email_body: `<p class="editor-paragraph">Hi Shaira/Zsarmaine,</p><br><p class="editor-paragraph">A new workshop job has been created by ${profile ? `${profile.firstName} ${profile.lastName}`.trim() : get(currentUser)?.displayName || get(currentUser)?.email?.split('@')[0] || 'Unknown User'}.</p><br><p class="editor-paragraph">Job Information:<br>Workshop ID: ${finalOrderId || 'N/A'}</p><p class="editor-paragraph">Product Name: ${productName || ''}<br>Client's Work Order: ${clientsWorkOrder || ''}<br>Customer Name: ${customerName || ''}<br><br>Please see the attached document for printing.</p>`,
+      email_subject: "New Workshop Job - Order #" + (finalOrderId || 'N/A'),
+      teams_message: `<p class="editor-paragraph">Hi Shaira/Zsarmaine,<br><br>A new workshop job has been created by ${profile ? `${profile.firstName} ${profile.lastName}`.trim() : get(currentUser)?.displayName || get(currentUser)?.email?.split('@')[0] || 'Unknown User'}.<br><br>Job Information:<br>Workshop ID: ${finalOrderId || 'N/A'}<br>Product Name: ${productName || ''}<br>Client's Work Order: ${clientsWorkOrder || ''}<br>Customer Name: ${customerName || ''}<br><br>Please see the attached document for printing.</p>`
     };
 
     return payload;
   }
 
   /**
-   * Calls Power Automate API with the generated tag payload
+   * Calls Power Automate API with the generated notification payload
    * This function waits for the Maropost order to be created before calling Power Automate
    * @param {string} orderId - The order ID that was just created from Maropost
    */
@@ -1973,7 +2127,7 @@
       }
 
       // Generate payload with the specific orderId that was just created
-      const payload = generateTag(orderId);
+      const payload = generateNotificationPayload(orderId);
 
       // Log the payload being sent
       console.log('Calling Power Automate API with payload:', payload);
@@ -2117,7 +2271,7 @@
       toastInfo('Regenerating and sending tag...');
 
       // Generate the payload (orderId will be null/empty if not available)
-      const payload = generateTag(orderIdToUse);
+      const payload = generateNotificationPayload(orderIdToUse);
 
       console.log('📤 Regenerating tag with payload:', payload);
       console.log('📤 Payload JSON:', JSON.stringify(payload, null, 2));

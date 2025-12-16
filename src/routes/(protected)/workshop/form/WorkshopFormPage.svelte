@@ -2006,18 +2006,18 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #f4f4f4;
+      background: #ffffff;           /* full-width clean background */
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       font-size: 11px;
-      padding: 20px;
+      padding: 0;                    /* remove page padding so it's full width */
     }
 
-    /* Sticker container */
+    /* Sticker container (full width) */
     .sticker {
-      width: 520px;
+      width: 100%;
       background: #ffffff;
       border: 1px solid #cfcfcf;
-      border-radius: 10px;
+      border-radius: 0;              /* better for full-width print/PDF */
       padding: 16px 16px 14px 16px;
     }
 
@@ -2025,8 +2025,9 @@
     .accent-bar {
       height: 8px;
       background: #2c7a7b;
-      border-radius: 8px;
+      border-radius: 0;
       margin-bottom: 10px;
+      width: 100%;
     }
 
     .header {
@@ -2039,16 +2040,16 @@
     }
 
     .title {
-      font-size: 18px;
+      font-size: 28px;
       font-weight: 700;
       color: #1f2937;
-      padding: 2px 0 6px 0;
+      padding: 8px 0 4px 0;
+      text-align: center;
     }
 
     .subtle {
       font-size: 10px;
       color: #6b7280;
-      padding-top: 2px;
       text-align: right;
       white-space: nowrap;
     }
@@ -2090,13 +2091,8 @@
       color: #374151;
     }
 
-    .value {
-      text-decoration: underline;
-    }
-
     /* Fault description as a block */
     .fault {
-      text-decoration: none;
       border: 1px solid #e1e1e1;
       padding: 8px;
       background: #ffffff;
@@ -2112,30 +2108,52 @@
 
     <table class="header">
       <tr>
+        <td class="subtle" style="text-align: right;">Date Issued: ${dateIssued || ''}</td>
+      </tr>
+      <tr>
         <td class="title"># ${finalOrderId || 'N/A'}</td>
-        <td class="subtle">Date Issued: ${dateIssued || ''}</td>
       </tr>
     </table>
 
     <table class="tag">
       <tr>
         <th>Client Work Order</th>
-        <td><span class="value">${clientsWorkOrder || ''}</span></td>
+        <td>${clientsWorkOrder || ''}</td>
       </tr>
 
       <tr>
         <th>Product Name</th>
-        <td><span class="value">${productName || ''}</span></td>
+        <td>${productName || ''}</td>
       </tr>
 
       <tr>
         <th>Customer Name</th>
-        <td><span class="value">${customerName || ''}</span></td>
+        <td>${customerName || ''}</td>
       </tr>
 
       <tr>
         <th>Company</th>
-        <td><span class="value">${selectedCustomer?.BillingAddress?.BillCompany || ''}</span></td>
+        <td>${selectedCustomer?.BillingAddress?.BillCompany || ''}</td>
+      </tr>
+
+      <tr>
+        <th>Make / Model</th>
+        <td>${makeModel || ''}</td>
+      </tr>
+
+      <tr>
+        <th>Serial Number</th>
+        <td>${serialNumber || ''}</td>
+      </tr>
+
+      <tr>
+        <th>Site Location</th>
+        <td>${siteLocation || ''}</td>
+      </tr>
+
+      <tr>
+        <th>Fault Description</th>
+        <td><div class="fault">${faultDescription || ''}</div></td>
       </tr>
 
       <!-- Contacts in a nested table (Name / Phone / Email separated) -->
@@ -2145,21 +2163,21 @@
           <td style="padding:0;">
             <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
               <tr>
-                <th style="width:34%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px;">Name</th>
-                <th style="width:33%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px;">Phone</th>
-                <th style="width:33%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px;">Email</th>
+                <th style="width:34%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px; font-weight:700; color:#111827;">Name</th>
+                <th style="width:33%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px; font-weight:700; color:#111827;">Phone</th>
+                <th style="width:33%; background:#f7f7f7; border-bottom:1px solid #e6e6e6; padding:6px 8px; text-align:left; font-size:10px; font-weight:700; color:#111827;">Email</th>
               </tr>
 
               ${optionalContacts.map((contact) => `
               <tr>
                 <td style="border-bottom:1px solid #e6e6e6; padding:6px 8px; word-wrap:break-word; overflow-wrap:break-word;">
-                  <span style="text-decoration:underline;">${contact.name || ''}</span>
+                  ${contact.name || ''}
                 </td>
                 <td style="border-bottom:1px solid #e6e6e6; padding:6px 8px; word-wrap:break-word; overflow-wrap:break-word;">
-                  <span style="text-decoration:underline;">${contact.number || ''}</span>
+                  ${contact.number || ''}
                 </td>
                 <td style="border-bottom:1px solid #e6e6e6; padding:6px 8px; word-wrap:break-word; overflow-wrap:break-word;">
-                  <span style="text-decoration:underline;">${contact.email || ''}</span>
+                  ${contact.email || ''}
                 </td>
               </tr>
               `).join('')}
@@ -2168,26 +2186,6 @@
           </td>
         </tr>
       ` : ''}
-
-      <tr>
-        <th>Make / Model</th>
-        <td><span class="value">${makeModel || ''}</span></td>
-      </tr>
-
-      <tr>
-        <th>Serial Number</th>
-        <td><span class="value">${serialNumber || ''}</span></td>
-      </tr>
-
-      <tr>
-        <th>Site Location</th>
-        <td><span class="value">${siteLocation || ''}</span></td>
-      </tr>
-
-      <tr>
-        <th>Fault Description</th>
-        <td><div class="fault">${faultDescription || ''}</div></td>
-      </tr>
     </table>
   </div>
 </body>

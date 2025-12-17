@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { base } from '$app/paths';
 	import type { WorkshopRecord } from '$lib/services/workshop';
 
 	export let workshop: WorkshopRecord;
@@ -359,7 +360,7 @@
 
 		<!-- Print Tag button -->
 		<a
-			href="/workshop-tag/print?id={workshop.id}"
+			href="{base}/workshop-tag/print?id={workshop.id}"
 			target="_blank"
 			rel="noopener noreferrer"
 			class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1"

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
+	import { base } from '$app/paths';
 
 	export let data: {
 		id: string | null;
@@ -61,11 +62,20 @@
 		}
 	});
 
+	let qrCodeUrl = '';
+
 	$: workshop = data.workshop;
 	$: dateIssued = formatDate(workshop?.created_at || null);
 	$: orderId = workshop?.order_id || 'N/A';
 	$: company = workshop?.customer_data?.BillingAddress?.BillCompany || 'N/A';
 	$: optionalContacts = workshop?.optional_contacts || [];
+	$: workshopId = data.id || '';
+
+	// Generate QR code URL dynamically based on current origin
+	$: if (browser && workshopId) {
+		const fullUrl = `${window.location.origin}${base}/workshop/form?workshop_id=${workshopId}`;
+		qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(fullUrl)}`;
+	}
 </script>
 
 <svelte:head>
@@ -198,6 +208,13 @@
 				</tr>
 			</tbody>
 		</table>
+
+		{#if qrCodeUrl}
+			<div class="qr-code-container">
+				<img src={qrCodeUrl} alt="Workshop QR Code" class="qr-code" />
+				<div class="qr-code-label">Scan to Open Workshop</div>
+			</div>
+		{/if}
 
 		<div class="date-issued">Date Issued: {dateIssued}</div>
 	</div>
@@ -393,6 +410,27 @@
 
 	.contact-name-centered {
 		text-align: center;
+	}
+
+	/* QR Code */
+	.qr-code-container {
+		position: absolute;
+		bottom: 14px;
+		left: 16px;
+	}
+
+	.qr-code {
+		width: 80px;
+		height: 80px;
+		display: block;
+	}
+
+	.qr-code-label {
+		font-size: 8px;
+		font-weight: 600;
+		color: #000000;
+		text-align: center;
+		margin-top: 4px;
 	}
 
 	/* Fault description */

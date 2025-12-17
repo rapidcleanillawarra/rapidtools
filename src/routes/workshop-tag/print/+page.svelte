@@ -35,10 +35,13 @@
 		if (!dateString) return '';
 		try {
 			const date = new Date(dateString);
-			return date.toLocaleDateString('en-AU', {
-				day: '2-digit',
-				month: 'short',
-				year: 'numeric'
+			return date.toLocaleDateString('en-US', {
+				month: 'long',
+				day: 'numeric',
+				year: 'numeric',
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: true
 			});
 		} catch {
 			return dateString;
@@ -82,8 +85,6 @@
 	</div>
 {:else}
 	<div class="sticker">
-		<div class="accent-bar"></div>
-
 		<table class="header-table">
 			<tbody>
 				<tr>
@@ -124,10 +125,34 @@
 					<td>{company}</td>
 				</tr>
 
+				<tr>
+					<th>Make / Model</th>
+					<td>{workshop.make_model || ''}</td>
+				</tr>
+
+				<tr>
+					<th>Serial Number</th>
+					<td>{workshop.serial_number || ''}</td>
+				</tr>
+
+				<tr>
+					<th>Site Location</th>
+					<td>{workshop.site_location || ''}</td>
+				</tr>
+
+				<tr>
+					<th colspan="2" class="fault-header-full">Fault Description</th>
+				</tr>
+				<tr>
+					<td colspan="2"><div class="fault">{workshop.fault_description || ''}</div></td>
+				</tr>
+
 				{#if optionalContacts.length > 0}
 					<tr>
-						<th>Contacts</th>
-						<td class="contacts-cell">
+						<th colspan="2" class="contacts-header-full">Contacts</th>
+					</tr>
+					<tr>
+						<td colspan="2" class="contacts-cell">
 							<table class="contacts-table">
 								<tbody>
 									<tr>
@@ -147,26 +172,6 @@
 						</td>
 					</tr>
 				{/if}
-
-				<tr>
-					<th>Make / Model</th>
-					<td>{workshop.make_model || ''}</td>
-				</tr>
-
-				<tr>
-					<th>Serial Number</th>
-					<td>{workshop.serial_number || ''}</td>
-				</tr>
-
-				<tr>
-					<th>Site Location</th>
-					<td>{workshop.site_location || ''}</td>
-				</tr>
-
-				<tr>
-					<th>Fault Description</th>
-					<td><div class="fault">{workshop.fault_description || ''}</div></td>
-				</tr>
 			</tbody>
 		</table>
 	</div>
@@ -229,19 +234,11 @@
 		margin: 0 auto;
 	}
 
-	/* Top accent bar */
-	.accent-bar {
-		height: 8px;
-		background: #2c7a7b;
-		margin-bottom: 10px;
-		width: 100%;
-	}
-
 	/* Header table */
 	.header-table {
 		width: 100%;
 		border-collapse: collapse;
-		margin-bottom: 10px;
+		margin-bottom: 4px;
 	}
 
 	.header-table td {
@@ -265,7 +262,7 @@
 	.subtle {
 		font-size: 10px;
 		font-weight: 600;
-		color: #6b7280;
+		color: #000000;
 		text-align: right;
 		white-space: nowrap;
 	}
@@ -282,7 +279,7 @@
 	table.tag th,
 	table.tag td {
 		border-bottom: 1px solid #e6e6e6;
-		padding: 8px 10px;
+		padding: 3px 6px;
 		vertical-align: top;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
@@ -310,6 +307,16 @@
 	}
 
 	/* Contacts nested table */
+	.contacts-header-full {
+		width: 100%;
+		text-align: center;
+		font-size: 10px;
+		font-weight: 800;
+		color: #111827;
+		padding: 5px 8px;
+		border-bottom: 1px solid #e6e6e6;
+	}
+
 	.contacts-cell {
 		padding: 0 !important;
 	}
@@ -320,11 +327,19 @@
 		table-layout: fixed;
 	}
 
+	.contacts-table tr {
+		border-bottom: 1px solid #999999;
+	}
+
+	.contacts-table tr:last-child {
+		border-bottom: none;
+	}
+
 	.contact-header {
 		width: 34%;
 		background: #ffffff;
 		border-bottom: 1px solid #e6e6e6;
-		padding: 6px 8px;
+		padding: 4px 6px;
 		text-align: left;
 		font-size: 10px;
 		font-weight: 800;
@@ -332,23 +347,28 @@
 	}
 
 	.contact-data {
-		border-bottom: 1px solid #e6e6e6;
-		padding: 6px 8px;
+		border-bottom: 1px solid #999999;
+		padding: 4px 6px;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
 		font-weight: 600;
 	}
 
-	.contacts-table tr:last-child .contact-data {
-		border-bottom: none;
+	/* Fault description */
+	.fault-header-full {
+		width: 100%;
+		text-align: center;
+		font-size: 10px;
+		font-weight: 800;
+		color: #111827;
+		padding: 5px 8px;
+		border-bottom: 1px solid #e6e6e6;
 	}
 
-	/* Fault description block */
 	.fault {
-		border: 1px solid #e1e1e1;
-		padding: 8px;
+		padding: 5px;
 		background: #ffffff;
-		min-height: 48px;
+		min-height: 36px;
 		white-space: pre-wrap;
 	}
 

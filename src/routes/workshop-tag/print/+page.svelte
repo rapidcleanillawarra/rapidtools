@@ -45,18 +45,14 @@
 		}
 	}
 
-	const handlePrint = () => {
-		if (browser) {
-			window.print();
-		}
-	};
-
 	onMount(() => {
 		// Auto-trigger print after a short delay to allow content to render
 		if (!data.error && data.workshop && !printTriggered) {
 			printTriggered = true;
 			setTimeout(() => {
-				handlePrint();
+				if (browser) {
+					window.print();
+				}
 			}, 800);
 		}
 	});
@@ -73,271 +69,171 @@
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
-<div class="print-page">
-	<!-- Screen-only header with print button -->
-	<header class="screen-header">
-		<div class="header-content">
-			<div class="header-left">
-				<img
-					src="https://www.rapidsupplies.com.au/assets/images/company_logo_white.png"
-					alt="RapidClean"
-					class="header-logo"
-				/>
-				<h1 class="header-title">Workshop Tag #{orderId}</h1>
-			</div>
-			<button type="button" class="print-button" on:click={handlePrint}> Print Tag </button>
-		</div>
-	</header>
+{#if data.error}
+	<div class="error-page">
+		<div class="error-icon">!</div>
+		<h2>Unable to Load Workshop</h2>
+		<p>{data.error}</p>
+	</div>
+{:else if !workshop}
+	<div class="error-page">
+		<h2>No Workshop Found</h2>
+		<p>The workshop data could not be loaded.</p>
+	</div>
+{:else}
+	<div class="sticker">
+		<div class="accent-bar"></div>
 
-	{#if data.error}
-		<div class="error-container">
-			<div class="error-icon">!</div>
-			<h2 class="error-title">Unable to Load Workshop</h2>
-			<p class="error-message">{data.error}</p>
-		</div>
-	{:else if !workshop}
-		<div class="empty-container">
-			<h2 class="empty-title">No Workshop Found</h2>
-			<p class="empty-message">The workshop data could not be loaded.</p>
-		</div>
-	{:else}
-		<div class="sticker">
-			<div class="accent-bar"></div>
+		<table class="header-table">
+			<tbody>
+				<tr>
+					<td>
+						<img
+							class="logo"
+							src="https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New%20Black.png"
+							alt="Company Logo"
+						/>
+					</td>
+					<td class="subtle">Date Issued: {dateIssued}</td>
+				</tr>
+				<tr>
+					<td class="title" colspan="2"># {orderId}</td>
+				</tr>
+			</tbody>
+		</table>
 
-			<table class="header-table">
-				<tbody>
+		<table class="tag">
+			<tbody>
+				<tr>
+					<th>Client Work Order</th>
+					<td>{workshop.clients_work_order || ''}</td>
+				</tr>
+
+				<tr>
+					<th>Product Name</th>
+					<td>{workshop.product_name || ''}</td>
+				</tr>
+
+				<tr>
+					<th>Customer Name</th>
+					<td>{workshop.customer_name || ''}</td>
+				</tr>
+
+				<tr>
+					<th>Company</th>
+					<td>{company}</td>
+				</tr>
+
+				{#if optionalContacts.length > 0}
 					<tr>
-						<td>
-							<img
-								class="logo"
-								src="https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New%20Black.png"
-								alt="Company Logo"
-							/>
-						</td>
-						<td class="subtle">Date Issued: {dateIssued}</td>
-					</tr>
-					<tr>
-						<td class="title" colspan="2"># {orderId}</td>
-					</tr>
-				</tbody>
-			</table>
-
-			<table class="tag">
-				<tbody>
-					<tr>
-						<th>Client Work Order</th>
-						<td>{workshop.clients_work_order || ''}</td>
-					</tr>
-
-					<tr>
-						<th>Product Name</th>
-						<td>{workshop.product_name || ''}</td>
-					</tr>
-
-					<tr>
-						<th>Customer Name</th>
-						<td>{workshop.customer_name || ''}</td>
-					</tr>
-
-					<tr>
-						<th>Company</th>
-						<td>{company}</td>
-					</tr>
-
-					{#if optionalContacts.length > 0}
-						<tr>
-							<th>Contacts</th>
-							<td class="contacts-cell">
-								<table class="contacts-table">
-									<tbody>
+						<th>Contacts</th>
+						<td class="contacts-cell">
+							<table class="contacts-table">
+								<tbody>
+									<tr>
+										<th class="contact-header">Name</th>
+										<th class="contact-header">Phone</th>
+										<th class="contact-header">Email</th>
+									</tr>
+									{#each optionalContacts as contact}
 										<tr>
-											<th class="contact-header">Name</th>
-											<th class="contact-header">Phone</th>
-											<th class="contact-header">Email</th>
+											<td class="contact-data">{contact.name || ''}</td>
+											<td class="contact-data">{contact.number || ''}</td>
+											<td class="contact-data">{contact.email || ''}</td>
 										</tr>
-										{#each optionalContacts as contact}
-											<tr>
-												<td class="contact-data">{contact.name || ''}</td>
-												<td class="contact-data">{contact.number || ''}</td>
-												<td class="contact-data">{contact.email || ''}</td>
-											</tr>
-										{/each}
-									</tbody>
-								</table>
-							</td>
-						</tr>
-					{/if}
-
-					<tr>
-						<th>Make / Model</th>
-						<td>{workshop.make_model || ''}</td>
+									{/each}
+								</tbody>
+							</table>
+						</td>
 					</tr>
+				{/if}
 
-					<tr>
-						<th>Serial Number</th>
-						<td>{workshop.serial_number || ''}</td>
-					</tr>
+				<tr>
+					<th>Make / Model</th>
+					<td>{workshop.make_model || ''}</td>
+				</tr>
 
-					<tr>
-						<th>Site Location</th>
-						<td>{workshop.site_location || ''}</td>
-					</tr>
+				<tr>
+					<th>Serial Number</th>
+					<td>{workshop.serial_number || ''}</td>
+				</tr>
 
-					<tr>
-						<th>Fault Description</th>
-						<td><div class="fault">{workshop.fault_description || ''}</div></td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
-	{/if}
-</div>
+				<tr>
+					<th>Site Location</th>
+					<td>{workshop.site_location || ''}</td>
+				</tr>
+
+				<tr>
+					<th>Fault Description</th>
+					<td><div class="fault">{workshop.fault_description || ''}</div></td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+{/if}
 
 <style>
-	/* Reset and base styles */
+	/* Reset */
 	:global(*) {
 		margin: 0;
 		padding: 0;
 		box-sizing: border-box;
 	}
 
+	:global(html),
 	:global(body) {
+		background: #ffffff;
 		font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-		line-height: 1.4;
-		color: #1a1a1a;
-		background: #f5f5f5;
+		font-size: 11px;
+		padding: 0;
+		margin: 0;
 	}
 
-	.print-page {
-		max-width: 600px;
-		margin: 0 auto;
-		background: #fff;
-		min-height: 100vh;
-	}
-
-	/* Screen-only header */
-	.screen-header {
-		position: sticky;
-		top: 0;
-		background: #222222;
-		color: #fff;
-		padding: 16px 24px;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-		z-index: 100;
-	}
-
-	.header-content {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: 16px;
-		flex-wrap: wrap;
-	}
-
-	.header-left {
-		display: flex;
-		align-items: center;
-		gap: 16px;
-	}
-
-	.header-logo {
-		height: 36px;
-		width: auto;
-	}
-
-	.header-title {
-		font-size: 1.25rem;
-		font-weight: 700;
-		letter-spacing: -0.025em;
-	}
-
-	.print-button {
-		background: #2c7a7b;
-		color: #fff;
-		border: none;
-		padding: 10px 24px;
-		font-size: 0.9375rem;
-		font-weight: 600;
-		border-radius: 8px;
-		cursor: pointer;
-		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-		transition: background 0.2s;
-	}
-
-	.print-button:hover {
-		background: #285e5e;
-	}
-
-	/* Error state */
-	.error-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 80px 24px;
+	/* Error page */
+	.error-page {
+		padding: 40px;
 		text-align: center;
 	}
 
-	.error-icon {
-		width: 64px;
-		height: 64px;
+	.error-page .error-icon {
+		width: 48px;
+		height: 48px;
 		background: #fef2f2;
 		color: #dc2626;
 		border-radius: 50%;
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 2rem;
+		font-size: 1.5rem;
 		font-weight: 700;
-		margin-bottom: 24px;
+		margin-bottom: 16px;
 	}
 
-	.error-title {
-		font-size: 1.5rem;
-		font-weight: 600;
+	.error-page h2 {
+		font-size: 1.25rem;
 		color: #1a1a1a;
 		margin-bottom: 8px;
 	}
 
-	.error-message {
-		font-size: 1rem;
+	.error-page p {
 		color: #666;
 	}
 
-	/* Empty state */
-	.empty-container {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 80px 24px;
-		text-align: center;
-	}
-
-	.empty-title {
-		font-size: 1.5rem;
-		font-weight: 600;
-		color: #1a1a1a;
-		margin-bottom: 8px;
-	}
-
-	.empty-message {
-		font-size: 1rem;
-		color: #666;
-	}
-
-	/* Sticker container */
+	/* Sticker container - full width, no extra padding */
 	.sticker {
 		width: 100%;
+		max-width: 100mm;
 		background: #ffffff;
-		padding: 16px;
+		border: 1px solid #cfcfcf;
+		padding: 16px 16px 14px 16px;
+		margin: 0 auto;
 	}
 
 	/* Top accent bar */
 	.accent-bar {
 		height: 8px;
 		background: #2c7a7b;
-		margin-bottom: 12px;
+		margin-bottom: 10px;
 		width: 100%;
 	}
 
@@ -345,7 +241,7 @@
 	.header-table {
 		width: 100%;
 		border-collapse: collapse;
-		margin-bottom: 12px;
+		margin-bottom: 10px;
 	}
 
 	.header-table td {
@@ -359,18 +255,19 @@
 	}
 
 	.title {
-		font-size: 20px;
+		font-size: 18px;
 		font-weight: 800;
 		color: #1f2937;
-		padding: 6px 0 2px 0;
+		padding: 4px 0 2px 0;
+		text-align: center;
 	}
 
 	.subtle {
 		font-size: 10px;
+		font-weight: 600;
 		color: #6b7280;
 		text-align: right;
 		white-space: nowrap;
-		font-weight: 600;
 	}
 
 	/* Data table */
@@ -398,18 +295,18 @@
 
 	table.tag th {
 		width: 32%;
-		background: #f7f7f7;
+		background: #ffffff;
 		text-align: left;
-		font-size: 11px;
+		font-size: 10px;
 		color: #111827;
-		font-weight: 700;
+		font-weight: 800;
 		letter-spacing: 0.2px;
 	}
 
 	table.tag td {
-		font-size: 12px;
+		font-size: 11px;
 		font-weight: 600;
-		color: #1a1a1a;
+		color: #374151;
 	}
 
 	/* Contacts nested table */
@@ -424,13 +321,13 @@
 	}
 
 	.contact-header {
-		width: 33.33%;
-		background: #f7f7f7;
+		width: 34%;
+		background: #ffffff;
 		border-bottom: 1px solid #e6e6e6;
 		padding: 6px 8px;
 		text-align: left;
 		font-size: 10px;
-		font-weight: 700;
+		font-weight: 800;
 		color: #111827;
 	}
 
@@ -439,7 +336,6 @@
 		padding: 6px 8px;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
-		font-size: 11px;
 		font-weight: 600;
 	}
 
@@ -454,16 +350,13 @@
 		background: #ffffff;
 		min-height: 48px;
 		white-space: pre-wrap;
-		font-weight: 600;
 	}
 
-	/* ========================================
-     THERMAL PRINTER STYLES (100mm x 150mm)
-     ======================================== */
+	/* Print styles - ensure pixel-perfect match */
 	@media print {
 		@page {
 			size: 100mm 150mm;
-			margin: 4mm;
+			margin: 0;
 		}
 
 		:global(html),
@@ -473,84 +366,13 @@
 			print-color-adjust: exact;
 			margin: 0;
 			padding: 0;
-			font-size: 10px;
-		}
-
-		.print-page {
-			max-width: 100%;
-			margin: 0;
-			padding: 0;
-			min-height: auto;
-		}
-
-		.screen-header {
-			display: none !important;
 		}
 
 		.sticker {
-			padding: 0;
+			max-width: 100%;
 			border: none;
-		}
-
-		.accent-bar {
-			height: 6px;
-			margin-bottom: 8px;
-			background: #000 !important;
-		}
-
-		.header-table {
-			margin-bottom: 8px;
-		}
-
-		.logo {
-			height: 28px;
-		}
-
-		.title {
-			font-size: 16px;
-			font-weight: 900;
-			padding: 4px 0 0 0;
-		}
-
-		.subtle {
-			font-size: 9px;
-			font-weight: 700;
-		}
-
-		table.tag th,
-		table.tag td {
-			padding: 5px 6px;
-		}
-
-		table.tag th {
-			font-size: 9px;
-			font-weight: 800;
-			width: 30%;
-		}
-
-		table.tag td {
-			font-size: 10px;
-			font-weight: 700;
-		}
-
-		.contact-header {
-			font-size: 8px;
-			font-weight: 800;
-			padding: 4px 5px;
-		}
-
-		.contact-data {
-			font-size: 9px;
-			font-weight: 700;
-			padding: 4px 5px;
-		}
-
-		.fault {
-			min-height: 36px;
-			padding: 5px;
-			font-size: 10px;
-			font-weight: 700;
-			border: 1px solid #000;
+			margin: 0;
+			padding: 16px 16px 14px 16px;
 		}
 	}
 </style>

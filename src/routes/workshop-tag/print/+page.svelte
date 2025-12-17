@@ -30,12 +30,13 @@
 
 	let printTriggered = false;
 
-	// Format date for display
+	// Format date for display in Australian Sydney timezone
 	function formatDate(dateString: string | null): string {
 		if (!dateString) return '';
 		try {
 			const date = new Date(dateString);
-			return date.toLocaleDateString('en-US', {
+			return date.toLocaleDateString('en-AU', {
+				timeZone: 'Australia/Sydney',
 				month: 'long',
 				day: 'numeric',
 				year: 'numeric',
@@ -63,7 +64,7 @@
 	$: workshop = data.workshop;
 	$: dateIssued = formatDate(workshop?.created_at || null);
 	$: orderId = workshop?.order_id || 'N/A';
-	$: company = workshop?.customer_data?.BillingAddress?.BillCompany || '';
+	$: company = workshop?.customer_data?.BillingAddress?.BillCompany || 'N/A';
 	$: optionalContacts = workshop?.optional_contacts || [];
 </script>
 
@@ -91,33 +92,32 @@
 					<td>
 						<img
 							class="logo"
-							src="https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New%20Black.png"
+							src="https://www.rapidsupplies.com.au/assets/images/company_logo_thermal_transparent.png"
 							alt="Company Logo"
 						/>
 					</td>
-					<td class="subtle">Date Issued: {dateIssued}</td>
-				</tr>
-				<tr>
-					<td class="title" colspan="2"># {orderId}</td>
+					<td class="order-id"># {orderId}</td>
 				</tr>
 			</tbody>
 		</table>
+
+		<hr />
 
 		<table class="tag">
 			<tbody>
 				<tr>
 					<th>Client Work Order</th>
-					<td>{workshop.clients_work_order || ''}</td>
+					<td>{workshop.clients_work_order || 'N/A'}</td>
 				</tr>
 
 				<tr>
 					<th>Product Name</th>
-					<td>{workshop.product_name || ''}</td>
+					<td>{workshop.product_name || 'N/A'}</td>
 				</tr>
 
 				<tr>
 					<th>Customer Name</th>
-					<td>{workshop.customer_name || ''}</td>
+					<td>{workshop.customer_name || 'N/A'}</td>
 				</tr>
 
 				<tr>
@@ -127,53 +127,79 @@
 
 				<tr>
 					<th>Make / Model</th>
-					<td>{workshop.make_model || ''}</td>
+					<td>{workshop.make_model || 'N/A'}</td>
 				</tr>
 
 				<tr>
 					<th>Serial Number</th>
-					<td>{workshop.serial_number || ''}</td>
+					<td>{workshop.serial_number || 'N/A'}</td>
 				</tr>
 
 				<tr>
 					<th>Site Location</th>
-					<td>{workshop.site_location || ''}</td>
+					<td>{workshop.site_location || 'N/A'}</td>
 				</tr>
 
 				<tr>
 					<th colspan="2" class="fault-header-full">Fault Description</th>
 				</tr>
 				<tr>
-					<td colspan="2"><div class="fault">{workshop.fault_description || ''}</div></td>
+					<td colspan="2" class="fault">{workshop.fault_description || 'N/A'}</td>
 				</tr>
 
-				{#if optionalContacts.length > 0}
-					<tr>
-						<th colspan="2" class="contacts-header-full">Contacts</th>
-					</tr>
-					<tr>
-						<td colspan="2" class="contacts-cell">
-							<table class="contacts-table">
-								<tbody>
-									<tr>
-										<th class="contact-header">Name</th>
-										<th class="contact-header">Phone</th>
-										<th class="contact-header">Email</th>
-									</tr>
-									{#each optionalContacts as contact}
-										<tr>
-											<td class="contact-data">{contact.name || ''}</td>
-											<td class="contact-data">{contact.number || ''}</td>
-											<td class="contact-data">{contact.email || ''}</td>
-										</tr>
+				<tr>
+					<th colspan="2" class="contacts-header-full">Contacts</th>
+				</tr>
+				<tr>
+					<td colspan="2" class="contacts-cell">
+						<table class="contacts-table">
+							<tbody>
+								{#if optionalContacts.length > 0}
+									{#each optionalContacts.slice(0, 2) as contact}
+										{#if contact.email && contact.number}
+											<!-- Both email and phone available -->
+											<tr>
+												<td class="contact-name" rowspan="2">{contact.name || 'N/A'}</td>
+												<td class="contact-info" colspan="2">{contact.email}</td>
+											</tr>
+											<tr>
+												<td class="contact-info" colspan="2">{contact.number}</td>
+											</tr>
+										{:else if contact.email}
+											<!-- Only email available -->
+											<tr>
+												<td class="contact-name">{contact.name || 'N/A'}</td>
+												<td class="contact-info" colspan="2">{contact.email}</td>
+											</tr>
+										{:else if contact.number}
+											<!-- Only phone available -->
+											<tr>
+												<td class="contact-name">{contact.name || 'N/A'}</td>
+												<td class="contact-info" colspan="2">{contact.number}</td>
+											</tr>
+										{:else}
+											<!-- No contact details, just show name -->
+											<tr>
+												<td class="contact-name contact-name-centered" colspan="3"
+													>{contact.name || 'N/A'}</td
+												>
+											</tr>
+										{/if}
 									{/each}
-								</tbody>
-							</table>
-						</td>
-					</tr>
-				{/if}
+								{:else}
+									<!-- No contacts available -->
+									<tr>
+										<td class="contact-name contact-name-centered" colspan="3">No Contacts</td>
+									</tr>
+								{/if}
+							</tbody>
+						</table>
+					</td>
+				</tr>
 			</tbody>
 		</table>
+
+		<div class="date-issued">Date Issued: {dateIssued}</div>
 	</div>
 {/if}
 
@@ -228,10 +254,14 @@
 	.sticker {
 		width: 100%;
 		max-width: 100mm;
+		min-height: 150mm;
 		background: #ffffff;
 		border: 1px solid #cfcfcf;
 		padding: 16px 16px 14px 16px;
 		margin: 0 auto;
+		position: relative;
+		display: flex;
+		flex-direction: column;
 	}
 
 	/* Header table */
@@ -246,25 +276,34 @@
 	}
 
 	.logo {
-		height: 34px;
+		height: 50px;
 		width: auto;
 		display: block;
 	}
 
-	.title {
+	.order-id {
 		font-size: 18px;
 		font-weight: 800;
-		color: #1f2937;
-		padding: 4px 0 2px 0;
+		color: #000000;
 		text-align: center;
+		vertical-align: middle;
 	}
 
-	.subtle {
+	hr {
+		border: none;
+		border-top: 1px solid #000000;
+		margin: 8px 0;
+	}
+
+	.date-issued {
 		font-size: 10px;
 		font-weight: 600;
 		color: #000000;
 		text-align: right;
-		white-space: nowrap;
+		position: absolute;
+		bottom: 14px;
+		right: 16px;
+		left: 16px;
 	}
 
 	/* Data table */
@@ -272,22 +311,15 @@
 		width: 100%;
 		border-collapse: collapse;
 		table-layout: fixed;
-		border: 1px solid #d9d9d9;
 		overflow: hidden;
 	}
 
 	table.tag th,
 	table.tag td {
-		border-bottom: 1px solid #e6e6e6;
 		padding: 3px 6px;
 		vertical-align: top;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
-	}
-
-	table.tag tr:last-child th,
-	table.tag tr:last-child td {
-		border-bottom: none;
 	}
 
 	table.tag th {
@@ -295,7 +327,7 @@
 		background: #ffffff;
 		text-align: left;
 		font-size: 10px;
-		color: #111827;
+		color: #000000;
 		font-weight: 800;
 		letter-spacing: 0.2px;
 	}
@@ -303,7 +335,7 @@
 	table.tag td {
 		font-size: 11px;
 		font-weight: 600;
-		color: #374151;
+		color: #000000;
 	}
 
 	/* Contacts nested table */
@@ -312,9 +344,8 @@
 		text-align: center;
 		font-size: 10px;
 		font-weight: 800;
-		color: #111827;
+		color: #000000;
 		padding: 5px 8px;
-		border-bottom: 1px solid #e6e6e6;
 	}
 
 	.contacts-cell {
@@ -325,6 +356,7 @@
 		width: 100%;
 		border-collapse: collapse;
 		table-layout: fixed;
+		border: 1px solid #999999;
 	}
 
 	.contacts-table tr {
@@ -335,23 +367,32 @@
 		border-bottom: none;
 	}
 
-	.contact-header {
-		width: 34%;
+	.contact-name {
+		width: 30%;
 		background: #ffffff;
-		border-bottom: 1px solid #e6e6e6;
 		padding: 4px 6px;
 		text-align: left;
-		font-size: 10px;
+		font-size: 11px;
 		font-weight: 800;
-		color: #111827;
-	}
-
-	.contact-data {
-		border-bottom: 1px solid #999999;
-		padding: 4px 6px;
+		color: #000000;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
+		vertical-align: middle;
+		border: 1px solid #999999;
+	}
+
+	.contact-info {
+		border: 1px solid #999999;
+		padding: 4px 6px;
+		font-size: 10px;
 		font-weight: 600;
+		color: #000000;
+		word-wrap: break-word;
+		overflow-wrap: break-word;
+	}
+
+	.contact-name-centered {
+		text-align: center;
 	}
 
 	/* Fault description */
@@ -360,9 +401,8 @@
 		text-align: center;
 		font-size: 10px;
 		font-weight: 800;
-		color: #111827;
+		color: #000000;
 		padding: 5px 8px;
-		border-bottom: 1px solid #e6e6e6;
 	}
 
 	.fault {

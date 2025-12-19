@@ -27,11 +27,6 @@
 		}
 	});
 
-	function getBarcodeUrl(sku: string) {
-		// Use bwip-js online API for barcode generation (Code 128)
-		return `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(sku)}&scale=2&rotate=N&includetext`;
-	}
-
 	function formatPrice(price: number | string) {
 		const n = typeof price === 'number' ? price : parseFloat(String(price));
 		return isNaN(n) ? 'N/A' : n.toFixed(2);
@@ -39,7 +34,7 @@
 </script>
 
 <svelte:head>
-	<title>Print Barcodes</title>
+	<title>Print Product Labels</title>
 	<meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
@@ -52,29 +47,31 @@
 {:else if data.products.length === 0}
 	<div class="error-page">
 		<h2>No products found</h2>
-		<p>Please select products to print barcodes for.</p>
+		<p>Please select products to print labels for.</p>
 	</div>
 {:else}
 	<div class="labels-container">
 		{#each data.products as product}
 			<div class="label-sheet">
 				<div class="label-content">
-					<div class="product-info">
-						<div class="brand-name">{product.brand || ''}</div>
+					<div class="image-container">
+						{#if product.image}
+							<img src={product.image} alt={product.name || product.sku} class="product-img" />
+						{:else}
+							<div class="no-image">No Image</div>
+						{/if}
+					</div>
+
+					<div class="info-section">
 						<div class="product-name">{product.name || ''}</div>
-					</div>
-
-					<div class="barcode-container">
-						<img
-							src={getBarcodeUrl(product.sku)}
-							alt="Barcode for {product.sku}"
-							class="barcode-img"
-						/>
-					</div>
-
-					<div class="footer-info">
-						<div class="sku-text">SKU: {product.sku}</div>
-						<div class="price-text">${formatPrice(product.rrp)}</div>
+						<div class="price-row">
+							<span class="price-text">${formatPrice(product.rrp)}</span>
+							<span class="gst-text">(inc. GST)</span>
+						</div>
+						<div class="footer-info">
+							<div class="sku-text">{product.sku}</div>
+							<div class="brand-name">{product.brand || ''}</div>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -124,20 +121,21 @@
 
 	/* Screen Styling */
 	.labels-container {
-		display: flex;
-		flex-direction: column;
-		gap: 20px;
-		padding: 20px;
-		align-items: center;
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 8px;
+		padding: 10px;
+		max-width: 210mm;
+		margin: 0 auto;
 	}
 
 	.label-sheet {
 		background: white;
-		width: 80mm;
-		height: 40mm;
-		padding: 4mm;
-		box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-		border: 1px solid #e5e7eb;
+		width: 100%;
+		height: 35mm;
+		padding: 2mm 3mm;
+		box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+		border: 1px solid #d1d5db;
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
@@ -147,71 +145,95 @@
 	.label-content {
 		height: 100%;
 		display: flex;
-		flex-direction: column;
-		justify-content: space-between;
+		flex-direction: row;
+		gap: 3mm;
 	}
 
-	.product-info {
+	.image-container {
+		width: 30mm;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		background: #f9fafb;
+		border-radius: 2px;
+	}
+
+	.product-img {
+		max-width: 100%;
+		max-height: 100%;
+		object-fit: contain;
+	}
+
+	.no-image {
+		font-size: 7pt;
+		color: #9ca3af;
 		text-align: center;
 	}
 
-	.brand-name {
-		font-size: 8pt;
-		font-weight: 600;
-		color: #4b5563;
-		text-transform: uppercase;
-		line-height: 1.2;
+	.info-section {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		min-width: 0;
 	}
 
 	.product-name {
-		font-size: 10pt;
+		font-size: 9pt;
 		font-weight: 700;
-		color: #111827;
-		line-height: 1.2;
-		margin-top: 2pt;
+		color: #000;
+		line-height: 1.15;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
 
-	.barcode-container {
-		flex: 1;
+	.price-row {
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin: 4pt 0;
-		overflow: hidden;
+		align-items: baseline;
+		gap: 4px;
 	}
 
-	.barcode-img {
-		max-width: 100%;
-		max-height: 100%;
-		object-fit: contain;
+	.price-text {
+		font-size: 18pt;
+		font-weight: 900;
+		color: #16a34a;
+	}
+
+	.gst-text {
+		font-size: 7pt;
+		color: #6b7280;
 	}
 
 	.footer-info {
 		display: flex;
 		justify-content: space-between;
-		align-items: flex-end;
-		border-top: 0.5pt solid #e5e7eb;
-		padding-top: 2pt;
+		align-items: center;
 	}
 
 	.sku-text {
-		font-size: 8pt;
+		font-size: 7pt;
 		font-family: monospace;
-		color: #374151;
+		color: #6b7280;
 	}
 
-	.price-text {
-		font-size: 12pt;
-		font-weight: 800;
-		color: #000;
+	.brand-name {
+		font-size: 7pt;
+		font-weight: 500;
+		color: #6b7280;
+		text-transform: uppercase;
 	}
 
-	/* Print Styling */
+	/* Print Styling - A4 with 2 columns */
 	@media print {
+		@page {
+			size: A4;
+			margin: 8mm;
+		}
+
 		:global(body) {
 			background: white;
 			padding: 0;
@@ -219,23 +241,20 @@
 		}
 
 		.labels-container {
-			display: block;
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 4mm;
 			padding: 0;
+			max-width: 100%;
 		}
 
 		.label-sheet {
-			page-break-after: always;
 			box-shadow: none;
-			border: none;
+			border: 0.5pt solid #999;
 			margin: 0;
-			width: 100%; /* Adjust to printer width */
-			height: auto;
-			min-height: 40mm;
-		}
-
-		@page {
-			size: 80mm 40mm; /* standard small label size */
-			margin: 0;
+			width: 100%;
+			height: 35mm;
+			page-break-inside: avoid;
 		}
 	}
 </style>

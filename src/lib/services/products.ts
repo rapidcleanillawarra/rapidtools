@@ -81,7 +81,8 @@ export async function fetchProducts(brand?: string | null, page: number = 0, sku
           "SEOPageTitle",
           "SEOMetaDescription",
           "SEOPageHeading",
-          "Images"
+          "Images",
+          "InventoryID"
         ]
       },
       "action": "GetItem"

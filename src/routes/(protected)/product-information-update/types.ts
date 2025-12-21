@@ -3,6 +3,7 @@ export interface ProductInfo {
   image?: string;
   images?: ProductImage[];
   sku: string;
+  inventory_id?: string;
   name: string;
   subtitle?: string;
   brand: string;

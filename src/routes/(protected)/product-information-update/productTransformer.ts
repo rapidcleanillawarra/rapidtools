@@ -26,6 +26,7 @@ export function transformProductData(product: any, brandName?: string): ProductI
   return {
     id: product.SKU,
     sku: product.SKU,
+    inventory_id: product.InventoryID,
     name: product.Model || '',
     brand: product.Brand || brandName || '',
     image: mainImageUrl, // Use the processed main image URL

@@ -30,7 +30,9 @@
 		customerName: true,
 		EmailAddress: true,
 		phone: true,
-		managerName: true
+		managerName: true,
+		OnCreditHold: true,
+		DefaultInvoiceTerms: false
 	};
 
 	const storedVisibility =
@@ -80,6 +82,13 @@
 			displayName: 'Account Manager',
 			pillName: 'Account Manager',
 			hasSearch: true
+		},
+		{ key: 'OnCreditHold', displayName: 'Credit Hold', pillName: 'Credit Hold', hasSearch: true },
+		{
+			key: 'DefaultInvoiceTerms',
+			displayName: 'Invoice Terms',
+			pillName: 'Invoice Terms',
+			hasSearch: true
 		}
 	];
 
@@ -98,7 +107,13 @@
 						Active: true,
 						Page: 0,
 						Limit: 100, // Fetch more records for local filtering
-						OutputSelector: ['EmailAddress', 'BillingAddress', 'AccountManager']
+						OutputSelector: [
+							'EmailAddress',
+							'BillingAddress',
+							'AccountManager',
+							'OnCreditHold',
+							'DefaultInvoiceTerms'
+						]
 					},
 					action: 'GetCustomer'
 				})
@@ -367,6 +382,17 @@
 													{customer.BillingAddress.BillPhone || 'N/A'}
 												{:else if column.key === 'managerName'}
 													{customer.managerName}
+												{:else if column.key === 'OnCreditHold'}
+													<span
+														class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {customer.OnCreditHold ===
+														'True'
+															? 'bg-red-100 text-red-800'
+															: 'bg-green-100 text-green-800'}"
+													>
+														{customer.OnCreditHold === 'True' ? 'Yes' : 'No'}
+													</span>
+												{:else if column.key === 'DefaultInvoiceTerms'}
+													{customer.DefaultInvoiceTerms || 'N/A'}
 												{/if}
 											</td>
 										{/each}

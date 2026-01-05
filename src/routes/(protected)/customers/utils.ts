@@ -46,6 +46,14 @@ export function sortData(
                 aValue = a.Username || '';
                 bValue = b.Username || '';
                 break;
+            case 'OnCreditHold':
+                aValue = a.OnCreditHold || '';
+                bValue = b.OnCreditHold || '';
+                break;
+            case 'DefaultInvoiceTerms':
+                aValue = a.DefaultInvoiceTerms || '';
+                bValue = b.DefaultInvoiceTerms || '';
+                break;
             default:
                 aValue = '';
                 bValue = '';
@@ -102,6 +110,12 @@ export function filterCustomers(
                         break;
                     case 'Username':
                         fieldValue = customer.Username || '';
+                        break;
+                    case 'OnCreditHold':
+                        fieldValue = customer.OnCreditHold || '';
+                        break;
+                    case 'DefaultInvoiceTerms':
+                        fieldValue = customer.DefaultInvoiceTerms || '';
                         break;
                     default:
                         fieldValue = '';

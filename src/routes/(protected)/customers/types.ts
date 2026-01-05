@@ -24,6 +24,8 @@ export interface Customer {
     EmailAddress: string;
     BillingAddress: BillingAddress;
     AccountManager: AccountManager | string;
+    OnCreditHold: string;
+    DefaultInvoiceTerms: string;
     // Computed fields for display
     company?: string;
     customerName?: string;

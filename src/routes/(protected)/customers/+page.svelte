@@ -224,6 +224,54 @@
 		visibleColumns.set(allHidden);
 	}
 
+	// Inline editing state
+	let editingCell: { username: string; field: string } | null = null;
+	let editValue: string = '';
+
+	function startEditing(customer: Customer, field: string) {
+		editingCell = { username: customer.Username, field };
+		// Initialize editValue based on the field
+		if (field === 'managerName') {
+			editValue = customer.managerName || '';
+		} else if (field === 'OnCreditHold') {
+			editValue = customer.OnCreditHold || 'False';
+		} else if (field === 'DefaultInvoiceTerms') {
+			editValue = customer.DefaultInvoiceTerms || '';
+		}
+	}
+
+	function cancelEditing() {
+		editingCell = null;
+		editValue = '';
+	}
+
+	function saveEdit() {
+		if (!editingCell) return;
+
+		const { username, field } = editingCell;
+
+		// Update stores
+		const updateCustomer = (c: Customer) => {
+			if (c.Username !== username) return c;
+
+			const updated = { ...c };
+			if (field === 'managerName') {
+				updated.managerName = editValue;
+				// In a real app, we'd also update the AccountManager object if needed
+			} else if (field === 'OnCreditHold') {
+				updated.OnCreditHold = editValue;
+			} else if (field === 'DefaultInvoiceTerms') {
+				updated.DefaultInvoiceTerms = editValue;
+			}
+			return updated;
+		};
+
+		tableData.update((data) => data.map(updateCustomer));
+		originalData.update((data) => data.map(updateCustomer));
+
+		cancelEditing();
+	}
+
 	// Computed visible columns
 	$: visibleColumnsList = columns.filter((col) => $visibleColumns[col.key]);
 
@@ -381,18 +429,251 @@
 												{:else if column.key === 'phone'}
 													{customer.BillingAddress.BillPhone || 'N/A'}
 												{:else if column.key === 'managerName'}
-													{customer.managerName}
+													{#if editingCell?.username === customer.Username && editingCell?.field === 'managerName'}
+														<div class="flex items-center gap-2">
+															<select
+																bind:value={editValue}
+																class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+															>
+																<option value="LukeR">Luke Richardson</option>
+																<option value="sabina">Sabina Marfleet</option>
+																<option value="OrlandoC">Orlando Chiodo</option>
+															</select>
+															<button
+																on:click={saveEdit}
+																class="text-green-600 hover:text-green-800"
+																title="Save"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M5 13l4 4L19 7"
+																	/>
+																</svg>
+															</button>
+															<button
+																on:click={cancelEditing}
+																class="text-red-600 hover:text-red-800"
+																title="Cancel"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M6 18L18 6M6 6l12 12"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{:else}
+														<div class="group flex items-center justify-between">
+															<span>{customer.managerName}</span>
+															<button
+																on:click={() => startEditing(customer, 'managerName')}
+																class="text-gray-400 opacity-0 transition-opacity hover:text-blue-600 focus:opacity-100 group-hover:opacity-100"
+																title="Edit Account Manager"
+															>
+																<svg
+																	class="h-4 w-4"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	xmlns="http://www.w3.org/2000/svg"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{/if}
 												{:else if column.key === 'OnCreditHold'}
-													<span
-														class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {customer.OnCreditHold ===
-														'True'
-															? 'bg-red-100 text-red-800'
-															: 'bg-green-100 text-green-800'}"
-													>
-														{customer.OnCreditHold === 'True' ? 'Yes' : 'No'}
-													</span>
+													{#if editingCell?.username === customer.Username && editingCell?.field === 'OnCreditHold'}
+														<div class="flex items-center gap-2">
+															<select
+																bind:value={editValue}
+																class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+															>
+																<option value="True">Yes</option>
+																<option value="False">No</option>
+															</select>
+															<button
+																on:click={saveEdit}
+																class="text-green-600 hover:text-green-800"
+																title="Save"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M5 13l4 4L19 7"
+																	/>
+																</svg>
+															</button>
+															<button
+																on:click={cancelEditing}
+																class="text-red-600 hover:text-red-800"
+																title="Cancel"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M6 18L18 6M6 6l12 12"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{:else}
+														<div class="group flex items-center justify-between">
+															<span
+																class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {customer.OnCreditHold ===
+																'True'
+																	? 'bg-red-100 text-red-800'
+																	: 'bg-green-100 text-green-800'}"
+															>
+																{customer.OnCreditHold === 'True' ? 'Yes' : 'No'}
+															</span>
+															<button
+																on:click={() => startEditing(customer, 'OnCreditHold')}
+																class="text-gray-400 opacity-0 transition-opacity hover:text-blue-600 focus:opacity-100 group-hover:opacity-100"
+																title="Edit Credit Hold"
+															>
+																<svg
+																	class="h-4 w-4"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	xmlns="http://www.w3.org/2000/svg"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{/if}
 												{:else if column.key === 'DefaultInvoiceTerms'}
-													{customer.DefaultInvoiceTerms || 'N/A'}
+													{#if editingCell?.username === customer.Username && editingCell?.field === 'DefaultInvoiceTerms'}
+														<div class="flex items-center gap-2">
+															<select
+																bind:value={editValue}
+																class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+															>
+																<option value="Prepaid">Prepaid</option>
+																<option value="Due On Invoice">Due On Invoice</option>
+																<option value="Due at the end of the month"
+																	>Due at the end of the month</option
+																>
+																<option value="Due 7 days from date of invoice"
+																	>Due 7 days from date of invoice</option
+																>
+																<option value="Due 14 days from date of invoice"
+																	>Due 14 days from date of invoice</option
+																>
+																<option value="Due 30 days from date of invoice"
+																	>Due 30 days from date of invoice</option
+																>
+																<option value="Due 25 days from date of invoice"
+																	>Due 25 days from date of invoice</option
+																>
+																<option value="Due 30 days after EOM">Due 30 days after EOM</option>
+															</select>
+															<button
+																on:click={saveEdit}
+																class="text-green-600 hover:text-green-800"
+																title="Save"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M5 13l4 4L19 7"
+																	/>
+																</svg>
+															</button>
+															<button
+																on:click={cancelEditing}
+																class="text-red-600 hover:text-red-800"
+																title="Cancel"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M6 18L18 6M6 6l12 12"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{:else}
+														<div class="group flex items-center justify-between">
+															<span>{customer.DefaultInvoiceTerms || 'N/A'}</span>
+															<button
+																on:click={() => startEditing(customer, 'DefaultInvoiceTerms')}
+																class="text-gray-400 opacity-0 transition-opacity hover:text-blue-600 focus:opacity-100 group-hover:opacity-100"
+																title="Edit Invoice Terms"
+															>
+																<svg
+																	class="h-4 w-4"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	xmlns="http://www.w3.org/2000/svg"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{/if}
 												{/if}
 											</td>
 										{/each}

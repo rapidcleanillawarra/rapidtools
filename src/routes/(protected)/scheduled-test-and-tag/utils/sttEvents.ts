@@ -1,15 +1,15 @@
 import { db } from '$lib/firebase';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDocs, 
-  query, 
-  where, 
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  where,
   serverTimestamp,
-  type DocumentData 
+  type DocumentData
 } from 'firebase/firestore';
 
 export interface STTEvent {
@@ -43,13 +43,13 @@ export async function loadSTTEvents(startDate?: string, endDate?: string): Promi
       q = query(
         collection(db, COLLECTION_NAME),
         where('start_date', '>=', startDate),
-        where('start_date', '<=', endDate),
-        where('is_deleted', '!=', true) // Exclude soft deleted events
+        where('start_date', '<=', endDate)
+        // where('is_deleted', '!=', true) // Removed to allow docs without this field
       );
     } else {
       q = query(
-        collection(db, COLLECTION_NAME),
-        where('is_deleted', '!=', true) // Exclude soft deleted events
+        collection(db, COLLECTION_NAME)
+        // where('is_deleted', '!=', true) // Removed to allow docs without this field
       );
     }
 
@@ -58,6 +58,9 @@ export async function loadSTTEvents(startDate?: string, endDate?: string): Promi
 
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      // Filter out soft-deleted events manually
+      if (data.is_deleted === true) return;
+
       events.push({
         id: doc.id,
         ...data
@@ -79,7 +82,7 @@ export async function saveSTTEvent(event: Omit<STTEvent, 'id' | 'created_at' | '
       created_at: serverTimestamp(),
       updated_at: serverTimestamp()
     };
-    
+
     const docRef = await addDoc(collection(db, COLLECTION_NAME), eventData);
     return docRef.id;
   } catch (error) {
@@ -122,16 +125,18 @@ export async function findEventByInfoAndSchedule(information_id: string, schedul
     const q = query(
       collection(db, COLLECTION_NAME),
       where('information_id', '==', information_id),
-      where('schedule_id', '==', schedule_id),
-      where('is_deleted', '!=', true) // Exclude soft deleted events
+      where('schedule_id', '==', schedule_id)
+      // where('is_deleted', '!=', true) // Removed to include docs without field
     );
 
     const querySnapshot = await getDocs(q);
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
+    // Find first non-deleted doc
+    const activeDoc = querySnapshot.docs.find(doc => doc.data().is_deleted !== true);
+
+    if (activeDoc) {
       return {
-        id: doc.id,
-        ...doc.data()
+        id: activeDoc.id,
+        ...activeDoc.data()
       } as STTEvent;
     }
 
@@ -144,8 +149,8 @@ export async function findEventByInfoAndSchedule(information_id: string, schedul
 
 // Convert CalendarEvent to STTEvent format
 export function calendarEventToSTTEvent(
-  calendarEvent: any, 
-  locationInfo: any, 
+  calendarEvent: any,
+  locationInfo: any,
   schedule: any,
   userUid?: string,
   userEmail?: string

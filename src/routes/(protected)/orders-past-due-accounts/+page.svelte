@@ -47,6 +47,11 @@
 	// PD Counter Filter State
 	let pdFilterOperator = '>';
 	let pdFilterValue: number | null = 30;
+	let initialized = false;
+
+	// Temporary PD Counter Filter State (for inputs)
+	let tempPdFilterOperator = pdFilterOperator;
+	let tempPdFilterValue: number | null = pdFilterValue;
 
 	const columns = [
 		{ key: 'customer', label: 'Customer' },
@@ -166,6 +171,11 @@
 		return 0;
 	}
 
+	function applyPdFilter() {
+		pdFilterOperator = tempPdFilterOperator;
+		pdFilterValue = tempPdFilterValue;
+	}
+
 	$: filteredOrders = orders
 		.filter((order) => {
 			// PD Counter Filter
@@ -212,7 +222,7 @@
 		});
 
 	$: {
-		if (typeof window !== 'undefined') {
+		if (typeof window !== 'undefined' && initialized) {
 			localStorage.setItem('orders-pd-filter-operator', pdFilterOperator);
 			if (pdFilterValue !== null) {
 				localStorage.setItem('orders-pd-filter-value', String(pdFilterValue));
@@ -226,11 +236,28 @@
 		if (typeof window !== 'undefined') {
 			const storedOp = localStorage.getItem('orders-pd-filter-operator');
 			const storedVal = localStorage.getItem('orders-pd-filter-value');
-			if (storedOp) pdFilterOperator = storedOp;
-			if (storedVal) pdFilterValue = Number(storedVal);
+
+			// Set defaults if no localStorage data exists
+			if (!storedOp && !storedVal) {
+				pdFilterOperator = '>';
+				pdFilterValue = 30;
+				tempPdFilterOperator = pdFilterOperator;
+				tempPdFilterValue = pdFilterValue;
+				// Save defaults to localStorage
+				localStorage.setItem('orders-pd-filter-operator', pdFilterOperator);
+				localStorage.setItem('orders-pd-filter-value', String(pdFilterValue));
+			} else {
+				// Load existing preferences
+				if (storedOp) pdFilterOperator = storedOp;
+				if (storedVal) pdFilterValue = Number(storedVal);
+				// Initialize temp values with loaded values
+				tempPdFilterOperator = pdFilterOperator;
+				tempPdFilterValue = pdFilterValue;
+			}
 		}
 
 		fetchOrders();
+		initialized = true;
 	});
 </script>
 
@@ -245,7 +272,7 @@
 				>PD Counter Filter:</label
 			>
 			<select
-				bind:value={pdFilterOperator}
+				bind:value={tempPdFilterOperator}
 				class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
 			>
 				<option value=">">&gt;</option>
@@ -257,8 +284,15 @@
 				type="number"
 				placeholder="Days"
 				class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-				bind:value={pdFilterValue}
+				bind:value={tempPdFilterValue}
 			/>
+			<button
+				type="button"
+				on:click={applyPdFilter}
+				class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+			>
+				Apply Filter
+			</button>
 		</div>
 	</div>
 	<div class="mt-8 flex flex-col">

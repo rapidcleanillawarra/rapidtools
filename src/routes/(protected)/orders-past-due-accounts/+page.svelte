@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { supabase } from '$lib/supabase';
+	import { currentUser } from '$lib/firebase';
+	import { userProfile, type UserProfile } from '$lib/userProfile';
 
 	interface OrderPayment {
 		Amount: string;
@@ -26,6 +29,12 @@
 		BillPhone?: string;
 	}
 
+	interface Note {
+		note: string;
+		timestamp: string;
+		user: string;
+	}
+
 	interface ProcessedOrder {
 		customer: string;
 		invoice: string;
@@ -34,7 +43,8 @@
 		pdCounter: number;
 		payments: string;
 		amount: string;
-		[key: string]: string | number; // Index signature for dynamic access
+		notes: Note[];
+		[key: string]: string | number | Note[]; // Index signature for dynamic access
 	}
 
 	let orders: ProcessedOrder[] = [];
@@ -53,6 +63,25 @@
 	let tempPdFilterOperator = pdFilterOperator;
 	let tempPdFilterValue: number | null = pdFilterValue;
 
+	// Notes Modal State
+	let showNotesModal = false;
+	let selectedOrder: ProcessedOrder | null = null;
+	let newNote = '';
+	let notesLoading = false;
+
+	// User information
+	let user: import('firebase/auth').User | null = null;
+	let profile: UserProfile | null = null;
+
+	// Subscribe to user stores
+	const unsubCurrentUser = currentUser.subscribe((value) => {
+		user = value;
+	});
+
+	const unsubUserProfile = userProfile.subscribe((value) => {
+		profile = value;
+	});
+
 	const columns = [
 		{ key: 'customer', label: 'Customer' },
 		{ key: 'invoice', label: 'Invoice' },
@@ -60,7 +89,8 @@
 		{ key: 'dueDate', label: 'Due Date' },
 		{ key: 'pdCounter', label: 'PD-Counter' },
 		{ key: 'payments', label: 'Payments' },
-		{ key: 'amount', label: 'Amount' }
+		{ key: 'amount', label: 'Amount' },
+		{ key: 'notes', label: 'Notes' }
 	];
 
 	async function fetchOrders() {
@@ -137,7 +167,8 @@
 						dueDate: formattedDueDate,
 						pdCounter: pdCounter,
 						payments: totalPayments.toFixed(2),
-						amount: outstandingAmount.toFixed(2)
+						amount: outstandingAmount.toFixed(2),
+						notes: []
 					});
 					return acc;
 				}, []);
@@ -190,6 +221,102 @@
 		if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-50 dark:bg-orange-900/20';
 		if (pdValue >= 60) return 'bg-red-50 dark:bg-red-900/20';
 		return ''; // default for values below 15
+	}
+
+	function getCurrentUserName(): string {
+		if (profile && profile.firstName && profile.lastName) {
+			return `${profile.firstName} ${profile.lastName}`;
+		}
+		if (user?.email) {
+			return user.email.split('@')[0] || 'Unknown User';
+		}
+		return 'Unknown User';
+	}
+
+	async function openNotesModal(order: ProcessedOrder) {
+		selectedOrder = order;
+		newNote = '';
+		showNotesModal = true;
+
+		// Fetch existing notes from Supabase
+		await fetchNotes(order.invoice);
+	}
+
+	async function fetchNotes(invoiceId: string) {
+		try {
+			notesLoading = true;
+			const { data, error: supabaseError } = await supabase
+				.from('orders_past_due_accounts_notes')
+				.select('notes')
+				.eq('invoice_id', invoiceId)
+				.single();
+
+			if (supabaseError && supabaseError.code !== 'PGRST116') { // PGRST116 is "not found"
+				console.error('Error fetching notes:', supabaseError);
+			} else if (selectedOrder) {
+				selectedOrder.notes = data?.notes || [];
+			}
+		} catch (error) {
+			console.error('Error fetching notes:', error);
+		} finally {
+			notesLoading = false;
+		}
+	}
+
+	async function saveNote() {
+		if (!selectedOrder || !newNote.trim()) return;
+
+		try {
+			notesLoading = true;
+
+			// First, try to get existing notes
+			const { data: existingData, error: fetchError } = await supabase
+				.from('orders_past_due_accounts_notes')
+				.select('notes')
+				.eq('invoice_id', selectedOrder.invoice)
+				.single();
+
+			let notes = [];
+			if (existingData && existingData.notes) {
+				notes = existingData.notes;
+			}
+
+			// Add the new note
+			notes.push({
+				note: newNote.trim(),
+				timestamp: new Date().toISOString(),
+				user: getCurrentUserName()
+			});
+
+			// Upsert the record
+			const { error: upsertError } = await supabase
+				.from('orders_past_due_accounts_notes')
+				.upsert({
+					invoice_id: selectedOrder.invoice,
+					notes,
+					updated_at: new Date().toISOString()
+				}, {
+					onConflict: 'invoice_id'
+				});
+
+			if (upsertError) {
+				console.error('Error saving note:', upsertError);
+			} else {
+				// Refresh notes
+				await fetchNotes(selectedOrder.invoice);
+				newNote = '';
+			}
+		} catch (error) {
+			console.error('Error saving note:', error);
+		} finally {
+			notesLoading = false;
+		}
+	}
+
+	function closeNotesModal() {
+		showNotesModal = false;
+		selectedOrder = null;
+		newNote = '';
 	}
 
 	$: filteredOrders = orders
@@ -274,6 +401,11 @@
 
 		fetchOrders();
 		initialized = true;
+
+		return () => {
+			unsubCurrentUser();
+			unsubUserProfile();
+		};
 	});
 </script>
 
@@ -426,6 +558,14 @@
 													>
 														{order[column.key]}
 													</a>
+												{:else if column.key === 'notes'}
+													<button
+														type="button"
+														on:click={() => openNotesModal(order)}
+														class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 underline text-sm"
+													>
+														{(order[column.key] as Note[]).length > 0 ? `${(order[column.key] as Note[]).length} notes` : 'Add notes'}
+													</button>
 												{:else}
 													{order[column.key]}
 												{/if}
@@ -440,4 +580,90 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- Notes Modal -->
+	{#if showNotesModal && selectedOrder}
+		<div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+			<div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+				<div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" on:click={closeNotesModal}></div>
+
+				<span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+				<div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+					<div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+						<div class="sm:flex sm:items-start">
+							<div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
+								<h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100" id="modal-title">
+									Notes for Invoice {selectedOrder.invoice}
+								</h3>
+								<div class="mt-4">
+									<p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Customer: {selectedOrder.customer}</p>
+
+									<!-- Existing Notes -->
+									<div class="mb-4 max-h-60 overflow-y-auto">
+										<h4 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Past Notes:</h4>
+										{#if notesLoading}
+											<p class="text-sm text-gray-500 dark:text-gray-400">Loading notes...</p>
+										{:else if selectedOrder.notes.length === 0}
+											<p class="text-sm text-gray-500 dark:text-gray-400 italic">No notes yet</p>
+										{:else}
+											<div class="space-y-2">
+												{#each selectedOrder.notes as note, index}
+													<div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-md">
+														<p class="text-sm text-gray-900 dark:text-gray-100">{note.note}</p>
+														<div class="flex justify-between items-center mt-1">
+															<p class="text-xs text-gray-500 dark:text-gray-400">Note #{index + 1}</p>
+															<p class="text-xs text-gray-500 dark:text-gray-400">
+																{note.user} • {new Date(note.timestamp).toLocaleDateString()}
+															</p>
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									</div>
+
+									<!-- Add New Note -->
+									<div>
+										<label for="new-note" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+											Add New Note:
+										</label>
+										<textarea
+											id="new-note"
+											rows="3"
+											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+											placeholder="Enter your note here..."
+											bind:value={newNote}
+											disabled={notesLoading}
+										></textarea>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+						<button
+							type="button"
+							on:click={saveNote}
+							disabled={!newNote.trim() || notesLoading}
+							class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							{#if notesLoading}
+								Saving...
+							{:else}
+								Add Note
+							{/if}
+						</button>
+						<button
+							type="button"
+							on:click={closeNotesModal}
+							class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500"
+						>
+							Close
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>

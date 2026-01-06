@@ -176,6 +176,22 @@
 		pdFilterValue = tempPdFilterValue;
 	}
 
+	function getPdCounterColor(pdValue: number): string {
+		if (pdValue >= 15 && pdValue <= 25) return 'text-blue-600 dark:text-blue-400';
+		if (pdValue >= 26 && pdValue <= 40) return 'text-yellow-600 dark:text-yellow-400';
+		if (pdValue >= 41 && pdValue <= 59) return 'text-orange-600 dark:text-orange-400';
+		if (pdValue >= 60) return 'text-red-600 dark:text-red-400';
+		return 'text-gray-500 dark:text-gray-400'; // default for values below 15
+	}
+
+	function getPdCounterBgColor(pdValue: number): string {
+		if (pdValue >= 15 && pdValue <= 25) return 'bg-blue-50 dark:bg-blue-900/20';
+		if (pdValue >= 26 && pdValue <= 40) return 'bg-yellow-50 dark:bg-yellow-900/20';
+		if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-50 dark:bg-orange-900/20';
+		if (pdValue >= 60) return 'bg-red-50 dark:bg-red-900/20';
+		return ''; // default for values below 15
+	}
+
 	$: filteredOrders = orders
 		.filter((order) => {
 			// PD Counter Filter
@@ -266,6 +282,30 @@
 		<div class="sm:flex-auto">
 			<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Past Due Accounts</h1>
 			<p class="mt-2 text-sm text-gray-700 dark:text-gray-400">A list of all past due accounts.</p>
+
+			<!-- PD Counter Legend -->
+			<div class="mt-4 flex flex-wrap gap-4 text-xs">
+				<div class="flex items-center gap-1">
+					<div class="w-3 h-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded"></div>
+					<span class="text-blue-700 dark:text-blue-300 font-medium">15-25 days:</span>
+					<span class="text-gray-600 dark:text-gray-400">Friendly Reminder</span>
+				</div>
+				<div class="flex items-center gap-1">
+					<div class="w-3 h-3 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded"></div>
+					<span class="text-yellow-700 dark:text-yellow-300 font-medium">26-40 days:</span>
+					<span class="text-gray-600 dark:text-gray-400">2nd follow & Warning for Hold</span>
+				</div>
+				<div class="flex items-center gap-1">
+					<div class="w-3 h-3 bg-orange-100 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded"></div>
+					<span class="text-orange-700 dark:text-orange-300 font-medium">41-59 days:</span>
+					<span class="text-gray-600 dark:text-gray-400">Urgent payment required</span>
+				</div>
+				<div class="flex items-center gap-1">
+					<div class="w-3 h-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded"></div>
+					<span class="text-red-700 dark:text-red-300 font-medium">60+ days:</span>
+					<span class="text-gray-600 dark:text-gray-400">Matigas pa sa bato! walang hiya!</span>
+				</div>
+			</div>
 		</div>
 		<div class="mt-4 flex items-center gap-2 sm:ml-16 sm:mt-0 sm:flex-none">
 			<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -371,6 +411,8 @@
 											<td
 												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'customer'
 													? 'pl-4 pr-3 font-medium text-gray-900 dark:text-gray-100 sm:pl-6'
+													: column.key === 'pdCounter'
+													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
 													: 'text-gray-500 dark:text-gray-400'}"
 											>
 												{#if column.key === 'amount' || column.key === 'payments'}

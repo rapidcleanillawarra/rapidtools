@@ -78,7 +78,8 @@
 								'OrderPayment',
 								'GrandTotal',
 								'DatePlaced',
-								'BillAddress'
+								'BillAddress',
+								'Email'
 							]
 						},
 						action: 'GetOrder'
@@ -127,6 +128,8 @@
 
 					acc.push({
 						customer: customerName,
+						contacts: order.BillPhone || '',
+						email: order.Email || '',
 						invoice: order.ID,
 						dateIssued: dateIssued,
 						dueDate: formattedDueDate,
@@ -514,13 +517,43 @@
 					<table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
 						<thead class="bg-gray-50 dark:bg-gray-800">
 							<tr>
-								{#each visibleColumns as column}
+								<th
+									scope="col"
+									colspan="2"
+									class="pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 sm:pl-6"
+								>
+									<div class="flex flex-col gap-2">
+										<button
+											type="button"
+											class="group inline-flex cursor-pointer font-semibold"
+											on:click={() => handleSort('customer')}
+										>
+											Customer
+											<span
+												class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible"
+												class:visible={sortField === 'customer'}
+												class:invisible={sortField !== 'customer'}
+											>
+												{#if sortField === 'customer' && sortDirection === 'desc'}
+													↓
+												{:else}
+													↑
+												{/if}
+											</span>
+										</button>
+										<input
+											type="text"
+											placeholder="Search..."
+											class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
+											value={searchFilters['customer'] || ''}
+											on:input={(e) => handleSearchChange('customer', e.currentTarget.value)}
+										/>
+									</div>
+								</th>
+								{#each visibleColumns.slice(1) as column}
 									<th
 										scope="col"
-										class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 {column.key ===
-										'customer'
-											? 'pl-4 pr-3 sm:pl-6'
-											: ''}"
+										class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100"
 									>
 										<div class="flex flex-col gap-2">
 											<button
@@ -557,33 +590,38 @@
 							{#if loading}
 								<tr>
 									<td
-										colspan={visibleColumns.length}
+										colspan={visibleColumns.length + 1}
 										class="py-4 pl-4 pr-3 text-center text-sm text-gray-500 sm:pl-6">Loading...</td
 									>
 								</tr>
 							{:else if error}
 								<tr>
 									<td
-										colspan={visibleColumns.length}
+										colspan={visibleColumns.length + 1}
 										class="py-4 pl-4 pr-3 text-center text-sm text-red-500 sm:pl-6">{error}</td
 									>
 								</tr>
 							{:else if filteredOrders.length === 0}
 								<tr>
 									<td
-										colspan={visibleColumns.length}
+										colspan={visibleColumns.length + 1}
 										class="py-4 pl-4 pr-3 text-center text-sm text-gray-500 sm:pl-6"
 										>No past due orders found.</td
 									>
 								</tr>
 							{:else}
 								{#each filteredOrders as order}
+									<!-- Main row with customer spanning 2 columns -->
 									<tr>
-										{#each visibleColumns as column}
+										<td
+											colspan="2"
+											class="pl-4 pr-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6"
+										>
+											{order.customer}
+										</td>
+										{#each visibleColumns.slice(1) as column}
 											<td
-												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'customer'
-													? 'pl-4 pr-3 font-medium text-gray-900 dark:text-gray-100 sm:pl-6'
-													: column.key === 'pdCounter'
+												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'pdCounter'
 													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
 													: 'text-gray-500 dark:text-gray-400'}"
 											>
@@ -610,6 +648,50 @@
 													{order[column.key]}
 												{/if}
 											</td>
+										{/each}
+									</tr>
+									<!-- Phone row -->
+									<tr class="border-t border-gray-100 dark:border-gray-700">
+										<td
+											colspan="2"
+											class="pl-4 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 sm:pl-6"
+										>
+											{#if order.contacts}
+												<span class="font-medium">Phone: </span>
+												<a
+													href="tel:{order.contacts}"
+													class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+												>
+													{order.contacts}
+												</a>
+											{:else}
+												<span class="text-gray-400 dark:text-gray-500">No phone</span>
+											{/if}
+										</td>
+										{#each visibleColumns.slice(1) as column}
+											<td class="px-3 py-2"></td>
+										{/each}
+									</tr>
+									<!-- Email row -->
+									<tr class="border-b border-gray-200 dark:border-gray-600">
+										<td
+											colspan="2"
+											class="pl-4 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 sm:pl-6"
+										>
+											{#if order.email}
+												<span class="font-medium">Email: </span>
+												<a
+													href="mailto:{order.email}"
+													class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+												>
+													{order.email}
+												</a>
+											{:else}
+												<span class="text-gray-400 dark:text-gray-500">No email</span>
+											{/if}
+										</td>
+										{#each visibleColumns.slice(1) as column}
+											<td class="px-3 py-2"></td>
 										{/each}
 									</tr>
 								{/each}

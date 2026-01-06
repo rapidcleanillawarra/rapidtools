@@ -21,6 +21,7 @@ export interface Order {
 	BillCompany: string;
 	BillFirstName: string;
 	BillPhone?: string;
+	Email?: string;
 }
 
 export interface Note {
@@ -31,6 +32,8 @@ export interface Note {
 
 export interface ProcessedOrder {
 	customer: string;
+	contacts: string;
+	email: string;
 	invoice: string;
 	dateIssued: string;
 	dueDate: string;

@@ -11,6 +11,7 @@
 		getPersonName,
 		getAccountManagerName
 	} from './utils';
+	import { toastSuccess } from '$lib/utils/toast';
 	import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
 
 	// Stores
@@ -253,31 +254,132 @@
 		editValue = '';
 	}
 
-	function saveEdit() {
+	async function saveEdit() {
 		if (!editingCell) return;
 
 		const { username, field } = editingCell;
 
-		// Update stores
-		const updateCustomer = (c: Customer) => {
-			if (c.Username !== username) return c;
+		// Find current customer values to preserve other fields if needed for the payload,
+		// though the requirement only needs the changing fields + identification.
+		// Actually, we need to construct the payload with the *new* value for the edited field
+		// and the *current* values for the other fields, because the API structure implies sending a Customer object.
+		// However, usually "Update" operations might accept partial overrides or require full objects.
+		// The user provided payload has 4 fields: Username, DefaultInvoiceTerms, OnCreditHold, AccountManager.
+		// It seems we should send all these 4 fields regardless of which one changed,
+		// to ensure we don't accidentally wipe out the others if the API expects them?
+		// Or maybe just the one that changed?
+		// The user said: "if any of the row has been updated here is the payload: { Customer: [{ Username: ..., DefaultInvoiceTerms: ..., OnCreditHold: ..., AccountManager: ... }], ... }"
+		// This suggests sending ALL 4 keys is the expected format for an update.
 
-			const updated = { ...c };
-			if (field === 'managerName') {
-				updated.managerName = editValue;
-				// In a real app, we'd also update the AccountManager object if needed
-			} else if (field === 'OnCreditHold') {
-				updated.OnCreditHold = editValue;
-			} else if (field === 'DefaultInvoiceTerms') {
-				updated.DefaultInvoiceTerms = editValue;
-			}
-			return updated;
+		const customer = $tableData.find((c) => c.Username === username);
+		if (!customer) return;
+
+		// Prepare values for payload
+		let newAccountManager = customer.AccountManager; // This might be an object in the store based on types.ts, but we need the username string for payload?
+		// types.ts says `AccountManager: AccountManager | string;`
+		// In fetchCustomers, we transform it? No, we enhance it with `managerName`.
+		// Let's check how `AccountManager` is stored.
+		// In `fetchCustomers`: `const enhancedCustomers = data.Customer.map...`
+		// We assume `AccountManager` field on `customer` object holds the data from API.
+		// The API returns it as object or string?
+		// `getAccountManagerName` takes `accountManager: any`.
+
+		// Let's deduce the value for AccountManager string to send.
+		// If we are editing 'managerName', `editValue` holds the new username (e.g. 'OrlandoC').
+
+		const payloadAccountManager =
+			field === 'managerName'
+				? editValue
+				: typeof customer.AccountManager === 'object'
+					? customer.AccountManager.Username
+					: customer.AccountManager;
+
+		const payloadOnCreditHold =
+			field === 'OnCreditHold'
+				? editValue === 'True' // Convert 'True'/'False' string to boolean
+				: customer.OnCreditHold === 'True';
+
+		const payloadDefaultInvoiceTerms =
+			field === 'DefaultInvoiceTerms' ? editValue : customer.DefaultInvoiceTerms;
+
+		const payload = {
+			Customer: [
+				{
+					Username: username,
+					DefaultInvoiceTerms: payloadDefaultInvoiceTerms,
+					OnCreditHold: payloadOnCreditHold,
+					AccountManager: payloadAccountManager
+				}
+			],
+			action: 'UpdateCustomer'
 		};
 
-		tableData.update((data) => data.map(updateCustomer));
-		originalData.update((data) => data.map(updateCustomer));
+		// UI Optimistic Update or Loading State?
+		// User didn't request optimistic UI, but usually safer to wait.
+		// Let's add a local loading indicator if possible, or just reuse global isLoading?
+		// Global isLoading might hide the table, which is jarring.
+		// Better to just await and then update.
 
-		cancelEditing();
+		try {
+			const response = await fetch(API_ENDPOINT, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(payload)
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
+			// Assume success if no error? Or check Ack?
+			// The previous fetch checked for Ack === 'Success'.
+			const data = await response.json();
+			if (data.Ack !== 'Success') {
+				throw new Error('API returned unsuccessful acknowledgment');
+			}
+
+			// Update stores locally
+			const updateCustomer = (c: Customer) => {
+				if (c.Username !== username) return c;
+
+				const updated = { ...c };
+				if (field === 'managerName') {
+					updated.managerName = getAccountManagerName({
+						FirstName: '',
+						LastName: '',
+						Username: editValue
+					}); // We don't have full name immediately available for the new manager without a lookup.
+					// Wait, `getAccountManagerName` expects object or string.
+					// If we just mapped select values to 'LukeR', 'OrlandoC', etc. we might want to update the `managerName` display properly.
+					// The select options are hardcoded in the HTML:
+					// <option value="LukeR">Luke Richardson</option>...
+					// We can map these for display.
+					const managerMap: Record<string, string> = {
+						LukeR: 'Luke Richardson',
+						sabina: 'Sabina Marfleet',
+						OrlandoC: 'Orlando Chiodo'
+					};
+					updated.managerName = managerMap[editValue] || editValue;
+					updated.AccountManager = editValue; // Update the source field too?
+				} else if (field === 'OnCreditHold') {
+					updated.OnCreditHold = editValue; // 'True' or 'False'
+				} else if (field === 'DefaultInvoiceTerms') {
+					updated.DefaultInvoiceTerms = editValue;
+				}
+				return updated;
+			};
+
+			tableData.update((data) => data.map(updateCustomer));
+			originalData.update((data) => data.map(updateCustomer));
+
+			toastSuccess('Customer updated successfully');
+			cancelEditing();
+		} catch (err) {
+			console.error('Error updating customer:', err);
+			alert('Failed to update customer: ' + (err instanceof Error ? err.message : 'Unknown error'));
+		}
 	}
 
 	// Computed visible columns
@@ -425,11 +527,23 @@
 													: 'text-gray-600'}"
 											>
 												{#if column.key === 'Username'}
-													{customer.Username}
+													<a
+														href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={customer.Username}"
+														target="_blank"
+														class="text-blue-600 hover:text-blue-900 hover:underline"
+													>
+														{customer.Username}
+													</a>
 												{:else if column.key === 'company'}
 													{customer.company}
 												{:else if column.key === 'customerName'}
-													{customer.customerName}
+													<a
+														href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={customer.Username}"
+														target="_blank"
+														class="text-blue-600 hover:text-blue-900 hover:underline"
+													>
+														{customer.customerName}
+													</a>
 												{:else if column.key === 'displayName'}
 													{customer.displayName}
 												{:else if column.key === 'EmailAddress'}

@@ -319,6 +319,125 @@
 		newNote = '';
 	}
 
+	function exportToCSV() {
+		const csvColumns = columns.filter(col => col.key !== 'notes'); // Exclude notes column
+		const headers = csvColumns.map(col => col.label).join(',');
+
+		const rows = filteredOrders.map(order =>
+			csvColumns.map(col => {
+				let value = order[col.key];
+				// Format currency values
+				if (col.key === 'amount' || col.key === 'payments') {
+					value = `$${value}`;
+				}
+				// Escape commas and quotes in values
+				if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+					value = `"${value.replace(/"/g, '""')}"`;
+				}
+				return value;
+			}).join(',')
+		);
+
+		const csvContent = [headers, ...rows].join('\n');
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+
+		if (link.download !== undefined) {
+			const url = URL.createObjectURL(blob);
+			link.setAttribute('href', url);
+			link.setAttribute('download', `past-due-accounts-${new Date().toISOString().split('T')[0]}.csv`);
+			link.style.visibility = 'hidden';
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		}
+	}
+
+	function printTable() {
+		const printWindow = window.open('', '_blank');
+		if (!printWindow) return;
+
+		const csvColumns = columns.filter(col => col.key !== 'notes'); // Exclude notes column
+
+		const htmlContent = `
+			<!DOCTYPE html>
+			<html>
+				<head>
+					<title>Past Due Accounts Report</title>
+					<style>
+						body { font-family: Arial, sans-serif; margin: 20px; }
+						h1 { color: #333; text-align: center; margin-bottom: 10px; }
+						.legend { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 20px; font-size: 12px; }
+						.legend-item { display: flex; align-items: center; gap: 5px; }
+						.legend-color { width: 12px; height: 12px; border-radius: 2px; border: 1px solid #ccc; }
+						table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+						th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+						th { background-color: #f5f5f5; font-weight: bold; }
+						tr:nth-child(even) { background-color: #f9f9f9; }
+						.amount { text-align: right; }
+						.pd-counter { font-weight: bold; }
+						@media print { body { margin: 0; } }
+					</style>
+				</head>
+				<body>
+					<h1>Past Due Accounts Report</h1>
+					<p>Generated on: ${new Date().toLocaleDateString('en-AU')} ${new Date().toLocaleTimeString('en-AU')}</p>
+					<p>Total Records: ${filteredOrders.length}</p>
+
+					<div class="legend">
+						<div class="legend-item">
+							<div class="legend-color" style="background-color: #dbeafe;"></div>
+							<span><strong>15-25 days:</strong> Friendly Reminder</span>
+						</div>
+						<div class="legend-item">
+							<div class="legend-color" style="background-color: #fef3c7;"></div>
+							<span><strong>26-40 days:</strong> 2nd follow & Warning for Hold</span>
+						</div>
+						<div class="legend-item">
+							<div class="legend-color" style="background-color: #fed7aa;"></div>
+							<span><strong>41-59 days:</strong> Urgent payment required</span>
+						</div>
+						<div class="legend-item">
+							<div class="legend-color" style="background-color: #fecaca;"></div>
+							<span><strong>60+ days:</strong> Matigas pa sa bato! walang hiya!</span>
+						</div>
+					</div>
+
+					<table>
+						<thead>
+							<tr>
+								${csvColumns.map(col => `<th>${col.label}</th>`).join('')}
+							</tr>
+						</thead>
+						<tbody>
+							${filteredOrders.map(order => `
+								<tr>
+									${csvColumns.map(col => {
+										let value = order[col.key];
+										let className = '';
+
+										if (col.key === 'amount' || col.key === 'payments') {
+											value = `$${value}`;
+											className = 'amount';
+										} else if (col.key === 'pdCounter') {
+											className = 'pd-counter';
+										}
+
+										return `<td class="${className}">${value}</td>`;
+									}).join('')}
+								</tr>
+							`).join('')}
+						</tbody>
+					</table>
+				</body>
+			</html>
+		`;
+
+		printWindow.document.write(htmlContent);
+		printWindow.document.close();
+		printWindow.print();
+	}
+
 	$: filteredOrders = orders
 		.filter((order) => {
 			// PD Counter Filter
@@ -439,32 +558,52 @@
 				</div>
 			</div>
 		</div>
-		<div class="mt-4 flex items-center gap-2 sm:ml-16 sm:mt-0 sm:flex-none">
-			<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
-				>PD Counter Filter:</label
-			>
-			<select
-				bind:value={tempPdFilterOperator}
-				class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
-			>
-				<option value=">">&gt;</option>
-				<option value="<">&lt;</option>
-				<option value="=">=</option>
-			</select>
-			<input
-				id="pd-filter"
-				type="number"
-				placeholder="Days"
-				class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-				bind:value={tempPdFilterValue}
-			/>
-			<button
-				type="button"
-				on:click={applyPdFilter}
-				class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-			>
-				Apply Filter
-			</button>
+		<div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 sm:ml-16 sm:mt-0 sm:flex-none">
+			<div class="flex items-center gap-2">
+				<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
+					>PD Counter Filter:</label
+				>
+				<select
+					bind:value={tempPdFilterOperator}
+					class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
+				>
+					<option value=">">&gt;</option>
+					<option value="<">&lt;</option>
+					<option value="=">=</option>
+				</select>
+				<input
+					id="pd-filter"
+					type="number"
+					placeholder="Days"
+					class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+					bind:value={tempPdFilterValue}
+				/>
+				<button
+					type="button"
+					on:click={applyPdFilter}
+					class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+				>
+					Apply Filter
+				</button>
+			</div>
+			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					on:click={exportToCSV}
+					disabled={filteredOrders.length === 0}
+					class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					Export CSV
+				</button>
+				<button
+					type="button"
+					on:click={printTable}
+					disabled={filteredOrders.length === 0}
+					class="rounded-md bg-gray-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					Print Report
+				</button>
+			</div>
 		</div>
 	</div>
 	<div class="mt-8 flex flex-col">

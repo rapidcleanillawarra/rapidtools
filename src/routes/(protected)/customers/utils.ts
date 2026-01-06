@@ -7,6 +7,16 @@ export function getSortIcon(field: string, currentField: string, direction: 'asc
     return direction === 'asc' ? '↑' : '↓';
 }
 
+function parseNumber(value: any): number {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+        // Remove currency symbols and commas if present
+        const cleaned = value.replace(/[$,]/g, '');
+        return parseFloat(cleaned) || 0;
+    }
+    return 0;
+}
+
 export function sortData(
     data: Customer[],
     field: string,
@@ -55,8 +65,8 @@ export function sortData(
                 bValue = b.DefaultInvoiceTerms || '';
                 break;
             case 'AccountBalance':
-                aValue = a.AccountBalance || 0;
-                bValue = b.AccountBalance || 0;
+                aValue = parseNumber(a.AccountBalance);
+                bValue = parseNumber(b.AccountBalance);
                 break;
             default:
                 aValue = '';

@@ -3,68 +3,32 @@
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile, type UserProfile } from '$lib/userProfile';
-
-	interface OrderPayment {
-		Amount: string;
-		Id: string;
-		DatePaid: string;
-	}
-
-	interface Order {
-		ID: string;
-		DatePaymentDue: string;
-		BillLastName: string;
-		BillStreetLine1: string;
-		BillState: string;
-		BillCountry: string;
-		BillPostCode: string;
-		OrderID: string;
-		OrderPayment: OrderPayment[];
-		DatePlaced: string;
-		GrandTotal: string;
-		Username: string;
-		BillCity: string;
-		BillCompany: string;
-		BillFirstName: string;
-		BillPhone?: string;
-	}
-
-	interface Note {
-		note: string;
-		timestamp: string;
-		user: string;
-	}
-
-	interface ProcessedOrder {
-		customer: string;
-		invoice: string;
-		dateIssued: string;
-		dueDate: string;
-		pdCounter: number;
-		payments: string;
-		amount: string;
-		notes: Note[];
-		[key: string]: string | number | Note[]; // Index signature for dynamic access
-	}
+	import {
+		columns,
+		defaultColumnVisibility,
+		parseDate,
+		getPdCounterBgColor,
+		getPdCounterColor,
+		type ColumnKey,
+		type Note,
+		type Order,
+		type ProcessedOrder
+	} from './pastDueAccounts';
+	import PastDueLegend from './components/PastDueLegend.svelte';
+	import PastDueToolbar from './components/PastDueToolbar.svelte';
+	import ColumnVisibilityPills from './components/ColumnVisibilityPills.svelte';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
 	let error = '';
-	let searchFilters: Record<string, string> = {};
-	let sortField = 'pdCounter';
+	let searchFilters: Partial<Record<ColumnKey, string>> = {};
+	let sortField: ColumnKey = 'pdCounter';
 	let sortDirection: 'asc' | 'desc' = 'desc';
 
 	// Column visibility state
-	let columnVisibility: Record<string, boolean> = {
-		customer: true,
-		invoice: true,
-		dateIssued: true,
-		dueDate: true,
-		pdCounter: true,
-		payments: true,
-		amount: true,
-		notes: true
-	};
+	let columnVisibility: Record<ColumnKey, boolean> = { ...defaultColumnVisibility };
+	let visibleColumns = columns.filter((column) => columnVisibility[column.key]);
+	let filteredOrders: ProcessedOrder[] = [];
 
 	// PD Counter Filter State
 	let pdFilterOperator = '>';
@@ -93,17 +57,6 @@
 	const unsubUserProfile = userProfile.subscribe((value) => {
 		profile = value;
 	});
-
-	const columns = [
-		{ key: 'customer', label: 'Customer' },
-		{ key: 'invoice', label: 'Invoice' },
-		{ key: 'dateIssued', label: 'Date Issued' },
-		{ key: 'dueDate', label: 'Due Date' },
-		{ key: 'pdCounter', label: 'PD-Counter' },
-		{ key: 'payments', label: 'Payments' },
-		{ key: 'amount', label: 'Amount' },
-		{ key: 'notes', label: 'Notes' }
-	];
 
 	async function fetchOrders() {
 		try {
@@ -193,11 +146,11 @@
 		}
 	}
 
-	function handleSearchChange(key: string, value: string) {
+	function handleSearchChange(key: ColumnKey, value: string) {
 		searchFilters = { ...searchFilters, [key]: value };
 	}
 
-	function handleSort(key: string) {
+	function handleSort(key: ColumnKey) {
 		if (sortField === key) {
 			sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
 		} else {
@@ -206,37 +159,13 @@
 		}
 	}
 
-	function parseDate(dateStr: string): number {
-		const parts = dateStr.split('/');
-		if (parts.length === 3) {
-			return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0])).getTime();
-		}
-		return 0;
-	}
-
 	function applyPdFilter() {
 		pdFilterOperator = tempPdFilterOperator;
 		pdFilterValue = tempPdFilterValue;
 	}
 
-	function toggleColumnVisibility(key: string) {
+	function toggleColumnVisibility(key: ColumnKey) {
 		columnVisibility = { ...columnVisibility, [key]: !columnVisibility[key] };
-	}
-
-	function getPdCounterColor(pdValue: number): string {
-		if (pdValue >= 15 && pdValue <= 25) return 'text-blue-600 dark:text-blue-400';
-		if (pdValue >= 26 && pdValue <= 40) return 'text-yellow-600 dark:text-yellow-400';
-		if (pdValue >= 41 && pdValue <= 59) return 'text-orange-600 dark:text-orange-400';
-		if (pdValue >= 60) return 'text-red-600 dark:text-red-400';
-		return 'text-gray-500 dark:text-gray-400'; // default for values below 15
-	}
-
-	function getPdCounterBgColor(pdValue: number): string {
-		if (pdValue >= 15 && pdValue <= 25) return 'bg-blue-50 dark:bg-blue-900/20';
-		if (pdValue >= 26 && pdValue <= 40) return 'bg-yellow-50 dark:bg-yellow-900/20';
-		if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-50 dark:bg-orange-900/20';
-		if (pdValue >= 60) return 'bg-red-50 dark:bg-red-900/20';
-		return ''; // default for values below 15
 	}
 
 	function getCurrentUserName(): string {
@@ -563,106 +492,21 @@
 			<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Past Due Accounts</h1>
 			<p class="mt-2 text-sm text-gray-700 dark:text-gray-400">A list of all past due accounts.</p>
 
-			<!-- PD Counter Legend -->
-			<div class="mt-4 flex flex-wrap gap-4 text-xs">
-				<div class="flex items-center gap-1">
-					<div class="w-3 h-3 bg-blue-100 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded"></div>
-					<span class="text-blue-700 dark:text-blue-300 font-medium">15-25 days:</span>
-					<span class="text-gray-600 dark:text-gray-400">Friendly Reminder</span>
-				</div>
-				<div class="flex items-center gap-1">
-					<div class="w-3 h-3 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded"></div>
-					<span class="text-yellow-700 dark:text-yellow-300 font-medium">26-40 days:</span>
-					<span class="text-gray-600 dark:text-gray-400">2nd follow & Warning for Hold</span>
-				</div>
-				<div class="flex items-center gap-1">
-					<div class="w-3 h-3 bg-orange-100 dark:bg-orange-900/20 border border-orange-300 dark:border-orange-700 rounded"></div>
-					<span class="text-orange-700 dark:text-orange-300 font-medium">41-59 days:</span>
-					<span class="text-gray-600 dark:text-gray-400">Urgent payment required</span>
-				</div>
-				<div class="flex items-center gap-1">
-					<div class="w-3 h-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded"></div>
-					<span class="text-red-700 dark:text-red-300 font-medium">60+ days:</span>
-					<span class="text-gray-600 dark:text-gray-400">Matigas pa sa bato! walang hiya!</span>
-				</div>
-			</div>
+			<PastDueLegend />
 		</div>
-		<div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4 sm:ml-16 sm:mt-0 sm:flex-none">
-			<div class="flex items-center gap-2">
-				<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
-					>PD Counter Filter:</label
-				>
-				<select
-					bind:value={tempPdFilterOperator}
-					class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
-				>
-					<option value=">">&gt;</option>
-					<option value="<">&lt;</option>
-					<option value="=">=</option>
-				</select>
-				<input
-					id="pd-filter"
-					type="number"
-					placeholder="Days"
-					class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-					bind:value={tempPdFilterValue}
-				/>
-				<button
-					type="button"
-					on:click={applyPdFilter}
-					class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-				>
-					Apply Filter
-				</button>
-			</div>
-			<div class="flex items-center gap-2">
-				<button
-					type="button"
-					on:click={exportToCSV}
-					disabled={filteredOrders.length === 0}
-					class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-				>
-					Export CSV
-				</button>
-				<button
-					type="button"
-					on:click={printTable}
-					disabled={filteredOrders.length === 0}
-					class="rounded-md bg-gray-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-				>
-					Print Report
-				</button>
-			</div>
-		</div>
+		<PastDueToolbar
+			bind:operator={tempPdFilterOperator}
+			bind:value={tempPdFilterValue}
+			disableActions={filteredOrders.length === 0}
+			on:apply={applyPdFilter}
+			on:exportCsv={exportToCSV}
+			on:print={printTable}
+		/>
 	</div>
 
-	<!-- Column Visibility Pills -->
-	<div class="mt-6">
-		<h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Visible Columns:</h3>
-		<div class="flex flex-wrap gap-2">
-			{#each columns as column}
-				<button
-					type="button"
-					on:click={() => toggleColumnVisibility(column.key)}
-					class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 {columnVisibility[column.key]
-						? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:bg-indigo-200 dark:hover:bg-indigo-800'
-						: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}"
-				>
-					<span class="mr-1">{column.label}</span>
-					{#if columnVisibility[column.key]}
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
-						</svg>
-					{:else}
-						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-						</svg>
-					{/if}
-				</button>
-			{/each}
-		</div>
-	</div>
+	<ColumnVisibilityPills {columns} {columnVisibility} on:toggle={(e) => toggleColumnVisibility(e.detail.key)} />
 
+	<!-- Orders Table -->
 	<div class="mt-8 flex flex-col">
 		<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
 			<div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">

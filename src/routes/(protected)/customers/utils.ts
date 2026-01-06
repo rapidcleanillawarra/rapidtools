@@ -54,6 +54,10 @@ export function sortData(
                 aValue = a.DefaultInvoiceTerms || '';
                 bValue = b.DefaultInvoiceTerms || '';
                 break;
+            case 'AccountBalance':
+                aValue = a.AccountBalance || 0;
+                bValue = b.AccountBalance || 0;
+                break;
             default:
                 aValue = '';
                 bValue = '';
@@ -63,6 +67,11 @@ export function sortData(
         if (aValue == null && bValue == null) return 0;
         if (aValue == null) return direction === 'asc' ? 1 : -1;
         if (bValue == null) return direction === 'asc' ? -1 : 1;
+
+        // Handle number comparison
+        if (typeof aValue === 'number' && typeof bValue === 'number') {
+            return direction === 'asc' ? aValue - bValue : bValue - aValue;
+        }
 
         // Handle string comparison
         if (typeof aValue === 'string' && typeof bValue === 'string') {
@@ -116,6 +125,9 @@ export function filterCustomers(
                         break;
                     case 'DefaultInvoiceTerms':
                         fieldValue = customer.DefaultInvoiceTerms || '';
+                        break;
+                    case 'AccountBalance':
+                        fieldValue = (customer.AccountBalance || 0).toString();
                         break;
                     default:
                         fieldValue = '';

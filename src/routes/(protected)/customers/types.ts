@@ -26,6 +26,7 @@ export interface Customer {
     AccountManager: AccountManager | string;
     OnCreditHold: string;
     DefaultInvoiceTerms: string;
+    AccountBalance: number;
     // Computed fields for display
     company?: string;
     customerName?: string;

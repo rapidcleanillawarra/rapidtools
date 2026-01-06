@@ -32,7 +32,8 @@
 		phone: true,
 		managerName: true,
 		OnCreditHold: true,
-		DefaultInvoiceTerms: false
+		DefaultInvoiceTerms: false,
+		AccountBalance: true
 	};
 
 	const storedVisibility =
@@ -89,6 +90,12 @@
 			displayName: 'Invoice Terms',
 			pillName: 'Invoice Terms',
 			hasSearch: true
+		},
+		{
+			key: 'AccountBalance',
+			displayName: 'Account Balance',
+			pillName: 'Balance',
+			hasSearch: true
 		}
 	];
 
@@ -112,7 +119,8 @@
 							'BillingAddress',
 							'AccountManager',
 							'OnCreditHold',
-							'DefaultInvoiceTerms'
+							'DefaultInvoiceTerms',
+							'AccountBalance'
 						]
 					},
 					action: 'GetCustomer'
@@ -674,6 +682,12 @@
 															</button>
 														</div>
 													{/if}
+												{:else if column.key === 'AccountBalance'}
+													{new Intl.NumberFormat('en-AU', {
+														style: 'decimal',
+														minimumFractionDigits: 2,
+														maximumFractionDigits: 2
+													}).format(customer.AccountBalance || 0)}
 												{/if}
 											</td>
 										{/each}

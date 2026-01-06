@@ -54,6 +54,18 @@
 	let sortField = 'pdCounter';
 	let sortDirection: 'asc' | 'desc' = 'desc';
 
+	// Column visibility state
+	let columnVisibility: Record<string, boolean> = {
+		customer: true,
+		invoice: true,
+		dateIssued: true,
+		dueDate: true,
+		pdCounter: true,
+		payments: true,
+		amount: true,
+		notes: true
+	};
+
 	// PD Counter Filter State
 	let pdFilterOperator = '>';
 	let pdFilterValue: number | null = 30;
@@ -207,6 +219,10 @@
 		pdFilterValue = tempPdFilterValue;
 	}
 
+	function toggleColumnVisibility(key: string) {
+		columnVisibility = { ...columnVisibility, [key]: !columnVisibility[key] };
+	}
+
 	function getPdCounterColor(pdValue: number): string {
 		if (pdValue >= 15 && pdValue <= 25) return 'text-blue-600 dark:text-blue-400';
 		if (pdValue >= 26 && pdValue <= 40) return 'text-yellow-600 dark:text-yellow-400';
@@ -320,7 +336,7 @@
 	}
 
 	function exportToCSV() {
-		const csvColumns = columns.filter(col => col.key !== 'notes'); // Exclude notes column
+		const csvColumns = visibleColumns.filter(col => col.key !== 'notes'); // Use visible columns, exclude notes
 		const headers = csvColumns.map(col => col.label).join(',');
 
 		const rows = filteredOrders.map(order =>
@@ -357,7 +373,7 @@
 		const printWindow = window.open('', '_blank');
 		if (!printWindow) return;
 
-		const csvColumns = columns.filter(col => col.key !== 'notes'); // Exclude notes column
+		const csvColumns = visibleColumns.filter(col => col.key !== 'notes'); // Use visible columns, exclude notes
 
 		const htmlContent = `
 			<!DOCTYPE html>
@@ -417,13 +433,13 @@
 										let className = '';
 
 										if (col.key === 'amount' || col.key === 'payments') {
-											value = `$${value}`;
+											value = '$' + value;
 											className = 'amount';
 										} else if (col.key === 'pdCounter') {
 											className = 'pd-counter';
 										}
 
-										return `<td class="${className}">${value}</td>`;
+										return '<td class="' + className + '">' + value + '</td>';
 									}).join('')}
 								</tr>
 							`).join('')}
@@ -437,6 +453,8 @@
 		printWindow.document.close();
 		printWindow.print();
 	}
+
+	$: visibleColumns = columns.filter(column => columnVisibility[column.key]);
 
 	$: filteredOrders = orders
 		.filter((order) => {
@@ -491,6 +509,7 @@
 			} else {
 				localStorage.removeItem('orders-pd-filter-value');
 			}
+			localStorage.setItem('orders-column-visibility', JSON.stringify(columnVisibility));
 		}
 	}
 
@@ -498,6 +517,7 @@
 		if (typeof window !== 'undefined') {
 			const storedOp = localStorage.getItem('orders-pd-filter-operator');
 			const storedVal = localStorage.getItem('orders-pd-filter-value');
+			const storedVisibility = localStorage.getItem('orders-column-visibility');
 
 			// Set defaults if no localStorage data exists
 			if (!storedOp && !storedVal) {
@@ -515,6 +535,15 @@
 				// Initialize temp values with loaded values
 				tempPdFilterOperator = pdFilterOperator;
 				tempPdFilterValue = pdFilterValue;
+			}
+
+			// Load column visibility preferences
+			if (storedVisibility) {
+				try {
+					columnVisibility = { ...columnVisibility, ...JSON.parse(storedVisibility) };
+				} catch (e) {
+					console.error('Error parsing column visibility preferences:', e);
+				}
 			}
 		}
 
@@ -606,6 +635,34 @@
 			</div>
 		</div>
 	</div>
+
+	<!-- Column Visibility Pills -->
+	<div class="mt-6">
+		<h3 class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Visible Columns:</h3>
+		<div class="flex flex-wrap gap-2">
+			{#each columns as column}
+				<button
+					type="button"
+					on:click={() => toggleColumnVisibility(column.key)}
+					class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium transition-colors duration-200 {columnVisibility[column.key]
+						? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 hover:bg-indigo-200 dark:hover:bg-indigo-800'
+						: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+				>
+					<span class="mr-1">{column.label}</span>
+					{#if columnVisibility[column.key]}
+						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+						</svg>
+					{:else}
+						<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+							<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+						</svg>
+					{/if}
+				</button>
+			{/each}
+		</div>
+	</div>
+
 	<div class="mt-8 flex flex-col">
 		<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
 			<div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
@@ -613,7 +670,7 @@
 					<table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
 						<thead class="bg-gray-50 dark:bg-gray-800">
 							<tr>
-								{#each columns as column}
+								{#each visibleColumns as column}
 									<th
 										scope="col"
 										class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 {column.key ===
@@ -656,21 +713,21 @@
 							{#if loading}
 								<tr>
 									<td
-										colspan={columns.length}
+										colspan={visibleColumns.length}
 										class="py-4 pl-4 pr-3 text-center text-sm text-gray-500 sm:pl-6">Loading...</td
 									>
 								</tr>
 							{:else if error}
 								<tr>
 									<td
-										colspan={columns.length}
+										colspan={visibleColumns.length}
 										class="py-4 pl-4 pr-3 text-center text-sm text-red-500 sm:pl-6">{error}</td
 									>
 								</tr>
 							{:else if filteredOrders.length === 0}
 								<tr>
 									<td
-										colspan={columns.length}
+										colspan={visibleColumns.length}
 										class="py-4 pl-4 pr-3 text-center text-sm text-gray-500 sm:pl-6"
 										>No past due orders found.</td
 									>
@@ -678,7 +735,7 @@
 							{:else}
 								{#each filteredOrders as order}
 									<tr>
-										{#each columns as column}
+										{#each visibleColumns as column}
 											<td
 												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'customer'
 													? 'pl-4 pr-3 font-medium text-gray-900 dark:text-gray-100 sm:pl-6'

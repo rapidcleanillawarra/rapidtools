@@ -375,6 +375,15 @@
 											>
 												{#if column.key === 'amount' || column.key === 'payments'}
 													${order[column.key]}
+												{:else if column.key === 'invoice'}
+													<a
+														href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={order[column.key]}"
+														target="_blank"
+														rel="noopener noreferrer"
+														class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+													>
+														{order[column.key]}
+													</a>
 												{:else}
 													{order[column.key]}
 												{/if}

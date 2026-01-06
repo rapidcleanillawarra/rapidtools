@@ -44,6 +44,10 @@
 	let sortField = 'pdCounter';
 	let sortDirection: 'asc' | 'desc' = 'desc';
 
+	// PD Counter Filter State
+	let pdFilterOperator = '>';
+	let pdFilterValue: number | null = 30;
+
 	const columns = [
 		{ key: 'customer', label: 'Customer' },
 		{ key: 'invoice', label: 'Invoice' },
@@ -164,6 +168,15 @@
 
 	$: filteredOrders = orders
 		.filter((order) => {
+			// PD Counter Filter
+			if (pdFilterValue !== null && pdFilterValue !== undefined && String(pdFilterValue) !== '') {
+				const pd = order.pdCounter;
+				const val = Number(pdFilterValue);
+				if (pdFilterOperator === '>' && !(pd > val)) return false;
+				if (pdFilterOperator === '<' && !(pd < val)) return false;
+				if (pdFilterOperator === '=' && !(pd === val)) return false;
+			}
+
 			return Object.entries(searchFilters).every(([key, value]) => {
 				if (!value) return true;
 				const orderValue = String(order[key]).toLowerCase();
@@ -198,16 +211,54 @@
 			}
 		});
 
+	$: {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('orders-pd-filter-operator', pdFilterOperator);
+			if (pdFilterValue !== null) {
+				localStorage.setItem('orders-pd-filter-value', String(pdFilterValue));
+			} else {
+				localStorage.removeItem('orders-pd-filter-value');
+			}
+		}
+	}
+
 	onMount(() => {
+		if (typeof window !== 'undefined') {
+			const storedOp = localStorage.getItem('orders-pd-filter-operator');
+			const storedVal = localStorage.getItem('orders-pd-filter-value');
+			if (storedOp) pdFilterOperator = storedOp;
+			if (storedVal) pdFilterValue = Number(storedVal);
+		}
+
 		fetchOrders();
 	});
 </script>
 
 <div class="px-4 sm:px-6 lg:px-8">
-	<div class="sm:flex sm:items-center">
+	<div class="justify-between sm:flex sm:items-center">
 		<div class="sm:flex-auto">
 			<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Past Due Accounts</h1>
 			<p class="mt-2 text-sm text-gray-700 dark:text-gray-400">A list of all past due accounts.</p>
+		</div>
+		<div class="mt-4 flex items-center gap-2 sm:ml-16 sm:mt-0 sm:flex-none">
+			<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
+				>PD Counter Filter:</label
+			>
+			<select
+				bind:value={pdFilterOperator}
+				class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
+			>
+				<option value=">">&gt;</option>
+				<option value="<">&lt;</option>
+				<option value="=">=</option>
+			</select>
+			<input
+				id="pd-filter"
+				type="number"
+				placeholder="Days"
+				class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+				bind:value={pdFilterValue}
+			/>
 		</div>
 	</div>
 	<div class="mt-8 flex flex-col">

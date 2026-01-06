@@ -106,7 +106,6 @@
 					Filter: {
 						Active: true,
 						Page: 0,
-						Limit: 100, // Fetch more records for local filtering
 						OutputSelector: [
 							'EmailAddress',
 							'BillingAddress',

@@ -18,15 +18,40 @@ import type { Schedule, ScheduleFormData, ValidationErrors } from './types';
 // Constants
 export const DEFAULT_COLOR = '#3b82f6';
 
+// Helper to remove undefined values
+function sanitizeData(data: any): any {
+  if (data === null || data === undefined) return data;
+  if (data instanceof Date) return data; // Keep Date objects
+  if (typeof data !== 'object') return data;
+
+  // Handle arrays
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeData(item));
+  }
+
+  // Handle objects
+  const result: any = {};
+  for (const key in data) {
+    const value = sanitizeData(data[key]);
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 // CRUD Operations
 export async function createSchedule(scheduleData: ScheduleFormData): Promise<Schedule> {
   console.log('=== CREATING SCHEDULE IN FIREBASE ===');
   console.log('Data:', scheduleData);
 
   try {
+    // Sanitize data to remove undefined values
+    const sanitizedData = sanitizeData(scheduleData);
+
     // Add to Firestore first to get the document ID
     const docRef = await addDoc(collection(db, 'stt'), {
-      ...scheduleData,
+      ...sanitizedData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
@@ -48,7 +73,7 @@ export async function createSchedule(scheduleData: ScheduleFormData): Promise<Sc
     return newSchedule;
   } catch (error) {
     console.error('Error creating schedule:', error);
-    throw new Error('Failed to create schedule. Please try again.');
+    throw new Error(`Failed to create schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -57,9 +82,12 @@ export async function updateSchedule(id: string, scheduleData: ScheduleFormData)
     // Use the ID directly as the Firestore document ID
     const docRef = doc(db, 'stt', id);
 
+    // Sanitize data to remove undefined values
+    const sanitizedData = sanitizeData(scheduleData);
+
     // Update in Firestore
     await updateDoc(docRef, {
-      ...scheduleData,
+      ...sanitizedData,
       id, // Keep the ID in Firestore
       updatedAt: serverTimestamp()
     });
@@ -81,7 +109,7 @@ export async function updateSchedule(id: string, scheduleData: ScheduleFormData)
     return updatedSchedule;
   } catch (error) {
     console.error('Error updating schedule in Firestore:', error);
-    throw new Error('Failed to update schedule. Please try again.');
+    throw new Error(`Failed to update schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -126,7 +154,7 @@ export async function deleteSchedule(id: string): Promise<void> {
     console.log('Schedule and associated events soft deleted successfully from Firestore');
   } catch (error) {
     console.error('Error soft deleting schedule from Firestore:', error);
-    throw new Error('Failed to delete schedule. Please try again.');
+    throw new Error(`Failed to delete schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

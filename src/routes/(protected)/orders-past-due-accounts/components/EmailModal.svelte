@@ -98,30 +98,42 @@ Rapid Clean Team`;
 		body = getEmailTemplate(order.pdCounter, order.customer, order.invoice, order.amount);
 	}
 
-	function sendEmail() {
+	async function sendEmail() {
 		if (!to || !subject || !body) return;
 
 		isLoading = true;
 
-		// Construct mailto URL with all fields
-		let mailtoUrl = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+		try {
+			const response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					sender: 'accounts@rapidcleanillawarra.com.au',
+					email: {
+						to,
+						cc,
+						bcc,
+						subject,
+						body
+					}
+				})
+			});
 
-		if (cc) {
-			mailtoUrl += `&cc=${encodeURIComponent(cc)}`;
-		}
+			if (!response.ok) {
+				throw new Error(`Failed to send email: ${response.status} ${response.statusText}`);
+			}
 
-		if (bcc) {
-			mailtoUrl += `&bcc=${encodeURIComponent(bcc)}`;
-		}
-
-		// Open email client
-		window.open(mailtoUrl, '_blank');
-
-		// Close modal after a short delay to allow email client to open
-		setTimeout(() => {
+			// Email sent successfully
 			dispatch('close');
+			resetForm();
+		} catch (error) {
+			console.error('Error sending email:', error);
+			alert('Failed to send email. Please try again.');
+		} finally {
 			isLoading = false;
-		}, 500);
+		}
 	}
 
 	function closeModal() {

@@ -142,6 +142,7 @@
 						pdCounter: pdCounter,
 						payments: totalPayments.toFixed(2),
 						amount: outstandingAmount.toFixed(2),
+						emailNotifs: '',
 						notes: [],
 						noteViews: [],
 						username: order.Username || ''

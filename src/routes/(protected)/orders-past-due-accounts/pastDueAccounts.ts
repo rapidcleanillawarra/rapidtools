@@ -51,6 +51,7 @@ export interface ProcessedOrder {
 	pdCounter: number;
 	payments: string;
 	amount: string;
+	emailNotifs: string;
 	notes: Note[];
 	noteViews: NoteView[];
 	username: string;
@@ -65,6 +66,7 @@ export type ColumnKey =
 	| 'pdCounter'
 	| 'payments'
 	| 'amount'
+	| 'emailNotifs'
 	| 'notes';
 
 export interface ColumnDefinition {
@@ -80,6 +82,7 @@ export const columns: ColumnDefinition[] = [
 	{ key: 'pdCounter', label: 'PD-Counter' },
 	{ key: 'payments', label: 'Payments' },
 	{ key: 'amount', label: 'Amount' },
+	{ key: 'emailNotifs', label: 'Email Notifs' },
 	{ key: 'notes', label: 'Notes' }
 ];
 
@@ -91,6 +94,7 @@ export const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 	pdCounter: true,
 	payments: true,
 	amount: true,
+	emailNotifs: false,
 	notes: true
 };
 

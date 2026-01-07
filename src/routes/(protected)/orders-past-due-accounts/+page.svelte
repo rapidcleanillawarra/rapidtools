@@ -554,7 +554,6 @@
 							<tr>
 								<th
 									scope="col"
-									colspan="2"
 									class="pl-4 pr-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 sm:pl-6"
 								>
 									<div class="flex flex-col gap-2">
@@ -646,10 +645,9 @@
 								</tr>
 							{:else}
 								{#each filteredOrders as order}
-									<!-- Main row with customer spanning 2 columns -->
+									<!-- Main row with all columns spanning 3 rows except customer -->
 									<tr>
 										<td
-											colspan="2"
 											class="pl-4 pr-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6"
 										>
 											{#if order.username}
@@ -667,6 +665,7 @@
 										</td>
 										{#each visibleColumns.slice(1) as column}
 											<td
+												rowspan="3"
 												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'pdCounter'
 													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
 													: column.key === 'notes' && (order[column.key] as Note[]).length > 0
@@ -706,7 +705,6 @@
 									<!-- Phone row -->
 									<tr class="border-t border-gray-100 dark:border-gray-700">
 										<td
-											colspan="2"
 											class="pl-4 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 sm:pl-6"
 										>
 											{#if order.contacts}
@@ -721,14 +719,10 @@
 												<span class="text-gray-400 dark:text-gray-500">No phone</span>
 											{/if}
 										</td>
-										{#each visibleColumns.slice(1) as column}
-											<td class="px-3 py-2"></td>
-										{/each}
 									</tr>
 									<!-- Email row -->
 									<tr class="border-b border-gray-200 dark:border-gray-600">
 										<td
-											colspan="2"
 											class="pl-4 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 sm:pl-6"
 										>
 											{#if order.email}
@@ -743,9 +737,6 @@
 												<span class="text-gray-400 dark:text-gray-500">No email</span>
 											{/if}
 										</td>
-										{#each visibleColumns.slice(1) as column}
-											<td class="px-3 py-2"></td>
-										{/each}
 									</tr>
 								{/each}
 							{/if}

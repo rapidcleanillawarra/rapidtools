@@ -25,9 +25,14 @@ export interface Order {
 }
 
 export interface Note {
+	id: string;
+	order_id: string;
 	note: string;
-	timestamp: string;
-	user: string;
+	created_by: string;
+	created_at: string;
+	updated_at: string;
+	deleted_at: string | null;
+	creator_full_name: string | null;
 }
 
 export interface ProcessedOrder {

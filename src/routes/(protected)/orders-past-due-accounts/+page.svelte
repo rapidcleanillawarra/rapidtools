@@ -200,21 +200,28 @@
 		try {
 			const invoiceIds = orders.map(order => order.invoice);
 			const { data, error: supabaseError } = await supabase
-				.from('orders_past_due_accounts_notes')
-				.select('invoice_id, notes')
-				.in('invoice_id', invoiceIds);
+				.from('orders_past_due_accounts_order_notes')
+				.select('*')
+				.in('order_id', invoiceIds)
+				.is('deleted_at', null);
 
 			if (supabaseError) {
 				console.error('Error fetching notes status:', supabaseError);
 			} else if (data) {
+				// Group notes by order_id
+				const notesByOrderId = data.reduce((acc, note) => {
+					if (!acc[note.order_id]) {
+						acc[note.order_id] = [];
+					}
+					acc[note.order_id].push(note);
+					return acc;
+				}, {} as Record<string, Note[]>);
+
 				// Update orders with notes data
-				orders = orders.map(order => {
-					const noteData = data.find(item => item.invoice_id === order.invoice);
-					return {
-						...order,
-						notes: noteData?.notes || []
-					};
-				});
+				orders = orders.map(order => ({
+					...order,
+					notes: notesByOrderId[order.invoice] || []
+				}));
 			}
 		} catch (error) {
 			console.error('Error fetching notes status:', error);
@@ -225,15 +232,16 @@
 		try {
 			notesLoading = true;
 			const { data, error: supabaseError } = await supabase
-				.from('orders_past_due_accounts_notes')
-				.select('notes')
-				.eq('invoice_id', invoiceId)
-				.single();
+				.from('orders_past_due_accounts_order_notes')
+				.select('*')
+				.eq('order_id', invoiceId)
+				.is('deleted_at', null)
+				.order('created_at', { ascending: false });
 
-			if (supabaseError && supabaseError.code !== 'PGRST116') { // PGRST116 is "not found"
+			if (supabaseError) {
 				console.error('Error fetching notes:', supabaseError);
 			} else if (selectedOrder) {
-				selectedOrder.notes = data?.notes || [];
+				selectedOrder.notes = data || [];
 			}
 		} catch (error) {
 			console.error('Error fetching notes:', error);
@@ -243,50 +251,44 @@
 	}
 
 	async function saveNote() {
-		if (!selectedOrder || !newNote.trim()) return;
+		if (!selectedOrder || !newNote.trim() || !user?.email) return;
+
+		const currentOrder = selectedOrder;
+		const invoiceId = currentOrder.invoice;
 
 		try {
 			notesLoading = true;
 
-			// First, try to get existing notes
-			const { data: existingData, error: fetchError } = await supabase
-				.from('orders_past_due_accounts_notes')
-				.select('notes')
-				.eq('invoice_id', selectedOrder.invoice)
-				.single();
+			const creatorFullName = profile && profile.firstName && profile.lastName
+				? `${profile.firstName} ${profile.lastName}`
+				: null;
 
-			let notes = [];
-			if (existingData && existingData.notes) {
-				notes = existingData.notes;
-			}
-
-			// Add the new note
-			notes.push({
-				note: newNote.trim(),
-				timestamp: new Date().toISOString(),
-				user: getCurrentUserName()
-			});
-
-			// Upsert the record
-			const { error: upsertError } = await supabase
-				.from('orders_past_due_accounts_notes')
-				.upsert({
-					invoice_id: selectedOrder.invoice,
-					notes,
-					updated_at: new Date().toISOString()
-				}, {
-					onConflict: 'invoice_id'
+			// Insert the new note
+			const { error: insertError } = await supabase
+				.from('orders_past_due_accounts_order_notes')
+				.insert({
+					order_id: invoiceId,
+					note: newNote.trim(),
+					created_by: user.email,
+					creator_full_name: creatorFullName
 				});
 
-			if (upsertError) {
-				console.error('Error saving note:', upsertError);
+			if (insertError) {
+				console.error('Error saving note:', insertError);
 			} else {
+				// Refresh notes for the selected order
+				await fetchNotes(invoiceId);
+				
 				// Update the order in the orders array to trigger reactivity
-				orders = orders.map(order =>
-					order.invoice === selectedOrder.invoice
-						? { ...order, notes: notes }
-						: order
-				);
+				// After fetchNotes, selectedOrder.notes contains the updated notes
+				if (selectedOrder) {
+					const updatedNotes = selectedOrder.notes;
+					orders = orders.map(order =>
+						order.invoice === invoiceId
+							? { ...order, notes: updatedNotes }
+							: order
+					);
+				}
 				newNote = '';
 			}
 		} catch (error) {
@@ -814,7 +816,7 @@
 														<div class="flex justify-between items-center mt-1">
 															<p class="text-xs text-gray-500 dark:text-gray-400">Note #{index + 1}</p>
 															<p class="text-xs text-gray-500 dark:text-gray-400">
-																{note.user} • {new Date(note.timestamp).toLocaleDateString()}
+																{note.creator_full_name || note.created_by} • {new Date(note.created_at).toLocaleDateString()}
 															</p>
 														</div>
 													</div>

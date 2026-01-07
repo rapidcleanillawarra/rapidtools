@@ -16,6 +16,8 @@
 
 	$: if (order && showModal) {
 		to = order.email || '';
+		cc = '';
+		bcc = 'mario@rapidcleanillawarra.com.au';
 		subject = `Past Due Payment Reminder - Invoice ${order.invoice}`;
 		body = `Dear ${order.customer},
 

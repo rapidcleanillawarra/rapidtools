@@ -19,6 +19,7 @@
 	import PastDueLegend from './components/PastDueLegend.svelte';
 	import PastDueToolbar from './components/PastDueToolbar.svelte';
 	import ColumnVisibilityPills from './components/ColumnVisibilityPills.svelte';
+	import EmailModal from './components/EmailModal.svelte';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
@@ -50,6 +51,10 @@
 	let selectedOrder: ProcessedOrder | null = null;
 	let newNote = '';
 	let notesLoading = false;
+
+	// Email Modal State
+	let showEmailModal = false;
+	let emailOrder: ProcessedOrder | null = null;
 
 	// User information
 	let user: import('firebase/auth').User | null = null;
@@ -414,6 +419,16 @@
 		showNotesModal = false;
 		selectedOrder = null;
 		newNote = '';
+	}
+
+	async function openEmailModal(order: ProcessedOrder) {
+		emailOrder = order;
+		showEmailModal = true;
+	}
+
+	function closeEmailModal() {
+		showEmailModal = false;
+		emailOrder = null;
 	}
 
 	function exportToCSV() {
@@ -1019,8 +1034,9 @@
 															d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
 														></path>
 													</svg>
-													<a
-														href="mailto:{order.email}"
+													<button
+														type="button"
+														on:click={() => openEmailModal(order)}
 														class="group inline-flex items-center gap-1.5 text-[rgb(40,40,40)] transition-colors hover:text-black dark:text-gray-200 dark:hover:text-white"
 													>
 														<span>{order.email}</span>
@@ -1043,7 +1059,7 @@
 																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
 															></path>
 														</svg>
-													</a>
+													</button>
 												</div>
 											{:else}
 												<div class="flex items-center gap-2">
@@ -1188,4 +1204,11 @@
 			</div>
 		</div>
 	{/if}
+
+	<!-- Email Modal -->
+	<EmailModal
+		showModal={showEmailModal}
+		order={emailOrder}
+		on:close={closeEmailModal}
+	/>
 </div>

@@ -19,6 +19,7 @@
 			value?: string;
 		}>;
 		mode?: 'thumb' | 'list';
+		includeRrp?: boolean;
 		error?: string;
 	};
 
@@ -101,7 +102,7 @@ onMount(() => {
 							
 							{#if item.kind === 'static' && item.staticType === 'page_break'}
 								<tr class="page-break-row">
-									<td colspan="6" class="page-break-cell">
+									<td colspan={data.includeRrp ? "6" : "5"} class="page-break-cell">
 										<div class="page-break-header is-break">
 											<div class="page-break-header-inner">
 												<img
@@ -117,13 +118,13 @@ onMount(() => {
 								</tr>
 							{:else if item.kind === 'static' && item.staticType === 'range'}
 								<tr class="range-row">
-									<td colspan="6" class="range-cell">
+									<td colspan={data.includeRrp ? "6" : "5"} class="range-cell">
 										<span class="range-label">{item.value || 'Range'}</span>
 									</td>
 								</tr>
 							{:else if item.kind === 'static' && item.staticType === 'category'}
 								<tr class="category-row">
-									<td colspan="6" class="category-cell">
+									<td colspan={data.includeRrp ? "6" : "5"} class="category-cell">
 										<span class="category-label">{item.value || 'Category'}</span>
 									</td>
 								</tr>
@@ -134,7 +135,9 @@ onMount(() => {
 									<th class="col-model table-header-cell">Model</th>
 									<th class="col-description table-header-cell">Description</th>
 									<th class="col-price table-header-cell">Price</th>
-									<th class="col-rrp table-header-cell">Order #</th>
+									{#if data.includeRrp}
+										<th class="col-rrp table-header-cell">RRP</th>
+									{/if}
 								</tr>
 							{:else if item.kind === 'sku'}
 								{#if shouldShowHeaderBeforeSku}
@@ -145,7 +148,9 @@ onMount(() => {
 										<th class="col-model table-header-cell">Model</th>
 										<th class="col-description table-header-cell">Description</th>
 										<th class="col-price table-header-cell">Price</th>
-										<th class="col-rrp table-header-cell">Order #</th>
+										{#if data.includeRrp}
+											<th class="col-rrp table-header-cell">RRP</th>
+										{/if}
 									</tr>
 								{/if}
 								<tr class="list-item-row">
@@ -165,7 +170,9 @@ onMount(() => {
 									<td class="col-model table-cell">{item.model || '—'}</td>
 									<td class="col-description table-cell">{item.shortDescription || '—'}</td>
 									<td class="col-price table-cell">${item.price || '—'}</td>
-									<td class="col-rrp table-cell"></td>
+									{#if data.includeRrp}
+										<td class="col-rrp table-cell">{item.rrp || '—'}</td>
+									{/if}
 								</tr>
 							{/if}
 						{/each}
@@ -231,6 +238,9 @@ onMount(() => {
 								{/if}
 								<div class="product-pricing">
 									<span class="product-price">${item.price}</span>
+									{#if data.includeRrp && item.rrp}
+										<span class="product-rrp">RRP: ${item.rrp}</span>
+									{/if}
 								</div>
 								{#if item.shortDescription}
 									<p class="product-description">{item.shortDescription}</p>
@@ -481,6 +491,7 @@ onMount(() => {
 		width: 100px;
 		color: #6b7280;
 		text-align: right;
+		text-decoration: line-through;
 	}
 
 	.list-image {
@@ -720,6 +731,15 @@ onMount(() => {
 		font-size: 1.375rem;
 		font-weight: 700;
 		color: #80BB3D;
+	}
+
+	.product-rrp {
+		display: block;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #6b7280;
+		margin-top: 4px;
+		text-decoration: line-through;
 	}
 
 	.product-description {

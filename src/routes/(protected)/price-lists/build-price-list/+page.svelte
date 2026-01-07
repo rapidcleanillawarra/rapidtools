@@ -40,6 +40,7 @@
   let checkingSku = false;
   let detailError = '';
   let includeRrpInPrint = false;
+  let crossOutRrpInPrint = false;
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -559,7 +560,8 @@
   const printBuilder = (mode: 'thumb' | 'list' = 'thumb') => {
     if (typeof window !== 'undefined' && priceListId) {
       const rrpParam = includeRrpInPrint ? '&includeRrp=true' : '';
-      window.open(`${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}`, '_blank');
+      const crossParam = crossOutRrpInPrint ? '&crossRrp=true' : '';
+      window.open(`${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}`, '_blank');
     }
   };
 
@@ -899,14 +901,25 @@
       </div>
 
       <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <div class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="include-rrp"
-            bind:checked={includeRrpInPrint}
-            class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-          />
-          <label for="include-rrp" class="text-sm text-gray-700">Include RRP in print</label>
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="include-rrp"
+              bind:checked={includeRrpInPrint}
+              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label for="include-rrp" class="text-sm text-gray-700">Include RRP in print</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="cross-rrp"
+              bind:checked={crossOutRrpInPrint}
+              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label for="cross-rrp" class="text-sm text-gray-700">Cross out RRP</label>
+          </div>
         </div>
         {#if saveMessage}
           <span class="text-xs text-gray-600">{saveMessage}</span>

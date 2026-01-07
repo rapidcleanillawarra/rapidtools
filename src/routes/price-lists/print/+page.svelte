@@ -20,6 +20,7 @@
 		}>;
 		mode?: 'thumb' | 'list';
 		includeRrp?: boolean;
+		crossRrp?: boolean;
 		error?: string;
 	};
 
@@ -171,7 +172,7 @@ onMount(() => {
 									<td class="col-description table-cell">{item.shortDescription || '—'}</td>
 									<td class="col-price table-cell">${item.price || '—'}</td>
 									{#if data.includeRrp}
-										<td class="col-rrp table-cell">{item.rrp || '—'}</td>
+										<td class="col-rrp table-cell {data.crossRrp ? 'crossed' : ''}">{item.rrp || '—'}</td>
 									{/if}
 								</tr>
 							{/if}
@@ -239,7 +240,7 @@ onMount(() => {
 								<div class="product-pricing">
 									<span class="product-price">${item.price}</span>
 									{#if data.includeRrp && item.rrp}
-										<span class="product-rrp">RRP: ${item.rrp}</span>
+										<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">RRP: ${item.rrp}</span>
 									{/if}
 								</div>
 								{#if item.shortDescription}
@@ -491,6 +492,9 @@ onMount(() => {
 		width: 100px;
 		color: #6b7280;
 		text-align: right;
+	}
+
+	.col-rrp.crossed {
 		text-decoration: line-through;
 	}
 
@@ -739,6 +743,9 @@ onMount(() => {
 		font-weight: 500;
 		color: #6b7280;
 		margin-top: 4px;
+	}
+
+	.product-rrp.crossed {
 		text-decoration: line-through;
 	}
 

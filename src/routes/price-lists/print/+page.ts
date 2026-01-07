@@ -21,6 +21,7 @@ type PriceListData = {
 	items: PriceListItem[];
 	mode?: 'thumb' | 'list';
 	includeRrp?: boolean;
+	crossRrp?: boolean;
 	error?: string;
 };
 
@@ -91,6 +92,7 @@ export const load: PageLoad = async ({ url }) => {
 	const id = url.searchParams.get('id');
 	const mode = (url.searchParams.get('mode') || 'thumb') as 'thumb' | 'list';
 	const includeRrp = url.searchParams.get('includeRrp') === 'true';
+	const crossRrp = url.searchParams.get('crossRrp') === 'true';
 
 	if (!id) {
 		return {
@@ -99,6 +101,7 @@ export const load: PageLoad = async ({ url }) => {
 			items: [],
 			mode,
 			includeRrp,
+			crossRrp,
 			error: 'No price list ID provided'
 		} satisfies PriceListData;
 	}
@@ -118,6 +121,7 @@ export const load: PageLoad = async ({ url }) => {
 			items: [],
 			mode,
 			includeRrp,
+			crossRrp,
 			error: 'Price list not found'
 		} satisfies PriceListData;
 		}
@@ -160,7 +164,8 @@ export const load: PageLoad = async ({ url }) => {
 			filename: data.filename || 'Price List',
 			items,
 			mode,
-			includeRrp
+			includeRrp,
+			crossRrp
 		} satisfies PriceListData;
 	} catch (err) {
 		console.error('Unexpected error:', err);
@@ -170,6 +175,7 @@ export const load: PageLoad = async ({ url }) => {
 			items: [],
 			mode,
 			includeRrp,
+			crossRrp,
 			error: 'Failed to load price list'
 		} satisfies PriceListData;
 	}

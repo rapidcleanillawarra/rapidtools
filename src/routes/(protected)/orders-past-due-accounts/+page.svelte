@@ -147,6 +147,11 @@
 		} finally {
 			loading = false;
 		}
+
+		// Fetch notes status for all orders
+		if (orders.length > 0) {
+			await fetchNotesStatus();
+		}
 	}
 
 	function handleSearchChange(key: ColumnKey, value: string) {
@@ -188,6 +193,31 @@
 
 		// Fetch existing notes from Supabase
 		await fetchNotes(order.invoice);
+	}
+
+	async function fetchNotesStatus() {
+		try {
+			const invoiceIds = orders.map(order => order.invoice);
+			const { data, error: supabaseError } = await supabase
+				.from('orders_past_due_accounts_notes')
+				.select('invoice_id, notes')
+				.in('invoice_id', invoiceIds);
+
+			if (supabaseError) {
+				console.error('Error fetching notes status:', supabaseError);
+			} else if (data) {
+				// Update orders with notes data
+				orders = orders.map(order => {
+					const noteData = data.find(item => item.invoice_id === order.invoice);
+					return {
+						...order,
+						notes: noteData?.notes || []
+					};
+				});
+			}
+		} catch (error) {
+			console.error('Error fetching notes status:', error);
+		}
 	}
 
 	async function fetchNotes(invoiceId: string) {
@@ -250,8 +280,12 @@
 			if (upsertError) {
 				console.error('Error saving note:', upsertError);
 			} else {
-				// Refresh notes
-				await fetchNotes(selectedOrder.invoice);
+				// Update the order in the orders array to trigger reactivity
+				orders = orders.map(order =>
+					order.invoice === selectedOrder.invoice
+						? { ...order, notes: notes }
+						: order
+				);
 				newNote = '';
 			}
 		} catch (error) {
@@ -623,7 +657,9 @@
 											<td
 												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'pdCounter'
 													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
-													: 'text-gray-500 dark:text-gray-400'}"
+													: column.key === 'notes' && (order[column.key] as Note[]).length > 0
+														? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md'
+														: 'text-gray-500 dark:text-gray-400'}"
 											>
 												{#if column.key === 'amount' || column.key === 'payments'}
 													${order[column.key]}
@@ -640,9 +676,14 @@
 													<button
 														type="button"
 														on:click={() => openNotesModal(order)}
-														class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 underline text-sm"
+														class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-md border transition-all duration-200 {(order[column.key] as Note[]).length > 0
+															? 'bg-blue-100 hover:bg-blue-200 text-blue-800 border-blue-300 hover:border-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300 dark:border-blue-700 dark:hover:border-blue-600'
+															: 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 dark:border-gray-600 dark:hover:border-gray-500'}"
 													>
-														{(order[column.key] as Note[]).length > 0 ? `${(order[column.key] as Note[]).length} notes` : 'Add notes'}
+														<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+														</svg>
+														{(order[column.key] as Note[]).length > 0 ? 'View Notes' : 'Add notes'}
 													</button>
 												{:else}
 													{order[column.key]}

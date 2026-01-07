@@ -1,18 +1,23 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import type { ProcessedOrder } from '../pastDueAccounts';
+	import Quill from 'quill';
+	import 'quill/dist/quill.snow.css';
 
 	export let showModal = false;
 	export let order: ProcessedOrder | null = null;
 
 	const dispatch = createEventDispatcher();
 
+	let sender = 'accounts@rapidcleanillawarra.com.au';
 	let to = '';
 	let cc = '';
 	let bcc = '';
 	let subject = '';
 	let body = '';
 	let isLoading = false;
+	let editorElement: HTMLDivElement;
+	let quillEditor: Quill | null = null;
 
 	function getEmailTemplate(pdCounter: number, customer: string, invoice: string, amount: string): string {
 		const days = pdCounter;
@@ -90,15 +95,48 @@ Rapid Clean Team`;
 		}
 	}
 
-	$: if (order && showModal) {
+	function textToHtml(text: string): string {
+		return text
+			.split('\n\n')
+			.map(para => para.trim())
+			.filter(para => para.length > 0)
+			.map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+			.join('');
+	}
+
+	// Initialize Quill editor when modal is shown and element exists
+	$: if (showModal && editorElement && !quillEditor) {
+		quillEditor = new Quill(editorElement, {
+			theme: 'snow',
+			modules: {
+				toolbar: [
+					['bold', 'italic', 'underline'],
+					[{ 'list': 'ordered'}, { 'list': 'bullet' }],
+					[{ 'header': [1, 2, 3, false] }],
+					['clean']
+				]
+			},
+			placeholder: 'Enter your email message here...'
+		});
+	}
+
+	// Load email template when order changes
+	$: if (order && showModal && quillEditor) {
 		to = order.email || '';
 		cc = '';
 		bcc = 'mario@rapidcleanillawarra.com.au';
 		subject = `Past Due Payment Reminder - Invoice ${order.invoice}`;
-		body = getEmailTemplate(order.pdCounter, order.customer, order.invoice, order.amount);
+		const plainTextBody = getEmailTemplate(order.pdCounter, order.customer, order.invoice, order.amount);
+		const htmlContent = textToHtml(plainTextBody);
+		quillEditor.root.innerHTML = htmlContent;
 	}
 
 	async function sendEmail() {
+		// Get the HTML content from Quill editor
+		if (quillEditor) {
+			body = quillEditor.root.innerHTML;
+		}
+		
 		if (!to || !subject || !body) return;
 
 		isLoading = true;
@@ -110,7 +148,7 @@ Rapid Clean Team`;
 					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({
-					sender: 'accounts@rapidcleanillawarra.com.au',
+					sender,
 					email: {
 						to,
 						cc,
@@ -137,17 +175,27 @@ Rapid Clean Team`;
 	}
 
 	function closeModal() {
+		// Clean up Quill instance before closing
+		if (quillEditor) {
+			quillEditor = null;
+		}
 		dispatch('close');
 		resetForm();
 	}
 
 	function resetForm() {
+		sender = 'accounts@rapidcleanillawarra.com.au';
 		to = '';
 		cc = '';
 		bcc = '';
 		subject = '';
 		body = '';
 		isLoading = false;
+	}
+	
+	// Clean up Quill when modal closes
+	$: if (!showModal && quillEditor) {
+		quillEditor = null;
 	}
 
 	// Close modal when clicking outside
@@ -187,6 +235,21 @@ Rapid Clean Team`;
 								Compose Email - {order?.customer}
 							</h3>
 							<div class="mt-4 space-y-4">
+								<!-- Sender Field -->
+								<div>
+									<label for="email-sender" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										From:
+									</label>
+									<input
+										type="email"
+										id="email-sender"
+										bind:value={sender}
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
+										placeholder="sender@example.com"
+										required
+									/>
+								</div>
+
 								<!-- To Field -->
 								<div>
 									<label for="email-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -246,19 +309,12 @@ Rapid Clean Team`;
 									/>
 								</div>
 
-								<!-- Body Field -->
+								<!-- Body Field with Quill Editor -->
 								<div>
-									<label for="email-body" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
 										Message:
 									</label>
-									<textarea
-										id="email-body"
-										rows="8"
-										bind:value={body}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="Enter your email message here..."
-										required
-									></textarea>
+									<div bind:this={editorElement} class="mt-1 min-h-[250px] bg-white"></div>
 								</div>
 
 								<!-- Invoice Details Summary -->
@@ -279,7 +335,7 @@ Rapid Clean Team`;
 					<button
 						type="button"
 						on:click={sendEmail}
-						disabled={!to || !subject || !body || isLoading}
+						disabled={!sender || !to || !subject || isLoading}
 						class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm"
 					>
 						{#if isLoading}
@@ -300,3 +356,26 @@ Rapid Clean Team`;
 		</div>
 	</div>
 {/if}
+
+<style>
+	:global(.ql-container) {
+		min-height: 200px;
+		font-size: 14px;
+	}
+	
+	:global(.ql-editor) {
+		min-height: 200px;
+		max-height: 300px;
+		overflow-y: auto;
+	}
+	
+	:global(.ql-toolbar) {
+		border-top-left-radius: 0.375rem;
+		border-top-right-radius: 0.375rem;
+	}
+	
+	:global(.ql-container) {
+		border-bottom-left-radius: 0.375rem;
+		border-bottom-right-radius: 0.375rem;
+	}
+</style>

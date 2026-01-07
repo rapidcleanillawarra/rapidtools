@@ -14,14 +14,72 @@
 	let body = '';
 	let isLoading = false;
 
-	$: if (order && showModal) {
-		to = order.email || '';
-		cc = '';
-		bcc = 'mario@rapidcleanillawarra.com.au';
-		subject = `Past Due Payment Reminder - Invoice ${order.invoice}`;
-		body = `Dear ${order.customer},
+	function getEmailTemplate(pdCounter: number, customer: string, invoice: string, amount: string): string {
+		const days = pdCounter;
 
-This is a reminder that payment for invoice ${order.invoice} in the amount of $${order.amount} is ${order.pdCounter} days past due.
+		if (days >= 15 && days <= 25) {
+			// Friendly Reminder (15-25 days)
+			return `Dear ${customer},
+
+I hope this email finds you well. This is a friendly reminder that payment for invoice ${invoice} in the amount of $${amount} is now ${days} days past due.
+
+We value our relationship with you and understand that payments can sometimes be delayed. Please arrange payment at your earliest convenience to avoid any impact on our continued service.
+
+If you have any questions or need to discuss payment arrangements, please don't hesitate to contact us.
+
+Thank you for your attention to this matter.
+
+Best regards,
+Rapid Clean Team`;
+		} else if (days >= 26 && days <= 40) {
+			// 2nd follow & Warning for Hold (26-40 days)
+			return `Dear ${customer},
+
+This is our second follow-up regarding payment for invoice ${invoice} in the amount of $${amount}, which is now ${days} days past due.
+
+We appreciate your business and understand that circumstances can affect payment timing. However, continued delays may result in service interruptions or holds on future orders.
+
+Please arrange payment as soon as possible. If you need to discuss payment arrangements or have any concerns, please contact us immediately.
+
+Thank you for your prompt attention to this matter.
+
+Best regards,
+Rapid Clean Team`;
+		} else if (days >= 41 && days <= 59) {
+			// Urgent payment required (41-59 days)
+			return `Dear ${customer},
+
+URGENT: Payment for invoice ${invoice} in the amount of $${amount} is now ${days} days past due and requires immediate attention.
+
+This extended delay is causing significant concern and may affect our ability to continue providing service. We kindly request that you arrange payment without further delay.
+
+Please contact us immediately if there are any issues preventing payment or if you need to discuss alternative arrangements.
+
+We appreciate your urgent attention to this matter.
+
+Best regards,
+Rapid Clean Team`;
+		} else if (days >= 60) {
+			// Matigas pa sa bato! walang hiya! (60+ days)
+			return `Dear ${customer},
+
+FINAL NOTICE: Payment for invoice ${invoice} in the amount of $${amount} is now ${days} days past due.
+
+This prolonged delay is unacceptable and severely impacts our operations. Immediate payment is required to restore service and avoid further escalation.
+
+Please arrange payment TODAY. Contact us immediately if there are legitimate circumstances preventing payment.
+
+We expect your urgent cooperation in this matter.
+
+Best regards,
+Rapid Clean Team
+
+NOTE: Continued non-payment may result in collection actions and service termination.`;
+		} else {
+			// Default template for any other cases
+			return `Dear ${customer},
+
+This is a reminder that payment for invoice ${invoice} in the amount of $${amount} is ${days} days past due.
 
 Please arrange payment as soon as possible to avoid any disruptions to our continued service.
 
@@ -29,6 +87,15 @@ Thank you for your attention to this matter.
 
 Best regards,
 Rapid Clean Team`;
+		}
+	}
+
+	$: if (order && showModal) {
+		to = order.email || '';
+		cc = '';
+		bcc = 'mario@rapidcleanillawarra.com.au';
+		subject = `Past Due Payment Reminder - Invoice ${order.invoice}`;
+		body = getEmailTemplate(order.pdCounter, order.customer, order.invoice, order.amount);
 	}
 
 	function sendEmail() {

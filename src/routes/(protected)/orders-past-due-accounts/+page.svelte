@@ -136,7 +136,8 @@
 						pdCounter: pdCounter,
 						payments: totalPayments.toFixed(2),
 						amount: outstandingAmount.toFixed(2),
-						notes: []
+						notes: [],
+						username: order.Username || ''
 					});
 					return acc;
 				}, []);
@@ -651,7 +652,18 @@
 											colspan="2"
 											class="pl-4 pr-3 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6"
 										>
-											{order.customer}
+											{#if order.username}
+												<a
+													href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={order.username}"
+													target="_blank"
+													rel="noopener noreferrer"
+													class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 underline"
+												>
+													{order.customer}
+												</a>
+											{:else}
+												{order.customer}
+											{/if}
 										</td>
 										{#each visibleColumns.slice(1) as column}
 											<td

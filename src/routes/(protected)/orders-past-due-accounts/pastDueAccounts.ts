@@ -41,6 +41,7 @@ export interface ProcessedOrder {
 	payments: string;
 	amount: string;
 	notes: Note[];
+	username: string;
 	[key: string]: string | number | Note[];
 }
 

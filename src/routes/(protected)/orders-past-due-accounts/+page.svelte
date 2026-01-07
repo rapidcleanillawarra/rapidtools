@@ -10,6 +10,8 @@
 		getPdCounterBgColor,
 		getPdCounterColor,
 		getUnreadNotesCount,
+		getLatestNotesForDisplay,
+		getNotesSummary,
 		type ColumnKey,
 		type Note,
 		type NoteView,
@@ -864,7 +866,6 @@
 										</td>
 										{#each nonCustomerColumns as column}
 											<td
-												rowspan="3"
 												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'pdCounter'
 													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
 													: column.key === 'notes' && (order[column.key] as Note[]).length > 0
@@ -904,38 +905,18 @@
 														</svg>
 													</a>
 												{:else if column.key === 'notes'}
-													{@const unreadCount = getUnreadNotesCount(order, user?.email || null)}
-													<button
-														type="button"
-														on:click={() => openNotesModal(order)}
-														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {(
-															order[column.key] as Note[]
-														).length > 0
-															? 'border-blue-300 bg-blue-100 text-blue-800 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-600 dark:hover:bg-blue-900/50'
-															: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
-													>
-														<svg
-															class="h-3.5 w-3.5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-															></path>
-														</svg>
-														{(order[column.key] as Note[]).length > 0 ? 'View Notes' : 'Add notes'}
-														{#if unreadCount > 0}
-															<span
-																class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white"
-															>
-																{unreadCount}
-															</span>
+													<div class="text-xs">
+														{#if (order[column.key] as Note[]).length > 0}
+															<div class="text-gray-700 dark:text-gray-300">
+																{getLatestNotesForDisplay(order)}
+															</div>
+															<div class="mt-1 text-gray-500 dark:text-gray-400">
+																{getNotesSummary(order)}
+															</div>
+														{:else}
+															<span class="italic text-gray-400 dark:text-gray-500">No notes</span>
 														{/if}
-													</button>
+													</div>
 												{:else}
 													{order[column.key]}
 												{/if}
@@ -1009,6 +990,30 @@
 												</div>
 											{/if}
 										</td>
+										{#each nonCustomerColumns as column}
+											<td class="whitespace-nowrap px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+												{#if column.key === 'notes'}
+													{#if order.notes.length > 1}
+														<div class="text-xs">
+															<div class="text-gray-600 dark:text-gray-400">
+																Latest: {new Date(order.notes[0].created_at).toLocaleDateString()}
+															</div>
+															{#if order.notes.length > 2}
+																<div class="mt-1 text-gray-500 dark:text-gray-500">
+																	+{order.notes.length - 1} more notes
+																</div>
+															{/if}
+														</div>
+													{:else if order.notes.length === 1}
+														<div class="text-xs text-gray-600 dark:text-gray-400">
+															Created: {new Date(order.notes[0].created_at).toLocaleDateString()}
+														</div>
+													{/if}
+												{:else}
+													<!-- Empty cell for other columns in phone row -->
+												{/if}
+											</td>
+										{/each}
 									</tr>
 									<!-- Email row -->
 									<tr
@@ -1080,6 +1085,50 @@
 												</div>
 											{/if}
 										</td>
+										{#each nonCustomerColumns as column}
+											<td class="!border-t-0 whitespace-nowrap px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+												{#if column.key === 'notes'}
+													{@const unreadCount = getUnreadNotesCount(order, user?.email || null)}
+													<button
+														type="button"
+														on:click={() => openNotesModal(order)}
+														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {order.notes.length > 0
+															? 'border-blue-300 bg-blue-100 text-blue-800 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-600 dark:hover:bg-blue-900/50'
+															: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
+													>
+														<svg
+															class="h-3.5 w-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+															></path>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+															></path>
+														</svg>
+														View Notes
+														{#if unreadCount > 0}
+															<span
+																class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white"
+															>
+																{unreadCount}
+															</span>
+														{/if}
+													</button>
+												{:else}
+													<!-- Empty cell for other columns in email row -->
+												{/if}
+											</td>
+										{/each}
 									</tr>
 								{/each}
 							{/if}

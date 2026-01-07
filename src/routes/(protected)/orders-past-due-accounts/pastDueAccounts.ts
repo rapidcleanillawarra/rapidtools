@@ -130,3 +130,30 @@ export function getUnreadNotesCount(order: ProcessedOrder, userEmail: string | n
 	return order.notes.filter(note => !viewedNoteIds.has(note.id)).length;
 }
 
+export function getLatestNotesForDisplay(order: ProcessedOrder, maxLength: number = 100): string {
+	if (!order.notes.length) return '';
+
+	// Sort notes by created_at descending to get latest first
+	const sortedNotes = [...order.notes].sort((a, b) =>
+		new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+	);
+
+	// Get the latest note
+	const latestNote = sortedNotes[0];
+	let displayText = latestNote.note;
+
+	// Truncate if too long
+	if (displayText.length > maxLength) {
+		displayText = displayText.substring(0, maxLength) + '...';
+	}
+
+	return displayText;
+}
+
+export function getNotesSummary(order: ProcessedOrder): string {
+	const totalNotes = order.notes.length;
+	if (totalNotes === 0) return 'No notes';
+	if (totalNotes === 1) return '1 note';
+	return `${totalNotes} notes`;
+}
+

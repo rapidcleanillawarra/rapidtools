@@ -35,6 +35,12 @@ export interface Note {
 	creator_full_name: string | null;
 }
 
+export interface NoteView {
+	note_id: string;
+	user_email: string;
+	viewed_at: string;
+}
+
 export interface ProcessedOrder {
 	customer: string;
 	contacts: string;
@@ -46,8 +52,9 @@ export interface ProcessedOrder {
 	payments: string;
 	amount: string;
 	notes: Note[];
+	noteViews: NoteView[];
 	username: string;
-	[key: string]: string | number | Note[];
+	[key: string]: string | number | Note[] | NoteView[];
 }
 
 export type ColumnKey =
@@ -109,5 +116,17 @@ export function getPdCounterBgColor(pdValue: number): string {
 	if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-50 dark:bg-orange-900/20';
 	if (pdValue >= 60) return 'bg-red-50 dark:bg-red-900/20';
 	return '';
+}
+
+export function getUnreadNotesCount(order: ProcessedOrder, userEmail: string | null): number {
+	if (!userEmail || !order.notes.length) return 0;
+
+	const viewedNoteIds = new Set(
+		order.noteViews
+			.filter(view => view.user_email === userEmail)
+			.map(view => view.note_id)
+	);
+
+	return order.notes.filter(note => !viewedNoteIds.has(note.id)).length;
 }
 

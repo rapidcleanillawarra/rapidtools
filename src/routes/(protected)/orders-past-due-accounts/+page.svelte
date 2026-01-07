@@ -9,8 +9,10 @@
 		parseDate,
 		getPdCounterBgColor,
 		getPdCounterColor,
+		getUnreadNotesCount,
 		type ColumnKey,
 		type Note,
+		type NoteView,
 		type Order,
 		type ProcessedOrder
 	} from './pastDueAccounts';
@@ -137,6 +139,7 @@
 						payments: totalPayments.toFixed(2),
 						amount: outstandingAmount.toFixed(2),
 						notes: [],
+						noteViews: [],
 						username: order.Username || ''
 					});
 					return acc;
@@ -152,6 +155,7 @@
 		// Fetch notes status for all orders
 		if (orders.length > 0) {
 			await fetchNotesStatus();
+			await fetchNoteViews();
 		}
 	}
 
@@ -194,6 +198,11 @@
 
 		// Fetch existing notes from Supabase
 		await fetchNotes(order.invoice);
+
+		// Mark notes as viewed for the current user
+		if (user?.email) {
+			await markNotesAsViewed(order, user.email);
+		}
 	}
 
 	async function fetchNotesStatus() {
@@ -250,6 +259,88 @@
 		}
 	}
 
+	async function fetchNoteViews() {
+		try {
+			const invoiceIds = orders.map(order => order.invoice);
+			const { data, error: supabaseError } = await supabase
+				.from('orders_past_due_accounts_order_note_views')
+				.select('*')
+				.in('note_id', orders.flatMap(order => order.notes.map(note => note.id)));
+
+			if (supabaseError) {
+				console.error('Error fetching note views:', supabaseError);
+			} else if (data) {
+				// Group note views by order_id
+				const noteViewsByOrderId: Record<string, NoteView[]> = {};
+
+				// First, initialize empty arrays for all orders
+				orders.forEach(order => {
+					noteViewsByOrderId[order.invoice] = [];
+				});
+
+				// Then populate with actual views
+				data.forEach((view: NoteView) => {
+					// Find which order this note belongs to
+					const order = orders.find(o => o.notes.some(note => note.id === view.note_id));
+					if (order && order.invoice) {
+						noteViewsByOrderId[order.invoice].push(view);
+					}
+				});
+
+				// Update orders with note views data
+				orders = orders.map(order => ({
+					...order,
+					noteViews: noteViewsByOrderId[order.invoice] || []
+				}));
+			}
+		} catch (error) {
+			console.error('Error fetching note views:', error);
+		}
+	}
+
+	async function markNotesAsViewed(order: ProcessedOrder, userEmail: string) {
+		if (!userEmail || !order.notes.length) return;
+
+		try {
+			const unreadNotes = order.notes.filter(note => {
+				return !order.noteViews.some(view =>
+					view.note_id === note.id && view.user_email === userEmail
+				);
+			});
+
+			if (unreadNotes.length === 0) return;
+
+			// Insert view records for unread notes
+			const viewRecords = unreadNotes.map(note => ({
+				note_id: note.id,
+				user_email: userEmail
+			}));
+
+			const { error: insertError } = await supabase
+				.from('orders_past_due_accounts_order_note_views')
+				.insert(viewRecords);
+
+			if (insertError) {
+				console.error('Error marking notes as viewed:', insertError);
+			} else {
+				// Update the order's noteViews in the local state
+				const newViews = viewRecords.map(record => ({
+					note_id: record.note_id,
+					user_email: record.user_email,
+					viewed_at: new Date().toISOString()
+				}));
+
+				orders = orders.map(o =>
+					o.invoice === order.invoice
+						? { ...o, noteViews: [...o.noteViews, ...newViews] }
+						: o
+				);
+			}
+		} catch (error) {
+			console.error('Error marking notes as viewed:', error);
+		}
+	}
+
 	async function saveNote() {
 		if (!selectedOrder || !newNote.trim() || !user?.email) return;
 
@@ -264,21 +355,36 @@
 				: null;
 
 			// Insert the new note
-			const { error: insertError } = await supabase
+			const { data: insertedNote, error: insertError } = await supabase
 				.from('orders_past_due_accounts_order_notes')
 				.insert({
 					order_id: invoiceId,
 					note: newNote.trim(),
 					created_by: user.email,
 					creator_full_name: creatorFullName
-				});
+				})
+				.select('id')
+				.single();
 
 			if (insertError) {
 				console.error('Error saving note:', insertError);
 			} else {
+				// Automatically mark the note as viewed by the creator
+				if (insertedNote?.id) {
+					const { error: viewError } = await supabase
+						.from('orders_past_due_accounts_order_note_views')
+						.insert({
+							note_id: insertedNote.id,
+							user_email: user.email
+						});
+
+					if (viewError) {
+						console.error('Error marking note as viewed by creator:', viewError);
+					}
+				}
 				// Refresh notes for the selected order
 				await fetchNotes(invoiceId);
-				
+
 				// Update the order in the orders array to trigger reactivity
 				// After fetchNotes, selectedOrder.notes contains the updated notes
 				if (selectedOrder) {
@@ -289,6 +395,10 @@
 							: order
 					);
 				}
+
+				// Refresh note views to include any new notes
+				await fetchNoteViews();
+
 				newNote = '';
 			}
 		} catch (error) {
@@ -694,6 +804,7 @@
 														</svg>
 													</a>
 												{:else if column.key === 'notes'}
+													{@const unreadCount = getUnreadNotesCount(order, user?.email || null)}
 													<button
 														type="button"
 														on:click={() => openNotesModal(order)}
@@ -705,6 +816,11 @@
 															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
 														</svg>
 														{(order[column.key] as Note[]).length > 0 ? 'View Notes' : 'Add notes'}
+														{#if unreadCount > 0}
+															<span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[1.25rem] h-5">
+																{unreadCount}
+															</span>
+														{/if}
 													</button>
 												{:else}
 													{order[column.key]}

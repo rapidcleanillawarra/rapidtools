@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { currentUser } from '$lib/firebase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
@@ -98,7 +99,7 @@
 			</div>
 			<div class="mt-4 sm:mt-0">
 				<a
-					href=".."
+					href="{base}/orders-past-due-accounts"
 					class="inline-flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
 				>
 					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

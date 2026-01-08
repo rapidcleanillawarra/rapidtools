@@ -157,10 +157,9 @@
 			loading = false;
 		}
 
-		// Fetch notes status for all orders
+		// Fetch notes and views for all orders (in parallel)
 		if (orders.length > 0) {
-			await fetchNotesStatus();
-			await fetchNoteViews();
+			await fetchNotesAndViews();
 		}
 	}
 
@@ -207,38 +206,80 @@
 		}
 	}
 
-	async function fetchNotesStatus() {
+	/**
+	 * Efficiently fetch both notes and note views in parallel, then update orders once
+	 */
+	async function fetchNotesAndViews() {
 		try {
 			const invoiceIds = orders.map((order) => order.invoice);
-			const { data, error: supabaseError } = await supabase
-				.from('orders_past_due_accounts_order_notes')
-				.select('*')
-				.in('order_id', invoiceIds)
-				.is('deleted_at', null);
 
-			if (supabaseError) {
-				console.error('Error fetching notes status:', supabaseError);
-			} else if (data) {
-				// Group notes by order_id
-				const notesByOrderId = data.reduce(
-					(acc, note) => {
-						if (!acc[note.order_id]) {
-							acc[note.order_id] = [];
-						}
-						acc[note.order_id].push(note);
-						return acc;
-					},
-					{} as Record<string, Note[]>
-				);
+			// Fetch notes and note views in parallel
+			const [notesResult, noteViewsResult] = await Promise.all([
+				supabase
+					.from('orders_past_due_accounts_order_notes')
+					.select('*')
+					.in('order_id', invoiceIds)
+					.is('deleted_at', null),
+				// We'll fetch all note views for this order set - will filter by noteIds after
+				supabase
+					.from('orders_past_due_accounts_order_note_views')
+					.select('note_id,user_email,viewed_at')
+			]);
 
-				// Update orders with notes data
-				orders = orders.map((order) => ({
-					...order,
-					notes: notesByOrderId[order.invoice] || []
-				}));
+			// Handle errors
+			if (notesResult.error) {
+				console.error('Error fetching notes:', notesResult.error);
 			}
+			if (noteViewsResult.error) {
+				console.error('Error fetching note views:', noteViewsResult.error);
+			}
+
+			// Process the data
+			const notes = notesResult.data || [];
+			const allNoteViews = noteViewsResult.data || [];
+
+			// Group notes by order_id
+			const notesByOrderId: Record<string, Note[]> = {};
+			const noteIdsSet = new Set<string>();
+
+			notes.forEach((note) => {
+				if (!notesByOrderId[note.order_id]) {
+					notesByOrderId[note.order_id] = [];
+				}
+				notesByOrderId[note.order_id].push(note);
+				noteIdsSet.add(note.id);
+			});
+
+			// Filter and group note views by order_id
+			const noteViewsByOrderId: Record<string, NoteView[]> = {};
+			
+			// Create a map of note_id -> order_id for quick lookup
+			const noteIdToOrderId = new Map<string, string>();
+			notes.forEach((note) => {
+				noteIdToOrderId.set(note.id, note.order_id);
+			});
+
+			// Group note views by order_id (only for notes we have)
+			allNoteViews.forEach((view) => {
+				if (noteIdsSet.has(view.note_id)) {
+					const orderId = noteIdToOrderId.get(view.note_id);
+					if (orderId) {
+						if (!noteViewsByOrderId[orderId]) {
+							noteViewsByOrderId[orderId] = [];
+						}
+						noteViewsByOrderId[orderId].push(view);
+					}
+				}
+			});
+
+			// Single update to orders array with both notes and noteViews
+			orders = orders.map((order) => ({
+				...order,
+				notes: notesByOrderId[order.invoice] || [],
+				noteViews: noteViewsByOrderId[order.invoice] || []
+			}));
 		} catch (error) {
-			console.error('Error fetching notes status:', error);
+			console.error('Error fetching notes and views:', error);
 		}
 	}
 
@@ -261,53 +302,6 @@
 			console.error('Error fetching notes:', error);
 		} finally {
 			notesLoading = false;
-		}
-	}
-
-	async function fetchNoteViews() {
-		try {
-			const noteIds = Array.from(
-				new Set(orders.flatMap((order) => order.notes.map((note) => note.id)))
-			);
-			if (noteIds.length === 0) {
-				orders = orders.map((order) => ({ ...order, noteViews: [] }));
-				return;
-			}
-
-			const { data, error: supabaseError } = await supabase
-				.from('orders_past_due_accounts_order_note_views')
-				.select('note_id,user_email,viewed_at')
-				.in('note_id', noteIds);
-
-			if (supabaseError) {
-				console.error('Error fetching note views:', supabaseError);
-				return;
-			}
-
-			const noteIdToOrderId = new Map<string, string>();
-			orders.forEach((order) => {
-				order.notes.forEach((note) => {
-					noteIdToOrderId.set(note.id, order.invoice);
-				});
-			});
-
-			const noteViewsByOrderId: Record<string, NoteView[]> = {};
-			orders.forEach((order) => {
-				noteViewsByOrderId[order.invoice] = [];
-			});
-
-			(data || []).forEach((view: NoteView) => {
-				const orderId = noteIdToOrderId.get(view.note_id);
-				if (!orderId) return;
-				noteViewsByOrderId[orderId].push(view);
-			});
-
-			orders = orders.map((order) => ({
-				...order,
-				noteViews: noteViewsByOrderId[order.invoice] || []
-			}));
-		} catch (error) {
-			console.error('Error fetching note views:', error);
 		}
 	}
 
@@ -406,8 +400,8 @@
 					);
 				}
 
-				// Refresh note views to include any new notes
-				await fetchNoteViews();
+				// Refresh all notes and views to include the new note's view record
+				await fetchNotesAndViews();
 
 				newNote = '';
 			}

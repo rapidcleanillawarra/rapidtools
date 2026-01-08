@@ -213,44 +213,50 @@
 		try {
 			const invoiceIds = orders.map((order) => order.invoice);
 
-			// Fetch notes and note views in parallel
-			const [notesResult, noteViewsResult] = await Promise.all([
-				supabase
-					.from('orders_past_due_accounts_order_notes')
-					.select('*')
-					.in('order_id', invoiceIds)
-					.is('deleted_at', null),
-				// We'll fetch all note views for this order set - will filter by noteIds after
-				supabase
-					.from('orders_past_due_accounts_order_note_views')
-					.select('note_id,user_email,viewed_at')
-			]);
+			// First, fetch notes for the current orders
+			const notesResult = await supabase
+				.from('orders_past_due_accounts_order_notes')
+				.select('*')
+				.in('order_id', invoiceIds)
+				.is('deleted_at', null);
 
 			// Handle errors
 			if (notesResult.error) {
 				console.error('Error fetching notes:', notesResult.error);
-			}
-			if (noteViewsResult.error) {
-				console.error('Error fetching note views:', noteViewsResult.error);
+				return;
 			}
 
-			// Process the data
+			// Process the notes data
 			const notes = notesResult.data || [];
-			const allNoteViews = noteViewsResult.data || [];
 
-			// Group notes by order_id
+			// Group notes by order_id and collect note IDs
 			const notesByOrderId: Record<string, Note[]> = {};
-			const noteIdsSet = new Set<string>();
+			const noteIds: string[] = [];
 
 			notes.forEach((note) => {
 				if (!notesByOrderId[note.order_id]) {
 					notesByOrderId[note.order_id] = [];
 				}
 				notesByOrderId[note.order_id].push(note);
-				noteIdsSet.add(note.id);
+				noteIds.push(note.id);
 			});
 
-			// Filter and group note views by order_id
+			// Only fetch note views if we have notes
+			let allNoteViews: NoteView[] = [];
+			if (noteIds.length > 0) {
+				const noteViewsResult = await supabase
+					.from('orders_past_due_accounts_order_note_views')
+					.select('note_id,user_email,viewed_at')
+					.in('note_id', noteIds);
+
+				if (noteViewsResult.error) {
+					console.error('Error fetching note views:', noteViewsResult.error);
+				} else {
+					allNoteViews = noteViewsResult.data || [];
+				}
+			}
+
+			// Group note views by order_id
 			const noteViewsByOrderId: Record<string, NoteView[]> = {};
 			
 			// Create a map of note_id -> order_id for quick lookup
@@ -259,16 +265,14 @@
 				noteIdToOrderId.set(note.id, note.order_id);
 			});
 
-			// Group note views by order_id (only for notes we have)
+			// Group note views by order_id
 			allNoteViews.forEach((view) => {
-				if (noteIdsSet.has(view.note_id)) {
-					const orderId = noteIdToOrderId.get(view.note_id);
-					if (orderId) {
-						if (!noteViewsByOrderId[orderId]) {
-							noteViewsByOrderId[orderId] = [];
-						}
-						noteViewsByOrderId[orderId].push(view);
+				const orderId = noteIdToOrderId.get(view.note_id);
+				if (orderId) {
+					if (!noteViewsByOrderId[orderId]) {
+						noteViewsByOrderId[orderId] = [];
 					}
+					noteViewsByOrderId[orderId].push(view);
 				}
 			});
 

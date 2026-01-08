@@ -98,7 +98,7 @@
 			</div>
 			<div class="mt-4 sm:mt-0">
 				<a
-					href="/orders-past-due-accounts"
+					href=".."
 					class="inline-flex items-center gap-2 rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
 				>
 					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -67,6 +67,7 @@ export type ColumnKey =
 	| 'payments'
 	| 'amount'
 	| 'emailNotifs'
+	| 'username'
 	| 'notes';
 
 export interface ColumnDefinition {
@@ -83,6 +84,7 @@ export const columns: ColumnDefinition[] = [
 	{ key: 'payments', label: 'Payments' },
 	{ key: 'amount', label: 'Amount' },
 	{ key: 'emailNotifs', label: 'Email Notifs' },
+	{ key: 'username', label: 'Username' },
 	{ key: 'notes', label: 'Notes' }
 ];
 
@@ -95,6 +97,7 @@ export const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 	payments: true,
 	amount: true,
 	emailNotifs: false,
+	username: true,
 	notes: true
 };
 

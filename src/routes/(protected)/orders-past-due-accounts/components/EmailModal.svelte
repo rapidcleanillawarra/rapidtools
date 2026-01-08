@@ -18,6 +18,8 @@
 	let isLoading = false;
 	let editorElement: HTMLDivElement;
 	let quillEditor: Quill | null = null;
+	let attachments: File[] = [];
+	let fileInput: HTMLInputElement;
 
 	function getEmailTemplate(pdCounter: number, customer: string, invoice: string, amount: string): string {
 		const days = pdCounter;
@@ -131,17 +133,54 @@ Rapid Clean Team`;
 		quillEditor.root.innerHTML = htmlContent;
 	}
 
+	function handleFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const files = target.files;
+		if (files) {
+			// Add new files to existing attachments
+			attachments = [...attachments, ...Array.from(files)];
+		}
+		// Clear the input so the same file can be selected again if needed
+		if (fileInput) fileInput.value = '';
+	}
+
+	function removeAttachment(index: number) {
+		attachments = attachments.filter((_, i) => i !== index);
+	}
+
+	function fileToBase64(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.readAsDataURL(file);
+			reader.onload = () => {
+				const result = reader.result as string;
+				// Remove the data URL prefix (e.g., "data:application/pdf;base64,")
+				const base64 = result.split(',')[1];
+				resolve(base64);
+			};
+			reader.onerror = error => reject(error);
+		});
+	}
+
 	async function sendEmail() {
 		// Get the HTML content from Quill editor
 		if (quillEditor) {
 			body = quillEditor.root.innerHTML;
 		}
-		
+
 		if (!to || !subject || !body) return;
 
 		isLoading = true;
 
 		try {
+			// Convert attachments to the required format
+			const attachmentPromises = attachments.map(async (file) => ({
+				name: file.name,
+				contentBytes: await fileToBase64(file)
+			}));
+
+			const emailAttachments = await Promise.all(attachmentPromises);
+
 			const response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4', {
 				method: 'POST',
 				headers: {
@@ -154,7 +193,8 @@ Rapid Clean Team`;
 						cc,
 						bcc,
 						subject,
-						body
+						body,
+						attachments: emailAttachments
 					}
 				})
 			});
@@ -190,6 +230,7 @@ Rapid Clean Team`;
 		bcc = '';
 		subject = '';
 		body = '';
+		attachments = [];
 		isLoading = false;
 	}
 	
@@ -293,6 +334,44 @@ Rapid Clean Team`;
 										placeholder="bcc@example.com"
 										multiple
 									/>
+								</div>
+
+								<!-- Attachments Field -->
+								<div>
+									<label for="email-attachments" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										Attachments:
+									</label>
+									<div class="mt-1">
+										<input
+											type="file"
+											id="email-attachments"
+											bind:this={fileInput}
+											on:change={handleFileSelect}
+											multiple
+											class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300 dark:hover:file:bg-indigo-800"
+											accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+										/>
+										{#if attachments.length > 0}
+											<div class="mt-2 space-y-1">
+												<p class="text-xs text-gray-500 dark:text-gray-400">Selected files:</p>
+												{#each attachments as attachment, index}
+													<div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-md">
+														<span class="text-sm text-gray-900 dark:text-gray-100 truncate">{attachment.name}</span>
+														<button
+															type="button"
+															on:click={() => removeAttachment(index)}
+															class="ml-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+															title="Remove attachment"
+														>
+															<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+															</svg>
+														</button>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									</div>
 								</div>
 
 								<!-- Subject Field -->

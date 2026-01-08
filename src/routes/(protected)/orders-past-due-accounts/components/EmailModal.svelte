@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { currentUser } from '$lib/firebase';
 	import type { ProcessedOrder } from '../pastDueAccounts';
+	import {
+		type EmailSettings,
+		fetchEmailSettings,
+		getDefaultSettings,
+		getEmailTemplate,
+		replacePlaceholders
+	} from '../settings/emailSettings';
 	import Quill from 'quill';
 	import 'quill/dist/quill.snow.css';
 
@@ -16,84 +24,34 @@
 	let subject = '';
 	let body = '';
 	let isLoading = false;
+	let settingsLoading = false;
 	let editorElement: HTMLDivElement;
 	let quillEditor: Quill | null = null;
 	let attachments: File[] = [];
 	let fileInput: HTMLInputElement;
+	let emailSettings: EmailSettings | null = null;
+	let user: import('firebase/auth').User | null = null;
 
-	function getEmailTemplate(pdCounter: number, customer: string, invoice: string, amount: string): string {
-		const days = pdCounter;
+	// Subscribe to current user
+	currentUser.subscribe((value) => {
+		user = value;
+	});
 
-		if (days >= 15 && days <= 25) {
-			// Friendly Reminder (15-25 days)
-			return `Dear ${customer},
+	async function loadEmailSettings() {
+		if (!user?.email) {
+			console.warn('No user email available, using default settings');
+			emailSettings = getDefaultSettings();
+			return;
+		}
 
-I hope this email finds you well. This is a friendly reminder that payment for invoice ${invoice} in the amount of $${amount} is now ${days} days past due.
-
-We value our relationship with you and understand that payments can sometimes be delayed. Please arrange payment at your earliest convenience to avoid any impact on our continued service.
-
-If you have any questions or need to discuss payment arrangements, please don't hesitate to contact us.
-
-Thank you for your attention to this matter.
-
-Best regards,
-Rapid Clean Team`;
-		} else if (days >= 26 && days <= 40) {
-			// 2nd follow & Warning for Hold (26-40 days)
-			return `Dear ${customer},
-
-This is our second follow-up regarding payment for invoice ${invoice} in the amount of $${amount}, which is now ${days} days past due.
-
-We appreciate your business and understand that circumstances can affect payment timing. However, continued delays may result in service interruptions or holds on future orders.
-
-Please arrange payment as soon as possible. If you need to discuss payment arrangements or have any concerns, please contact us immediately.
-
-Thank you for your prompt attention to this matter.
-
-Best regards,
-Rapid Clean Team`;
-		} else if (days >= 41 && days <= 59) {
-			// Urgent payment required (41-59 days)
-			return `Dear ${customer},
-
-URGENT: Payment for invoice ${invoice} in the amount of $${amount} is now ${days} days past due and requires immediate attention.
-
-This extended delay is causing significant concern and may affect our ability to continue providing service. We kindly request that you arrange payment without further delay.
-
-Please contact us immediately if there are any issues preventing payment or if you need to discuss alternative arrangements.
-
-We appreciate your urgent attention to this matter.
-
-Best regards,
-Rapid Clean Team`;
-		} else if (days >= 60) {
-			// Matigas pa sa bato! walang hiya! (60+ days)
-			return `Dear ${customer},
-
-FINAL NOTICE: Payment for invoice ${invoice} in the amount of $${amount} is now ${days} days past due.
-
-This prolonged delay is unacceptable and severely impacts our operations. Immediate payment is required to restore service and avoid further escalation.
-
-Please arrange payment TODAY. Contact us immediately if there are legitimate circumstances preventing payment.
-
-We expect your urgent cooperation in this matter.
-
-Best regards,
-Rapid Clean Team
-
-NOTE: Continued non-payment may result in collection actions and service termination.`;
-		} else {
-			// Default template for any other cases
-			return `Dear ${customer},
-
-This is a reminder that payment for invoice ${invoice} in the amount of $${amount} is ${days} days past due.
-
-Please arrange payment as soon as possible to avoid any disruptions to our continued service.
-
-Thank you for your attention to this matter.
-
-Best regards,
-Rapid Clean Team`;
+		try {
+			settingsLoading = true;
+			emailSettings = await fetchEmailSettings(user.email);
+		} catch (error) {
+			console.error('Error loading email settings:', error);
+			emailSettings = getDefaultSettings(user.email);
+		} finally {
+			settingsLoading = false;
 		}
 	}
 
@@ -122,13 +80,35 @@ Rapid Clean Team`;
 		});
 	}
 
-	// Load email template when order changes
-	$: if (order && showModal && quillEditor) {
-		to = order.email || '';
-		cc = '';
-		bcc = 'mario@rapidcleanillawarra.com.au';
-		subject = `Past Due Payment Reminder - Invoice ${order.invoice}`;
-		const plainTextBody = getEmailTemplate(order.pdCounter, order.customer, order.invoice, order.amount);
+	// Load email settings and template when modal opens
+	$: if (showModal && !emailSettings) {
+		loadEmailSettings();
+	}
+
+	// Load email template when order, settings, and editor are ready
+	$: if (order && showModal && quillEditor && emailSettings && !settingsLoading) {
+		// Use settings defaults with fallback to order email
+		sender = emailSettings.default_from;
+		to = emailSettings.default_to || order.email || '';
+		cc = emailSettings.default_cc;
+		bcc = emailSettings.default_bcc;
+		
+		// Replace {invoice} placeholder in subject
+		subject = replacePlaceholders(emailSettings.default_subject, {
+			customer: order.customer,
+			invoice: order.invoice,
+			amount: order.amount,
+			days: order.pdCounter
+		});
+		
+		// Get template based on PD counter and replace placeholders
+		const plainTextBody = getEmailTemplate(
+			order.pdCounter,
+			order.customer,
+			order.invoice,
+			order.amount,
+			emailSettings
+		);
 		const htmlContent = textToHtml(plainTextBody);
 		quillEditor.root.innerHTML = htmlContent;
 	}
@@ -224,7 +204,7 @@ Rapid Clean Team`;
 	}
 
 	function resetForm() {
-		sender = 'accounts@rapidcleanillawarra.com.au';
+		sender = emailSettings?.default_from || 'accounts@rapidcleanillawarra.com.au';
 		to = '';
 		cc = '';
 		bcc = '';
@@ -232,6 +212,7 @@ Rapid Clean Team`;
 		body = '';
 		attachments = [];
 		isLoading = false;
+		emailSettings = null; // Reset settings so they reload next time
 	}
 	
 	// Clean up Quill when modal closes
@@ -269,12 +250,17 @@ Rapid Clean Team`;
 				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
 					<div class="sm:flex sm:items-start">
 						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<h3
-								class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-								id="email-modal-title"
-							>
-								Compose Email - {order?.customer}
-							</h3>
+							<div class="flex items-center justify-between">
+								<h3
+									class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+									id="email-modal-title"
+								>
+									Compose Email - {order?.customer}
+								</h3>
+								{#if settingsLoading}
+									<span class="text-xs text-gray-500 dark:text-gray-400">Loading settings...</span>
+								{/if}
+							</div>
 							<div class="mt-4 space-y-4">
 								<!-- Sender Field -->
 								<div>

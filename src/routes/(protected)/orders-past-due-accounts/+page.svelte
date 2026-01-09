@@ -101,6 +101,8 @@
 
 			if (data && data.Order) {
 				const now = new Date();
+				const invoiceTrackingRecords: { order_id: string; does_exists: boolean; completed: boolean }[] = [];
+
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
 					// Calculate Amount (Outstanding) and Payments
 					let outstandingAmount = parseFloat(order.GrandTotal);
@@ -115,6 +117,12 @@
 
 					// Filter if outstanding amount is effectively 0
 					if (outstandingAmount <= 0.01) {
+						// Still track invoices that exist but have zero outstanding amount
+						invoiceTrackingRecords.push({
+							order_id: order.ID,
+							does_exists: true,
+							completed: true // Mark as completed since no action needed
+						});
 						return acc;
 					}
 
@@ -147,8 +155,33 @@
 						noteViews: [],
 						username: order.Username || ''
 					});
+
+					// Track this invoice as fetched
+					invoiceTrackingRecords.push({
+						order_id: order.ID,
+						does_exists: true,
+						completed: false // Will be processed/displayed in the UI
+					});
+
 					return acc;
 				}, []);
+
+				// Save invoice tracking records to Supabase
+				if (invoiceTrackingRecords.length > 0) {
+					try {
+						const { error: trackingError } = await supabase
+							.from('orders_past_due_accounts_invoice_tracking')
+							.insert(invoiceTrackingRecords);
+
+						if (trackingError) {
+							console.error('Failed to save invoice tracking records:', trackingError);
+						} else {
+							console.log(`Tracked ${invoiceTrackingRecords.length} invoices`);
+						}
+					} catch (trackingErr) {
+						console.error('Error saving invoice tracking records:', trackingErr);
+					}
+				}
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An unknown error occurred';

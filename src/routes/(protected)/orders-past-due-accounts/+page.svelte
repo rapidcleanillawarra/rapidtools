@@ -53,6 +53,11 @@
 	let showLegend = false;
 	let showColumnVisibility = false;
 
+	// Pagination State
+	let currentPage = 1;
+	let itemsPerPage = 25;
+	let totalPages = 1;
+
 	// Notes Modal State
 	let showNotesModal = false;
 	let selectedOrder: ProcessedOrder | null = null;
@@ -504,6 +509,30 @@
 		emailOrder = null;
 	}
 
+	// Pagination functions
+	function goToPage(page: number) {
+		if (page >= 1 && page <= totalPages) {
+			currentPage = page;
+		}
+	}
+
+	function nextPage() {
+		if (currentPage < totalPages) {
+			currentPage++;
+		}
+	}
+
+	function previousPage() {
+		if (currentPage > 1) {
+			currentPage--;
+		}
+	}
+
+	function changeItemsPerPage(newItemsPerPage: number) {
+		itemsPerPage = newItemsPerPage;
+		currentPage = 1; // Reset to first page when changing items per page
+	}
+
 	async function manualTriggerTracking() {
 		try {
 			await fetchOrders(true); // Force tracking to run
@@ -710,6 +739,13 @@
 			}
 		});
 
+	// Pagination logic
+	$: totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+	$: paginatedOrders = filteredOrders.slice(
+		(currentPage - 1) * itemsPerPage,
+		currentPage * itemsPerPage
+	);
+
 	$: {
 		if (typeof window !== 'undefined' && initialized) {
 			localStorage.setItem('orders-pd-filter-operator', pdFilterOperator);
@@ -721,6 +757,8 @@
 			localStorage.setItem('orders-column-visibility', JSON.stringify(columnVisibility));
 			localStorage.setItem('orders-show-legend', String(showLegend));
 			localStorage.setItem('orders-show-column-visibility', String(showColumnVisibility));
+			localStorage.setItem('orders-current-page', String(currentPage));
+			localStorage.setItem('orders-items-per-page', String(itemsPerPage));
 		}
 	}
 
@@ -739,6 +777,8 @@
 			const storedVisibility = localStorage.getItem('orders-column-visibility');
 			const storedShowLegend = localStorage.getItem('orders-show-legend');
 			const storedShowColumnVisibility = localStorage.getItem('orders-show-column-visibility');
+			const storedCurrentPage = localStorage.getItem('orders-current-page');
+			const storedItemsPerPage = localStorage.getItem('orders-items-per-page');
 
 			// Set defaults if no localStorage data exists
 			if (!storedOp && !storedVal) {
@@ -774,6 +814,10 @@
 			// Load UI toggle preferences (default to false)
 			showLegend = storedShowLegend === 'true';
 			showColumnVisibility = storedShowColumnVisibility === 'true';
+
+			// Load pagination preferences
+			if (storedCurrentPage) currentPage = Number(storedCurrentPage);
+			if (storedItemsPerPage) itemsPerPage = Number(storedItemsPerPage);
 		}
 
 		fetchOrders();
@@ -962,6 +1006,81 @@
 		</div>
 	{/if}
 
+	<!-- Pagination Controls -->
+	{#if filteredOrders.length > 0}
+		<div class="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
+			<!-- Items per page selector -->
+			<div class="flex items-center gap-2">
+				<label for="items-per-page" class="text-sm text-gray-700 dark:text-gray-300">
+					Show:
+				</label>
+				<select
+					id="items-per-page"
+					bind:value={itemsPerPage}
+					on:change={(e) => changeItemsPerPage(Number(e.currentTarget.value))}
+					class="rounded-md border border-gray-300 py-1 pl-3 pr-8 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+				>
+					<option value={10}>10</option>
+					<option value={25}>25</option>
+					<option value={50}>50</option>
+					<option value={100}>100</option>
+				</select>
+				<span class="text-sm text-gray-700 dark:text-gray-300">
+					entries per page
+				</span>
+			</div>
+
+			<!-- Pagination info and controls -->
+			<div class="flex items-center gap-4">
+				<div class="text-sm text-gray-700 dark:text-gray-300">
+					Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredOrders.length)} to {Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length} entries
+				</div>
+
+				<div class="flex items-center gap-1">
+					<button
+						type="button"
+						on:click={previousPage}
+						disabled={currentPage === 1}
+						class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+						title="Previous page"
+					>
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+						</svg>
+					</button>
+
+					<!-- Page numbers -->
+					{#each Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+						const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+						return pageNum <= totalPages ? pageNum : null;
+					}).filter(Boolean) as pageNum}
+						<button
+							type="button"
+							on:click={() => goToPage(pageNum)}
+							class="rounded-md px-3 py-1.5 text-sm font-medium {pageNum === currentPage
+								? 'border border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-400 dark:bg-indigo-900/30 dark:text-indigo-400'
+								: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+						>
+							{pageNum}
+						</button>
+					{/each}
+
+					<button
+						type="button"
+						on:click={nextPage}
+						disabled={currentPage === totalPages}
+						class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+						title="Next page"
+					>
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+						</svg>
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
 	<!-- Orders Table -->
 	<div class="mt-8 flex flex-col">
 		<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
@@ -1062,7 +1181,7 @@
 									>
 								</tr>
 							{:else}
-								{#each filteredOrders as order, index}
+								{#each paginatedOrders as order, index}
 									<!-- Main row with all columns spanning 3 rows except customer -->
 									<tr
 										class="!border-b-0 {index % 2 === 0

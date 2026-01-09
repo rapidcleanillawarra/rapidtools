@@ -62,7 +62,38 @@
 	let user: import('firebase/auth').User | null = null;
 	let profile: UserProfile | null = null;
 
-	async function fetchOrders() {
+	async function shouldTriggerTracking(): Promise<boolean> {
+		try {
+			// Get the first tracking record to check the timestamp
+			const { data, error } = await supabase
+				.from('orders_past_due_accounts_invoice_tracking')
+				.select('updated_at')
+				.order('updated_at', { ascending: true })
+				.limit(1)
+				.single();
+
+			if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+				console.error('Error checking tracking timestamp:', error);
+				return true; // If there's an error, allow tracking to proceed
+			}
+
+			if (!data) {
+				// No tracking records exist yet, allow tracking
+				return true;
+			}
+
+			const lastTracked = new Date(data.updated_at);
+			const now = new Date();
+			const hoursSinceLastTrack = (now.getTime() - lastTracked.getTime()) / (1000 * 60 * 60);
+
+			return hoursSinceLastTrack >= 6;
+		} catch (error) {
+			console.error('Error in shouldTriggerTracking:', error);
+			return true; // Default to allowing tracking if there's an error
+		}
+	}
+
+	async function fetchOrders(forceTracking: boolean = false) {
 		try {
 			loading = true;
 			error = '';
@@ -102,6 +133,9 @@
 			if (data && data.Order) {
 				const now = new Date();
 				const invoiceTrackingRecords: { order_id: string; does_exists: boolean; completed: boolean }[] = [];
+
+				// Check if we should trigger tracking (unless manually forced)
+				const shouldTrack = forceTracking || await shouldTriggerTracking();
 
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
 					// Calculate Amount (Outstanding) and Payments
@@ -166,8 +200,8 @@
 					return acc;
 				}, []);
 
-				// Save invoice tracking records to Supabase
-				if (invoiceTrackingRecords.length > 0) {
+				// Save invoice tracking records to Supabase only if tracking should run
+				if (shouldTrack && invoiceTrackingRecords.length > 0) {
 					try {
 						const { error: trackingError } = await supabase
 							.from('orders_past_due_accounts_invoice_tracking')
@@ -465,6 +499,15 @@
 		emailOrder = null;
 	}
 
+	async function manualTriggerTracking() {
+		try {
+			await fetchOrders(true); // Force tracking to run
+		} catch (error) {
+			console.error('Error manually triggering tracking:', error);
+			error = 'Failed to manually trigger tracking';
+		}
+	}
+
 	function exportToCSV() {
 		const csvColumns = visibleColumns.filter((col) => col.key !== 'notes'); // Use visible columns, exclude notes
 		const headers = csvColumns.map((col) => col.label).join(',');
@@ -745,6 +788,7 @@
 			on:apply={applyPdFilter}
 			on:exportCsv={exportToCSV}
 			on:print={printTable}
+			on:manualTrigger={manualTriggerTracking}
 		/>
 	</div>
 

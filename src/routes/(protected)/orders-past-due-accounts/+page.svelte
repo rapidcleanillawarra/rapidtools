@@ -13,11 +13,15 @@
 		getUnreadNotesCount,
 		getLatestNotesForDisplay,
 		getNotesSummary,
+		isOutboundEmail,
+		getLatestEmailPreview,
+		getEmailConversationSummary,
 		type ColumnKey,
 		type Note,
 		type NoteView,
 		type Order,
-		type ProcessedOrder
+		type ProcessedOrder,
+		type EmailConversation
 	} from './pastDueAccounts';
 	import PastDueLegend from './components/PastDueLegend.svelte';
 	import PastDueToolbar from './components/PastDueToolbar.svelte';
@@ -281,6 +285,7 @@
 		if (orders.length > 0) {
 			await fetchNotesAndViews();
 			await fetchEmailTrackingStatus();
+			await fetchEmailConversations();
 		}
 	}
 
@@ -438,6 +443,59 @@
 			}));
 		} catch (error) {
 			console.error('Error in fetchEmailTrackingStatus:', error);
+		}
+	}
+
+	async function fetchEmailConversations() {
+		try {
+			// 1. Query Supabase for order_ids with email_initialized=true and completed=false
+			const { data: trackingRecords, error } = await supabase
+				.from('orders_past_due_accounts_invoice_tracking')
+				.select('order_id')
+				.eq('completed', false)
+				.eq('email_initialized', true);
+
+			if (error) {
+				console.error('Error fetching tracking records:', error);
+				return;
+			}
+
+			if (!trackingRecords || trackingRecords.length === 0) {
+				return; // No orders to fetch conversations for
+			}
+
+			const orderIds = trackingRecords.map(record => record.order_id);
+
+			// 2. Call Power Automate endpoint
+			const response = await fetch(
+				'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c464173437d741278f6f8932654e1550/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NtiA92yZ4QU7KRsr7SbDddjYU4_UrTe9gknJb8OGToA',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ order_ids: orderIds })
+				}
+			);
+
+			if (!response.ok) {
+				console.error('Failed to fetch email conversations');
+				return;
+			}
+
+			const conversations = await response.json();
+
+			// 3. Update orders with email conversations
+			orders = orders.map(order => {
+				const orderConversations = conversations.filter(
+					(conv: EmailConversation) => conv.order_id === order.invoice && conv.has_value === 'true'
+				);
+				return {
+					...order,
+					emailConversations: orderConversations
+				};
+			});
+
+		} catch (error) {
+			console.error('Error fetching email conversations:', error);
 		}
 	}
 
@@ -1342,6 +1400,40 @@
 															></path>
 														</svg>
 													</a>
+												{:else if column.key === 'emailNotifs'}
+													{#if order.emailConversations && order.emailConversations.length > 0}
+														{@const summary = getEmailConversationSummary(order.emailConversations)}
+														{@const latestConversation = order.emailConversations[0]}
+														{@const isOutbound = isOutboundEmail(latestConversation)}
+														{#if summary.inbound + summary.outbound > 1}
+															<div class="text-xs">
+																<div class="font-medium {isOutbound ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}">
+																	<a
+																		href={latestConversation.web_link}
+																		target="_blank"
+																		rel="noopener noreferrer"
+																		class="hover:underline"
+																	>
+																		{getLatestEmailPreview(order.emailConversations)}
+																	</a>
+																</div>
+																<div class="mt-1 text-gray-500 dark:text-gray-400">
+																	{summary.inbound} in / {summary.outbound} out
+																</div>
+															</div>
+														{:else}
+															<a
+																href={latestConversation.web_link}
+																target="_blank"
+																rel="noopener noreferrer"
+																class="block w-full h-full p-0 text-xs {isOutbound ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20' : 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20'} hover:underline rounded px-2 py-1"
+															>
+																{getLatestEmailPreview(order.emailConversations)}
+															</a>
+														{/if}
+													{:else}
+														<span class="text-gray-400 dark:text-gray-500 italic">No emails</span>
+													{/if}
 												{:else if column.key === 'notes'}
 													<div class="text-xs">
 														{#if (order[column.key] as Note[]).length > 0}

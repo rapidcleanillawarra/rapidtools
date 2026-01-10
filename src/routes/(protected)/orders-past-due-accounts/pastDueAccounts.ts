@@ -41,6 +41,14 @@ export interface NoteView {
 	viewed_at: string;
 }
 
+export interface EmailConversation {
+	from: string;
+	body_preview: string;
+	web_link: string;
+	order_id: string;
+	has_value: string;
+}
+
 export interface ProcessedOrder {
 	customer: string;
 	contacts: string;
@@ -55,7 +63,8 @@ export interface ProcessedOrder {
 	notes: Note[];
 	noteViews: NoteView[];
 	username: string;
-	[key: string]: string | number | Note[] | NoteView[];
+	emailConversations?: EmailConversation[]; // Add this new property
+	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[];
 }
 
 export type ColumnKey =
@@ -83,7 +92,7 @@ export const columns: ColumnDefinition[] = [
 	{ key: 'pdCounter', label: 'PD-Counter' },
 	{ key: 'payments', label: 'Payments' },
 	{ key: 'amount', label: 'Amount' },
-	{ key: 'emailNotifs', label: 'Email Sent' },
+	{ key: 'emailNotifs', label: 'Email Convo' },
 	{ key: 'username', label: 'Username' },
 	{ key: 'notes', label: 'Notes' }
 ];
@@ -164,3 +173,17 @@ export function getNotesSummary(order: ProcessedOrder): string {
 	return `${totalNotes} notes`;
 }
 
+export function isOutboundEmail(email: EmailConversation): boolean {
+	return email.from.includes('@rapidcleanillawarra.com.au');
+}
+
+export function getLatestEmailPreview(conversations: EmailConversation[], maxLength: number = 80): string {
+	if (!conversations || conversations.length === 0) return '';
+	return conversations[0].body_preview.substring(0, maxLength) + (conversations[0].body_preview.length > maxLength ? '...' : '');
+}
+
+export function getEmailConversationSummary(conversations: EmailConversation[]): { inbound: number, outbound: number } {
+	const inbound = conversations.filter(c => !isOutboundEmail(c)).length;
+	const outbound = conversations.filter(c => isOutboundEmail(c)).length;
+	return { inbound, outbound };
+}

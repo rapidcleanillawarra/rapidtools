@@ -83,7 +83,7 @@ export const columns: ColumnDefinition[] = [
 	{ key: 'pdCounter', label: 'PD-Counter' },
 	{ key: 'payments', label: 'Payments' },
 	{ key: 'amount', label: 'Amount' },
-	{ key: 'emailNotifs', label: 'Email Notifs' },
+	{ key: 'emailNotifs', label: 'Email Sent' },
 	{ key: 'username', label: 'Username' },
 	{ key: 'notes', label: 'Notes' }
 ];
@@ -96,7 +96,7 @@ export const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 	pdCounter: true,
 	payments: true,
 	amount: true,
-	emailNotifs: false,
+	emailNotifs: true, // Now shows email tracking status
 	username: true,
 	notes: true
 };

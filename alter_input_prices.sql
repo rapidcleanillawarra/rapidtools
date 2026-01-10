@@ -21,3 +21,10 @@ ADD CONSTRAINT orders_past_due_accounts_invoice_tracking_order_id_key UNIQUE (or
 
 -- Add comment to document the constraint
 COMMENT ON CONSTRAINT orders_past_due_accounts_invoice_tracking_order_id_key ON orders_past_due_accounts_invoice_tracking IS 'Unique constraint on order_id to support upsert operations and prevent duplicate tracking records';
+
+-- Add email_initialized column if it doesn't exist (for tracking when emails are sent for invoices)
+ALTER TABLE orders_past_due_accounts_invoice_tracking
+ADD COLUMN IF NOT EXISTS email_initialized BOOLEAN DEFAULT false;
+
+-- Add comment to document the email_initialized column
+COMMENT ON COLUMN orders_past_due_accounts_invoice_tracking.email_initialized IS 'Tracks whether an email has been initialized/sent for this invoice';

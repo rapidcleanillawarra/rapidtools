@@ -195,7 +195,7 @@
 						pdCounter: pdCounter,
 						payments: totalPayments.toFixed(2),
 						amount: outstandingAmount.toFixed(2),
-						emailNotifs: '',
+						emailNotifs: '', // Will be populated from tracking data
 						notes: [],
 						noteViews: [],
 						username: order.Username || ''
@@ -280,6 +280,7 @@
 		// Fetch notes and views for all orders (in parallel)
 		if (orders.length > 0) {
 			await fetchNotesAndViews();
+			await fetchEmailTrackingStatus();
 		}
 	}
 
@@ -404,6 +405,39 @@
 			}));
 		} catch (error) {
 			console.error('Error fetching notes and views:', error);
+		}
+	}
+
+	async function fetchEmailTrackingStatus() {
+		try {
+			const invoiceIds = orders.map(order => order.invoice);
+
+			// Fetch email tracking status for all invoices
+			const { data: trackingData, error } = await supabase
+				.from('orders_past_due_accounts_invoice_tracking')
+				.select('order_id, email_initialized')
+				.in('order_id', invoiceIds);
+
+			if (error) {
+				console.error('Error fetching email tracking status:', error);
+				return;
+			}
+
+			// Create a map of order_id to email_initialized status
+			const trackingMap: Record<string, boolean> = {};
+			if (trackingData) {
+				trackingData.forEach(record => {
+					trackingMap[record.order_id] = record.email_initialized || false;
+				});
+			}
+
+			// Update orders with email tracking status
+			orders = orders.map(order => ({
+				...order,
+				emailNotifs: trackingMap[order.invoice] ? '✓' : ''
+			}));
+		} catch (error) {
+			console.error('Error in fetchEmailTrackingStatus:', error);
 		}
 	}
 

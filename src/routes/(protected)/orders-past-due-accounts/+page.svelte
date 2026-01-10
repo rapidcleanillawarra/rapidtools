@@ -1362,7 +1362,7 @@
 										</td>
 										{#each nonCustomerColumns as column}
 											<td
-												class="whitespace-nowrap px-3 py-4 text-sm {column.key === 'pdCounter'
+												class="{column.key === 'notes' || column.key === 'emailNotifs' ? 'whitespace-normal' : 'whitespace-nowrap'} px-3 py-4 text-sm {column.key === 'pdCounter'
 													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
 													: column.key === 'notes' && (order[column.key] as Note[]).length > 0
 														? 'rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
@@ -1521,7 +1521,7 @@
 											{/if}
 										</td>
 										{#each nonCustomerColumns as column}
-											<td class="whitespace-nowrap px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+											<td class="{column.key === 'notes' || column.key === 'emailNotifs' ? 'whitespace-normal' : 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
 												{#if column.key === 'notes'}
 													{#if order.notes.length > 1}
 														<div class="text-xs">
@@ -1616,7 +1616,7 @@
 											{/if}
 										</td>
 										{#each nonCustomerColumns as column}
-											<td class="!border-t-0 whitespace-nowrap px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+											<td class="!border-t-0 {column.key === 'notes' || column.key === 'emailNotifs' ? 'whitespace-normal' : 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
 												{#if column.key === 'notes'}
 													{@const unreadCount = getUnreadNotesCount(order, user?.email || null)}
 													<button

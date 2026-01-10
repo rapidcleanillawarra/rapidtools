@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { currentUser } from '$lib/firebase';
+	import { supabase } from '$lib/supabase';
 	import type { ProcessedOrder } from '../pastDueAccounts';
 	import {
 		type EmailSettings,
@@ -186,6 +187,29 @@
 			// Email sent successfully
 			dispatch('close');
 			resetForm();
+
+			// Log email initialization to invoice_tracking table
+			if (order?.invoice) {
+				try {
+					const { error: trackingError } = await supabase
+						.from('orders_past_due_accounts_invoice_tracking')
+						.upsert({
+							order_id: order.invoice,
+							email_initialized: true,
+							updated_at: new Date().toISOString()
+						}, {
+							onConflict: 'order_id'
+						});
+
+					if (trackingError) {
+						console.error('Failed to log email initialization:', trackingError);
+					} else {
+						console.log(`Logged email initialization for invoice: ${order.invoice}`);
+					}
+				} catch (trackingErr) {
+					console.error('Error logging email initialization:', trackingErr);
+				}
+			}
 		} catch (error) {
 			console.error('Error sending email:', error);
 			alert('Failed to send email. Please try again.');

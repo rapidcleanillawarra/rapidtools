@@ -7,6 +7,7 @@ CREATE TABLE orders_past_due_accounts_invoice_tracking (
   order_id TEXT NOT NULL,
   does_exists BOOLEAN DEFAULT false,
   completed BOOLEAN DEFAULT false,
+  email_initialized BOOLEAN DEFAULT false,
 
   -- Metadata
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -34,3 +35,7 @@ CREATE TRIGGER update_invoice_tracking_updated_at
   BEFORE UPDATE ON orders_past_due_accounts_invoice_tracking
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Add email_initialized column if it doesn't exist (for existing tables)
+-- ALTER TABLE orders_past_due_accounts_invoice_tracking
+-- ADD COLUMN IF NOT EXISTS email_initialized BOOLEAN DEFAULT false;

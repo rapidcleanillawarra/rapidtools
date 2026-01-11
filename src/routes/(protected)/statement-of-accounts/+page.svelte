@@ -119,6 +119,11 @@
 		// TODO: Implement actual statement sending
 	}
 
+	async function handlePrint(account: StatementAccount) {
+		toastSuccess(`Print clicked for ${account.customer}`);
+		// TODO: Implement actual printing functionality
+	}
+
 	// Load statement accounts data
 	async function loadStatementAccounts() {
 		try {
@@ -359,6 +364,9 @@
 								<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
 									Send Statement
 								</th>
+								<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+									Print
+								</th>
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-gray-200 bg-white">
@@ -393,6 +401,14 @@
 											class="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
 										>
 											Send
+										</button>
+									</td>
+									<td class="whitespace-nowrap px-6 py-4 text-sm">
+										<button
+											on:click={() => handlePrint(account)}
+											class="rounded bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+										>
+											Print
 										</button>
 									</td>
 								</tr>

@@ -213,7 +213,7 @@
 			// Prepare payload for Get Orders API
 			const ordersPayload = {
 				Filter: {
-					OrderStatus: ['Dispatched', 'Backorder Approved'],
+					OrderStatus: ['Dispatched'],
 					Username: usernames,
 					PaymentStatus: ['Pending', 'PartialPaid', 'FullyPaid'],
 					OutputSelector: [

@@ -86,7 +86,8 @@
 				.limit(1)
 				.single();
 
-			if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+			if (error && error.code !== 'PGRST116') {
+				// PGRST116 is "no rows returned"
 				console.error('Error checking tracking timestamp:', error);
 				return true; // If there's an error, allow tracking to proceed
 			}
@@ -120,7 +121,7 @@
 					},
 					body: JSON.stringify({
 						Filter: {
-							OrderStatus: ['Dispatched', 'Backorder Approved'],
+							OrderStatus: ['Dispatched'],
 							PaymentStatus: ['Pending', 'PartialPaid'],
 							OutputSelector: [
 								'ID',
@@ -146,10 +147,14 @@
 
 			if (data && data.Order) {
 				const now = new Date();
-				const invoiceTrackingRecords: { order_id: string; does_exists: boolean; completed: boolean }[] = [];
+				const invoiceTrackingRecords: {
+					order_id: string;
+					does_exists: boolean;
+					completed: boolean;
+				}[] = [];
 
 				// Check if we should trigger tracking (unless manually forced)
-				const shouldTrack = forceTracking || await shouldTriggerTracking();
+				const shouldTrack = forceTracking || (await shouldTriggerTracking());
 				console.log('shouldTrack:', shouldTrack, 'forceTracking:', forceTracking);
 
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
@@ -251,8 +256,10 @@
 						} else if (allTrackingRecords) {
 							console.log('Existing tracking records:', allTrackingRecords.length);
 							// Find order_ids that exist in tracking table but not in current API response
-							const trackedOrderIds = allTrackingRecords.map(record => record.order_id);
-							const missingOrderIds = trackedOrderIds.filter((id: string) => !currentOrderIds.includes(id));
+							const trackedOrderIds = allTrackingRecords.map((record) => record.order_id);
+							const missingOrderIds = trackedOrderIds.filter(
+								(id: string) => !currentOrderIds.includes(id)
+							);
 							console.log('Missing order IDs:', missingOrderIds.length, missingOrderIds);
 
 							// Mark missing order_ids as completed (they've been resolved externally)
@@ -265,7 +272,9 @@
 								if (updateError) {
 									console.error('Error marking missing orders as completed:', updateError);
 								} else {
-									console.log(`Marked ${missingOrderIds.length} orders as completed (no longer in API response)`);
+									console.log(
+										`Marked ${missingOrderIds.length} orders as completed (no longer in API response)`
+									);
 								}
 							}
 						}
@@ -384,7 +393,7 @@
 
 			// Group note views by order_id
 			const noteViewsByOrderId: Record<string, NoteView[]> = {};
-			
+
 			// Create a map of note_id -> order_id for quick lookup
 			const noteIdToOrderId = new Map<string, string>();
 			notes.forEach((note) => {
@@ -415,7 +424,7 @@
 
 	async function fetchEmailTrackingStatus() {
 		try {
-			const invoiceIds = orders.map(order => order.invoice);
+			const invoiceIds = orders.map((order) => order.invoice);
 
 			// Fetch email tracking status for all invoices
 			const { data: trackingData, error } = await supabase
@@ -431,13 +440,13 @@
 			// Create a map of order_id to email_initialized status
 			const trackingMap: Record<string, boolean> = {};
 			if (trackingData) {
-				trackingData.forEach(record => {
+				trackingData.forEach((record) => {
 					trackingMap[record.order_id] = record.email_initialized || false;
 				});
 			}
 
 			// Update orders with email tracking status
-			orders = orders.map(order => ({
+			orders = orders.map((order) => ({
 				...order,
 				emailNotifs: trackingMap[order.invoice] ? '✓' : ''
 			}));
@@ -464,7 +473,7 @@
 				return; // No orders to fetch conversations for
 			}
 
-			const orderIds = trackingRecords.map(record => record.order_id);
+			const orderIds = trackingRecords.map((record) => record.order_id);
 
 			// 2. Call Power Automate endpoint
 			const response = await fetch(
@@ -484,7 +493,7 @@
 			const conversations = await response.json();
 
 			// 3. Update orders with email conversations
-			orders = orders.map(order => {
+			orders = orders.map((order) => {
 				const orderConversations = conversations.filter(
 					(conv: EmailConversation) => conv.order_id === order.invoice && conv.has_value === 'true'
 				);
@@ -493,7 +502,6 @@
 					emailConversations: orderConversations
 				};
 			});
-
 		} catch (error) {
 			console.error('Error fetching email conversations:', error);
 		}
@@ -1127,14 +1135,14 @@
 
 	<!-- Collapsible Legend Section -->
 	{#if showLegend}
-		<div class="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+		<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
 			<PastDueLegend />
 		</div>
 	{/if}
-	
+
 	<!-- Collapsible Column Visibility Section -->
 	{#if showColumnVisibility}
-		<div class="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+		<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
 			<ColumnVisibilityPills
 				{columns}
 				{columnVisibility}
@@ -1148,9 +1156,7 @@
 		<div class="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
 			<!-- Items per page selector -->
 			<div class="flex items-center gap-2">
-				<label for="items-per-page" class="text-sm text-gray-700 dark:text-gray-300">
-					Show:
-				</label>
+				<label for="items-per-page" class="text-sm text-gray-700 dark:text-gray-300"> Show: </label>
 				<select
 					id="items-per-page"
 					bind:value={itemsPerPage}
@@ -1162,15 +1168,16 @@
 					<option value={50}>50</option>
 					<option value={100}>100</option>
 				</select>
-				<span class="text-sm text-gray-700 dark:text-gray-300">
-					entries per page
-				</span>
+				<span class="text-sm text-gray-700 dark:text-gray-300"> entries per page </span>
 			</div>
 
 			<!-- Pagination info and controls -->
 			<div class="flex items-center gap-4">
 				<div class="text-sm text-gray-700 dark:text-gray-300">
-					Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredOrders.length)} to {Math.min(currentPage * itemsPerPage, filteredOrders.length)} of {filteredOrders.length} entries
+					Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredOrders.length)} to {Math.min(
+						currentPage * itemsPerPage,
+						filteredOrders.length
+					)} of {filteredOrders.length} entries
 				</div>
 
 				<div class="flex items-center gap-1">
@@ -1182,7 +1189,12 @@
 						title="Previous page"
 					>
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M15 19l-7-7 7-7"
+							></path>
 						</svg>
 					</button>
 
@@ -1210,7 +1222,8 @@
 						title="Next page"
 					>
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"
+							></path>
 						</svg>
 					</button>
 				</div>
@@ -1362,7 +1375,9 @@
 										</td>
 										{#each nonCustomerColumns as column}
 											<td
-												class="{column.key === 'notes' || column.key === 'emailNotifs' ? 'whitespace-normal' : 'whitespace-nowrap'} px-3 py-4 text-sm {column.key === 'pdCounter'
+												class="{column.key === 'notes' || column.key === 'emailNotifs'
+													? 'whitespace-normal'
+													: 'whitespace-nowrap'} px-3 py-4 text-sm {column.key === 'pdCounter'
 													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
 													: column.key === 'notes' && (order[column.key] as Note[]).length > 0
 														? 'rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
@@ -1407,7 +1422,11 @@
 														{@const isOutbound = isOutboundEmail(latestConversation)}
 														{#if summary.inbound + summary.outbound > 1}
 															<div class="text-xs">
-																<div class="font-medium {isOutbound ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}">
+																<div
+																	class="font-medium {isOutbound
+																		? 'text-green-700 dark:text-green-300'
+																		: 'text-blue-700 dark:text-blue-300'}"
+																>
 																	<a
 																		href={latestConversation.web_link}
 																		target="_blank"
@@ -1426,13 +1445,15 @@
 																href={latestConversation.web_link}
 																target="_blank"
 																rel="noopener noreferrer"
-																class="block w-full h-full p-0 text-xs {isOutbound ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20' : 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20'} hover:underline rounded px-2 py-1"
+																class="block h-full w-full p-0 text-xs {isOutbound
+																	? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
+																	: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'} rounded px-2 py-1 hover:underline"
 															>
 																{getLatestEmailPreview(order.emailConversations)}
 															</a>
 														{/if}
 													{:else}
-														<span class="text-gray-400 dark:text-gray-500 italic">No emails</span>
+														<span class="italic text-gray-400 dark:text-gray-500">No emails</span>
 													{/if}
 												{:else if column.key === 'notes'}
 													<div class="text-xs">
@@ -1521,7 +1542,11 @@
 											{/if}
 										</td>
 										{#each nonCustomerColumns as column}
-											<td class="{column.key === 'notes' || column.key === 'emailNotifs' ? 'whitespace-normal' : 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+											<td
+												class="{column.key === 'notes' || column.key === 'emailNotifs'
+													? 'whitespace-normal'
+													: 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
+											>
 												{#if column.key === 'notes'}
 													{#if order.notes.length > 1}
 														<div class="text-xs">
@@ -1616,13 +1641,18 @@
 											{/if}
 										</td>
 										{#each nonCustomerColumns as column}
-											<td class="!border-t-0 {column.key === 'notes' || column.key === 'emailNotifs' ? 'whitespace-normal' : 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400">
+											<td
+												class="!border-t-0 {column.key === 'notes' || column.key === 'emailNotifs'
+													? 'whitespace-normal'
+													: 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
+											>
 												{#if column.key === 'notes'}
 													{@const unreadCount = getUnreadNotesCount(order, user?.email || null)}
 													<button
 														type="button"
 														on:click={() => openNotesModal(order)}
-														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {order.notes.length > 0
+														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {order
+															.notes.length > 0
 															? 'border-blue-300 bg-blue-100 text-blue-800 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-600 dark:hover:bg-blue-900/50'
 															: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
 													>
@@ -1785,9 +1815,5 @@
 	{/if}
 
 	<!-- Email Modal -->
-	<EmailModal
-		showModal={showEmailModal}
-		order={emailOrder}
-		on:close={closeEmailModal}
-	/>
+	<EmailModal showModal={showEmailModal} order={emailOrder} on:close={closeEmailModal} />
 </div>

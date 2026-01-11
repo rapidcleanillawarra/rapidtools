@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { toastSuccess } from '$lib/utils/toast';
-	import type { StatementAccount, ColumnKey } from './statementAccounts';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
 	import { aggregateByCustomer } from './statementAccounts';
 	import { fetchOrders } from './statementAccountsApi';
+	import { handlePrintStatement } from './utils/print';
 
 	// Components
 	import LoadingState from './components/LoadingState.svelte';
@@ -14,6 +15,7 @@
 
 	// Data state
 	let statementAccounts: StatementAccount[] = [];
+	let rawOrders: Order[] = [];
 	let isLoading = true;
 	let error = '';
 
@@ -40,6 +42,7 @@
 			error = '';
 
 			const orders = await fetchOrders();
+			rawOrders = orders; // Store raw orders for printing
 			statementAccounts = aggregateByCustomer(orders);
 		} catch (err) {
 			console.error('Error loading statement accounts:', err);
@@ -77,7 +80,13 @@
 	}
 
 	function handlePrint(event: CustomEvent<StatementAccount>) {
-		toastSuccess(`Print clicked for ${event.detail.customer}`);
+		try {
+			handlePrintStatement(event.detail.customer, rawOrders);
+			toastSuccess(`Opening print preview for ${event.detail.customer}`);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to print';
+			toastError(message);
+		}
 	}
 
 	// Reactive filtered statement accounts

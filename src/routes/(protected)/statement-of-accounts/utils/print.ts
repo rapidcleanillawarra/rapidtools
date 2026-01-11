@@ -2,107 +2,107 @@ import type { Order } from '../statementAccounts';
 import { calculateOutstandingAmount, getCustomerName } from '../statementAccounts';
 
 interface CustomerInvoice {
-    orderID: string;
-    datePlaced: string;
-    datePaymentDue: string;
-    grandTotal: number;
-    payments: number;
-    balance: number;
+	orderID: string;
+	datePlaced: string;
+	datePaymentDue: string;
+	grandTotal: number;
+	payments: number;
+	balance: number;
 }
 
 /**
  * Get all outstanding invoices for a specific customer from orders
  */
 export function getCustomerInvoices(orders: Order[], customerName: string): CustomerInvoice[] {
-    return orders
-        .filter((order) => {
-            const name = getCustomerName(order);
-            return name === customerName;
-        })
-        .filter((order) => {
-            const outstanding = calculateOutstandingAmount(order);
-            return outstanding > 0.01;
-        })
-        .map((order) => {
-            const grandTotal = parseFloat(order.GrandTotal);
-            const payments = order.OrderPayment?.reduce(
-                (sum, payment) => sum + parseFloat(payment.Amount),
-                0
-            ) || 0;
-            const balance = grandTotal - payments;
+	return orders
+		.filter((order) => {
+			const name = getCustomerName(order);
+			return name === customerName;
+		})
+		.filter((order) => {
+			const outstanding = calculateOutstandingAmount(order);
+			return outstanding > 0.01;
+		})
+		.map((order) => {
+			const grandTotal = parseFloat(order.GrandTotal);
+			const payments = order.OrderPayment?.reduce(
+				(sum, payment) => sum + parseFloat(payment.Amount),
+				0
+			) || 0;
+			const balance = grandTotal - payments;
 
-            return {
-                orderID: order.OrderID,
-                datePlaced: order.DatePlaced,
-                datePaymentDue: order.DatePaymentDue,
-                grandTotal,
-                payments,
-                balance
-            };
-        })
-        .sort((a, b) => new Date(a.datePlaced).getTime() - new Date(b.datePlaced).getTime());
+			return {
+				orderID: order.OrderID,
+				datePlaced: order.DatePlaced,
+				datePaymentDue: order.DatePaymentDue,
+				grandTotal,
+				payments,
+				balance
+			};
+		})
+		.sort((a, b) => new Date(a.datePlaced).getTime() - new Date(b.datePlaced).getTime());
 }
 
 /**
  * Format currency in AUD
  */
 function formatCurrency(amount: number): string {
-    return amount.toLocaleString('en-AU', {
-        style: 'decimal',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
+	return amount.toLocaleString('en-AU', {
+		style: 'decimal',
+		minimumFractionDigits: 2,
+		maximumFractionDigits: 2
+	});
 }
 
 /**
  * Format date for display
  */
 function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
+	const date = new Date(dateString);
+	if (isNaN(date.getTime())) return '—';
+	return date.toLocaleDateString('en-US', {
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric'
+	});
 }
 
 /**
  * Handle printing statement of account for a specific customer
  */
-export function handlePrintStatement(customerName: string, orders: Order[]): void {
-    const invoices = getCustomerInvoices(orders, customerName);
+/**
+ * Generate HTML content for the statement of account
+ */
+export function generateStatementHtml(
+	customerName: string,
+	invoices: CustomerInvoice[],
+	usePlaceholders: boolean = false
+): string {
+	// Calculate totals
+	const totalBalance = invoices.reduce((sum, inv) => sum + inv.balance, 0);
 
-    if (invoices.length === 0) {
-        throw new Error(`No outstanding invoices found for ${customerName}`);
-    }
+	// Calculate date range from invoices
+	const dates = invoices.map((inv) => new Date(inv.datePlaced).getTime());
+	const dateFrom = new Date(Math.min(...dates));
+	const dateTo = new Date(Math.max(...dates));
 
-    // Calculate totals
-    const totalGrandTotal = invoices.reduce((sum, inv) => sum + inv.grandTotal, 0);
-    const totalPayments = invoices.reduce((sum, inv) => sum + inv.payments, 0);
-    const totalBalance = invoices.reduce((sum, inv) => sum + inv.balance, 0);
+	const formatDisplayDate = (date: Date): string => {
+		return date.toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric'
+		});
+	};
 
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        throw new Error('Please allow popups to print the statement');
-    }
+	const logoSrc = usePlaceholders
+		? '{{COMPANY_LOGO}}'
+		: 'https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New.png';
 
-    // Calculate date range from invoices
-    const dates = invoices.map((inv) => new Date(inv.datePlaced).getTime());
-    const dateFrom = new Date(Math.min(...dates));
-    const dateTo = new Date(Math.max(...dates));
+	const qrSrc = usePlaceholders
+		? '{{STRIPE_QR}}'
+		: 'https://www.rapidsupplies.com.au/assets/images/stripe_qr.png';
 
-    const formatDisplayDate = (date: Date): string => {
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    };
-
-    // Create the print content
-    const printContent = `
+	return `
 		<!DOCTYPE html>
 		<html>
 			<head>
@@ -248,7 +248,7 @@ export function handlePrintStatement(customerName: string, orders: Order[]): voi
 							<p>Printed on: ${new Date().toLocaleString()}</p>
 							<p>Total Invoices: ${invoices.length}</p>
 						</div>
-						<img src="https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New.png" alt="Rapid Supplies Logo" class="header-logo">
+						<img src="${logoSrc}" alt="Rapid Supplies Logo" class="header-logo">
 					</div>
 					<div class="second-row">
 						<div class="statement-title">
@@ -281,8 +281,8 @@ export function handlePrintStatement(customerName: string, orders: Order[]): voi
 					</thead>
 					<tbody>
 						${invoices
-            .map(
-                (invoice) => `
+			.map(
+				(invoice) => `
 							<tr>
 								<td>${invoice.orderID}</td>
 								<td>${formatDate(invoice.datePlaced)}</td>
@@ -292,8 +292,8 @@ export function handlePrintStatement(customerName: string, orders: Order[]): voi
 								<td class="right">${formatCurrency(invoice.balance)}</td>
 							</tr>
 						`
-            )
-            .join('')}
+			)
+			.join('')}
 					</tbody>
 					<tfoot>
 						<tr class="summary-row">
@@ -313,7 +313,7 @@ export function handlePrintStatement(customerName: string, orders: Order[]): voi
 						<p style="margin: 5px 0; font-size: 14px; color: #1a1a1a;">Swiftcode: ASLLAU2C</p>
 					</div>
 					<div style="flex: 1; min-width: 220px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
-						<img src='https://www.rapidsupplies.com.au/assets/images/stripe_qr.png' alt='Stripe Payment QR' style='width: 140px; height: 140px; margin-bottom: 10px; border: 1px solid #eee; padding: 4px; background: #fff;' />
+						<img src='${qrSrc}' alt='Stripe Payment QR' style='width: 140px; height: 140px; margin-bottom: 10px; border: 1px solid #eee; padding: 4px; background: #fff;' />
 						<a href='https://buy.stripe.com/dRm9AUexncD0fQacewaZi00' target='_blank' style='display: inline-block; margin-top: 8px; padding: 8px 18px; background: #635bff; color: #fff; border-radius: 6px; text-decoration: none; font-size: 15px; font-weight: 500;'>Pay via Stripe</a>
 						<div style='margin-top: 6px; font-size: 12px; color: #888; text-align: center;'>Scan to pay online</div>
 					</div>
@@ -358,17 +358,37 @@ export function handlePrintStatement(customerName: string, orders: Order[]): voi
 			</body>
 		</html>
 	`;
+}
 
-    // Write the content to the new window
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+/**
+ * Handle printing statement of account for a specific customer
+ */
+export function handlePrintStatement(customerName: string, orders: Order[]): void {
+	const invoices = getCustomerInvoices(orders, customerName);
 
-    // Wait for content to load then print
-    printWindow.onload = function () {
-        printWindow.print();
-        // Close the window after printing
-        printWindow.onafterprint = function () {
-            printWindow.close();
-        };
-    };
+	if (invoices.length === 0) {
+		throw new Error(`No outstanding invoices found for ${customerName}`);
+	}
+
+	// Create a new window for printing
+	const printWindow = window.open('', '_blank');
+	if (!printWindow) {
+		throw new Error('Please allow popups to print the statement');
+	}
+
+	// Generate the HTML content
+	const printContent = generateStatementHtml(customerName, invoices);
+
+	// Write the content to the new window
+	printWindow.document.write(printContent);
+	printWindow.document.close();
+
+	// Wait for content to load then print
+	printWindow.onload = function () {
+		printWindow.print();
+		// Close the window after printing
+		printWindow.onafterprint = function () {
+			printWindow.close();
+		};
+	};
 }

@@ -49,3 +49,39 @@ export async function fetchOrders(): Promise<Order[]> {
         throw e;
     }
 }
+
+const GENERATE_DOC_URL =
+    'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b7ca6010fbe647cc81c80314b9b680c2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=lJi8nh7QIBUj40phbYeZW7MqQwhKg3TRhVTXGQ_q9Es';
+
+/**
+ * Trigger generation of the statement document
+ */
+export async function generateDocument(
+    htmlContent: string,
+    fileName: string,
+    folderName: string
+): Promise<void> {
+    try {
+        const payload = {
+            pdf: htmlContent,
+            file_name: fileName,
+            folder_name: folderName
+        };
+        console.log('Generating Document Payload:', JSON.stringify(payload, null, 2));
+
+        const response = await fetch(GENERATE_DOC_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to generate document');
+        }
+    } catch (e) {
+        console.error('Error generating document:', e);
+        throw e;
+    }
+}

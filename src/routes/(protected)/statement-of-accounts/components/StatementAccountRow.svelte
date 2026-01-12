@@ -80,9 +80,7 @@
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
 		{formatDate(account.lastSent)}
 	</td>
-	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-		{formatDate(account.nextSchedule)}
-	</td>
+
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
 		<div class="flex flex-col items-start gap-2">
 			{#if account.oneDriveId}

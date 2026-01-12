@@ -30,13 +30,13 @@ export interface StatementAccount {
 	totalInvoices: number;
 	grandTotal: number;
 	lastSent: string | null;
-	nextSchedule: string | null;
+
 	lastCheck: string | null;
 	lastFileGeneration: string | null;
 	oneDriveId: string | null;
 }
 
-export type ColumnKey = 'customer' | 'totalInvoices' | 'grandTotal' | 'lastSent' | 'nextSchedule';
+export type ColumnKey = 'customer' | 'totalInvoices' | 'grandTotal' | 'lastSent';
 
 /**
  * Calculates the outstanding amount for an order
@@ -96,7 +96,7 @@ export function aggregateByCustomer(orders: Order[]): StatementAccount[] {
 		totalInvoices: data.totalInvoices,
 		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places
 		lastSent: null,
-		nextSchedule: null,
+
 		lastCheck: null,
 		lastFileGeneration: null,
 		oneDriveId: null

@@ -333,7 +333,7 @@
 					return account.totalInvoices.toString().includes(normalizedValue);
 				} else if (columnKey === 'grandTotal') {
 					return account.grandTotal.toString().includes(normalizedValue);
-				} else if (columnKey === 'lastSent' || columnKey === 'nextSchedule') {
+				} else if (columnKey === 'lastSent') {
 					const dateValue = account[columnKey];
 					if (!dateValue) return false;
 					return formatDate(dateValue).toLowerCase().includes(normalizedValue);

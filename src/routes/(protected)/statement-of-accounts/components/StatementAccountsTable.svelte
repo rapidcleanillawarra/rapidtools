@@ -24,7 +24,10 @@
 		<table class="min-w-full divide-y divide-gray-200">
 			<thead class="bg-gray-50">
 				<tr>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						<div class="flex flex-col gap-2">
 							Customer
 							<input
@@ -36,7 +39,10 @@
 							/>
 						</div>
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						<div class="flex flex-col gap-2">
 							Total Invoices
 							<input
@@ -48,7 +54,10 @@
 							/>
 						</div>
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						<div class="flex flex-col gap-2">
 							Grand Total
 							<input
@@ -60,7 +69,10 @@
 							/>
 						</div>
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						<div class="flex flex-col gap-2">
 							Last Sent
 							<input
@@ -72,7 +84,10 @@
 							/>
 						</div>
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						<div class="flex flex-col gap-2">
 							Next Schedule
 							<input
@@ -84,13 +99,22 @@
 							/>
 						</div>
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-						Generate Document
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						PDF
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						Send Statement
 					</th>
-					<th scope="col" class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
 						Print
 					</th>
 				</tr>

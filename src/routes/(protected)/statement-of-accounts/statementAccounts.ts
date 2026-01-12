@@ -31,6 +31,9 @@ export interface StatementAccount {
 	grandTotal: number;
 	lastSent: string | null;
 	nextSchedule: string | null;
+	lastCheck: string | null;
+	lastFileGeneration: string | null;
+	oneDriveId: string | null;
 }
 
 export type ColumnKey = 'customer' | 'totalInvoices' | 'grandTotal' | 'lastSent' | 'nextSchedule';
@@ -92,7 +95,10 @@ export function aggregateByCustomer(orders: Order[]): StatementAccount[] {
 		username: data.username,
 		totalInvoices: data.totalInvoices,
 		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places
-		lastSent: null, // TODO: Implement from Supabase tracking or another source
-		nextSchedule: null // TODO: Implement from Supabase tracking or another source
+		lastSent: null,
+		nextSchedule: null,
+		lastCheck: null,
+		lastFileGeneration: null,
+		oneDriveId: null
 	}));
 }

@@ -119,6 +119,66 @@
 		return date.toLocaleDateString('en-AU');
 	}
 
+	// Check statement status from Supabase
+	async function check_soa_status(accounts: StatementAccount[]) {
+		try {
+			if (accounts.length === 0) return;
+
+			const usernames = accounts.map((a) => a.username);
+
+			// Chunk usernames if there are too many to avoid URL length issues
+			// Supabase generic limit is quite high, but good practice
+			const { data, error } = await supabase
+				.from('statement_of_accounts')
+				.select(
+					`
+					customer_username,
+					last_sent,
+					last_check,
+					last_file_generation,
+					statement_of_accounts_pdf_files (
+						onedrive_id
+					)
+				`
+				)
+				.in('customer_username', usernames);
+
+			if (error) {
+				console.error('Error fetching statement status:', error);
+				return;
+			}
+
+			if (data) {
+				const statusMap = new Map(data.map((item) => [item.customer_username, item]));
+
+				// Update accounts withfetched status
+				statementAccounts = statementAccounts.map((account) => {
+					const status = statusMap.get(account.username);
+					if (status) {
+						// Extract onedrive_id safely from the joined relationship
+						const pdfFile = status.statement_of_accounts_pdf_files;
+						// Supabase returns an object or array depending on relation type, usually object for single relation or array for many
+						// Assuming one-to-one or taking the first if array
+						const oneDriveId = Array.isArray(pdfFile)
+							? pdfFile[0]?.onedrive_id
+							: (pdfFile as any)?.onedrive_id;
+
+						return {
+							...account,
+							lastSent: status.last_sent,
+							lastCheck: status.last_check,
+							lastFileGeneration: status.last_file_generation,
+							oneDriveId: oneDriveId || null
+						};
+					}
+					return account;
+				});
+			}
+		} catch (err) {
+			console.error('Error in check_soa_status:', err);
+		}
+	}
+
 	// Load statement accounts data
 	async function loadStatementAccounts() {
 		try {
@@ -127,7 +187,11 @@
 
 			const orders = await fetchOrders();
 			rawOrders = orders; // Store raw orders for printing
-			statementAccounts = aggregateByCustomer(orders);
+			const aggregatedAccounts = aggregateByCustomer(orders);
+			statementAccounts = aggregatedAccounts;
+
+			// Check status after loading accounts
+			await check_soa_status(aggregatedAccounts);
 		} catch (err) {
 			console.error('Error loading statement accounts:', err);
 			error = err instanceof Error ? err.message : 'Failed to load statement accounts';

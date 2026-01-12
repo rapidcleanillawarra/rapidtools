@@ -56,12 +56,24 @@
 		{formatDate(account.nextSchedule)}
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
-		<button
-			on:click={handleGenerateDocument}
-			class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-		>
-			Regenerate
-		</button>
+		<div class="flex flex-col items-start gap-2">
+			{#if account.oneDriveId}
+				<a
+					href={account.oneDriveId}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="inline-flex items-center rounded bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-800 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+				>
+					View
+				</a>
+			{/if}
+			<button
+				on:click={handleGenerateDocument}
+				class="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+			>
+				Regenerate
+			</button>
+		</div>
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
 		<button

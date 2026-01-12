@@ -59,13 +59,17 @@ const GENERATE_DOC_URL =
 export async function generateDocument(
     htmlContent: string,
     fileName: string,
-    folderName: string
+    folderName: string,
+    customerUsername: string,
+    createdBy: string
 ): Promise<void> {
     try {
         const payload = {
             pdf: htmlContent,
             file_name: fileName,
-            folder_name: folderName
+            folder_name: folderName,
+            customer_username: customerUsername,
+            created_by: createdBy
         };
         console.log('Generating Document Payload:', JSON.stringify(payload, null, 2));
 
@@ -76,6 +80,10 @@ export async function generateDocument(
             },
             body: JSON.stringify(payload)
         });
+
+        console.log('Generate Document Response Status:', response.status);
+        const responseText = await response.text();
+        console.log('Generate Document Response Body:', responseText);
 
         if (!response.ok) {
             throw new Error('Failed to generate document');

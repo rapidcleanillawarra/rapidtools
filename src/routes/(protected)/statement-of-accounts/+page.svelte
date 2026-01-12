@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { currentUser } from '$lib/firebase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
@@ -166,7 +168,9 @@
 			const folderName = `Statement_${month}_${day}_${year}`;
 
 			// Call API
-			await generateDocument(htmlContent, fileName, folderName);
+			const user = get(currentUser);
+			const createdBy = user?.email || '';
+			await generateDocument(htmlContent, fileName, folderName, event.detail.username, createdBy);
 
 			toastSuccess(`Document generated successfully for ${customerName}`);
 		} catch (err) {

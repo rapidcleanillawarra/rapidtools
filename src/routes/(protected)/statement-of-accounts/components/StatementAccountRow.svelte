@@ -26,6 +26,18 @@
 		return date.toLocaleDateString('en-AU');
 	}
 
+	function isToday(dateString: string | null): boolean {
+		if (!dateString) return false;
+		const date = new Date(dateString);
+		if (isNaN(date.getTime())) return false;
+		const now = new Date();
+		return (
+			date.getDate() === now.getDate() &&
+			date.getMonth() === now.getMonth() &&
+			date.getFullYear() === now.getFullYear()
+		);
+	}
+
 	function handleGenerateDocument() {
 		dispatch('generateDocument', account);
 	}
@@ -37,6 +49,22 @@
 	function handlePrint() {
 		dispatch('print', account);
 	}
+
+	$: canSend = (() => {
+		// 1. last_file_generation and last_check must be today
+		const isGeneratedToday = isToday(account.lastFileGeneration);
+		const isCheckedToday = isToday(account.lastCheck);
+
+		if (!isGeneratedToday || !isCheckedToday) return false;
+
+		// 2. last_sent is either null OR last_sent < last_file_generation
+		if (!account.lastSent) return true;
+
+		const sentTime = new Date(account.lastSent).getTime();
+		const genTime = new Date(account.lastFileGeneration!).getTime();
+
+		return sentTime < genTime;
+	})();
 </script>
 
 <tr class="hover:bg-gray-50">
@@ -76,12 +104,14 @@
 		</div>
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
-		<button
-			on:click={handleSendStatement}
-			class="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-		>
-			Send
-		</button>
+		{#if canSend}
+			<button
+				on:click={handleSendStatement}
+				class="rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+			>
+				Send
+			</button>
+		{/if}
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
 		<button

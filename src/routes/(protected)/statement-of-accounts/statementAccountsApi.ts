@@ -62,7 +62,7 @@ export async function generateDocument(
     folderName: string,
     customerUsername: string,
     createdBy: string
-): Promise<void> {
+): Promise<any> {
     try {
         const payload = {
             pdf: htmlContent,
@@ -88,6 +88,14 @@ export async function generateDocument(
         if (!response.ok) {
             throw new Error('Failed to generate document');
         }
+
+        try {
+            return JSON.parse(responseText);
+        } catch (parseError) {
+            console.warn("Could not parse response as JSON, returning text", responseText);
+            return { message: responseText };
+        }
+
     } catch (e) {
         console.error('Error generating document:', e);
         throw e;

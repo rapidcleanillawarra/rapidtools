@@ -28,6 +28,7 @@
 	async function saveToSupabase() {
 		try {
 			isSaving = true;
+			const timestamp = new Date().toISOString();
 
 			// 1. Get set of current usernames from the FULL data pull
 			const currentApiUsernames = new Set(statementAccounts.map((a) => a.username));
@@ -39,17 +40,19 @@
 
 			if (fetchError) throw fetchError;
 
-			const upsertPayload: any[] = [];
+			const updates: any[] = [];
+			const inserts: any[] = [];
 			const processedUsernames = new Set<string>();
 
 			// 3. Process existing DB records
 			// Update their status based on whether they are in the current API fetch
 			if (allDbRecords) {
 				for (const record of allDbRecords) {
-					upsertPayload.push({
+					updates.push({
 						id: record.id,
 						customer_username: record.customer_username,
-						exists_in_statements_list: currentApiUsernames.has(record.customer_username)
+						exists_in_statements_list: currentApiUsernames.has(record.customer_username),
+						last_check: timestamp
 					});
 					processedUsernames.add(record.customer_username);
 				}
@@ -58,26 +61,38 @@
 			// 4. Process NEW API records (those not found in DB)
 			for (const account of statementAccounts) {
 				if (!processedUsernames.has(account.username)) {
-					upsertPayload.push({
+					inserts.push({
 						customer_username: account.username,
-						exists_in_statements_list: true
+						exists_in_statements_list: true,
+						last_check: timestamp
 					});
 					// Mark as processed to handle potential duplicates in API list (though unrelated to DB)
 					processedUsernames.add(account.username);
 				}
 			}
 
-			if (upsertPayload.length === 0) {
+			if (updates.length === 0 && inserts.length === 0) {
 				toastSuccess('No changes to save.');
 				return;
 			}
 
-			// 5. Upsert EVERYTHING
-			const { error: upsertError } = await supabase
-				.from('statement_of_accounts')
-				.upsert(upsertPayload);
+			// 5. Perform Database Operations
+			const promises = [];
 
-			if (upsertError) throw upsertError;
+			if (updates.length > 0) {
+				promises.push(supabase.from('statement_of_accounts').upsert(updates));
+			}
+
+			if (inserts.length > 0) {
+				promises.push(supabase.from('statement_of_accounts').insert(inserts));
+			}
+
+			const results = await Promise.all(promises);
+
+			// Check for errors in any of the results
+			for (const result of results) {
+				if (result.error) throw result.error;
+			}
 
 			toastSuccess('Data synchronized with Supabase successfully');
 		} catch (err) {
@@ -170,7 +185,53 @@
 			// Call API
 			const user = get(currentUser);
 			const createdBy = user?.email || '';
-			await generateDocument(htmlContent, fileName, folderName, event.detail.username, createdBy);
+			const generationResponse = await generateDocument(
+				htmlContent,
+				fileName,
+				folderName,
+				event.detail.username,
+				createdBy
+			);
+
+			// Update Supabase tables
+			if (generationResponse) {
+				console.log('Generation Response:', generationResponse);
+
+				// 1. Insert into statement_of_accounts_pdf_files
+				const { data: pdfFile, error: pdfError } = await supabase
+					.from('statement_of_accounts_pdf_files')
+					.insert({
+						file_name: generationResponse.file_name,
+						folder_path: generationResponse.folder_path,
+						// Use the response created_at if available, otherwise now
+						created_at: generationResponse.created_at || new Date().toISOString(),
+						created_by: generationResponse.created_by,
+						onedrive_id: generationResponse.onedrive_id,
+						customer_username: generationResponse.customer_username
+					})
+					.select()
+					.single();
+
+				if (pdfError) {
+					console.error('Error saving PDF file record:', pdfError);
+					toastError('Document generated but failed to save record.');
+				} else if (pdfFile) {
+					// 2. Update statement_of_accounts
+					// Find the account record by customer_username
+					const { error: accountError } = await supabase
+						.from('statement_of_accounts')
+						.update({
+							last_file_generation: pdfFile.created_at,
+							statement_of_accounts_pdf_files_id: pdfFile.id
+						})
+						.eq('customer_username', generationResponse.customer_username);
+
+					if (accountError) {
+						console.error('Error updating account record:', accountError);
+						// Not critical enough to fail the whole process visually if the PDF was generated
+					}
+				}
+			}
 
 			toastSuccess(`Document generated successfully for ${customerName}`);
 		} catch (err) {

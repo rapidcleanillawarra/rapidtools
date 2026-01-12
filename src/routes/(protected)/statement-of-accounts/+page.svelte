@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
 	import { aggregateByCustomer } from './statementAccounts';
 	import { fetchOrders, generateDocument } from './statementAccountsApi';
@@ -17,7 +18,73 @@
 	let statementAccounts: StatementAccount[] = [];
 	let rawOrders: Order[] = [];
 	let isLoading = true;
+	let isSaving = false;
 	let error = '';
+
+	// Save to Supabase
+	// Save to Supabase
+	async function saveToSupabase() {
+		try {
+			isSaving = true;
+
+			// 1. Get set of current usernames from the FULL data pull
+			const currentApiUsernames = new Set(statementAccounts.map((a) => a.username));
+
+			// 2. Fetch ALL existing records to synchronize state
+			const { data: allDbRecords, error: fetchError } = await supabase
+				.from('statement_of_accounts')
+				.select('id, customer_username');
+
+			if (fetchError) throw fetchError;
+
+			const upsertPayload: any[] = [];
+			const processedUsernames = new Set<string>();
+
+			// 3. Process existing DB records
+			// Update their status based on whether they are in the current API fetch
+			if (allDbRecords) {
+				for (const record of allDbRecords) {
+					upsertPayload.push({
+						id: record.id,
+						customer_username: record.customer_username,
+						exists_in_statements_list: currentApiUsernames.has(record.customer_username)
+					});
+					processedUsernames.add(record.customer_username);
+				}
+			}
+
+			// 4. Process NEW API records (those not found in DB)
+			for (const account of statementAccounts) {
+				if (!processedUsernames.has(account.username)) {
+					upsertPayload.push({
+						customer_username: account.username,
+						exists_in_statements_list: true
+					});
+					// Mark as processed to handle potential duplicates in API list (though unrelated to DB)
+					processedUsernames.add(account.username);
+				}
+			}
+
+			if (upsertPayload.length === 0) {
+				toastSuccess('No changes to save.');
+				return;
+			}
+
+			// 5. Upsert EVERYTHING
+			const { error: upsertError } = await supabase
+				.from('statement_of_accounts')
+				.upsert(upsertPayload);
+
+			if (upsertError) throw upsertError;
+
+			toastSuccess('Data synchronized with Supabase successfully');
+		} catch (err) {
+			console.error('Error saving to Supabase:', err);
+			toastError('Failed to save data to Supabase');
+		} finally {
+			isSaving = false;
+		}
+	}
 
 	// Search state
 	let searchFilters: Partial<Record<ColumnKey, string>> = {};
@@ -202,6 +269,17 @@
 		{:else if filteredStatementAccounts.length === 0}
 			<EmptyState hasData={true} on:clearFilters={handleClearFilters} />
 		{:else}
+			<div class="mb-4 flex items-center justify-between">
+				<h2 class="text-lg font-semibold text-gray-700">Accounts List</h2>
+				<button
+					class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+					on:click={saveToSupabase}
+					disabled={isSaving || filteredStatementAccounts.length === 0}
+				>
+					{isSaving ? 'Saving...' : 'Save to Supabase'}
+				</button>
+			</div>
+
 			<StatementAccountsTable
 				accounts={paginatedStatementAccounts}
 				{searchFilters}

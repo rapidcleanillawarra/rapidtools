@@ -26,6 +26,7 @@ export interface Order {
 
 export interface StatementAccount {
 	customer: string;
+	username: string;
 	totalInvoices: number;
 	grandTotal: number;
 	lastSent: string | null;
@@ -58,7 +59,7 @@ export function getCustomerName(order: Order): string {
  * Aggregates orders by customer, calculating total invoices and grand total
  */
 export function aggregateByCustomer(orders: Order[]): StatementAccount[] {
-	const customerMap = new Map<string, { totalInvoices: number; grandTotal: number }>();
+	const customerMap = new Map<string, { totalInvoices: number; grandTotal: number; username: string }>();
 
 	// Process each order
 	orders.forEach((order) => {
@@ -72,17 +73,23 @@ export function aggregateByCustomer(orders: Order[]): StatementAccount[] {
 		const customerName = getCustomerName(order);
 
 		if (!customerMap.has(customerName)) {
-			customerMap.set(customerName, { totalInvoices: 0, grandTotal: 0 });
+			customerMap.set(customerName, { totalInvoices: 0, grandTotal: 0, username: order.Username });
 		}
 
 		const customerData = customerMap.get(customerName)!;
 		customerData.totalInvoices += 1;
 		customerData.grandTotal += outstandingAmount;
+
+		// Ensure username is set if it wasn't before (though it should be set on creation)
+		if (!customerData.username && order.Username) {
+			customerData.username = order.Username;
+		}
 	});
 
 	// Convert map to array
 	return Array.from(customerMap.entries()).map(([customer, data]) => ({
 		customer,
+		username: data.username,
 		totalInvoices: data.totalInvoices,
 		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places
 		lastSent: null, // TODO: Implement from Supabase tracking or another source

@@ -90,7 +90,8 @@
 	$: if (order && showModal && quillEditor && emailSettings && !settingsLoading) {
 		// Use settings defaults with fallback to order email
 		sender = emailSettings.default_from;
-		to = emailSettings.default_to || order.email || '';
+		// If order has email, use it; otherwise leave empty for manual entry
+		to = order.email || '';
 		cc = emailSettings.default_cc;
 		bcc = emailSettings.default_bcc;
 		

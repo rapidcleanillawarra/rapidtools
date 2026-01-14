@@ -1372,6 +1372,28 @@
 				// Show toast notification
 				toastSuccess(successMessage);
 
+				// Generate tag automatically if workshop status is "to_be_quoted"
+				if (workshop.status === 'to_be_quoted') {
+					console.log('Workshop saved with status "to_be_quoted" - generating tag automatically...');
+					// Run tag generation in background without blocking the UI
+					setTimeout(async () => {
+						try {
+							// Use the order ID from the saved workshop or generated order ID
+							const orderIdToUse = workshop.order_id || generatedOrderId;
+							if (orderIdToUse) {
+								console.log('Generating tag for workshop:', workshop.id, 'with order ID:', orderIdToUse);
+								await callPowerAutomateAPI(orderIdToUse, workshop.id);
+								console.log('Tag generated successfully for to_be_quoted workshop');
+							} else {
+								console.warn('No order ID available for tag generation - workshop will need manual tag regeneration');
+							}
+						} catch (error) {
+							console.error('Failed to generate tag for to_be_quoted workshop:', error);
+							// Don't show error toast as this is automatic and shouldn't interrupt user flow
+						}
+					}, 100); // Small delay to ensure UI is responsive
+				}
+
 				if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Pickup') {
 					// For new pickup submissions, show the pickup status change modal that forces workshop board navigation
 					showPickupStatusChangeModal = true;

@@ -702,6 +702,24 @@
 		}
 	}
 
+	// Function to copy invoice numbers to clipboard
+	async function copyInvoiceNumbers() {
+		try {
+			if (!$invoices || $invoices.length === 0) {
+				toastError('No invoices to copy');
+				return;
+			}
+
+			const invoiceNumbers = $invoices.map(invoice => invoice.invoiceNumber).join(',');
+			await navigator.clipboard.writeText(invoiceNumbers);
+
+			toastSuccess(`Copied ${$invoices.length} invoice numbers to clipboard`);
+		} catch (error) {
+			console.error('Failed to copy invoice numbers:', error);
+			toastError('Failed to copy invoice numbers to clipboard');
+		}
+	}
+
 	// Function to close modal
 	function closeModal() {
 		isModalOpen.set(false);
@@ -864,6 +882,28 @@
 			>
 				Clear All Filters
 			</button>
+			{#if $invoices && $invoices.length > 0}
+				<button
+					class="flex min-w-[160px] items-center justify-center rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+					on:click={copyInvoiceNumbers}
+				>
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="mr-2 h-5 w-5"
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+						/>
+					</svg>
+					Copy Invoice Numbers
+				</button>
+			{/if}
 			{#if $invoices && $invoices.length > 0}
 				<button
 					class="flex min-w-[160px] items-center justify-center rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"

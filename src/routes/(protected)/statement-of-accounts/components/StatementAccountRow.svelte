@@ -69,13 +69,16 @@
 
 <tr class="hover:bg-gray-50">
 	<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
+		{account.customerName}
+	</td>
+	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		<a
 			href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={account.username}"
 			target="_blank"
 			rel="noopener noreferrer"
 			class="text-blue-600 hover:text-blue-800 hover:underline"
 		>
-			{account.customer}
+			{account.username}
 		</a>
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">

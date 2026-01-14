@@ -5,7 +5,7 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
-	import { aggregateByCustomer } from './statementAccounts';
+	import { aggregateByUsername } from './statementAccounts';
 	import { fetchOrders, generateDocument } from './statementAccountsApi';
 	import { handlePrintStatement, generateStatementHtml, getCustomerInvoices } from './utils/print';
 
@@ -187,7 +187,7 @@
 
 			const orders = await fetchOrders();
 			rawOrders = orders; // Store raw orders for printing
-			const aggregatedAccounts = aggregateByCustomer(orders);
+			const aggregatedAccounts = aggregateByUsername(orders);
 			statementAccounts = aggregatedAccounts;
 
 			// Check status after loading accounts
@@ -220,12 +220,12 @@
 	}
 
 	async function handleGenerateDocument(event: CustomEvent<StatementAccount>) {
-		const customerName = event.detail.customer;
+		const customerName = event.detail.customerName;
 		const toastId = toastSuccess(`Generating document for ${customerName}...`);
 
 		try {
 			// Get invoices for this customer
-			const invoices = getCustomerInvoices(rawOrders, customerName);
+			const invoices = getCustomerInvoices(rawOrders, customerName, event.detail.username);
 
 			if (invoices.length === 0) {
 				throw new Error(`No outstanding invoices found for ${customerName}`);
@@ -306,13 +306,13 @@
 	}
 
 	function handleSendStatement(event: CustomEvent<StatementAccount>) {
-		toastSuccess(`Send Statement clicked for ${event.detail.customer}`);
+		toastSuccess(`Send Statement clicked for ${event.detail.customerName}`);
 	}
 
 	function handlePrint(event: CustomEvent<StatementAccount>) {
 		try {
-			handlePrintStatement(event.detail.customer, rawOrders);
-			toastSuccess(`Opening print preview for ${event.detail.customer}`);
+			handlePrintStatement(event.detail.customerName, event.detail.username, rawOrders);
+			toastSuccess(`Opening print preview for ${event.detail.customerName}`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to print';
 			toastError(message);
@@ -327,8 +327,10 @@
 				const normalizedValue = value.toLowerCase();
 				const columnKey = key as ColumnKey;
 
-				if (columnKey === 'customer') {
-					return account.customer.toLowerCase().includes(normalizedValue);
+				if (columnKey === 'customerName') {
+					return account.customerName.toLowerCase().includes(normalizedValue);
+				} else if (columnKey === 'username') {
+					return account.username.toLowerCase().includes(normalizedValue);
 				} else if (columnKey === 'totalInvoices') {
 					return account.totalInvoices.toString().includes(normalizedValue);
 				} else if (columnKey === 'grandTotal') {
@@ -342,7 +344,7 @@
 				return true;
 			});
 		})
-		.sort((a, b) => a.customer.localeCompare(b.customer));
+		.sort((a, b) => a.customerName.localeCompare(b.customerName));
 
 	// Pagination calculations
 	$: totalPages = Math.ceil(filteredStatementAccounts.length / itemsPerPage);

@@ -25,7 +25,7 @@ export interface Order {
 }
 
 export interface StatementAccount {
-	customer: string;
+	customerName: string;
 	username: string;
 	totalInvoices: number;
 	grandTotal: number;
@@ -36,7 +36,7 @@ export interface StatementAccount {
 	oneDriveId: string | null;
 }
 
-export type ColumnKey = 'customer' | 'totalInvoices' | 'grandTotal' | 'lastSent';
+export type ColumnKey = 'customerName' | 'username' | 'totalInvoices' | 'grandTotal' | 'lastSent';
 
 /**
  * Calculates the outstanding amount for an order
@@ -59,10 +59,10 @@ export function getCustomerName(order: Order): string {
 }
 
 /**
- * Aggregates orders by customer, calculating total invoices and grand total
+ * Aggregates orders by username, calculating total invoices and grand total
  */
-export function aggregateByCustomer(orders: Order[]): StatementAccount[] {
-	const customerMap = new Map<string, { totalInvoices: number; grandTotal: number; username: string }>();
+export function aggregateByUsername(orders: Order[]): StatementAccount[] {
+	const usernameMap = new Map<string, { totalInvoices: number; grandTotal: number; customerName: string }>();
 
 	// Process each order
 	orders.forEach((order) => {
@@ -75,24 +75,24 @@ export function aggregateByCustomer(orders: Order[]): StatementAccount[] {
 
 		const customerName = getCustomerName(order);
 
-		if (!customerMap.has(customerName)) {
-			customerMap.set(customerName, { totalInvoices: 0, grandTotal: 0, username: order.Username });
+		if (!usernameMap.has(order.Username)) {
+			usernameMap.set(order.Username, { totalInvoices: 0, grandTotal: 0, customerName });
 		}
 
-		const customerData = customerMap.get(customerName)!;
-		customerData.totalInvoices += 1;
-		customerData.grandTotal += outstandingAmount;
+		const userData = usernameMap.get(order.Username)!;
+		userData.totalInvoices += 1;
+		userData.grandTotal += outstandingAmount;
 
-		// Ensure username is set if it wasn't before (though it should be set on creation)
-		if (!customerData.username && order.Username) {
-			customerData.username = order.Username;
+		// Ensure customer name is set if it wasn't before (though it should be set on creation)
+		if (!userData.customerName && customerName) {
+			userData.customerName = customerName;
 		}
 	});
 
 	// Convert map to array
-	return Array.from(customerMap.entries()).map(([customer, data]) => ({
-		customer,
-		username: data.username,
+	return Array.from(usernameMap.entries()).map(([username, data]) => ({
+		username,
+		customerName: data.customerName,
 		totalInvoices: data.totalInvoices,
 		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places
 		lastSent: null,

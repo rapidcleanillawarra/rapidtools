@@ -11,14 +11,15 @@ interface CustomerInvoice {
 }
 
 /**
- * Get all outstanding invoices for a specific customer from orders
+ * Get all outstanding invoices for a specific customer and username from orders
  */
-export function getCustomerInvoices(orders: Order[], customerName: string): CustomerInvoice[] {
+export function getCustomerInvoices(orders: Order[], customerName: string, username: string): CustomerInvoice[] {
 	return orders
 		.filter((order) => {
 			const name = getCustomerName(order);
 			return name === customerName;
 		})
+		.filter((order) => order.Username === username)
 		.filter((order) => {
 			const outstanding = calculateOutstandingAmount(order);
 			return outstanding > 0.01;
@@ -361,10 +362,10 @@ export function generateStatementHtml(
 }
 
 /**
- * Handle printing statement of account for a specific customer
+ * Handle printing statement of account for a specific customer and username
  */
-export function handlePrintStatement(customerName: string, orders: Order[]): void {
-	const invoices = getCustomerInvoices(orders, customerName);
+export function handlePrintStatement(customerName: string, username: string, orders: Order[]): void {
+	const invoices = getCustomerInvoices(orders, customerName, username);
 
 	if (invoices.length === 0) {
 		throw new Error(`No outstanding invoices found for ${customerName}`);

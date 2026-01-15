@@ -190,6 +190,14 @@
 			const aggregatedAccounts = aggregateByUsername(orders);
 			statementAccounts = aggregatedAccounts;
 
+			// Log filtering stats
+			console.log(JSON.stringify({
+				stats: {
+					api_orders_fetched: orders.length,
+					unique_customers: aggregatedAccounts.length,
+				}
+			}, null, 2));
+
 			// Check status after loading accounts
 			await check_soa_status(aggregatedAccounts);
 		} catch (err) {
@@ -319,6 +327,41 @@
 		}
 	}
 
+	function handleExportCSV() {
+		if (filteredStatementAccounts.length === 0) {
+			toastError('No data to export');
+			return;
+		}
+
+		// Create CSV content
+		const headers = ['customer_username', 'total_orders', 'grand_total'];
+		const csvContent = [
+			headers.join(','),
+			...filteredStatementAccounts.map(account =>
+				[
+					account.username,
+					account.totalInvoices,
+					account.grandTotal.toFixed(2)
+				].join(',')
+			)
+		].join('\n');
+
+		// Create and download file
+		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+		const link = document.createElement('a');
+		const url = URL.createObjectURL(blob);
+
+		link.setAttribute('href', url);
+		link.setAttribute('download', `statement_accounts_${new Date().toISOString().split('T')[0]}.csv`);
+		link.style.visibility = 'hidden';
+
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+
+		toastSuccess(`Exported ${filteredStatementAccounts.length} accounts to CSV`);
+	}
+
 	// Reactive filtered statement accounts
 	$: filteredStatementAccounts = statementAccounts
 		.filter((account) => {
@@ -402,13 +445,22 @@
 		{:else}
 			<div class="mb-4 flex items-center justify-between">
 				<h2 class="text-lg font-semibold text-gray-700">Accounts List</h2>
-				<button
-					class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-					on:click={saveToSupabase}
-					disabled={isSaving || filteredStatementAccounts.length === 0}
-				>
-					{isSaving ? 'Saving...' : 'Save to Supabase'}
-				</button>
+				<div class="flex gap-2">
+					<button
+						class="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+						on:click={handleExportCSV}
+						disabled={filteredStatementAccounts.length === 0}
+					>
+						Export CSV
+					</button>
+					<button
+						class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+						on:click={saveToSupabase}
+						disabled={isSaving || filteredStatementAccounts.length === 0}
+					>
+						{isSaving ? 'Saving...' : 'Save to Supabase'}
+					</button>
+				</div>
 			</div>
 
 			<StatementAccountsTable

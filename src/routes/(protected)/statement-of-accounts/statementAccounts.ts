@@ -24,19 +24,26 @@ export interface Order {
 	Email?: string;
 }
 
+export interface PaymentDetail {
+	amount: number;
+	datePaid: string;
+	orderId: string;
+}
+
 export interface StatementAccount {
 	customerName: string;
 	username: string;
 	totalInvoices: number;
+	balance: number;
 	grandTotal: number;
 	lastSent: string | null;
-
 	lastCheck: string | null;
 	lastFileGeneration: string | null;
 	oneDriveId: string | null;
+	payments: PaymentDetail[];
 }
 
-export type ColumnKey = 'customerName' | 'username' | 'totalInvoices' | 'grandTotal' | 'lastSent';
+export type ColumnKey = 'customerName' | 'username' | 'totalInvoices' | 'balance' | 'grandTotal' | 'lastSent' | 'payments';
 
 /**
  * Calculates the outstanding amount for an order
@@ -62,7 +69,7 @@ export function getCustomerName(order: Order): string {
  * Aggregates orders by username, calculating total invoices and grand total
  */
 export function aggregateByUsername(orders: Order[]): StatementAccount[] {
-	const usernameMap = new Map<string, { totalInvoices: number; grandTotal: number; customerName: string }>();
+	const usernameMap = new Map<string, { totalInvoices: number; balance: number; grandTotal: number; customerName: string; payments: PaymentDetail[] }>();
 
 	// Process each order
 	orders.forEach((order) => {
@@ -76,12 +83,24 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 		const customerName = getCustomerName(order);
 
 		if (!usernameMap.has(order.Username)) {
-			usernameMap.set(order.Username, { totalInvoices: 0, grandTotal: 0, customerName });
+			usernameMap.set(order.Username, { totalInvoices: 0, balance: 0, grandTotal: 0, customerName, payments: [] });
 		}
 
 		const userData = usernameMap.get(order.Username)!;
 		userData.totalInvoices += 1;
-		userData.grandTotal += outstandingAmount;
+		userData.balance += outstandingAmount;
+		userData.grandTotal += parseFloat(order.GrandTotal);
+
+		// Collect payment details
+		if (order.OrderPayment && order.OrderPayment.length > 0) {
+			order.OrderPayment.forEach((payment) => {
+				userData.payments.push({
+					amount: parseFloat(payment.Amount),
+					datePaid: payment.DatePaid,
+					orderId: order.OrderID
+				});
+			});
+		}
 
 		// Ensure customer name is set if it wasn't before (though it should be set on creation)
 		if (!userData.customerName && customerName) {
@@ -94,11 +113,12 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 		username,
 		customerName: data.customerName,
 		totalInvoices: data.totalInvoices,
+		balance: Math.round(data.balance * 100) / 100, // Round to 2 decimal places
 		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places
 		lastSent: null,
-
 		lastCheck: null,
 		lastFileGeneration: null,
-		oneDriveId: null
+		oneDriveId: null,
+		payments: data.payments
 	}));
 }

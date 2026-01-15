@@ -74,6 +74,21 @@
 						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 					>
 						<div class="flex flex-col gap-2">
+							Balance
+							<input
+								type="text"
+								placeholder="Search..."
+								class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
+								value={searchFilters['balance'] || ''}
+								on:input={(e) => handleSearchInput('balance', e)}
+							/>
+						</div>
+					</th>
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						<div class="flex flex-col gap-2">
 							Grand Total
 							<input
 								type="text"
@@ -98,6 +113,12 @@
 								on:input={(e) => handleSearchInput('lastSent', e)}
 							/>
 						</div>
+					</th>
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						Detailed Payments
 					</th>
 
 					<th

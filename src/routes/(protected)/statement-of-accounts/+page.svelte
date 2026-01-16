@@ -3,11 +3,24 @@
 	import { get } from 'svelte/store';
 	import { currentUser } from '$lib/firebase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
-	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
 	import { sortField, sortDirection, sortData, visibleColumns } from './statementAccounts';
 	import { fetchStatementData, generateDocument } from './statementAccountsApi';
 	import { handlePrintStatement, generateStatementHtml, getCustomerInvoices } from './utils/print';
+	import { downloadStatementAccountsCsv } from './utils/csv';
+	import { filterStatementAccounts } from './utils/filtering';
+	import {
+		enrichAccountsWithSoaStatus,
+		recordGeneratedStatementPdfFile,
+		syncAccountsToSupabase,
+		type GeneratedStatementDocumentInfo
+	} from './utils/supabaseStatements';
+	import {
+		loadStatementAccountsPreferences,
+		saveStatementAccountsPaginationPreferences,
+		saveStatementAccountsSortingPreferences,
+		saveStatementAccountsVisibleColumnsPreferences
+	} from './utils/preferences';
 
 	// Components
 	import LoadingState from './components/LoadingState.svelte';
@@ -23,75 +36,19 @@
 	let isSaving = false;
 	let error = '';
 
-	// Save to Supabase
+	let filteredStatementAccounts: StatementAccount[] = [];
+	let sortedStatementAccounts: StatementAccount[] = [];
+	let paginatedStatementAccounts: StatementAccount[] = [];
+
 	// Save to Supabase
 	async function saveToSupabase() {
 		try {
 			isSaving = true;
-			const timestamp = new Date().toISOString();
+			const { updates, inserts } = await syncAccountsToSupabase(statementAccounts);
 
-			// 1. Get set of current usernames from the FULL data pull
-			const currentApiUsernames = new Set(statementAccounts.map((a) => a.username));
-
-			// 2. Fetch ALL existing records to synchronize state
-			const { data: allDbRecords, error: fetchError } = await supabase
-				.from('statement_of_accounts')
-				.select('id, customer_username');
-
-			if (fetchError) throw fetchError;
-
-			const updates: any[] = [];
-			const inserts: any[] = [];
-			const processedUsernames = new Set<string>();
-
-			// 3. Process existing DB records
-			// Update their status based on whether they are in the current API fetch
-			if (allDbRecords) {
-				for (const record of allDbRecords) {
-					updates.push({
-						id: record.id,
-						customer_username: record.customer_username,
-						exists_in_statements_list: currentApiUsernames.has(record.customer_username),
-						last_check: timestamp
-					});
-					processedUsernames.add(record.customer_username);
-				}
-			}
-
-			// 4. Process NEW API records (those not found in DB)
-			for (const account of statementAccounts) {
-				if (!processedUsernames.has(account.username)) {
-					inserts.push({
-						customer_username: account.username,
-						exists_in_statements_list: true,
-						last_check: timestamp
-					});
-					// Mark as processed to handle potential duplicates in API list (though unrelated to DB)
-					processedUsernames.add(account.username);
-				}
-			}
-
-			if (updates.length === 0 && inserts.length === 0) {
+			if (updates === 0 && inserts === 0) {
 				toastSuccess('No changes to save.');
 				return;
-			}
-
-			// 5. Perform Database Operations
-			const promises = [];
-
-			if (updates.length > 0) {
-				promises.push(supabase.from('statement_of_accounts').upsert(updates));
-			}
-
-			if (inserts.length > 0) {
-				promises.push(supabase.from('statement_of_accounts').insert(inserts));
-			}
-
-			const results = await Promise.all(promises);
-
-			// Check for errors in any of the results
-			for (const result of results) {
-				if (result.error) throw result.error;
 			}
 
 			toastSuccess('Data synchronized with Supabase successfully');
@@ -111,74 +68,6 @@
 	let itemsPerPage = 25;
 	let totalPages = 1;
 
-	// Format date (used in filtering)
-	function formatDate(dateString: string | null): string {
-		if (!dateString) return '—';
-		const date = new Date(dateString);
-		if (isNaN(date.getTime())) return '—';
-		return date.toLocaleDateString('en-AU');
-	}
-
-	// Check statement status from Supabase
-	async function check_soa_status(accounts: StatementAccount[]) {
-		try {
-			if (accounts.length === 0) return;
-
-			const usernames = accounts.map((a) => a.username);
-
-			// Chunk usernames if there are too many to avoid URL length issues
-			// Supabase generic limit is quite high, but good practice
-			const { data, error } = await supabase
-				.from('statement_of_accounts')
-				.select(
-					`
-					customer_username,
-					last_sent,
-					last_check,
-					last_file_generation,
-					statement_of_accounts_pdf_files (
-						onedrive_id
-					)
-				`
-				)
-				.in('customer_username', usernames);
-
-			if (error) {
-				console.error('Error fetching statement status:', error);
-				return;
-			}
-
-			if (data) {
-				const statusMap = new Map(data.map((item) => [item.customer_username, item]));
-
-				// Update accounts withfetched status
-				statementAccounts = statementAccounts.map((account) => {
-					const status = statusMap.get(account.username);
-					if (status) {
-						// Extract onedrive_id safely from the joined relationship
-						const pdfFile = status.statement_of_accounts_pdf_files;
-						// Supabase returns an object or array depending on relation type, usually object for single relation or array for many
-						// Assuming one-to-one or taking the first if array
-						const oneDriveId = Array.isArray(pdfFile)
-							? pdfFile[0]?.onedrive_id
-							: (pdfFile as any)?.onedrive_id;
-
-						return {
-							...account,
-							lastSent: status.last_sent,
-							lastCheck: status.last_check,
-							lastFileGeneration: status.last_file_generation,
-							oneDriveId: oneDriveId || null
-						};
-					}
-					return account;
-				});
-			}
-		} catch (err) {
-			console.error('Error in check_soa_status:', err);
-		}
-	}
-
 	// Load statement accounts data
 	async function loadStatementAccounts() {
 		try {
@@ -187,18 +76,23 @@
 
 			const { accounts, orders } = await fetchStatementData();
 			rawOrders = orders; // Store raw orders for printing
-			statementAccounts = accounts; // Use pre-aggregated accounts from API
 
 			// Log filtering stats
-			console.log(JSON.stringify({
-				stats: {
-					api_orders_fetched: orders.length,
-					unique_customers: accounts.length,
-				}
-			}, null, 2));
+			console.log(
+				JSON.stringify(
+					{
+						stats: {
+							api_orders_fetched: orders.length,
+							unique_customers: accounts.length
+						}
+					},
+					null,
+					2
+				)
+			);
 
 			// Check status after loading accounts
-			await check_soa_status(accounts);
+			statementAccounts = await enrichAccountsWithSoaStatus(accounts);
 		} catch (err) {
 			console.error('Error loading statement accounts:', err);
 			error = err instanceof Error ? err.message : 'Failed to load statement accounts';
@@ -234,7 +128,7 @@
 
 	async function handleGenerateDocument(event: CustomEvent<StatementAccount>) {
 		const companyName = event.detail.companyName;
-		const toastId = toastSuccess(`Generating document for ${companyName}...`);
+		toastSuccess(`Generating document for ${companyName}...`);
 
 		try {
 			// Get invoices for this customer
@@ -274,39 +168,17 @@
 			if (generationResponse) {
 				console.log('Generation Response:', generationResponse);
 
-				// 1. Insert into statement_of_accounts_pdf_files
-				const { data: pdfFile, error: pdfError } = await supabase
-					.from('statement_of_accounts_pdf_files')
-					.insert({
-						file_name: generationResponse.file_name,
-						folder_path: generationResponse.folder_path,
-						// Use the response created_at if available, otherwise now
-						created_at: generationResponse.created_at || new Date().toISOString(),
-						created_by: generationResponse.created_by,
-						onedrive_id: generationResponse.onedrive_id,
-						customer_username: generationResponse.customer_username
-					})
-					.select()
-					.single();
+				const { pdfError, accountError } = await recordGeneratedStatementPdfFile(
+					generationResponse as GeneratedStatementDocumentInfo
+				);
 
 				if (pdfError) {
 					console.error('Error saving PDF file record:', pdfError);
 					toastError('Document generated but failed to save record.');
-				} else if (pdfFile) {
-					// 2. Update statement_of_accounts
-					// Find the account record by customer_username
-					const { error: accountError } = await supabase
-						.from('statement_of_accounts')
-						.update({
-							last_file_generation: pdfFile.created_at,
-							statement_of_accounts_pdf_files_id: pdfFile.id
-						})
-						.eq('customer_username', generationResponse.customer_username);
+				}
 
-					if (accountError) {
-						console.error('Error updating account record:', accountError);
-						// Not critical enough to fail the whole process visually if the PDF was generated
-					}
+				if (accountError) {
+					console.error('Error updating account record:', accountError);
 				}
 			}
 
@@ -338,81 +210,13 @@
 			return;
 		}
 
-		// Create CSV content
-		const headers = ['customer_username', 'total_invoices', 'all_invoices_balance', 'due_invoice_balance', 'total_balance_customer', 'aib_vs_tb'];
-		const csvContent = [
-			headers.join(','),
-			...sortedStatementAccounts.map(account => {
-				let aibVsTb = 'N/A';
-				if (account.totalBalanceCustomer !== null) {
-				const isMatch = Math.abs(account.allInvoicesBalance - account.totalBalanceCustomer) < 0.01;
-				aibVsTb = isMatch ? 'Match' : 'Not Matched';
-				}
-				return [
-					account.username,
-					account.totalInvoices,
-					account.allInvoicesBalance.toFixed(2),
-					account.dueInvoiceBalance.toFixed(2),
-					account.totalBalanceCustomer !== null ? account.totalBalanceCustomer.toFixed(2) : 'N/A',
-					aibVsTb
-				].join(',');
-			})
-		].join('\n');
-
-		// Create and download file
-		const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-		const link = document.createElement('a');
-		const url = URL.createObjectURL(blob);
-
-		link.setAttribute('href', url);
-		link.setAttribute('download', `statement_accounts_${new Date().toISOString().split('T')[0]}.csv`);
-		link.style.visibility = 'hidden';
-
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
+		downloadStatementAccountsCsv(sortedStatementAccounts);
 
 		toastSuccess(`Exported ${sortedStatementAccounts.length} accounts to CSV`);
 	}
 
 	// Reactive filtered and sorted statement accounts
-	$: filteredStatementAccounts = (() => {
-		// First filter the accounts
-		let filtered = statementAccounts.filter((account) => {
-			return Object.entries(searchFilters).every(([key, value]) => {
-				if (!value) return true;
-				const normalizedValue = value.toLowerCase();
-				const columnKey = key as ColumnKey;
-
-				if (columnKey === 'companyName') {
-					return account.companyName.toLowerCase().includes(normalizedValue);
-				} else if (columnKey === 'username') {
-					return account.username.toLowerCase().includes(normalizedValue);
-				} else if (columnKey === 'totalInvoices') {
-					return account.totalInvoices.toString().includes(normalizedValue);
-				} else if (columnKey === 'allInvoicesBalance') {
-					return account.allInvoicesBalance.toString().includes(normalizedValue);
-				} else if (columnKey === 'dueInvoiceBalance') {
-					return account.dueInvoiceBalance.toString().includes(normalizedValue);
-				} else if (columnKey === 'totalBalanceCustomer') {
-					return account.totalBalanceCustomer?.toString().includes(normalizedValue) || false;
-				} else if (columnKey === 'aibVsTb') {
-					if (account.totalBalanceCustomer === null) return false;
-					const isMatch = Math.abs(account.allInvoicesBalance - account.totalBalanceCustomer) < 0.01;
-					const displayText = isMatch ? 'match' : 'no match';
-					return displayText.includes(normalizedValue);
-				} else if (columnKey === 'lastSent') {
-					const dateValue = account[columnKey];
-					if (!dateValue) return false;
-					return formatDate(dateValue).toLowerCase().includes(normalizedValue);
-				}
-
-				return true;
-			});
-		});
-
-		return filtered;
-	})();
+	$: filteredStatementAccounts = filterStatementAccounts(statementAccounts, searchFilters);
 
 	// Apply sorting reactively
 	$: sortedStatementAccounts = (() => {
@@ -438,56 +242,26 @@
 	}
 
 	// localStorage persistence for pagination
-	$: {
-		if (typeof window !== 'undefined') {
-			localStorage.setItem('statement-accounts-current-page', String(currentPage));
-			localStorage.setItem('statement-accounts-items-per-page', String(itemsPerPage));
-		}
-	}
+	$: saveStatementAccountsPaginationPreferences(currentPage, itemsPerPage);
 
 	// localStorage persistence for column visibility
-	$: {
-		if (typeof window !== 'undefined') {
-			localStorage.setItem('statement-accounts-visible-columns', JSON.stringify($visibleColumns));
-		}
-	}
+	$: saveStatementAccountsVisibleColumnsPreferences($visibleColumns);
 
 	// localStorage persistence for sorting
-	$: {
-		if (typeof window !== 'undefined') {
-			localStorage.setItem('statement-accounts-sort-field', $sortField);
-			localStorage.setItem('statement-accounts-sort-direction', $sortDirection);
-		}
-	}
+	$: saveStatementAccountsSortingPreferences($sortField, $sortDirection);
 
 	onMount(() => {
-		// Load preferences from localStorage
-		if (typeof window !== 'undefined') {
-			// Load pagination preferences
-			const storedCurrentPage = localStorage.getItem('statement-accounts-current-page');
-			const storedItemsPerPage = localStorage.getItem('statement-accounts-items-per-page');
+		const preferences = loadStatementAccountsPreferences();
 
-			if (storedCurrentPage) currentPage = Number(storedCurrentPage);
-			if (storedItemsPerPage) itemsPerPage = Number(storedItemsPerPage);
+		if (preferences.currentPage) currentPage = preferences.currentPage;
+		if (preferences.itemsPerPage) itemsPerPage = preferences.itemsPerPage;
 
-			// Load column visibility preferences
-			const storedVisibleColumns = localStorage.getItem('statement-accounts-visible-columns');
-			if (storedVisibleColumns) {
-				try {
-					const parsedColumns = JSON.parse(storedVisibleColumns);
-					visibleColumns.set(parsedColumns);
-				} catch (error) {
-					console.warn('Failed to parse stored column visibility preferences:', error);
-				}
-			}
-
-			// Load sorting preferences
-			const storedSortField = localStorage.getItem('statement-accounts-sort-field');
-			const storedSortDirection = localStorage.getItem('statement-accounts-sort-direction');
-
-			if (storedSortField) sortField.set(storedSortField as ColumnKey | '');
-			if (storedSortDirection) sortDirection.set(storedSortDirection as 'asc' | 'desc');
+		if (preferences.visibleColumns) {
+			visibleColumns.update((current) => ({ ...current, ...preferences.visibleColumns }));
 		}
+
+		if (preferences.sortField) sortField.set(preferences.sortField);
+		if (preferences.sortDirection) sortDirection.set(preferences.sortDirection);
 
 		loadStatementAccounts();
 	});

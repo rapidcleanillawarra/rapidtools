@@ -31,7 +31,7 @@ export interface PaymentDetail {
 }
 
 export interface StatementAccount {
-	customerName: string;
+	companyName: string;
 	username: string;
 	totalInvoices: number;
 	balance: number;
@@ -43,7 +43,7 @@ export interface StatementAccount {
 	payments: PaymentDetail[];
 }
 
-export type ColumnKey = 'customerName' | 'username' | 'totalInvoices' | 'balance' | 'grandTotal' | 'lastSent' | 'payments';
+export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'balance' | 'grandTotal' | 'lastSent' | 'payments';
 
 /**
  * Calculates the outstanding amount for an order
@@ -69,7 +69,7 @@ export function getCustomerName(order: Order): string {
  * Aggregates orders by username, calculating total invoices and grand total
  */
 export function aggregateByUsername(orders: Order[]): StatementAccount[] {
-	const usernameMap = new Map<string, { totalInvoices: number; balance: number; grandTotal: number; customerName: string; payments: PaymentDetail[] }>();
+	const usernameMap = new Map<string, { totalInvoices: number; balance: number; grandTotal: number; companyName: string; payments: PaymentDetail[] }>();
 
 	// Process each order
 	orders.forEach((order) => {
@@ -80,10 +80,10 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 			return;
 		}
 
-		const customerName = getCustomerName(order);
+		const companyName = getCustomerName(order);
 
 		if (!usernameMap.has(order.Username)) {
-			usernameMap.set(order.Username, { totalInvoices: 0, balance: 0, grandTotal: 0, customerName, payments: [] });
+			usernameMap.set(order.Username, { totalInvoices: 0, balance: 0, grandTotal: 0, companyName, payments: [] });
 		}
 
 		const userData = usernameMap.get(order.Username)!;
@@ -102,16 +102,16 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 			});
 		}
 
-		// Ensure customer name is set if it wasn't before (though it should be set on creation)
-		if (!userData.customerName && customerName) {
-			userData.customerName = customerName;
+		// Ensure company name is set if it wasn't before (though it should be set on creation)
+		if (!userData.companyName && companyName) {
+			userData.companyName = companyName;
 		}
 	});
 
 	// Convert map to array
 	return Array.from(usernameMap.entries()).map(([username, data]) => ({
 		username,
-		customerName: data.customerName,
+		companyName: data.companyName,
 		totalInvoices: data.totalInvoices,
 		balance: Math.round(data.balance * 100) / 100, // Round to 2 decimal places
 		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places

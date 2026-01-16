@@ -11,13 +11,13 @@ interface CustomerInvoice {
 }
 
 /**
- * Get all outstanding invoices for a specific customer and username from orders
+ * Get all outstanding invoices for a specific company and username from orders
  */
-export function getCustomerInvoices(orders: Order[], customerName: string, username: string): CustomerInvoice[] {
+export function getCustomerInvoices(orders: Order[], companyName: string, username: string): CustomerInvoice[] {
 	return orders
 		.filter((order) => {
 			const name = getCustomerName(order);
-			return name === customerName;
+			return name === companyName;
 		})
 		.filter((order) => order.Username === username)
 		.filter((order) => {
@@ -75,7 +75,7 @@ function formatDate(dateString: string): string {
  * Generate HTML content for the statement of account
  */
 export function generateStatementHtml(
-	customerName: string,
+	companyName: string,
 	invoices: CustomerInvoice[],
 	usePlaceholders: boolean = false
 ): string {
@@ -107,7 +107,7 @@ export function generateStatementHtml(
 		<!DOCTYPE html>
 		<html>
 			<head>
-				<title>Statement of Account - ${customerName}</title>
+				<title>Statement of Account - ${companyName}</title>
 				<style>
 					body {
 						font-family: Arial, sans-serif;
@@ -253,7 +253,7 @@ export function generateStatementHtml(
 					</div>
 					<div class="second-row">
 						<div class="statement-title">
-							Statement of Account for ${customerName}
+							Statement of Account for ${companyName}
 						</div>
 						<div class="date-range">
 							<div class="date-range-label">Date Range:</div>
@@ -332,7 +332,7 @@ export function generateStatementHtml(
 							<table style="width: 100%; border-collapse: collapse; font-size: 18px;">
 								<tr>
 									<td style="font-weight: bold; border-bottom: 1px solid #aaa; padding-bottom: 4px;">Customer</td>
-									<td style="border-bottom: 1px solid #aaa; padding-bottom: 4px;">${customerName}</td>
+									<td style="border-bottom: 1px solid #aaa; padding-bottom: 4px;">${companyName}</td>
 								</tr>
 								<tr>
 									<td style="font-weight: bold; padding-top: 10px;">Total Invoices</td>
@@ -362,13 +362,13 @@ export function generateStatementHtml(
 }
 
 /**
- * Handle printing statement of account for a specific customer and username
+ * Handle printing statement of account for a specific company and username
  */
-export function handlePrintStatement(customerName: string, username: string, orders: Order[]): void {
-	const invoices = getCustomerInvoices(orders, customerName, username);
+export function handlePrintStatement(companyName: string, username: string, orders: Order[]): void {
+	const invoices = getCustomerInvoices(orders, companyName, username);
 
 	if (invoices.length === 0) {
-		throw new Error(`No outstanding invoices found for ${customerName}`);
+		throw new Error(`No outstanding invoices found for ${companyName}`);
 	}
 
 	// Create a new window for printing
@@ -378,7 +378,7 @@ export function handlePrintStatement(customerName: string, username: string, ord
 	}
 
 	// Generate the HTML content
-	const printContent = generateStatementHtml(customerName, invoices);
+	const printContent = generateStatementHtml(companyName, invoices);
 
 	// Write the content to the new window
 	printWindow.document.write(printContent);

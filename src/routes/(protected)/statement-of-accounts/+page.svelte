@@ -226,22 +226,22 @@
 	}
 
 	async function handleGenerateDocument(event: CustomEvent<StatementAccount>) {
-		const customerName = event.detail.customerName;
-		const toastId = toastSuccess(`Generating document for ${customerName}...`);
+		const companyName = event.detail.companyName;
+		const toastId = toastSuccess(`Generating document for ${companyName}...`);
 
 		try {
 			// Get invoices for this customer
-			const invoices = getCustomerInvoices(rawOrders, customerName, event.detail.username);
+			const invoices = getCustomerInvoices(rawOrders, companyName, event.detail.username);
 
 			if (invoices.length === 0) {
-				throw new Error(`No outstanding invoices found for ${customerName}`);
+				throw new Error(`No outstanding invoices found for ${companyName}`);
 			}
 
 			// Generate HTML with placeholders for images
-			const htmlContent = generateStatementHtml(customerName, invoices, true);
+			const htmlContent = generateStatementHtml(companyName, invoices, true);
 
-			// Generate Filename: Statement_CustomerName_YYYY-MM-DD (No extension)
-			const cleanName = customerName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+			// Generate Filename: Statement_CompanyName_YYYY-MM-DD (No extension)
+			const cleanName = companyName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 			const now = new Date();
 			const dateStr = now.toISOString().split('T')[0];
 			const fileName = `Statement_${cleanName}_${dateStr}`;
@@ -303,7 +303,7 @@
 				}
 			}
 
-			toastSuccess(`Document generated successfully for ${customerName}`);
+			toastSuccess(`Document generated successfully for ${companyName}`);
 		} catch (err) {
 			console.error('Error generating document:', err);
 			const message = err instanceof Error ? err.message : 'Failed to generate document';
@@ -312,13 +312,13 @@
 	}
 
 	function handleSendStatement(event: CustomEvent<StatementAccount>) {
-		toastSuccess(`Send Statement clicked for ${event.detail.customerName}`);
+		toastSuccess(`Send Statement clicked for ${event.detail.companyName}`);
 	}
 
 	function handlePrint(event: CustomEvent<StatementAccount>) {
 		try {
-			handlePrintStatement(event.detail.customerName, event.detail.username, rawOrders);
-			toastSuccess(`Opening print preview for ${event.detail.customerName}`);
+			handlePrintStatement(event.detail.companyName, event.detail.username, rawOrders);
+			toastSuccess(`Opening print preview for ${event.detail.companyName}`);
 		} catch (err) {
 			const message = err instanceof Error ? err.message : 'Failed to print';
 			toastError(message);
@@ -369,8 +369,8 @@
 				const normalizedValue = value.toLowerCase();
 				const columnKey = key as ColumnKey;
 
-				if (columnKey === 'customerName') {
-					return account.customerName.toLowerCase().includes(normalizedValue);
+				if (columnKey === 'companyName') {
+					return account.companyName.toLowerCase().includes(normalizedValue);
 				} else if (columnKey === 'username') {
 					return account.username.toLowerCase().includes(normalizedValue);
 				} else if (columnKey === 'totalInvoices') {
@@ -388,7 +388,7 @@
 				return true;
 			});
 		})
-		.sort((a, b) => a.customerName.localeCompare(b.customerName));
+		.sort((a, b) => a.companyName.localeCompare(b.companyName));
 
 	// Pagination calculations
 	$: totalPages = Math.ceil(filteredStatementAccounts.length / itemsPerPage);

@@ -72,8 +72,8 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
                             }))
                     );
 
-                // Determine customer name with fallbacks
-                const customerName = (customer.company_name || '').trim() ||
+                // Determine company name with fallbacks
+                const companyName = (customer.company_name || '').trim() ||
                                    (customer.email || '').trim() ||
                                    customer.customer_username;
 
@@ -86,7 +86,7 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
 
                 return {
                     username: customer.customer_username,
-                    customerName,
+                    companyName,
                     totalInvoices: typeof customer.total_orders === 'number' ? customer.total_orders : 0,
                     balance: Math.round(balance * 100) / 100, // Round to 2 decimal places
                     grandTotal: Math.round(grandTotal * 100) / 100, // Round to 2 decimal places

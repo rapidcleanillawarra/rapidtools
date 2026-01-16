@@ -69,7 +69,7 @@
 
 <tr class="hover:bg-gray-50">
 	<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-		{account.customerName}
+		{account.companyName}
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		<a

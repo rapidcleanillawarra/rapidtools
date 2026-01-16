@@ -111,22 +111,6 @@
 		{formatDate(account.lastSent)}
 	</td>
 	{/if}
-	{#if $visibleColumns.payments}
-	<td class="px-6 py-4 text-sm text-gray-900">
-		{#if account.payments && account.payments.length > 0}
-			<div class="max-h-32 overflow-y-auto space-y-1">
-				{#each account.payments as payment}
-					<div class="flex justify-between items-center text-xs">
-						<span class="font-medium">{formatCurrency(payment.amount)}</span>
-						<span class="text-gray-500 ml-2">{formatDate(payment.datePaid)}</span>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<span class="text-gray-400 text-xs">No payments</span>
-		{/if}
-	</td>
-	{/if}
 
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
 		<div class="flex flex-col items-start gap-2">

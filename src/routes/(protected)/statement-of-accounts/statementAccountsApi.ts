@@ -54,19 +54,6 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
         .filter(customer => customer && customer.customer_username) // Filter out invalid customers
         .map(customer => {
             try {
-                // Safely flatten all payments from all orders
-                const payments = (customer.orders || [])
-                    .filter(order => order && Array.isArray(order.payments))
-                    .flatMap(order =>
-                        order.payments
-                            .filter(payment => payment && typeof payment.Amount === 'number')
-                            .map(payment => ({
-                                amount: payment.Amount,
-                                datePaid: '', // Not available in new API
-                                orderId: order.id || ''
-                            }))
-                    );
-
                 // Determine company name with fallbacks
                 const companyName = (customer.company_name || '').trim() ||
                                    (customer.email || '').trim() ||
@@ -84,8 +71,7 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
                     lastSent: null,
                     lastCheck: null,
                     lastFileGeneration: null,
-                    oneDriveId: null,
-                    payments
+                    oneDriveId: null
                 };
             } catch (error) {
                 console.error(`Error transforming customer ${customer.customer_username}:`, error);

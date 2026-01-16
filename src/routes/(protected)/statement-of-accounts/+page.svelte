@@ -5,7 +5,7 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
-	import { sortField, sortDirection, sortData } from './statementAccounts';
+	import { sortField, sortDirection, sortData, visibleColumns } from './statementAccounts';
 	import { fetchStatementData, generateDocument } from './statementAccountsApi';
 	import { handlePrintStatement, generateStatementHtml, getCustomerInvoices } from './utils/print';
 
@@ -434,14 +434,48 @@
 		}
 	}
 
-	onMount(() => {
-		// Load pagination preferences from localStorage
+	// localStorage persistence for column visibility
+	$: {
 		if (typeof window !== 'undefined') {
+			localStorage.setItem('statement-accounts-visible-columns', JSON.stringify($visibleColumns));
+		}
+	}
+
+	// localStorage persistence for sorting
+	$: {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('statement-accounts-sort-field', $sortField);
+			localStorage.setItem('statement-accounts-sort-direction', $sortDirection);
+		}
+	}
+
+	onMount(() => {
+		// Load preferences from localStorage
+		if (typeof window !== 'undefined') {
+			// Load pagination preferences
 			const storedCurrentPage = localStorage.getItem('statement-accounts-current-page');
 			const storedItemsPerPage = localStorage.getItem('statement-accounts-items-per-page');
 
 			if (storedCurrentPage) currentPage = Number(storedCurrentPage);
 			if (storedItemsPerPage) itemsPerPage = Number(storedItemsPerPage);
+
+			// Load column visibility preferences
+			const storedVisibleColumns = localStorage.getItem('statement-accounts-visible-columns');
+			if (storedVisibleColumns) {
+				try {
+					const parsedColumns = JSON.parse(storedVisibleColumns);
+					visibleColumns.set(parsedColumns);
+				} catch (error) {
+					console.warn('Failed to parse stored column visibility preferences:', error);
+				}
+			}
+
+			// Load sorting preferences
+			const storedSortField = localStorage.getItem('statement-accounts-sort-field');
+			const storedSortDirection = localStorage.getItem('statement-accounts-sort-direction');
+
+			if (storedSortField) sortField.set(storedSortField as ColumnKey | '');
+			if (storedSortDirection) sortDirection.set(storedSortDirection as 'asc' | 'desc');
 		}
 
 		loadStatementAccounts();

@@ -219,14 +219,6 @@
 						</div>
 					</th>
 					{/if}
-					{#if $visibleColumns.payments}
-					<th
-						scope="col"
-						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-					>
-						Detailed Payments
-					</th>
-					{/if}
 
 					<th
 						scope="col"

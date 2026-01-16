@@ -26,11 +26,6 @@ export interface Order {
 	Email?: string;
 }
 
-export interface PaymentDetail {
-	amount: number;
-	datePaid: string;
-	orderId: string;
-}
 
 export interface StatementAccount {
 	companyName: string;
@@ -43,10 +38,9 @@ export interface StatementAccount {
 	lastCheck: string | null;
 	lastFileGeneration: string | null;
 	oneDriveId: string | null;
-	payments: PaymentDetail[];
 }
 
-export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent' | 'payments';
+export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent';
 
 // Sorting stores
 export const sortField = writable<ColumnKey | ''>('');
@@ -60,8 +54,7 @@ export const visibleColumns = writable<Record<ColumnKey, boolean>>({
 	allInvoicesBalance: true,
 	dueInvoiceBalance: true,
 	totalBalanceCustomer: true,
-	lastSent: true,
-	payments: true
+	lastSent: true
 });
 
 /**
@@ -140,7 +133,7 @@ export function getCustomerName(order: Order): string {
  * Aggregates orders by username, calculating total invoices and grand total
  */
 export function aggregateByUsername(orders: Order[]): StatementAccount[] {
-	const usernameMap = new Map<string, { totalInvoices: number; companyName: string; payments: PaymentDetail[] }>();
+	const usernameMap = new Map<string, { totalInvoices: number; companyName: string }>();
 
 	// Process each order
 	orders.forEach((order) => {
@@ -154,22 +147,11 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 		const companyName = getCustomerName(order);
 
 		if (!usernameMap.has(order.Username)) {
-			usernameMap.set(order.Username, { totalInvoices: 0, companyName, payments: [] });
+			usernameMap.set(order.Username, { totalInvoices: 0, companyName });
 		}
 
 		const userData = usernameMap.get(order.Username)!;
 		userData.totalInvoices += 1;
-
-		// Collect payment details
-		if (order.OrderPayment && order.OrderPayment.length > 0) {
-			order.OrderPayment.forEach((payment) => {
-				userData.payments.push({
-					amount: parseFloat(payment.Amount),
-					datePaid: payment.DatePaid,
-					orderId: order.OrderID
-				});
-			});
-		}
 
 		// Ensure company name is set if it wasn't before (though it should be set on creation)
 		if (!userData.companyName && companyName) {
@@ -188,7 +170,6 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 		lastSent: null,
 		lastCheck: null,
 		lastFileGeneration: null,
-		oneDriveId: null,
-		payments: data.payments
+		oneDriveId: null
 	}));
 }

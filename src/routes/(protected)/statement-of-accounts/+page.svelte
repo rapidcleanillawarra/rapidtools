@@ -5,6 +5,7 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
+	import { sortField, sortDirection, sortData } from './statementAccounts';
 	import { fetchStatementData, generateDocument } from './statementAccountsApi';
 	import { handlePrintStatement, generateStatementHtml, getCustomerInvoices } from './utils/print';
 
@@ -225,6 +226,12 @@
 		searchFilters = {};
 	}
 
+	function handleSortChange(event: CustomEvent<{ field: ColumnKey; direction: 'asc' | 'desc' }>) {
+		const { field, direction } = event.detail;
+		sortField.set(field);
+		sortDirection.set(direction);
+	}
+
 	async function handleGenerateDocument(event: CustomEvent<StatementAccount>) {
 		const companyName = event.detail.companyName;
 		const toastId = toastSuccess(`Generating document for ${companyName}...`);
@@ -326,21 +333,19 @@
 	}
 
 	function handleExportCSV() {
-		if (filteredStatementAccounts.length === 0) {
+		if (sortedStatementAccounts.length === 0) {
 			toastError('No data to export');
 			return;
 		}
 
 		// Create CSV content
-		const headers = ['customer_username', 'total_orders', 'balance', 'grand_total', 'all_invoices_balance', 'due_invoice_balance', 'total_balance_customer'];
+		const headers = ['customer_username', 'total_invoices', 'all_invoices_balance', 'due_invoice_balance', 'total_balance_customer'];
 		const csvContent = [
 			headers.join(','),
-			...filteredStatementAccounts.map(account =>
+			...sortedStatementAccounts.map(account =>
 				[
 					account.username,
 					account.totalInvoices,
-					account.balance.toFixed(2),
-					account.grandTotal.toFixed(2),
 					account.allInvoicesBalance.toFixed(2),
 					account.dueInvoiceBalance.toFixed(2),
 					account.totalBalanceCustomer !== null ? account.totalBalanceCustomer.toFixed(2) : 'N/A'
@@ -361,12 +366,13 @@
 		link.click();
 		document.body.removeChild(link);
 
-		toastSuccess(`Exported ${filteredStatementAccounts.length} accounts to CSV`);
+		toastSuccess(`Exported ${sortedStatementAccounts.length} accounts to CSV`);
 	}
 
-	// Reactive filtered statement accounts
-	$: filteredStatementAccounts = statementAccounts
-		.filter((account) => {
+	// Reactive filtered and sorted statement accounts
+	$: filteredStatementAccounts = (() => {
+		// First filter the accounts
+		let filtered = statementAccounts.filter((account) => {
 			return Object.entries(searchFilters).every(([key, value]) => {
 				if (!value) return true;
 				const normalizedValue = value.toLowerCase();
@@ -378,10 +384,6 @@
 					return account.username.toLowerCase().includes(normalizedValue);
 				} else if (columnKey === 'totalInvoices') {
 					return account.totalInvoices.toString().includes(normalizedValue);
-				} else if (columnKey === 'balance') {
-					return account.balance.toString().includes(normalizedValue);
-				} else if (columnKey === 'grandTotal') {
-					return account.grandTotal.toString().includes(normalizedValue);
 				} else if (columnKey === 'allInvoicesBalance') {
 					return account.allInvoicesBalance.toString().includes(normalizedValue);
 				} else if (columnKey === 'dueInvoiceBalance') {
@@ -396,12 +398,22 @@
 
 				return true;
 			});
-		})
-		.sort((a, b) => a.companyName.localeCompare(b.companyName));
+		});
+
+		return filtered;
+	})();
+
+	// Apply sorting reactively
+	$: sortedStatementAccounts = (() => {
+		if ($sortField && filteredStatementAccounts.length > 0) {
+			return sortData(filteredStatementAccounts, $sortField, $sortDirection);
+		}
+		return filteredStatementAccounts;
+	})();
 
 	// Pagination calculations
-	$: totalPages = Math.ceil(filteredStatementAccounts.length / itemsPerPage);
-	$: paginatedStatementAccounts = filteredStatementAccounts.slice(
+	$: totalPages = Math.ceil(sortedStatementAccounts.length / itemsPerPage);
+	$: paginatedStatementAccounts = sortedStatementAccounts.slice(
 		(currentPage - 1) * itemsPerPage,
 		currentPage * itemsPerPage
 	);
@@ -450,7 +462,7 @@
 			<ErrorState {error} on:retry={loadStatementAccounts} />
 		{:else if statementAccounts.length === 0}
 			<EmptyState hasData={false} />
-		{:else if filteredStatementAccounts.length === 0}
+		{:else if sortedStatementAccounts.length === 0}
 			<EmptyState hasData={true} on:clearFilters={handleClearFilters} />
 		{:else}
 			<div class="mb-4 flex items-center justify-between">
@@ -459,14 +471,14 @@
 					<button
 						class="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
 						on:click={handleExportCSV}
-						disabled={filteredStatementAccounts.length === 0}
+						disabled={sortedStatementAccounts.length === 0}
 					>
 						Export CSV
 					</button>
 					<button
 						class="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 						on:click={saveToSupabase}
-						disabled={isSaving || filteredStatementAccounts.length === 0}
+						disabled={isSaving || sortedStatementAccounts.length === 0}
 					>
 						{isSaving ? 'Saving...' : 'Save to Supabase'}
 					</button>
@@ -477,17 +489,18 @@
 				accounts={paginatedStatementAccounts}
 				{searchFilters}
 				on:searchChange={handleSearchChange}
+				on:sortChange={handleSortChange}
 				on:generateDocument={handleGenerateDocument}
 				on:sendStatement={handleSendStatement}
 				on:print={handlePrint}
 			/>
 
-			{#if filteredStatementAccounts.length > 0}
+			{#if sortedStatementAccounts.length > 0}
 				<Pagination
 					{currentPage}
 					{totalPages}
 					{itemsPerPage}
-					totalItems={filteredStatementAccounts.length}
+					totalItems={sortedStatementAccounts.length}
 					on:pageChange={handlePageChange}
 					on:itemsPerPageChange={handleItemsPerPageChange}
 				/>

@@ -1,3 +1,5 @@
+import { writable } from 'svelte/store';
+
 export interface OrderPayment {
 	Amount: string;
 	Id: string;
@@ -45,6 +47,74 @@ export interface StatementAccount {
 }
 
 export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent' | 'payments';
+
+// Sorting stores
+export const sortField = writable<ColumnKey | ''>('');
+export const sortDirection = writable<'asc' | 'desc'>('asc');
+
+// Column visibility stores
+export const visibleColumns = writable<Record<ColumnKey, boolean>>({
+	companyName: true,
+	username: true,
+	totalInvoices: true,
+	allInvoicesBalance: true,
+	dueInvoiceBalance: true,
+	totalBalanceCustomer: true,
+	lastSent: true,
+	payments: true
+});
+
+/**
+ * Gets a visual indicator for the current sort status of a column.
+ */
+export function getSortIcon(field: ColumnKey, currentSortField: string, direction: 'asc' | 'desc'): string {
+	if (currentSortField !== field) return '↕️';
+	return direction === 'asc' ? '↑' : '↓';
+}
+
+/**
+ * Sorts an array of StatementAccount data based on a specified field and direction.
+ */
+export function sortData(
+	data: StatementAccount[],
+	field: ColumnKey,
+	direction: 'asc' | 'desc'
+): StatementAccount[] {
+	return [...data].sort((a, b) => {
+		let valueA: any = a[field];
+		let valueB: any = b[field];
+
+		// Handle null/undefined values
+		if (valueA == null && valueB == null) return 0;
+		if (valueA == null) return direction === 'asc' ? -1 : 1;
+		if (valueB == null) return direction === 'asc' ? 1 : -1;
+
+		// Handle different data types
+		if (typeof valueA === 'number' && typeof valueB === 'number') {
+			return direction === 'asc' ? valueA - valueB : valueB - valueA;
+		}
+
+		if (typeof valueA === 'string' && typeof valueB === 'string') {
+			const comparison = valueA.toLowerCase().localeCompare(valueB.toLowerCase());
+			return direction === 'asc' ? comparison : -comparison;
+		}
+
+		// Handle date strings
+		if (field === 'lastSent' && typeof valueA === 'string' && typeof valueB === 'string') {
+			const dateA = new Date(valueA);
+			const dateB = new Date(valueB);
+			if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+				return direction === 'asc' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+			}
+		}
+
+		// Default to string comparison
+		const strA = String(valueA).toLowerCase();
+		const strB = String(valueB).toLowerCase();
+		const comparison = strA.localeCompare(strB);
+		return direction === 'asc' ? comparison : -comparison;
+	});
+}
 
 /**
  * Calculates the outstanding amount for an order

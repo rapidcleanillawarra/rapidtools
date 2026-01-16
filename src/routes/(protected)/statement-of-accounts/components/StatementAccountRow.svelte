@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { visibleColumns } from '../statementAccounts';
 	import type { StatementAccount } from '../statementAccounts';
 
 	export let account: StatementAccount;
@@ -68,9 +69,12 @@
 </script>
 
 <tr class="hover:bg-gray-50">
+	{#if $visibleColumns.companyName}
 	<td class="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
 		{account.companyName}
 	</td>
+	{/if}
+	{#if $visibleColumns.username}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		<a
 			href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={account.username}"
@@ -81,21 +85,33 @@
 			{account.username}
 		</a>
 	</td>
+	{/if}
+	{#if $visibleColumns.totalInvoices}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		{account.totalInvoices}
 	</td>
+	{/if}
+	{#if $visibleColumns.allInvoicesBalance}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		{formatCurrency(account.allInvoicesBalance)}
 	</td>
+	{/if}
+	{#if $visibleColumns.dueInvoiceBalance}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		{formatCurrency(account.dueInvoiceBalance)}
 	</td>
+	{/if}
+	{#if $visibleColumns.totalBalanceCustomer}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		{account.totalBalanceCustomer !== null ? formatCurrency(account.totalBalanceCustomer) : 'N/A'}
 	</td>
+	{/if}
+	{#if $visibleColumns.lastSent}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
 		{formatDate(account.lastSent)}
 	</td>
+	{/if}
+	{#if $visibleColumns.payments}
 	<td class="px-6 py-4 text-sm text-gray-900">
 		{#if account.payments && account.payments.length > 0}
 			<div class="max-h-32 overflow-y-auto space-y-1">
@@ -110,6 +126,7 @@
 			<span class="text-gray-400 text-xs">No payments</span>
 		{/if}
 	</td>
+	{/if}
 
 	<td class="whitespace-nowrap px-6 py-4 text-sm">
 		<div class="flex flex-col items-start gap-2">

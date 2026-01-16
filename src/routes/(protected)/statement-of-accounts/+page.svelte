@@ -493,8 +493,8 @@
 	});
 </script>
 
-<main class="min-h-screen bg-gray-50 p-6 transition-all duration-300">
-	<div class="mx-auto max-w-7xl">
+<main class="min-h-screen bg-gray-50 px-8 py-6 transition-all duration-300">
+	<div class="mx-auto max-w-full">
 		<!-- Page Header -->
 		<div class="mb-8">
 			<h1 class="text-3xl font-bold text-gray-900">Statement of Accounts</h1>

@@ -34,8 +34,6 @@ export interface StatementAccount {
 	companyName: string;
 	username: string;
 	totalInvoices: number;
-	balance: number;
-	grandTotal: number;
 	allInvoicesBalance: number;
 	dueInvoiceBalance: number;
 	totalBalanceCustomer: number | null;
@@ -46,7 +44,7 @@ export interface StatementAccount {
 	payments: PaymentDetail[];
 }
 
-export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'balance' | 'grandTotal' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent' | 'payments';
+export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent' | 'payments';
 
 /**
  * Calculates the outstanding amount for an order
@@ -72,7 +70,7 @@ export function getCustomerName(order: Order): string {
  * Aggregates orders by username, calculating total invoices and grand total
  */
 export function aggregateByUsername(orders: Order[]): StatementAccount[] {
-	const usernameMap = new Map<string, { totalInvoices: number; balance: number; grandTotal: number; companyName: string; payments: PaymentDetail[] }>();
+	const usernameMap = new Map<string, { totalInvoices: number; companyName: string; payments: PaymentDetail[] }>();
 
 	// Process each order
 	orders.forEach((order) => {
@@ -86,13 +84,11 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 		const companyName = getCustomerName(order);
 
 		if (!usernameMap.has(order.Username)) {
-			usernameMap.set(order.Username, { totalInvoices: 0, balance: 0, grandTotal: 0, companyName, payments: [] });
+			usernameMap.set(order.Username, { totalInvoices: 0, companyName, payments: [] });
 		}
 
 		const userData = usernameMap.get(order.Username)!;
 		userData.totalInvoices += 1;
-		userData.balance += outstandingAmount;
-		userData.grandTotal += parseFloat(order.GrandTotal);
 
 		// Collect payment details
 		if (order.OrderPayment && order.OrderPayment.length > 0) {
@@ -116,8 +112,9 @@ export function aggregateByUsername(orders: Order[]): StatementAccount[] {
 		username,
 		companyName: data.companyName,
 		totalInvoices: data.totalInvoices,
-		balance: Math.round(data.balance * 100) / 100, // Round to 2 decimal places
-		grandTotal: Math.round(data.grandTotal * 100) / 100, // Round to 2 decimal places
+		allInvoicesBalance: 0, // Not available in legacy aggregation
+		dueInvoiceBalance: 0, // Not available in legacy aggregation
+		totalBalanceCustomer: null, // Not available in legacy aggregation
 		lastSent: null,
 		lastCheck: null,
 		lastFileGeneration: null,

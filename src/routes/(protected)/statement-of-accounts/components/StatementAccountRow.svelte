@@ -85,12 +85,6 @@
 		{account.totalInvoices}
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-		{formatCurrency(account.balance)}
-	</td>
-	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-		{formatCurrency(account.grandTotal)}
-	</td>
-	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		{formatCurrency(account.allInvoicesBalance)}
 	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">

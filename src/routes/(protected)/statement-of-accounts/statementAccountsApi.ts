@@ -54,11 +54,6 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
         .filter(customer => customer && customer.customer_username) // Filter out invalid customers
         .map(customer => {
             try {
-                // Safely calculate grand total from orders
-                const grandTotal = (customer.orders || [])
-                    .filter(order => order && typeof order.grandTotal === 'number')
-                    .reduce((sum, order) => sum + order.grandTotal, 0);
-
                 // Safely flatten all payments from all orders
                 const payments = (customer.orders || [])
                     .filter(order => order && Array.isArray(order.payments))
@@ -77,19 +72,10 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
                                    (customer.email || '').trim() ||
                                    customer.customer_username;
 
-                // Safely handle balance values
-                const balance = typeof customer.due_invoice_balance === 'number'
-                    ? customer.due_invoice_balance
-                    : (typeof customer.total_balance === 'number'
-                        ? customer.total_balance
-                        : 0);
-
                 return {
                     username: customer.customer_username,
                     companyName,
                     totalInvoices: typeof customer.total_orders === 'number' ? customer.total_orders : 0,
-                    balance: Math.round(balance * 100) / 100, // Round to 2 decimal places
-                    grandTotal: Math.round(grandTotal * 100) / 100, // Round to 2 decimal places
                     allInvoicesBalance: Math.round((customer.total_balance || 0) * 100) / 100,
                     dueInvoiceBalance: Math.round((customer.due_invoice_balance || 0) * 100) / 100,
                     totalBalanceCustomer: customer.api_account_balance !== null

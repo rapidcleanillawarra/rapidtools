@@ -345,8 +345,8 @@
 			...sortedStatementAccounts.map(account => {
 				let aibVsTb = 'N/A';
 				if (account.totalBalanceCustomer !== null) {
-					const isMatch = Math.abs(account.allInvoicesBalance - account.totalBalanceCustomer) < 0.01;
-					aibVsTb = isMatch ? 'Match' : 'No Match';
+				const isMatch = Math.abs(account.allInvoicesBalance - account.totalBalanceCustomer) < 0.01;
+				aibVsTb = isMatch ? 'Match' : 'Not Matched';
 				}
 				return [
 					account.username,

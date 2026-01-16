@@ -115,7 +115,7 @@
 				</span>
 			{:else}
 				<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-					✗ No Match
+					✗ Not Matched
 				</span>
 			{/if}
 		{:else}

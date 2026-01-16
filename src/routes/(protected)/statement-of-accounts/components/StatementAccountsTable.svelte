@@ -60,6 +60,7 @@
 						 key === 'allInvoicesBalance' ? 'All Invoices Balance' :
 						 key === 'dueInvoiceBalance' ? 'Due Invoice Balance' :
 						 key === 'totalBalanceCustomer' ? 'Total Balance' :
+						 key === 'aibVsTb' ? 'AIB vs TB' :
 						 key === 'lastSent' ? 'Last Sent' :
 						 key.replace(/([A-Z])/g, ' $1').trim()}
 					</span>
@@ -196,6 +197,14 @@
 								on:input={(e) => handleSearchInput('totalBalanceCustomer', e)}
 							/>
 						</div>
+					</th>
+					{/if}
+					{#if $visibleColumns.aibVsTb}
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						AIB vs TB
 					</th>
 					{/if}
 					{#if $visibleColumns.lastSent}

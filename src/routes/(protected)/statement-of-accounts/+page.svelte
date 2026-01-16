@@ -339,18 +339,24 @@
 		}
 
 		// Create CSV content
-		const headers = ['customer_username', 'total_invoices', 'all_invoices_balance', 'due_invoice_balance', 'total_balance_customer'];
+		const headers = ['customer_username', 'total_invoices', 'all_invoices_balance', 'due_invoice_balance', 'total_balance_customer', 'aib_vs_tb'];
 		const csvContent = [
 			headers.join(','),
-			...sortedStatementAccounts.map(account =>
-				[
+			...sortedStatementAccounts.map(account => {
+				let aibVsTb = 'N/A';
+				if (account.totalBalanceCustomer !== null) {
+					const isMatch = Math.abs(account.allInvoicesBalance - account.totalBalanceCustomer) < 0.01;
+					aibVsTb = isMatch ? 'Match' : 'No Match';
+				}
+				return [
 					account.username,
 					account.totalInvoices,
 					account.allInvoicesBalance.toFixed(2),
 					account.dueInvoiceBalance.toFixed(2),
-					account.totalBalanceCustomer !== null ? account.totalBalanceCustomer.toFixed(2) : 'N/A'
-				].join(',')
-			)
+					account.totalBalanceCustomer !== null ? account.totalBalanceCustomer.toFixed(2) : 'N/A',
+					aibVsTb
+				].join(',');
+			})
 		].join('\n');
 
 		// Create and download file
@@ -390,6 +396,11 @@
 					return account.dueInvoiceBalance.toString().includes(normalizedValue);
 				} else if (columnKey === 'totalBalanceCustomer') {
 					return account.totalBalanceCustomer?.toString().includes(normalizedValue) || false;
+				} else if (columnKey === 'aibVsTb') {
+					if (account.totalBalanceCustomer === null) return false;
+					const isMatch = Math.abs(account.allInvoicesBalance - account.totalBalanceCustomer) < 0.01;
+					const displayText = isMatch ? 'match' : 'no match';
+					return displayText.includes(normalizedValue);
 				} else if (columnKey === 'lastSent') {
 					const dateValue = account[columnKey];
 					if (!dateValue) return false;

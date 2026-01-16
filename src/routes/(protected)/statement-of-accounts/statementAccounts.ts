@@ -40,7 +40,7 @@ export interface StatementAccount {
 	oneDriveId: string | null;
 }
 
-export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent';
+export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'aibVsTb' | 'lastSent';
 
 // Sorting stores
 export const sortField = writable<ColumnKey | ''>('');
@@ -54,6 +54,7 @@ export const visibleColumns = writable<Record<ColumnKey, boolean>>({
 	allInvoicesBalance: true,
 	dueInvoiceBalance: true,
 	totalBalanceCustomer: true,
+	aibVsTb: true,
 	lastSent: true
 });
 

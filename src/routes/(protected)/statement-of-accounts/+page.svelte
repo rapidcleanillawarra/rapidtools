@@ -5,8 +5,7 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import { supabase } from '$lib/supabase';
 	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
-	import { aggregateByUsername } from './statementAccounts';
-	import { fetchOrders, generateDocument } from './statementAccountsApi';
+	import { fetchStatementData, generateDocument } from './statementAccountsApi';
 	import { handlePrintStatement, generateStatementHtml, getCustomerInvoices } from './utils/print';
 
 	// Components
@@ -185,21 +184,20 @@
 			isLoading = true;
 			error = '';
 
-			const orders = await fetchOrders();
+			const { accounts, orders } = await fetchStatementData();
 			rawOrders = orders; // Store raw orders for printing
-			const aggregatedAccounts = aggregateByUsername(orders);
-			statementAccounts = aggregatedAccounts;
+			statementAccounts = accounts; // Use pre-aggregated accounts from API
 
 			// Log filtering stats
 			console.log(JSON.stringify({
 				stats: {
 					api_orders_fetched: orders.length,
-					unique_customers: aggregatedAccounts.length,
+					unique_customers: accounts.length,
 				}
 			}, null, 2));
 
 			// Check status after loading accounts
-			await check_soa_status(aggregatedAccounts);
+			await check_soa_status(accounts);
 		} catch (err) {
 			console.error('Error loading statement accounts:', err);
 			error = err instanceof Error ? err.message : 'Failed to load statement accounts';

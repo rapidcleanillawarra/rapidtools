@@ -1,53 +1,231 @@
-import type { Order } from './statementAccounts';
+import type { Order, StatementAccount } from './statementAccounts';
 
-const API_URL =
-    'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
+// Types for the new API response
+interface CustomerOrder {
+    id: string;
+    grandTotal: number;
+    payments: Array<{
+        Amount: number;
+    }>;
+    outstandingAmount: number;
+    datePaymentDue: string;
+    isPastDue: boolean;
+}
+
+interface CustomerData {
+    customer_username: string;
+    email: string;
+    company_name: string;
+    total_orders: number;
+    total_balance: number;
+    due_invoice_balance: number;
+    source: string;
+    balance_matches: boolean;
+    api_account_balance: number | null;
+    orders: CustomerOrder[];
+}
+
+interface ApiResponse {
+    success: boolean;
+    message: string;
+    stats: {
+        customer_api_usernames: number;
+        order_api_unique_username: number;
+        matched_balances_count: number;
+        unmatched_balances_count: number;
+        usernames_with_unmatched_balances: string[];
+    };
+    customers: CustomerData[];
+    timestamp: string;
+}
+
+const API_URL = 'https://rapidtools-backend.netlify.app/.netlify/functions/check_existing_customer_statement';
 
 /**
- * Fetches orders from the Power Automate API
- * Returns dispatched orders with pending/partial payment status
+ * Transforms the new API response structure to StatementAccount[] using pre-aggregated data
  */
-export async function fetchOrders(): Promise<Order[]> {
+function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): StatementAccount[] {
+    if (!apiResponse.success || !apiResponse.customers || !Array.isArray(apiResponse.customers)) {
+        console.warn('Invalid API response: missing or invalid customers data');
+        return [];
+    }
+
+    return apiResponse.customers
+        .filter(customer => customer && customer.customer_username) // Filter out invalid customers
+        .map(customer => {
+            try {
+                // Safely calculate grand total from orders
+                const grandTotal = (customer.orders || [])
+                    .filter(order => order && typeof order.grandTotal === 'number')
+                    .reduce((sum, order) => sum + order.grandTotal, 0);
+
+                // Safely flatten all payments from all orders
+                const payments = (customer.orders || [])
+                    .filter(order => order && Array.isArray(order.payments))
+                    .flatMap(order =>
+                        order.payments
+                            .filter(payment => payment && typeof payment.Amount === 'number')
+                            .map(payment => ({
+                                amount: payment.Amount,
+                                datePaid: '', // Not available in new API
+                                orderId: order.id || ''
+                            }))
+                    );
+
+                // Determine customer name with fallbacks
+                const customerName = (customer.company_name || '').trim() ||
+                                   (customer.email || '').trim() ||
+                                   customer.customer_username;
+
+                // Safely handle balance values
+                const balance = typeof customer.due_invoice_balance === 'number'
+                    ? customer.due_invoice_balance
+                    : (typeof customer.total_balance === 'number'
+                        ? customer.total_balance
+                        : 0);
+
+                return {
+                    username: customer.customer_username,
+                    customerName,
+                    totalInvoices: typeof customer.total_orders === 'number' ? customer.total_orders : 0,
+                    balance: Math.round(balance * 100) / 100, // Round to 2 decimal places
+                    grandTotal: Math.round(grandTotal * 100) / 100, // Round to 2 decimal places
+                    lastSent: null,
+                    lastCheck: null,
+                    lastFileGeneration: null,
+                    oneDriveId: null,
+                    payments
+                };
+            } catch (error) {
+                console.error(`Error transforming customer ${customer.customer_username}:`, error);
+                return null;
+            }
+        })
+        .filter(account => account !== null) as StatementAccount[]; // Remove null entries
+}
+
+/**
+ * Transforms the new API response structure to the existing Order[] format
+ */
+function transformApiResponseToOrders(apiResponse: ApiResponse): Order[] {
+    if (!apiResponse.success || !apiResponse.customers || !Array.isArray(apiResponse.customers)) {
+        console.warn('Invalid API response: missing or invalid customers data');
+        return [];
+    }
+
+    const orders: Order[] = [];
+
+    for (const customer of apiResponse.customers) {
+        if (!customer || !customer.customer_username || !Array.isArray(customer.orders)) {
+            console.warn('Skipping invalid customer:', customer);
+            continue;
+        }
+
+        for (const order of customer.orders) {
+            try {
+                if (!order || !order.id || typeof order.grandTotal !== 'number') {
+                    console.warn('Skipping invalid order:', order);
+                    continue;
+                }
+
+                // Safely transform payments
+                const orderPayments = (order.payments || [])
+                    .filter(payment => payment && typeof payment.Amount === 'number')
+                    .map(payment => ({
+                        Amount: payment.Amount.toString(), // Convert to string to match existing interface
+                        Id: '', // Not available in new API
+                        DatePaid: '' // Not available in new API
+                    }));
+
+                // Transform the order structure to match existing Order interface
+                const transformedOrder: Order = {
+                    ID: order.id,
+                    OrderID: order.id,
+                    DatePaymentDue: order.datePaymentDue || '',
+                    BillLastName: '', // Not available in new API
+                    BillStreetLine1: '', // Not available in new API
+                    BillState: '', // Not available in new API
+                    BillCountry: '', // Not available in new API
+                    BillPostCode: '', // Not available in new API
+                    OrderPayment: orderPayments,
+                    DatePlaced: order.datePaymentDue || '', // Using due date as placed date since not available separately
+                    GrandTotal: order.grandTotal.toString(), // Convert to string to match existing interface
+                    Username: customer.customer_username,
+                    BillCity: '', // Not available in new API
+                    BillCompany: (customer.company_name || '').trim(),
+                    BillFirstName: '', // Not available in new API
+                    BillPhone: undefined, // Not available in new API
+                    Email: (customer.email || '').trim()
+                };
+                orders.push(transformedOrder);
+            } catch (error) {
+                console.error(`Error transforming order ${order?.id} for customer ${customer.customer_username}:`, error);
+                // Continue processing other orders
+            }
+        }
+    }
+
+    return orders;
+}
+
+/**
+ * Fetches customer statement data from the Netlify API
+ * Returns both pre-aggregated accounts and individual orders
+ */
+export async function fetchStatementData(): Promise<{ accounts: StatementAccount[]; orders: Order[] }> {
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                Filter: {
-                    OrderStatus: ['Dispatched'],
-                    PaymentStatus: ['Pending', 'PartialPaid'],
-                    OutputSelector: [
-                        'ID',
-                        'Username',
-                        'DatePaymentDue',
-                        'OrderPayment',
-                        'GrandTotal',
-                        'DatePlaced',
-                        'BillAddress',
-                        'Email'
-                    ]
-                },
-                action: 'GetOrder'
-            })
+            }
+            // No body needed for this endpoint
         });
 
         if (!response.ok) {
-            throw new Error('Failed to fetch orders');
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
-        const data = await response.json();
-
-        if (data && data.Order) {
-            return data.Order;
+        let data: ApiResponse;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            throw new Error(`Failed to parse API response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`);
         }
 
-        return [];
+        if (!data || typeof data.success !== 'boolean') {
+            throw new Error('Invalid API response: missing success field');
+        }
+
+        if (!data.success) {
+            throw new Error(`API request failed: ${data.message || 'Unknown error'}`);
+        }
+
+        if (!data.customers || !Array.isArray(data.customers)) {
+            console.warn('API response contains no customers data');
+            return { accounts: [], orders: [] };
+        }
+
+        const accounts = transformApiResponseToStatementAccounts(data);
+        const orders = transformApiResponseToOrders(data);
+
+        console.log(`Successfully fetched ${accounts.length} accounts and ${orders.length} orders`);
+
+        return { accounts, orders };
     } catch (e) {
-        console.error('Error fetching orders:', e);
+        console.error('Error fetching statement data:', e);
         throw e;
     }
+}
+
+/**
+ * Fetches customer statement data from the Netlify API
+ * Returns orders in the existing Order[] format for compatibility (legacy function)
+ */
+export async function fetchOrders(): Promise<Order[]> {
+    const { orders } = await fetchStatementData();
+    return orders;
 }
 
 const GENERATE_DOC_URL =

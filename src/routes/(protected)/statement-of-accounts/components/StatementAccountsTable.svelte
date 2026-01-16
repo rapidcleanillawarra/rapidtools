@@ -104,6 +104,51 @@
 						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 					>
 						<div class="flex flex-col gap-2">
+							All Invoices Balance (Order)
+							<input
+								type="text"
+								placeholder="Search..."
+								class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
+								value={searchFilters['allInvoicesBalance'] || ''}
+								on:input={(e) => handleSearchInput('allInvoicesBalance', e)}
+							/>
+						</div>
+					</th>
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						<div class="flex flex-col gap-2">
+							Due Invoice Balance (Order)
+							<input
+								type="text"
+								placeholder="Search..."
+								class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
+								value={searchFilters['dueInvoiceBalance'] || ''}
+								on:input={(e) => handleSearchInput('dueInvoiceBalance', e)}
+							/>
+						</div>
+					</th>
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						<div class="flex flex-col gap-2">
+							Total Balance (Customer)
+							<input
+								type="text"
+								placeholder="Search..."
+								class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
+								value={searchFilters['totalBalanceCustomer'] || ''}
+								on:input={(e) => handleSearchInput('totalBalanceCustomer', e)}
+							/>
+						</div>
+					</th>
+					<th
+						scope="col"
+						class="px-6 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						<div class="flex flex-col gap-2">
 							Last Sent
 							<input
 								type="text"

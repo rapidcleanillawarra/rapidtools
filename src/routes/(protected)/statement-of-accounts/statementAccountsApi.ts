@@ -90,6 +90,11 @@ function transformApiResponseToStatementAccounts(apiResponse: ApiResponse): Stat
                     totalInvoices: typeof customer.total_orders === 'number' ? customer.total_orders : 0,
                     balance: Math.round(balance * 100) / 100, // Round to 2 decimal places
                     grandTotal: Math.round(grandTotal * 100) / 100, // Round to 2 decimal places
+                    allInvoicesBalance: Math.round((customer.total_balance || 0) * 100) / 100,
+                    dueInvoiceBalance: Math.round((customer.due_invoice_balance || 0) * 100) / 100,
+                    totalBalanceCustomer: customer.api_account_balance !== null
+                        ? Math.round(customer.api_account_balance * 100) / 100
+                        : null,
                     lastSent: null,
                     lastCheck: null,
                     lastFileGeneration: null,

@@ -332,7 +332,7 @@
 		}
 
 		// Create CSV content
-		const headers = ['customer_username', 'total_orders', 'balance', 'grand_total'];
+		const headers = ['customer_username', 'total_orders', 'balance', 'grand_total', 'all_invoices_balance', 'due_invoice_balance', 'total_balance_customer'];
 		const csvContent = [
 			headers.join(','),
 			...filteredStatementAccounts.map(account =>
@@ -340,7 +340,10 @@
 					account.username,
 					account.totalInvoices,
 					account.balance.toFixed(2),
-					account.grandTotal.toFixed(2)
+					account.grandTotal.toFixed(2),
+					account.allInvoicesBalance.toFixed(2),
+					account.dueInvoiceBalance.toFixed(2),
+					account.totalBalanceCustomer !== null ? account.totalBalanceCustomer.toFixed(2) : 'N/A'
 				].join(',')
 			)
 		].join('\n');
@@ -379,6 +382,12 @@
 					return account.balance.toString().includes(normalizedValue);
 				} else if (columnKey === 'grandTotal') {
 					return account.grandTotal.toString().includes(normalizedValue);
+				} else if (columnKey === 'allInvoicesBalance') {
+					return account.allInvoicesBalance.toString().includes(normalizedValue);
+				} else if (columnKey === 'dueInvoiceBalance') {
+					return account.dueInvoiceBalance.toString().includes(normalizedValue);
+				} else if (columnKey === 'totalBalanceCustomer') {
+					return account.totalBalanceCustomer?.toString().includes(normalizedValue) || false;
 				} else if (columnKey === 'lastSent') {
 					const dateValue = account[columnKey];
 					if (!dateValue) return false;

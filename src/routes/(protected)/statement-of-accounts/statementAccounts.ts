@@ -36,6 +36,9 @@ export interface StatementAccount {
 	totalInvoices: number;
 	balance: number;
 	grandTotal: number;
+	allInvoicesBalance: number;
+	dueInvoiceBalance: number;
+	totalBalanceCustomer: number | null;
 	lastSent: string | null;
 	lastCheck: string | null;
 	lastFileGeneration: string | null;
@@ -43,7 +46,7 @@ export interface StatementAccount {
 	payments: PaymentDetail[];
 }
 
-export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'balance' | 'grandTotal' | 'lastSent' | 'payments';
+export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'balance' | 'grandTotal' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'lastSent' | 'payments';
 
 /**
  * Calculates the outstanding amount for an order

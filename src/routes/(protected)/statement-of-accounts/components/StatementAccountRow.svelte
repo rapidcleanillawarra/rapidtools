@@ -90,6 +90,15 @@
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
 		{formatCurrency(account.grandTotal)}
 	</td>
+	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+		{formatCurrency(account.allInvoicesBalance)}
+	</td>
+	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+		{formatCurrency(account.dueInvoiceBalance)}
+	</td>
+	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+		{account.totalBalanceCustomer !== null ? formatCurrency(account.totalBalanceCustomer) : 'N/A'}
+	</td>
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
 		{formatDate(account.lastSent)}
 	</td>

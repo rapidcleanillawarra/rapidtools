@@ -105,13 +105,13 @@ function transformApiResponseToOrders(apiResponse: ApiResponse): Order[] {
                     continue;
                 }
 
-                // Safely transform payments
+                // Safely transform payments - API already returns correct format
                 const orderPayments = (order.payments || [])
-                    .filter(payment => payment && typeof payment.Amount === 'number')
+                    .filter(payment => payment && payment.Amount && payment.Id && payment.DatePaid)
                     .map(payment => ({
-                        Amount: payment.Amount.toString(), // Convert to string to match existing interface
-                        Id: '', // Not available in new API
-                        DatePaid: '' // Not available in new API
+                        Amount: payment.Amount, // Already a string from API
+                        Id: payment.Id, // Available in new API
+                        DatePaid: payment.DatePaid // Available in new API
                     }));
 
                 console.log(`Order ${order.id} payments transformation:`, {

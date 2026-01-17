@@ -69,6 +69,17 @@ function formatDate(dateString: string): string {
 }
 
 /**
+ * Check if an invoice is past due (due date is before today)
+ */
+function isPastDue(datePaymentDue: string): boolean {
+	const dueDate = new Date(datePaymentDue);
+	const today = new Date();
+	today.setHours(0, 0, 0, 0); // Set to start of today
+	dueDate.setHours(0, 0, 0, 0); // Set to start of due date
+	return dueDate < today;
+}
+
+/**
  * Handle printing statement of account for a specific customer
  */
 /**
@@ -283,8 +294,11 @@ export function generateStatementHtml(
 					<tbody>
 						${invoices
 			.map(
-				(invoice) => `
-							<tr>
+				(invoice) => {
+					const pastDue = isPastDue(invoice.datePaymentDue);
+					const rowClass = pastDue ? 'style="background-color: #fee2e2;"' : '';
+					return `
+							<tr ${rowClass}>
 								<td>${invoice.orderID}</td>
 								<td>${formatDate(invoice.datePlaced)}</td>
 								<td>${formatDate(invoice.datePaymentDue)}</td>
@@ -292,7 +306,8 @@ export function generateStatementHtml(
 								<td class="right">${formatCurrency(invoice.payments)}</td>
 								<td class="right">${formatCurrency(invoice.balance)}</td>
 							</tr>
-						`
+						`;
+				}
 			)
 			.join('')}
 					</tbody>

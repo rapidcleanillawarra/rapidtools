@@ -31,6 +31,15 @@
 		});
 	}
 
+	// Check if an invoice is past due
+	function isPastDue(datePaymentDue: string): boolean {
+		const dueDate = new Date(datePaymentDue);
+		const today = new Date();
+		today.setHours(0, 0, 0, 0); // Set to start of today
+		dueDate.setHours(0, 0, 0, 0); // Set to start of due date
+		return dueDate < today;
+	}
+
 	// Get customer invoices for the account
 	$: customerInvoices = account
 		? getCustomerInvoices(orders, account.companyName, account.username)
@@ -122,7 +131,8 @@
 							</thead>
 							<tbody class="bg-white divide-y divide-gray-200">
 								{#each customerInvoices as invoice, index}
-									<tr class="hover:bg-gray-50">
+									{@const pastDue = isPastDue(invoice.datePaymentDue)}
+									<tr class="hover:bg-gray-50 {pastDue ? 'bg-red-50' : ''}">
 										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
 											{index + 1}
 										</td>
@@ -132,8 +142,13 @@
 										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
 											{formatDate(invoice.datePlaced)}
 										</td>
-										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 {pastDue ? 'font-semibold text-red-700' : ''}">
 											{formatDate(invoice.datePaymentDue)}
+											{#if pastDue}
+												<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+													Past Due
+												</span>
+											{/if}
 										</td>
 										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
 											{formatCurrency(invoice.grandTotal)}
@@ -141,7 +156,7 @@
 										<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
 											{formatCurrency(invoice.payments)}
 										</td>
-										<td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right">
+										<td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-right {pastDue ? 'text-red-700' : ''}">
 											{formatCurrency(invoice.balance)}
 										</td>
 									</tr>

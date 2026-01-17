@@ -17,7 +17,8 @@ export function getCustomerInvoices(orders: Order[], companyName: string, userna
 	return orders
 		.filter((order) => {
 			const name = getCustomerName(order);
-			return name === companyName;
+			// Match by customer name, or allow if username matches (for cases where company name was used as fallback)
+			return name === companyName || order.Username === username;
 		})
 		.filter((order) => order.Username === username)
 		.filter((order) => {

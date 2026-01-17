@@ -32,6 +32,13 @@ export function getCustomerInvoices(orders: Order[], companyName: string, userna
 			) || 0;
 			const balance = grandTotal - payments;
 
+			console.log(`Order ${order.OrderID}:`, {
+				grandTotal,
+				payments,
+				balance,
+				orderPayments: order.OrderPayment
+			});
+
 			return {
 				orderID: order.OrderID,
 				datePlaced: order.DatePlaced,

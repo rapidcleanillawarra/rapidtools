@@ -33,7 +33,20 @@
 
 	// Get customer invoices for the account
 	$: customerInvoices = account
-		? getCustomerInvoices(orders, account.companyName, account.username)
+		? (() => {
+			const invoices = getCustomerInvoices(orders, account.companyName, account.username);
+			console.log('Customer invoices for modal:', {
+				account: account.companyName,
+				username: account.username,
+				invoiceCount: invoices.length,
+				invoices: invoices.map(inv => ({
+					orderID: inv.orderID,
+					payments: inv.payments,
+					balance: inv.balance
+				}))
+			});
+			return invoices;
+		})()
 		: [];
 
 	function handleClose() {

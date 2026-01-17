@@ -114,6 +114,12 @@ function transformApiResponseToOrders(apiResponse: ApiResponse): Order[] {
                         DatePaid: '' // Not available in new API
                     }));
 
+                console.log(`Order ${order.id} payments transformation:`, {
+                    originalPayments: order.payments,
+                    transformedPayments: orderPayments,
+                    totalPaymentAmount: orderPayments.reduce((sum, p) => sum + parseFloat(p.Amount), 0)
+                });
+
                 // Transform the order structure to match existing Order interface
                 const transformedOrder: Order = {
                     ID: order.id,
@@ -151,6 +157,8 @@ function transformApiResponseToOrders(apiResponse: ApiResponse): Order[] {
  */
 export async function fetchStatementData(): Promise<{ accounts: StatementAccount[]; orders: Order[] }> {
     try {
+        console.log('Fetching statement data from Netlify API:', API_URL);
+
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -159,15 +167,20 @@ export async function fetchStatementData(): Promise<{ accounts: StatementAccount
             // No body needed for this endpoint
         });
 
+        console.log('Netlify API Response Status:', response.status);
+
         if (!response.ok) {
             const errorText = await response.text().catch(() => 'Unknown error');
+            console.error('Netlify API Error Response:', errorText);
             throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
         let data: ApiResponse;
         try {
             data = await response.json();
+            console.log('Netlify API Response Data:', JSON.stringify(data, null, 2));
         } catch (parseError) {
+            console.error('Failed to parse Netlify API response:', parseError);
             throw new Error(`Failed to parse API response: ${parseError instanceof Error ? parseError.message : 'Invalid JSON'}`);
         }
 

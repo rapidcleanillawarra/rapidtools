@@ -9,6 +9,7 @@
 		generateDocument: StatementAccount;
 		sendStatement: StatementAccount;
 		print: StatementAccount;
+		viewOrders: StatementAccount;
 	}>();
 
 	// Format currency
@@ -51,6 +52,10 @@
 		dispatch('print', account);
 	}
 
+	function handleViewOrders() {
+		dispatch('viewOrders', account);
+	}
+
 	$: canSend = (() => {
 		// 1. last_file_generation and last_check must be today
 		const isGeneratedToday = isToday(account.lastFileGeneration);
@@ -88,7 +93,13 @@
 	{/if}
 	{#if $visibleColumns.totalInvoices}
 	<td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-		{account.totalInvoices}
+		<button
+			on:click={handleViewOrders}
+			class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer font-medium"
+			title="View order details"
+		>
+			{account.totalInvoices}
+		</button>
 	</td>
 	{/if}
 	{#if $visibleColumns.allInvoicesBalance}

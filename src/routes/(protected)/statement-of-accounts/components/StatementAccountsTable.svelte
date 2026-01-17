@@ -13,6 +13,7 @@
 		generateDocument: StatementAccount;
 		sendStatement: StatementAccount;
 		print: StatementAccount;
+		viewOrders: StatementAccount;
 	}>();
 
 	function handleSearchInput(key: ColumnKey, event: Event) {
@@ -256,6 +257,7 @@
 						on:generateDocument={(e) => dispatch('generateDocument', e.detail)}
 						on:sendStatement={(e) => dispatch('sendStatement', e.detail)}
 						on:print={(e) => dispatch('print', e.detail)}
+						on:viewOrders={(e) => dispatch('viewOrders', e.detail)}
 					/>
 				{/each}
 			</tbody>

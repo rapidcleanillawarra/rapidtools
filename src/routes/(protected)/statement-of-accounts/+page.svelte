@@ -28,6 +28,7 @@
 	import EmptyState from './components/EmptyState.svelte';
 	import StatementAccountsTable from './components/StatementAccountsTable.svelte';
 	import Pagination from './components/Pagination.svelte';
+	import OrdersModal from './components/OrdersModal.svelte';
 
 	// Data state
 	let statementAccounts: StatementAccount[] = [];
@@ -39,6 +40,10 @@
 	let filteredStatementAccounts: StatementAccount[] = [];
 	let sortedStatementAccounts: StatementAccount[] = [];
 	let paginatedStatementAccounts: StatementAccount[] = [];
+
+	// Modal state
+	let showOrdersModal = false;
+	let selectedAccount: StatementAccount | null = null;
 
 	// Save to Supabase
 	async function saveToSupabase() {
@@ -204,6 +209,16 @@
 		}
 	}
 
+	function handleViewOrders(event: CustomEvent<StatementAccount>) {
+		selectedAccount = event.detail;
+		showOrdersModal = true;
+	}
+
+	function handleCloseOrdersModal() {
+		showOrdersModal = false;
+		selectedAccount = null;
+	}
+
 	function handleExportCSV() {
 		if (sortedStatementAccounts.length === 0) {
 			toastError('No data to export');
@@ -312,6 +327,7 @@
 				on:generateDocument={handleGenerateDocument}
 				on:sendStatement={handleSendStatement}
 				on:print={handlePrint}
+				on:viewOrders={handleViewOrders}
 			/>
 
 			{#if sortedStatementAccounts.length > 0}
@@ -325,5 +341,13 @@
 				/>
 			{/if}
 		{/if}
+
+		<!-- Orders Modal -->
+		<OrdersModal
+			show={showOrdersModal}
+			account={selectedAccount}
+			orders={rawOrders}
+			on:close={handleCloseOrdersModal}
+		/>
 	</div>
 </main>

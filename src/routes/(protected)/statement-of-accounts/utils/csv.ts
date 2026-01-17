@@ -1,5 +1,14 @@
 import type { StatementAccount } from '../statementAccounts';
 
+interface CustomerInvoice {
+	orderID: string;
+	datePlaced: string;
+	datePaymentDue: string;
+	grandTotal: number;
+	payments: number;
+	balance: number;
+}
+
 const CSV_HEADERS = [
 	'customer_username',
 	'total_invoices',
@@ -34,6 +43,51 @@ export function createStatementAccountsCsv(accounts: StatementAccount[]): string
 export function downloadStatementAccountsCsv(accounts: StatementAccount[]): string {
 	const csvContent = createStatementAccountsCsv(accounts);
 	const fileName = `statement_accounts_${new Date().toISOString().split('T')[0]}.csv`;
+
+	const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+	const link = document.createElement('a');
+	const url = URL.createObjectURL(blob);
+
+	link.setAttribute('href', url);
+	link.setAttribute('download', fileName);
+	link.style.visibility = 'hidden';
+
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+
+	setTimeout(() => URL.revokeObjectURL(url), 0);
+
+	return fileName;
+}
+
+const ORDER_CSV_HEADERS = [
+	'order_id',
+	'date_placed',
+	'due_date',
+	'order_total',
+	'payments',
+	'balance'
+] as const;
+
+export function createCustomerInvoicesCsv(invoices: CustomerInvoice[]): string {
+	return [
+		ORDER_CSV_HEADERS.join(','),
+		...invoices.map((invoice) => [
+			invoice.orderID,
+			invoice.datePlaced,
+			invoice.datePaymentDue,
+			invoice.grandTotal.toFixed(2),
+			invoice.payments.toFixed(2),
+			invoice.balance.toFixed(2)
+		].join(','))
+	].join('\n');
+}
+
+export function downloadCustomerInvoicesCsv(invoices: CustomerInvoice[], companyName: string): string {
+	const csvContent = createCustomerInvoicesCsv(invoices);
+	const cleanName = companyName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+	const fileName = `customer_invoices_${cleanName}_${new Date().toISOString().split('T')[0]}.csv`;
 
 	const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 	const link = document.createElement('a');

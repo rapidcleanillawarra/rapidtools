@@ -42,6 +42,13 @@ export interface StatementAccount {
 
 export type ColumnKey = 'companyName' | 'username' | 'totalInvoices' | 'allInvoicesBalance' | 'dueInvoiceBalance' | 'totalBalanceCustomer' | 'aibVsTb' | 'lastSent';
 
+export type NumericFilterOperator = 'gt' | 'lt' | 'eq';
+
+export interface NumericFilter {
+	value: number;
+	operator: NumericFilterOperator;
+}
+
 // Sorting stores
 export const sortField = writable<ColumnKey | ''>('');
 export const sortDirection = writable<'asc' | 'desc'>('asc');

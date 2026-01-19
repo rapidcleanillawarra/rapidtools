@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { sortField, sortDirection, visibleColumns, getSortIcon, sortData } from '../statementAccounts';
-	import type { StatementAccount, ColumnKey } from '../statementAccounts';
+	import type { StatementAccount, ColumnKey, NumericFilter } from '../statementAccounts';
 	import StatementAccountRow from './StatementAccountRow.svelte';
 
 	export let accounts: StatementAccount[];
 	export let searchFilters: Partial<Record<ColumnKey, string>>;
+	export let numericFilters: Partial<Record<ColumnKey, NumericFilter>>;
 
 	const dispatch = createEventDispatcher<{
 		searchChange: { key: ColumnKey; value: string };
+		numericFilterChange: { key: ColumnKey; filter: NumericFilter };
 		sortChange: { field: ColumnKey; direction: 'asc' | 'desc' };
 		generateDocument: StatementAccount;
 		sendStatement: StatementAccount;
@@ -19,6 +21,30 @@
 	function handleSearchInput(key: ColumnKey, event: Event) {
 		const target = event.currentTarget as HTMLInputElement;
 		dispatch('searchChange', { key, value: target.value });
+	}
+
+	function handleNumericFilterChange(key: ColumnKey, value: string, operator: string) {
+		const numValue = parseFloat(value);
+		if (isNaN(numValue)) {
+			// If value is not a valid number, don't dispatch
+			return;
+		}
+		dispatch('numericFilterChange', {
+			key,
+			filter: { value: numValue, operator: operator as 'gt' | 'lt' | 'eq' }
+		});
+	}
+
+	function handleOperatorChange(key: ColumnKey, operator: string, currentValue: string) {
+		const numValue = parseFloat(currentValue);
+		if (isNaN(numValue)) {
+			// If value is not a valid number, don't dispatch
+			return;
+		}
+		dispatch('numericFilterChange', {
+			key,
+			filter: { value: numValue, operator: operator as 'gt' | 'lt' | 'eq' }
+		});
 	}
 
 	function handleSortClick(field: ColumnKey) {
@@ -148,13 +174,25 @@
 								All Invoices Balance
 								<span class="text-xs">{getSortIcon('allInvoicesBalance', $sortField, $sortDirection)}</span>
 							</div>
-							<input
-								type="text"
-								placeholder="Search..."
-								class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
-								value={searchFilters['allInvoicesBalance'] || ''}
-								on:input={(e) => handleSearchInput('allInvoicesBalance', e)}
-							/>
+							<div class="flex gap-1">
+								<select
+									class="rounded border px-1 py-1 text-xs text-gray-900 bg-white"
+									value={numericFilters['allInvoicesBalance']?.operator || 'gt'}
+									on:change={(e) => handleOperatorChange('allInvoicesBalance', e.currentTarget.value, (numericFilters['allInvoicesBalance']?.value || 0).toString())}
+								>
+									<option value="gt">&gt;</option>
+									<option value="lt">&lt;</option>
+									<option value="eq">=</option>
+								</select>
+								<input
+									type="number"
+									step="0.01"
+									placeholder="0.00"
+									class="flex-1 rounded border px-2 py-1 text-xs font-normal text-gray-900"
+									value={numericFilters['allInvoicesBalance']?.value || ''}
+									on:input={(e) => handleNumericFilterChange('allInvoicesBalance', e.currentTarget.value, numericFilters['allInvoicesBalance']?.operator || 'gt')}
+								/>
+							</div>
 						</div>
 					</th>
 					{/if}

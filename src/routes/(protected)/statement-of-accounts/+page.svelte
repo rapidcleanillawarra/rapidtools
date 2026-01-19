@@ -3,7 +3,7 @@
 	import { get } from 'svelte/store';
 	import { currentUser } from '$lib/firebase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
-	import type { StatementAccount, ColumnKey, Order } from './statementAccounts';
+	import type { StatementAccount, ColumnKey, Order, NumericFilter } from './statementAccounts';
 	import { sortField, sortDirection, sortData, visibleColumns } from './statementAccounts';
 	import { fetchStatementData, generateDocument } from './statementAccountsApi';
 	import { handlePrintStatement, generateStatementHtml, getCustomerInvoices } from './utils/print';
@@ -67,6 +67,7 @@
 
 	// Search state
 	let searchFilters: Partial<Record<ColumnKey, string>> = {};
+	let numericFilters: Partial<Record<ColumnKey, NumericFilter>> = {};
 
 	// Pagination state
 	let currentPage = 1;
@@ -112,6 +113,11 @@
 		currentPage = 1;
 	}
 
+	function handleNumericFilterChange(event: CustomEvent<{ key: ColumnKey; filter: NumericFilter }>) {
+		numericFilters = { ...numericFilters, [event.detail.key]: event.detail.filter };
+		currentPage = 1;
+	}
+
 	function handlePageChange(event: CustomEvent<number>) {
 		currentPage = event.detail;
 	}
@@ -123,6 +129,7 @@
 
 	function handleClearFilters() {
 		searchFilters = {};
+		numericFilters = {};
 	}
 
 	function handleSortChange(event: CustomEvent<{ field: ColumnKey; direction: 'asc' | 'desc' }>) {
@@ -231,7 +238,7 @@
 	}
 
 	// Reactive filtered and sorted statement accounts
-	$: filteredStatementAccounts = filterStatementAccounts(statementAccounts, searchFilters);
+	$: filteredStatementAccounts = filterStatementAccounts(statementAccounts, searchFilters, numericFilters);
 
 	// Apply sorting reactively
 	$: sortedStatementAccounts = (() => {
@@ -322,7 +329,9 @@
 			<StatementAccountsTable
 				accounts={paginatedStatementAccounts}
 				{searchFilters}
+				{numericFilters}
 				on:searchChange={handleSearchChange}
+				on:numericFilterChange={handleNumericFilterChange}
 				on:sortChange={handleSortChange}
 				on:generateDocument={handleGenerateDocument}
 				on:sendStatement={handleSendStatement}

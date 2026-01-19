@@ -1,4 +1,4 @@
-import type { ColumnKey, StatementAccount } from '../statementAccounts';
+import type { ColumnKey, StatementAccount, NumericFilter } from '../statementAccounts';
 
 const UNKNOWN_DATE_PLACEHOLDER = '—';
 
@@ -54,19 +54,95 @@ function matchesFilter(
 	return true;
 }
 
+function matchesNumericFilter(
+	account: StatementAccount,
+	columnKey: ColumnKey,
+	filter: NumericFilter
+): boolean {
+	if (columnKey === 'allInvoicesBalance') {
+		const value = account.allInvoicesBalance;
+		switch (filter.operator) {
+			case 'gt':
+				return value > filter.value;
+			case 'lt':
+				return value < filter.value;
+			case 'eq':
+				return Math.abs(value - filter.value) < 0.01; // Handle floating point precision
+			default:
+				return true;
+		}
+	}
+
+	if (columnKey === 'dueInvoiceBalance') {
+		const value = account.dueInvoiceBalance;
+		switch (filter.operator) {
+			case 'gt':
+				return value > filter.value;
+			case 'lt':
+				return value < filter.value;
+			case 'eq':
+				return Math.abs(value - filter.value) < 0.01; // Handle floating point precision
+			default:
+				return true;
+		}
+	}
+
+	if (columnKey === 'totalBalanceCustomer') {
+		const value = account.totalBalanceCustomer;
+		if (value === null) return false;
+		switch (filter.operator) {
+			case 'gt':
+				return value > filter.value;
+			case 'lt':
+				return value < filter.value;
+			case 'eq':
+				return Math.abs(value - filter.value) < 0.01; // Handle floating point precision
+			default:
+				return true;
+		}
+	}
+
+	if (columnKey === 'totalInvoices') {
+		const value = account.totalInvoices;
+		switch (filter.operator) {
+			case 'gt':
+				return value > filter.value;
+			case 'lt':
+				return value < filter.value;
+			case 'eq':
+				return value === filter.value;
+			default:
+				return true;
+		}
+	}
+
+	return true;
+}
+
 export function filterStatementAccounts(
 	accounts: StatementAccount[],
-	searchFilters: Partial<Record<ColumnKey, string>>
+	searchFilters: Partial<Record<ColumnKey, string>>,
+	numericFilters: Partial<Record<ColumnKey, NumericFilter>>
 ): StatementAccount[] {
-	const activeFilters = Object.entries(searchFilters)
+	const activeStringFilters = Object.entries(searchFilters)
 		.filter(([, value]) => Boolean(value))
 		.map(([key, value]) => ({ key: key as ColumnKey, normalizedValue: value!.toLowerCase() }));
 
-	if (activeFilters.length === 0) return accounts;
+	const activeNumericFilters = Object.entries(numericFilters)
+		.filter(([, filter]) => filter !== undefined)
+		.map(([key, filter]) => ({ key: key as ColumnKey, filter: filter! }));
+
+	if (activeStringFilters.length === 0 && activeNumericFilters.length === 0) return accounts;
 
 	return accounts.filter((account) => {
-		return activeFilters.every(({ key, normalizedValue }) =>
+		const stringFilterMatch = activeStringFilters.every(({ key, normalizedValue }) =>
 			matchesFilter(account, key, normalizedValue)
 		);
+
+		const numericFilterMatch = activeNumericFilters.every(({ key, filter }) =>
+			matchesNumericFilter(account, key, filter)
+		);
+
+		return stringFilterMatch && numericFilterMatch;
 	});
 }

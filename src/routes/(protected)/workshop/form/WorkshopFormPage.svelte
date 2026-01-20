@@ -927,6 +927,19 @@
 				}
 			}
 
+			// Send email notifications for comments if workshop has an order_id
+			const workshopIdToUse = existingWorkshopId || (workshop && workshop.id);
+			const orderIdToUse = generatedOrderId || existingOrderId;
+
+			if (orderIdToUse && workshopIdToUse && comments.length > 0) {
+				// Send email notification for the most recent comment (last in array)
+				const latestComment = comments[comments.length - 1];
+				console.log('Sending comment email notification after workshop save...');
+				sendCommentEmailNotification(latestComment.text, orderIdToUse, workshopIdToUse).catch((error) => {
+					console.error('Failed to send comment email notification after save:', error);
+				});
+			}
+
 			successMessage = existingWorkshopId
 				? 'Workshop job updated successfully!'
 				: 'Workshop created successfully and ready to be quoted!';
@@ -1322,6 +1335,19 @@
 						await callPowerAutomateAPI(orderIdToUse, workshopIdToUse);
 						updateProcessingStep('callingPowerAutomate', false, true);
 					}
+				}
+
+				// Send email notifications for comments if workshop has an order_id
+				const workshopIdToUse = existingWorkshopId || (workshop && workshop.id);
+				const orderIdToUse = generatedOrderId || existingOrderId;
+
+				if (orderIdToUse && workshopIdToUse && comments.length > 0) {
+					// Send email notification for the most recent comment (last in array)
+					const latestComment = comments[comments.length - 1];
+					console.log('Sending comment email notification after workshop save...');
+					sendCommentEmailNotification(latestComment.text, orderIdToUse, workshopIdToUse).catch((error) => {
+						console.error('Failed to send comment email notification after save:', error);
+					});
 				}
 
 				// Show success modal with appropriate message
@@ -1835,14 +1861,6 @@
 
 		comments = [...comments, comment];
 		newComment = ''; // Clear the input
-
-		// Send email notification if workshop has an order_id
-		if (existingOrderId && existingWorkshopId) {
-			// Send email asynchronously - don't block comment addition if it fails
-			sendCommentEmailNotification(commentText, existingOrderId, existingWorkshopId).catch((error) => {
-				console.error('Failed to send comment email notification:', error);
-			});
-		}
 	}
 
 	function addHistoryEntry(status: string, isCreation: boolean = false) {

@@ -1,6 +1,6 @@
 <!-- Customer Group Invoices Management -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { fade, scale } from 'svelte/transition';
 
 	import { toastSuccess, toastError } from '$lib/utils/toast';
@@ -141,7 +141,10 @@
 				return;
 			}
 
-			if ($filterType === 'customer' && (!$selectedCustomer || !Array.isArray($selectedCustomer) || $selectedCustomer.length === 0)) {
+			if (
+				$filterType === 'customer' &&
+				(!$selectedCustomer || !Array.isArray($selectedCustomer) || $selectedCustomer.length === 0)
+			) {
 				toastError('Please select at least one customer');
 				return;
 			}
@@ -154,7 +157,11 @@
 				Filter: {
 					...($filterType === 'group'
 						? { UserGroup: [parseInt($selectedCustomerGroup || '0')] }
-						: { Username: Array.isArray($selectedCustomer) ? $selectedCustomer.map(customer => customer.value) : [] }),
+						: {
+								Username: Array.isArray($selectedCustomer)
+									? $selectedCustomer.map((customer) => customer.value)
+									: []
+							}),
 					OutputSelector: ['Username', 'EmailAddress', 'UserGroup', 'BillingAddress']
 				},
 				action: 'GetCustomer'
@@ -338,8 +345,13 @@
 					}
 
 					// For customer filter type, use the existing customer logic
-					if ($filterType === 'customer' && $selectedCustomer && Array.isArray($selectedCustomer) && $selectedCustomer.length > 0) {
-						const selectedUsernames = $selectedCustomer.map(customer => customer.value);
+					if (
+						$filterType === 'customer' &&
+						$selectedCustomer &&
+						Array.isArray($selectedCustomer) &&
+						$selectedCustomer.length > 0
+					) {
+						const selectedUsernames = $selectedCustomer.map((customer) => customer.value);
 						if (!selectedUsernames.includes(invoice.username)) {
 							return false;
 						}
@@ -463,13 +475,17 @@
 	}
 
 	// Handle customer selection - add to list
-	function handleCustomerSelect(event: CustomEvent) {
+	async function handleCustomerSelect(event: CustomEvent) {
 		const detail = event.detail;
 		if (detail && detail.value) {
 			const currentSelected = $selectedCustomer || [];
+			// Save the current filter text before selection clears it
+			const savedFilterText = customerFilterText;
 			// Add customer to the list
 			selectedCustomer.set([...currentSelected, detail]);
-			// Search term is retained so user can keep selecting from same search results
+			// Restore the filter text after the component updates
+			await tick();
+			customerFilterText = savedFilterText;
 		}
 		validateFilters();
 	}
@@ -477,7 +493,7 @@
 	// Remove a customer from selection
 	function removeCustomer(customerValue: string) {
 		const currentSelected = $selectedCustomer || [];
-		selectedCustomer.set(currentSelected.filter(c => c.value !== customerValue));
+		selectedCustomer.set(currentSelected.filter((c) => c.value !== customerValue));
 		validateFilters();
 	}
 
@@ -518,9 +534,12 @@
 	}
 
 	// Get available customers (filter out already selected ones)
-	$: availableCustomers = $customers.filter(customer => {
-		return !$selectedCustomer.some(selected => selected.value === customer.value);
+	$: availableCustomers = $customers.filter((customer) => {
+		return !$selectedCustomer.some((selected) => selected.value === customer.value);
 	});
+
+	// Track customer search filter text to persist across selections
+	let customerFilterText = '';
 
 	// Function to open modal with invoice data
 	function openModal(invoice: CustomerGroupInvoice) {
@@ -735,7 +754,7 @@
 				return;
 			}
 
-			const invoiceNumbers = $invoices.map(invoice => invoice.invoiceNumber).join('|');
+			const invoiceNumbers = $invoices.map((invoice) => invoice.invoiceNumber).join('|');
 			const printoutUrl = `https://www.rapidsupplies.com.au/_cpanel/order/printout/?orderby=2&orders=${encodeURIComponent(invoiceNumbers)}&sortby=Date%20Placed&type=invoice`;
 
 			window.open(printoutUrl, '_blank');
@@ -821,25 +840,31 @@
 					<div class="space-y-2">
 						<Select
 							items={availableCustomers}
-							placeholder={$selectedCustomer.length > 0 ? "Add another customer..." : "Select a customer to add"}
+							placeholder={$selectedCustomer.length > 0
+								? 'Add another customer...'
+								: 'Select a customer to add'}
 							clearable={false}
 							multiple={false}
 							closeListOnChange={false}
+							bind:filterText={customerFilterText}
 							on:select={handleCustomerSelect}
 						/>
-						
+
 						<!-- Display selected customers as removable chips -->
 						{#if $selectedCustomer && $selectedCustomer.length > 0}
-							<div class="flex flex-wrap gap-2 rounded-md border border-gray-200 bg-gray-50 p-2" transition:fade={{ duration: 200 }}>
+							<div
+								class="flex flex-wrap gap-2 rounded-md border border-gray-200 bg-gray-50 p-2"
+								transition:fade={{ duration: 200 }}
+							>
 								{#each $selectedCustomer as customer (customer.value)}
-									<div 
+									<div
 										class="flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm"
 										transition:scale={{ duration: 200, start: 0.8 }}
 									>
 										<span class="text-blue-800">{customer.label}</span>
 										<button
 											type="button"
-											class="ml-1 text-blue-600 hover:text-blue-800 transition-colors"
+											class="ml-1 text-blue-600 transition-colors hover:text-blue-800"
 											on:click={() => removeCustomer(customer.value)}
 											title="Remove customer"
 										>
@@ -862,7 +887,7 @@
 								{/each}
 								<button
 									type="button"
-									class="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700 hover:bg-gray-300 transition-colors"
+									class="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-300"
 									on:click={() => {
 										selectedCustomer.set([]);
 										validateFilters();

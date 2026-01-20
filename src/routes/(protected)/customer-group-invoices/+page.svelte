@@ -1,7 +1,7 @@
 <!-- Customer Group Invoices Management -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { fade } from 'svelte/transition';
+	import { fade, scale } from 'svelte/transition';
 
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import Select from 'svelte-select';
@@ -131,7 +131,7 @@
 	async function handleApplyFilter() {
 		try {
 			// Validate filters before proceeding
-			if ($selectedStatus.length === 0) {
+			if (!$selectedStatus || !Array.isArray($selectedStatus) || $selectedStatus.length === 0) {
 				toastError('Please select at least one status');
 				return;
 			}
@@ -141,8 +141,8 @@
 				return;
 			}
 
-			if ($filterType === 'customer' && !$selectedCustomer) {
-				toastError('Please select a customer');
+			if ($filterType === 'customer' && (!$selectedCustomer || !Array.isArray($selectedCustomer) || $selectedCustomer.length === 0)) {
+				toastError('Please select at least one customer');
 				return;
 			}
 
@@ -154,7 +154,7 @@
 				Filter: {
 					...($filterType === 'group'
 						? { UserGroup: [parseInt($selectedCustomerGroup || '0')] }
-						: { Username: [$selectedCustomer] }),
+						: { Username: Array.isArray($selectedCustomer) ? $selectedCustomer.map(customer => customer.value) : [] }),
 					OutputSelector: ['Username', 'EmailAddress', 'UserGroup', 'BillingAddress']
 				},
 				action: 'GetCustomer'
@@ -338,14 +338,15 @@
 					}
 
 					// For customer filter type, use the existing customer logic
-					if ($filterType === 'customer' && $selectedCustomer) {
-						if (invoice.username !== $selectedCustomer) {
+					if ($filterType === 'customer' && $selectedCustomer && Array.isArray($selectedCustomer) && $selectedCustomer.length > 0) {
+						const selectedUsernames = $selectedCustomer.map(customer => customer.value);
+						if (!selectedUsernames.includes(invoice.username)) {
 							return false;
 						}
 					}
 
 					// Apply status filter
-					if ($selectedStatus && $selectedStatus.length > 0) {
+					if ($selectedStatus && Array.isArray($selectedStatus) && $selectedStatus.length > 0) {
 						const matchesStatus = $selectedStatus.some((selected) => {
 							const statusValue = selected.value;
 							// Map the status values to match the invoice status format
@@ -461,17 +462,36 @@
 		validateFilters();
 	}
 
-	// Handle customer selection
+	// Handle customer selection - add to list
 	function handleCustomerSelect(event: CustomEvent) {
-		const value = event.detail?.value;
-		selectedCustomer.set(value);
+		const detail = event.detail;
+		if (detail && detail.value) {
+			const currentSelected = $selectedCustomer || [];
+			// Add customer to the list
+			selectedCustomer.set([...currentSelected, detail]);
+			// Search term is retained so user can keep selecting from same search results
+		}
+		validateFilters();
+	}
+
+	// Remove a customer from selection
+	function removeCustomer(customerValue: string) {
+		const currentSelected = $selectedCustomer || [];
+		selectedCustomer.set(currentSelected.filter(c => c.value !== customerValue));
 		validateFilters();
 	}
 
 	// Handle status selection
 	function handleStatusChange(event: CustomEvent) {
 		const detail = event.detail;
-		selectedStatus.set(detail || []);
+		// Ensure we always set an array
+		if (Array.isArray(detail)) {
+			selectedStatus.set(detail);
+		} else if (detail) {
+			selectedStatus.set([detail]);
+		} else {
+			selectedStatus.set([]);
+		}
 		validateFilters();
 	}
 
@@ -496,6 +516,11 @@
 		// Reset to first page when searching
 		currentPage.set(1);
 	}
+
+	// Get available customers (filter out already selected ones)
+	$: availableCustomers = $customers.filter(customer => {
+		return !$selectedCustomer.some(selected => selected.value === customer.value);
+	});
 
 	// Function to open modal with invoice data
 	function openModal(invoice: CustomerGroupInvoice) {
@@ -793,16 +818,61 @@
 						on:select={handleCustomerGroupSelect}
 					/>
 				{:else}
-					<Select
-						items={$customers}
-						placeholder="Select customer"
-						clearable={true}
-						on:clear={() => {
-							selectedCustomer.set(null);
-							validateFilters();
-						}}
-						on:select={handleCustomerSelect}
-					/>
+					<div class="space-y-2">
+						<Select
+							items={availableCustomers}
+							placeholder={$selectedCustomer.length > 0 ? "Add another customer..." : "Select a customer to add"}
+							clearable={false}
+							multiple={false}
+							closeListOnChange={false}
+							on:select={handleCustomerSelect}
+						/>
+						
+						<!-- Display selected customers as removable chips -->
+						{#if $selectedCustomer && $selectedCustomer.length > 0}
+							<div class="flex flex-wrap gap-2 rounded-md border border-gray-200 bg-gray-50 p-2" transition:fade={{ duration: 200 }}>
+								{#each $selectedCustomer as customer (customer.value)}
+									<div 
+										class="flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm"
+										transition:scale={{ duration: 200, start: 0.8 }}
+									>
+										<span class="text-blue-800">{customer.label}</span>
+										<button
+											type="button"
+											class="ml-1 text-blue-600 hover:text-blue-800 transition-colors"
+											on:click={() => removeCustomer(customer.value)}
+											title="Remove customer"
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												class="h-4 w-4"
+												fill="none"
+												viewBox="0 0 24 24"
+												stroke="currentColor"
+											>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M6 18L18 6M6 6l12 12"
+												/>
+											</svg>
+										</button>
+									</div>
+								{/each}
+								<button
+									type="button"
+									class="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700 hover:bg-gray-300 transition-colors"
+									on:click={() => {
+										selectedCustomer.set([]);
+										validateFilters();
+									}}
+								>
+									Clear All
+								</button>
+							</div>
+						{/if}
+					</div>
 				{/if}
 				{#if $customerGroupError}
 					<p class="mt-1 text-sm text-red-600">{$customerGroupError}</p>
@@ -834,8 +904,8 @@
 					placeholder="Select status"
 					clearable={true}
 					multiple={true}
-					value={$selectedStatus}
-					on:change={() => {
+					value={Array.isArray($selectedStatus) ? $selectedStatus : []}
+					on:clear={() => {
 						selectedStatus.set([]);
 						validateFilters();
 					}}
@@ -861,7 +931,7 @@
 				on:click={() => {
 					// Clear all filters
 					selectedCustomerGroup.set(null);
-					selectedCustomer.set(null);
+					selectedCustomer.set([]);
 					dateFrom.set(null);
 					dateTo.set(null);
 					selectedStatus.set([

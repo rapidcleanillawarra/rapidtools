@@ -50,8 +50,8 @@ export const customerGroups = writable<{ value: string; label: string }[]>([]);
 // Store for customers
 export const customers = writable<{ value: string; label: string }[]>([]);
 
-// Store for selected customer
-export const selectedCustomer = writable<string | null>(null);
+// Store for selected customers (supports multiple selection)
+export const selectedCustomer = writable<{ value: string; label: string }[]>([]);
 
 // Store for filter type toggle
 export const filterType = writable<'group' | 'customer'>('group');
@@ -86,14 +86,16 @@ export function validateFilters(): boolean {
       isValid = false;
     }
   } else {
-    if (!get(selectedCustomer)) {
-      customerGroupError.set('Please select a customer');
+    const selectedCustomers = get(selectedCustomer);
+    if (!selectedCustomers || !Array.isArray(selectedCustomers) || selectedCustomers.length === 0) {
+      customerGroupError.set('Please select at least one customer');
       isValid = false;
     }
   }
 
   // Validate status
-  if (!get(selectedStatus) || get(selectedStatus).length === 0) {
+  const statusValue = get(selectedStatus);
+  if (!statusValue || !Array.isArray(statusValue) || statusValue.length === 0) {
     statusError.set('Please select at least one status');
     isValid = false;
   }

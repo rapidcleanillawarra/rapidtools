@@ -927,6 +927,19 @@
 				}
 			}
 
+			// Send email notifications for comments if workshop has an order_id
+			const workshopIdToUse = existingWorkshopId || (workshop && workshop.id);
+			const orderIdToUse = generatedOrderId || existingOrderId;
+
+			if (orderIdToUse && workshopIdToUse && comments.length > 0) {
+				// Send email notification for the most recent comment (last in array)
+				const latestComment = comments[comments.length - 1];
+				console.log('Sending comment email notification after workshop save...');
+				sendCommentEmailNotification(latestComment.text, orderIdToUse, workshopIdToUse).catch((error) => {
+					console.error('Failed to send comment email notification after save:', error);
+				});
+			}
+
 			successMessage = existingWorkshopId
 				? 'Workshop job updated successfully!'
 				: 'Workshop created successfully and ready to be quoted!';
@@ -1322,6 +1335,19 @@
 						await callPowerAutomateAPI(orderIdToUse, workshopIdToUse);
 						updateProcessingStep('callingPowerAutomate', false, true);
 					}
+				}
+
+				// Send email notifications for comments if workshop has an order_id
+				const workshopIdToUse = existingWorkshopId || (workshop && workshop.id);
+				const orderIdToUse = generatedOrderId || existingOrderId;
+
+				if (orderIdToUse && workshopIdToUse && comments.length > 0) {
+					// Send email notification for the most recent comment (last in array)
+					const latestComment = comments[comments.length - 1];
+					console.log('Sending comment email notification after workshop save...');
+					sendCommentEmailNotification(latestComment.text, orderIdToUse, workshopIdToUse).catch((error) => {
+						console.error('Failed to send comment email notification after save:', error);
+					});
 				}
 
 				// Show success modal with appropriate message
@@ -1762,6 +1788,54 @@
 		new Date().toISOString()
 	);
 
+	async function sendCommentEmailNotification(commentText: string, orderId: string, workshopId: string) {
+		try {
+			// Get current user
+			const user = get(currentUser);
+			if (!user || !user.email) {
+				console.warn('Cannot send comment email: user or user email not available');
+				return;
+			}
+
+			// Build the workshop URL - use full URL for email
+			const workshopUrl = `https://rapidcleanillawarra.github.io/rapidtools/workshop/form?workshop_id=${workshopId}`;
+
+			// Construct the email payload according to Power Automate schema
+			const payload = {
+				sender: user.email,
+				email: {
+					to: 'contact@rapidcleanillawarra.com.au;orders@rapidcleanillawarra.com.au;marketing@rapidcleanillawarra.com.au',
+					cc: '',
+					bcc: '',
+					subject: `Workshop Comment #${orderId}`,
+					body: `<p>${user.email} have commented on <a href="${workshopUrl}">#${orderId}</a>:</p><p>${commentText.replace(/\n/g, '<br>')}</p>`,
+					attachments: []
+				}
+			};
+
+			// Send POST request to Power Automate endpoint
+			const response = await fetch(
+				'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(payload)
+				}
+			);
+
+			if (!response.ok) {
+				throw new Error(`Power Automate API call failed: ${response.status} ${response.statusText}`);
+			}
+
+			console.log('Comment email notification sent successfully');
+		} catch (error) {
+			console.error('Error sending comment email notification:', error);
+			// Don't throw error - we don't want to fail comment addition if email fails
+		}
+	}
+
 	function addComment() {
 		if (!newComment.trim()) return;
 
@@ -1777,9 +1851,10 @@
 			? `${profile.firstName} ${profile.lastName}`.trim()
 			: user.displayName || user.email?.split('@')[0] || 'Unknown User';
 
+		const commentText = newComment.trim();
 		const comment = {
 			id: Date.now().toString(), // Simple ID based on timestamp
-			text: newComment.trim(),
+			text: commentText,
 			author: authorName,
 			created_at: new Date().toISOString()
 		};

@@ -415,8 +415,17 @@
       return;
     }
 
-    if (rows.some((row) => row.sku === sku)) {
-      addSkuError = 'SKU already exists in the list';
+    const existsInRows = rows.some((row) => row.sku === sku);
+    const existsInBuilder = builderItems.some((item) => item.kind === 'sku' && item.sku === sku);
+
+    if (existsInRows || existsInBuilder) {
+      if (existsInRows && existsInBuilder) {
+        addSkuError = 'SKU already exists in both the SKU & Prices and builder areas';
+      } else if (existsInRows) {
+        addSkuError = 'SKU already exists in the SKU & Prices area';
+      } else {
+        addSkuError = 'SKU already exists in the builder area';
+      }
       return;
     }
 
@@ -566,7 +575,14 @@
     if (item?.kind === 'sku') {
       const insertAt = typeof item.sourceIndex === 'number' ? item.sourceIndex : rows.length;
       const next = [...rows];
-      next.splice(Math.min(insertAt, next.length), 0, { sku: item.sku, price: item.price });
+      next.splice(Math.min(insertAt, next.length), 0, {
+        sku: item.sku,
+        price: item.price,
+        rrp: item.rrp,
+        model: item.model,
+        imageUrl: item.imageUrl,
+        hasDescription: item.hasDescription
+      });
       rows = next;
     }
   };

@@ -236,6 +236,54 @@
 
   const sanitizePrice = (raw: string) => raw.replace(/[^0-9.]/g, '');
 
+  const updateBuilderItemPrice = (index: number, newPrice: string) => {
+    const sanitizedPrice = sanitizePrice(newPrice);
+    const priceNum = parseFloat(sanitizedPrice);
+
+    // Validate price is a positive number
+    if (isNaN(priceNum) || priceNum <= 0) {
+      return; // Don't update if invalid
+    }
+
+    builderItems[index].price = sanitizedPrice;
+
+    // Update the corresponding row in the source list if it exists
+    const item = builderItems[index];
+    if (item.kind === 'sku') {
+      const rowIndex = rows.findIndex(row => row.sku === item.sku);
+      if (rowIndex >= 0) {
+        rows[rowIndex].price = sanitizedPrice;
+      }
+    }
+
+    // Trigger reactivity
+    builderItems = [...builderItems];
+    rows = [...rows];
+  };
+
+  const updateSourceRowPrice = (index: number, newPrice: string) => {
+    const sanitizedPrice = sanitizePrice(newPrice);
+    const priceNum = parseFloat(sanitizedPrice);
+
+    // Validate price is a positive number
+    if (isNaN(priceNum) || priceNum <= 0) {
+      return; // Don't update if invalid
+    }
+
+    rows[index].price = sanitizedPrice;
+
+    // Update the corresponding builder item if it exists
+    const row = rows[index];
+    const builderIndex = builderItems.findIndex(item => item.kind === 'sku' && item.sku === row.sku);
+    if (builderIndex >= 0) {
+      builderItems[builderIndex].price = sanitizedPrice;
+    }
+
+    // Trigger reactivity
+    rows = [...rows];
+    builderItems = [...builderItems];
+  };
+
   const getAllSkus = () => {
     const set = new Set<string>();
     rows.forEach((r) => r.sku && set.add(r.sku));
@@ -786,7 +834,17 @@
                           </div>
                         </div>
                       </td>
-                      <td class={`px-4 py-3 text-gray-800 ${priceClass}`}>{row.price}</td>
+                      <td class="px-4 py-3">
+                        <input
+                          id={`source-price-${row.sku}-${index}`}
+                          class={`w-full rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${priceClass}`}
+                          type="text"
+                          inputmode="decimal"
+                          placeholder="0.00"
+                          bind:value={row.price}
+                          on:input={(e) => updateSourceRowPrice(index, e.currentTarget.value)}
+                        />
+                      </td>
                       <td class="px-4 py-3 text-gray-800">{row.rrp ?? '—'}</td>
                     </tr>
                   {/each}
@@ -874,7 +932,18 @@
                         {:else if item.kind === 'static' && item.staticType === 'page_break'}
                           <p class="text-xs text-gray-600">Page separator</p>
                         {:else}
-                          <p class={`text-xs ${getPriceHighlight(item)}`}>Price: {item.price}</p>
+                          <div class="flex items-center gap-2">
+                            <label for={`price-${item.id}`} class="text-xs text-gray-700">Price:</label>
+                            <input
+                              id={`price-${item.id}`}
+                              class="w-20 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              type="text"
+                              inputmode="decimal"
+                              placeholder="0.00"
+                              bind:value={item.price}
+                              on:input={(e) => updateBuilderItemPrice(idx, e.currentTarget.value)}
+                            />
+                          </div>
                           {#if item.rrp}
                             <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
                           {/if}

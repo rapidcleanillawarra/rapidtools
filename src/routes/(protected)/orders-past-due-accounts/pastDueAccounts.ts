@@ -49,6 +49,16 @@ export interface EmailConversation {
 	has_value: string;
 }
 
+export interface Ticket {
+	ticket_number: number;
+	ticket_title: string;
+	status: string;
+	priority: string;
+	assigned_to: string | null;
+	created_at: string;
+	ticket_data: any;
+}
+
 export interface ProcessedOrder {
 	customer: string;
 	contacts: string;
@@ -65,9 +75,9 @@ export interface ProcessedOrder {
 	notes: Note[];
 	noteViews: NoteView[];
 	username: string;
-	tickets: string;
-	emailConversations?: EmailConversation[]; // Add this new property
-	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[];
+	tickets: Ticket[]; // Changed from string to Ticket[]
+	emailConversations?: EmailConversation[];
+	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[] | Ticket[];
 }
 
 export type ColumnKey =

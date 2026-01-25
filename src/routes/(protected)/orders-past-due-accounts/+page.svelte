@@ -33,6 +33,8 @@
 	import ColumnVisibilityPills from './components/ColumnVisibilityPills.svelte';
 	import EmailModal from './components/EmailModal.svelte';
 	import TicketModal from './components/TicketModal.svelte';
+	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
+    import type { Ticket } from './pastDueAccounts';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
@@ -81,6 +83,8 @@
 	// Ticket Modal State
 	let showTicketModal = false;
 	let ticketOrder: ProcessedOrder | null = null;
+    let showViewTicketsModal = false;
+    let selectedTicketsOrder: ProcessedOrder | null = null;
 
 	// User information
 	let user: import('firebase/auth').User | null = null;
@@ -243,7 +247,8 @@
 						notes: [],
 						noteViews: [],
 						username: order.Username || '',
-						tickets: '' // Initialize as empty string
+						username: order.Username || '',
+						tickets: [] // Initialize as empty array
 					});
 
 					// Track this invoice as fetched
@@ -332,6 +337,7 @@
 			await fetchEmailTrackingStatus();
 			await fetchEmailConversations();
 			await fetchAssignments();
+            await fetchTickets();
 		}
 	}
 
@@ -581,6 +587,64 @@
 		}
 	}
 
+    async function fetchTickets() {
+        try {
+            const invoiceIds = orders.map(order => order.invoice);
+            
+            // We need to query tickets where ticket_data->>order_id is in our invoice list
+            // Supabase postgrest doesn't support 'in' on JSONB fields directly in all versions well, 
+            // but we can try filtering locally or using a specific RPC if needed.
+            // For now, let's try fetching all tickets that have order_id in their data.
+            // A better way if efficient indexing is needed is to store order_id in a separate column.
+            // Assuming ticket_data is a jsonb column.
+            
+            // Strategy: Fetch tickets that MIGHT match (e.g., all tickets for 'Past Due Accounts' module) 
+            // and filter in memory, OR if list is small. 
+            // Actually, we can use the containment operator @> if we construct the query right, 
+            // but for a list of IDs it's hard.
+            
+            // Let's fetch all active tickets for this module and map them. 
+            // This might scale poorly if there are thousands of tickets.
+            // A better approach would be to have a dedicated `order_id` column on tickets table.
+            // Given I cannot change schema easily here without permissions check, I will fetch tickets based on module.
+
+            const { data, error } = await supabase
+                .from('tickets')
+                .select('ticket_number, ticket_title, status, priority, assigned_to, created_at, ticket_data')
+                .eq('module', 'Past Due Accounts')
+                .neq('status', 'Closed'); // Assuming we want active tickets, or maybe all? User said "view tickets", implied existing.
+
+            if (error) {
+                console.error('Error fetching tickets:', error);
+                return;
+            }
+
+            const tickets = data || [];
+            
+            // Map tickets to orders
+            const ticketsByOrder: Record<string, Ticket[]> = {};
+            
+            tickets.forEach((t: any) => {
+                const orderId = t.ticket_data?.order_id;
+                if (orderId && invoiceIds.includes(orderId)) {
+                    if (!ticketsByOrder[orderId]) {
+                        ticketsByOrder[orderId] = [];
+                    }
+                    ticketsByOrder[orderId].push(t);
+                }
+            });
+
+            // Update orders
+            orders = orders.map(order => ({
+                ...order,
+                tickets: ticketsByOrder[order.invoice] || []
+            }));
+
+        } catch (error) {
+            console.error('Error in fetchTickets:', error);
+        }
+    }
+
 	async function fetchNotes(invoiceId: string) {
 		try {
 			notesLoading = true;
@@ -734,7 +798,35 @@
 	function closeTicketModal() {
 		showTicketModal = false;
 		ticketOrder = null;
+        // If we came from ViewTicketsModal, reopen it to show the new ticket
+        if (selectedTicketsOrder) {
+             // Re-fetch tickets to update the list
+             fetchTickets().then(() => {
+                 // The order object in selectedTicketsOrder might be stale, update it
+                 const updatedOrder = orders.find(o => o.invoice === selectedTicketsOrder!.invoice);
+                 if (updatedOrder) {
+                     selectedTicketsOrder = updatedOrder;
+                     showViewTicketsModal = true;
+                 }
+             });
+        }
 	}
+
+    function openViewTicketsModal(order: ProcessedOrder) {
+        selectedTicketsOrder = order;
+        showViewTicketsModal = true;
+    }
+
+    function closeViewTicketsModal() {
+        showViewTicketsModal = false;
+        selectedTicketsOrder = null;
+    }
+
+    function handleCreateTicketFromView(event: CustomEvent<ProcessedOrder>) {
+        closeViewTicketsModal();
+        // Keep selectedTicketsOrder set so we know to reopen it
+        openTicketModal(event.detail);
+    }
 
 	// Pagination functions
 	function goToPage(page: number) {
@@ -1545,26 +1637,40 @@
 												{:else if column.key === 'followUp'}
 													<span class="px-2 py-1">{order.followUp ? new Date(order.followUp).toLocaleDateString() : 'No date set'}</span>
 												{:else if column.key === 'tickets'}
-													<button
-														type="button"
-														on:click={() => openTicketModal(order)}
-														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-													>
-														<svg
-															class="h-3.5 w-3.5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-															></path>
-														</svg>
-														Create Ticket
-													</button>
+                                                    {#if (order.tickets && order.tickets.length > 0)}
+                                                         <button
+                                                            type="button"
+                                                            on:click={() => openViewTicketsModal(order)}
+                                                            class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/50"
+                                                        >
+                                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                            </svg>
+                                                            View ({order.tickets.length})
+                                                        </button>
+                                                    {:else}
+                                                        <button
+                                                            type="button"
+                                                            on:click={() => openTicketModal(order)}
+                                                            class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+                                                        >
+                                                            <svg
+                                                                class="h-3.5 w-3.5"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                                ></path>
+                                                            </svg>
+                                                            Create Ticket
+                                                        </button>
+                                                    {/if}
 												{:else if column.key === 'notes'}
 													<div class="text-xs">
 														{#if (order[column.key] as Note[]).length > 0}
@@ -1949,4 +2055,13 @@
 
 	<!-- Ticket Modal -->
 	<TicketModal showModal={showTicketModal} order={ticketOrder} on:close={closeTicketModal} />
+
+    <!-- View Tickets Modal -->
+    <ViewTicketsModal
+        showModal={showViewTicketsModal}
+        order={selectedTicketsOrder}
+        tickets={selectedTicketsOrder ? selectedTicketsOrder.tickets : []}
+        on:close={closeViewTicketsModal}
+        on:createTicket={handleCreateTicketFromView}
+    />
 </div>

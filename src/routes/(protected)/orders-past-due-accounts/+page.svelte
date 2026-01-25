@@ -32,6 +32,7 @@
 	import PastDueToolbar from './components/PastDueToolbar.svelte';
 	import ColumnVisibilityPills from './components/ColumnVisibilityPills.svelte';
 	import EmailModal from './components/EmailModal.svelte';
+	import TicketModal from './components/TicketModal.svelte';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
@@ -76,6 +77,10 @@
 	// Email Modal State
 	let showEmailModal = false;
 	let emailOrder: ProcessedOrder | null = null;
+
+	// Ticket Modal State
+	let showTicketModal = false;
+	let ticketOrder: ProcessedOrder | null = null;
 
 	// User information
 	let user: import('firebase/auth').User | null = null;
@@ -721,7 +726,15 @@
 		emailOrder = null;
 	}
 
+	async function openTicketModal(order: ProcessedOrder) {
+		ticketOrder = order;
+		showTicketModal = true;
+	}
 
+	function closeTicketModal() {
+		showTicketModal = false;
+		ticketOrder = null;
+	}
 
 	// Pagination functions
 	function goToPage(page: number) {
@@ -1532,7 +1545,26 @@
 												{:else if column.key === 'followUp'}
 													<span class="px-2 py-1">{order.followUp ? new Date(order.followUp).toLocaleDateString() : 'No date set'}</span>
 												{:else if column.key === 'tickets'}
-													<span class="px-2 py-1">{order.tickets || ''}</span>
+													<button
+														type="button"
+														on:click={() => openTicketModal(order)}
+														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+													>
+														<svg
+															class="h-3.5 w-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+															></path>
+														</svg>
+														Create Ticket
+													</button>
 												{:else if column.key === 'notes'}
 													<div class="text-xs">
 														{#if (order[column.key] as Note[]).length > 0}
@@ -1914,4 +1946,7 @@
 
 	<!-- Email Modal -->
 	<EmailModal showModal={showEmailModal} order={emailOrder} on:close={closeEmailModal} />
+
+	<!-- Ticket Modal -->
+	<TicketModal showModal={showTicketModal} order={ticketOrder} on:close={closeTicketModal} />
 </div>

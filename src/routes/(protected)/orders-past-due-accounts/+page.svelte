@@ -82,9 +82,7 @@
 	let profile: UserProfile | null = null;
 
 	// Assignment and follow-up state
-	let availableUsers: string[] = ['John Smith', 'Jane Doe', 'Mike Johnson', 'Sarah Wilson']; // Default users, will be updated from database
-	let editingAssignedTo: string | null = null;
-	let editingFollowUp: string | null = null;
+	let availableUsers: string[] = ['Windy', 'AJ', 'Joevenito', 'Orders Team', 'Olie', 'Sabina', 'Krista', 'Luke', 'Mario']; // Default users, will be updated from database
 
 	async function fetchAvailableUsers() {
 		try {
@@ -239,7 +237,8 @@
 						followUp: '', // Initialize as empty string
 						notes: [],
 						noteViews: [],
-						username: order.Username || ''
+						username: order.Username || '',
+						tickets: '' // Initialize as empty string
 					});
 
 					// Track this invoice as fetched
@@ -722,59 +721,7 @@
 		emailOrder = null;
 	}
 
-	async function saveAssignedTo(invoiceId: string, assignedTo: string) {
-		try {
-			// Save to database
-			const { error } = await supabase
-				.from('orders_past_due_accounts_assignments')
-				.upsert({
-					order_id: invoiceId,
-					assigned_to: assignedTo || null,
-					follow_up_date: orders.find(o => o.invoice === invoiceId)?.followUp || null
-				}, { onConflict: 'order_id' });
 
-			if (error) {
-				console.error('Error saving assigned to:', error);
-				return;
-			}
-
-			// Update local state
-			orders = orders.map(order =>
-				order.invoice === invoiceId ? { ...order, assignedTo } : order
-			);
-
-			editingAssignedTo = null;
-		} catch (error) {
-			console.error('Error saving assigned to:', error);
-		}
-	}
-
-	async function saveFollowUp(invoiceId: string, followUp: string) {
-		try {
-			// Save to database
-			const { error } = await supabase
-				.from('orders_past_due_accounts_assignments')
-				.upsert({
-					order_id: invoiceId,
-					assigned_to: orders.find(o => o.invoice === invoiceId)?.assignedTo || null,
-					follow_up_date: followUp || null
-				}, { onConflict: 'order_id' });
-
-			if (error) {
-				console.error('Error saving follow up:', error);
-				return;
-			}
-
-			// Update local state
-			orders = orders.map(order =>
-				order.invoice === invoiceId ? { ...order, followUp } : order
-			);
-
-			editingFollowUp = null;
-		} catch (error) {
-			console.error('Error saving follow up:', error);
-		}
-	}
 
 	// Pagination functions
 	function goToPage(page: number) {
@@ -1581,47 +1528,11 @@
 														<span class="italic text-gray-400 dark:text-gray-500">No emails</span>
 													{/if}
 												{:else if column.key === 'assignedTo'}
-													{#if editingAssignedTo === order.invoice}
-														<select
-															class="w-full rounded border px-2 py-1 text-sm"
-															value={order.assignedTo}
-															on:change={(e) => saveAssignedTo(order.invoice, e.currentTarget.value)}
-															on:blur={() => editingAssignedTo = null}
-															use:focus
-														>
-															<option value="">Unassigned</option>
-															{#each availableUsers as user}
-																<option value={user}>{user}</option>
-															{/each}
-														</select>
-													{:else}
-														<button
-															type="button"
-															class="text-left hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded w-full"
-															on:click={() => editingAssignedTo = order.invoice}
-														>
-															{order.assignedTo || 'Unassigned'}
-														</button>
-													{/if}
+													<span class="px-2 py-1">{order.assignedTo || 'Unassigned'}</span>
 												{:else if column.key === 'followUp'}
-													{#if editingFollowUp === order.invoice}
-														<input
-															type="date"
-															class="w-full rounded border px-2 py-1 text-sm"
-															value={order.followUp}
-															on:change={(e) => saveFollowUp(order.invoice, e.currentTarget.value)}
-															on:blur={() => editingFollowUp = null}
-															use:focus
-														/>
-													{:else}
-														<button
-															type="button"
-															class="text-left hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded w-full"
-															on:click={() => editingFollowUp = order.invoice}
-														>
-															{order.followUp ? new Date(order.followUp).toLocaleDateString() : 'No date set'}
-														</button>
-													{/if}
+													<span class="px-2 py-1">{order.followUp ? new Date(order.followUp).toLocaleDateString() : 'No date set'}</span>
+												{:else if column.key === 'tickets'}
+													<span class="px-2 py-1">{order.tickets || ''}</span>
 												{:else if column.key === 'notes'}
 													<div class="text-xs">
 														{#if (order[column.key] as Note[]).length > 0}

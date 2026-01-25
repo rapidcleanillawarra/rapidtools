@@ -65,6 +65,7 @@ export interface ProcessedOrder {
 	notes: Note[];
 	noteViews: NoteView[];
 	username: string;
+	tickets: string;
 	emailConversations?: EmailConversation[]; // Add this new property
 	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[];
 }
@@ -81,6 +82,7 @@ export type ColumnKey =
 	| 'assignedTo'
 	| 'followUp'
 	| 'username'
+	| 'tickets'
 	| 'notes';
 
 export interface ColumnDefinition {
@@ -89,6 +91,8 @@ export interface ColumnDefinition {
 }
 
 export const columns: ColumnDefinition[] = [
+	{ key: 'assignedTo', label: 'Assigned To' },
+	{ key: 'followUp', label: 'Follow Up' },
 	{ key: 'customer', label: 'Customer' },
 	{ key: 'invoice', label: 'Invoice' },
 	{ key: 'dateIssued', label: 'Date Issued' },
@@ -97,9 +101,8 @@ export const columns: ColumnDefinition[] = [
 	{ key: 'payments', label: 'Payments' },
 	{ key: 'amount', label: 'Amount' },
 	{ key: 'emailNotifs', label: 'Email Convo' },
-	{ key: 'assignedTo', label: 'Assigned To' },
-	{ key: 'followUp', label: 'Follow Up' },
 	{ key: 'username', label: 'Username' },
+	{ key: 'tickets', label: 'Tickets' },
 	{ key: 'notes', label: 'Notes' }
 ];
 
@@ -115,6 +118,7 @@ export const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 	assignedTo: true,
 	followUp: true,
 	username: true,
+	tickets: true,
 	notes: true
 };
 

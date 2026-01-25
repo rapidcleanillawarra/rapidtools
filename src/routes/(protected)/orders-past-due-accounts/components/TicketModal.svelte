@@ -185,50 +185,60 @@ Due Date: ${order.dueDate}`;
 		notes = '';
 	}
 
+	function getSydneyDateValues(date: Date = new Date()) {
+		const tf = new Intl.DateTimeFormat('en-US', {
+			timeZone: 'Australia/Sydney',
+			year: 'numeric',
+			month: 'numeric',
+			day: 'numeric',
+			hour: 'numeric',
+			minute: 'numeric',
+			second: 'numeric',
+			hour12: false
+		});
+		const parts = tf.formatToParts(date);
+		const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0');
+		
+		return {
+			year: getPart('year'),
+			month: getPart('month') - 1, // 0-indexed
+			day: getPart('day'),
+			hour: getPart('hour'),
+			minute: getPart('minute')
+		};
+	}
+
+	function formatIsLocal(year: number, month: number, day: number, hour: number, minute: number): string {
+		const pad = (n: number) => n.toString().padStart(2, '0');
+		return `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+	}
+
 	function setDueDateEndOfDay() {
-		// Create date for today at 5 PM in Sydney timezone
-		const now = new Date();
-		const sydneyTime = new Date(now.toLocaleString("en-US", {timeZone: "Australia/Sydney"}));
-		const endOfDay = new Date(sydneyTime);
-		endOfDay.setHours(17, 0, 0, 0); // 5:00 PM Sydney time
-
-		// Adjust for the difference between local timezone and Sydney timezone
-		const sydneyOffset = endOfDay.getTimezoneOffset();
-		const localOffset = new Date().getTimezoneOffset();
-		const offsetDiff = (sydneyOffset - localOffset) * 60000; // Convert minutes to milliseconds
-
-		const adjustedDate = new Date(endOfDay.getTime() + offsetDiff);
-		dueDate = adjustedDate.toISOString().slice(0, 16);
+		// Target: Today 17:00 Sydney Wall Time
+		const s = getSydneyDateValues();
+		dueDate = formatIsLocal(s.year, s.month, s.day, 17, 0);
 	}
 
 	function setDueDateTwoHours() {
-		// Add 2 hours from current Sydney time
+		// Target: Now + 2 hours Sydney Wall Time
+		// We calculate 2 hours ahead in real time, then get the Sydney Wall Time for that moment
 		const now = new Date();
-		const sydneyTime = new Date(now.toLocaleString("en-US", {timeZone: "Australia/Sydney"}));
-		const twoHoursLater = new Date(sydneyTime.getTime() + 2 * 60 * 60 * 1000);
-
-		// Adjust for timezone difference
-		const sydneyOffset = twoHoursLater.getTimezoneOffset();
-		const localOffset = new Date().getTimezoneOffset();
-		const offsetDiff = (sydneyOffset - localOffset) * 60000;
-
-		const adjustedDate = new Date(twoHoursLater.getTime() + offsetDiff);
-		dueDate = adjustedDate.toISOString().slice(0, 16);
+		const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+		
+		const s = getSydneyDateValues(twoHoursLater);
+		dueDate = formatIsLocal(s.year, s.month, s.day, s.hour, s.minute);
 	}
 
 	function setDueDateEndOfMonth() {
-		// Get the last day of current month in Sydney timezone
-		const now = new Date();
-		const sydneyTime = new Date(now.toLocaleString("en-US", {timeZone: "Australia/Sydney"}));
-		const endOfMonth = new Date(sydneyTime.getFullYear(), sydneyTime.getMonth() + 1, 0, 17, 0, 0, 0);
-
-		// Adjust for timezone difference
-		const sydneyOffset = endOfMonth.getTimezoneOffset();
-		const localOffset = new Date().getTimezoneOffset();
-		const offsetDiff = (sydneyOffset - localOffset) * 60000;
-
-		const adjustedDate = new Date(endOfMonth.getTime() + offsetDiff);
-		dueDate = adjustedDate.toISOString().slice(0, 16);
+		// Target: Last day of current Sydney month, 17:00 Sydney Wall Time
+		const s = getSydneyDateValues();
+		
+		// Find last day of this sydney month
+		// new Date(year, month + 1, 0) works in local time, but days in month are constant regardless of timezone
+		// (except very rare historic calendar changes which don't apply here)
+		const daysInMonth = new Date(s.year, s.month + 1, 0).getDate();
+		
+		dueDate = formatIsLocal(s.year, s.month, daysInMonth, 17, 0);
 	}
 
 	// Close modal when clicking outside

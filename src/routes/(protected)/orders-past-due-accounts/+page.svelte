@@ -98,15 +98,15 @@
 			// TODO: Fetch users from your user management system/database
 			// For now, using a placeholder that could be replaced with actual API call
 			const { data, error } = await supabase
-				.from('user_profiles') // Assuming you have a user_profiles table
-				.select('first_name, last_name')
-				.eq('active', true);
+				.from('users') 
+				.select('full_name')
+                .order('full_name', { ascending: true });
 
 			if (error) {
 				console.error('Error fetching users:', error);
 				// Keep default users if fetch fails
 			} else if (data) {
-				availableUsers = data.map(user => `${user.first_name} ${user.last_name}`);
+				availableUsers = data.map(user => user.full_name).filter(Boolean);
 			}
 		} catch (error) {
 			console.error('Error in fetchAvailableUsers:', error);

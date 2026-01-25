@@ -60,6 +60,8 @@ export interface ProcessedOrder {
 	payments: string;
 	amount: string;
 	emailNotifs: string;
+	assignedTo: string;
+	followUp: string;
 	notes: Note[];
 	noteViews: NoteView[];
 	username: string;
@@ -76,6 +78,8 @@ export type ColumnKey =
 	| 'payments'
 	| 'amount'
 	| 'emailNotifs'
+	| 'assignedTo'
+	| 'followUp'
 	| 'username'
 	| 'notes';
 
@@ -93,6 +97,8 @@ export const columns: ColumnDefinition[] = [
 	{ key: 'payments', label: 'Payments' },
 	{ key: 'amount', label: 'Amount' },
 	{ key: 'emailNotifs', label: 'Email Convo' },
+	{ key: 'assignedTo', label: 'Assigned To' },
+	{ key: 'followUp', label: 'Follow Up' },
 	{ key: 'username', label: 'Username' },
 	{ key: 'notes', label: 'Notes' }
 ];
@@ -106,6 +112,8 @@ export const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 	payments: true,
 	amount: true,
 	emailNotifs: true, // Now shows email tracking status
+	assignedTo: true,
+	followUp: true,
 	username: true,
 	notes: true
 };

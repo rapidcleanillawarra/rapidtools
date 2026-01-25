@@ -4,6 +4,11 @@
 	import { currentUser } from '$lib/firebase';
 	import { userProfile, type UserProfile } from '$lib/userProfile';
 	import { base } from '$app/paths';
+
+	// Focus action for auto-focusing inputs when editing starts
+	function focus(node: HTMLElement) {
+		node.focus();
+	}
 	import {
 		columns,
 		defaultColumnVisibility,
@@ -75,6 +80,31 @@
 	// User information
 	let user: import('firebase/auth').User | null = null;
 	let profile: UserProfile | null = null;
+
+	// Assignment and follow-up state
+	let availableUsers: string[] = ['John Smith', 'Jane Doe', 'Mike Johnson', 'Sarah Wilson']; // Default users, will be updated from database
+	let editingAssignedTo: string | null = null;
+	let editingFollowUp: string | null = null;
+
+	async function fetchAvailableUsers() {
+		try {
+			// TODO: Fetch users from your user management system/database
+			// For now, using a placeholder that could be replaced with actual API call
+			const { data, error } = await supabase
+				.from('user_profiles') // Assuming you have a user_profiles table
+				.select('first_name, last_name')
+				.eq('active', true);
+
+			if (error) {
+				console.error('Error fetching users:', error);
+				// Keep default users if fetch fails
+			} else if (data) {
+				availableUsers = data.map(user => `${user.first_name} ${user.last_name}`);
+			}
+		} catch (error) {
+			console.error('Error in fetchAvailableUsers:', error);
+		}
+	}
 
 	async function shouldTriggerTracking(): Promise<boolean> {
 		try {
@@ -205,6 +235,8 @@
 						payments: totalPayments.toFixed(2),
 						amount: outstandingAmount.toFixed(2),
 						emailNotifs: '', // Will be populated from tracking data
+						assignedTo: '', // Initialize as empty string
+						followUp: '', // Initialize as empty string
 						notes: [],
 						noteViews: [],
 						username: order.Username || ''
@@ -295,6 +327,7 @@
 			await fetchNotesAndViews();
 			await fetchEmailTrackingStatus();
 			await fetchEmailConversations();
+			await fetchAssignments();
 		}
 	}
 
@@ -507,6 +540,43 @@
 		}
 	}
 
+	async function fetchAssignments() {
+		try {
+			const invoiceIds = orders.map((order) => order.invoice);
+
+			// Fetch assignments for all orders
+			const { data: assignmentsData, error } = await supabase
+				.from('orders_past_due_accounts_assignments')
+				.select('order_id, assigned_to, follow_up_date')
+				.in('order_id', invoiceIds);
+
+			if (error) {
+				console.error('Error fetching assignments:', error);
+				return;
+			}
+
+			// Create a map of order_id to assignment data
+			const assignmentsMap: Record<string, { assigned_to: string; follow_up_date: string }> = {};
+			if (assignmentsData) {
+				assignmentsData.forEach((assignment) => {
+					assignmentsMap[assignment.order_id] = {
+						assigned_to: assignment.assigned_to || '',
+						follow_up_date: assignment.follow_up_date || ''
+					};
+				});
+			}
+
+			// Update orders with assignment data
+			orders = orders.map((order) => ({
+				...order,
+				assignedTo: assignmentsMap[order.invoice]?.assigned_to || '',
+				followUp: assignmentsMap[order.invoice]?.follow_up_date || ''
+			}));
+		} catch (error) {
+			console.error('Error in fetchAssignments:', error);
+		}
+	}
+
 	async function fetchNotes(invoiceId: string) {
 		try {
 			notesLoading = true;
@@ -650,6 +720,60 @@
 	function closeEmailModal() {
 		showEmailModal = false;
 		emailOrder = null;
+	}
+
+	async function saveAssignedTo(invoiceId: string, assignedTo: string) {
+		try {
+			// Save to database
+			const { error } = await supabase
+				.from('orders_past_due_accounts_assignments')
+				.upsert({
+					order_id: invoiceId,
+					assigned_to: assignedTo || null,
+					follow_up_date: orders.find(o => o.invoice === invoiceId)?.followUp || null
+				}, { onConflict: 'order_id' });
+
+			if (error) {
+				console.error('Error saving assigned to:', error);
+				return;
+			}
+
+			// Update local state
+			orders = orders.map(order =>
+				order.invoice === invoiceId ? { ...order, assignedTo } : order
+			);
+
+			editingAssignedTo = null;
+		} catch (error) {
+			console.error('Error saving assigned to:', error);
+		}
+	}
+
+	async function saveFollowUp(invoiceId: string, followUp: string) {
+		try {
+			// Save to database
+			const { error } = await supabase
+				.from('orders_past_due_accounts_assignments')
+				.upsert({
+					order_id: invoiceId,
+					assigned_to: orders.find(o => o.invoice === invoiceId)?.assignedTo || null,
+					follow_up_date: followUp || null
+				}, { onConflict: 'order_id' });
+
+			if (error) {
+				console.error('Error saving follow up:', error);
+				return;
+			}
+
+			// Update local state
+			orders = orders.map(order =>
+				order.invoice === invoiceId ? { ...order, followUp } : order
+			);
+
+			editingFollowUp = null;
+		} catch (error) {
+			console.error('Error saving follow up:', error);
+		}
 	}
 
 	// Pagination functions
@@ -965,6 +1089,7 @@
 			if (storedItemsPerPage) itemsPerPage = Number(storedItemsPerPage);
 		}
 
+		fetchAvailableUsers();
 		fetchOrders();
 		initialized = true;
 
@@ -1202,7 +1327,7 @@
 					{#each Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
 						const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
 						return pageNum <= totalPages ? pageNum : null;
-					}).filter(Boolean) as pageNum}
+					}).filter((n): n is number => n !== null) as pageNum}
 						<button
 							type="button"
 							on:click={() => goToPage(pageNum)}
@@ -1454,6 +1579,48 @@
 														{/if}
 													{:else}
 														<span class="italic text-gray-400 dark:text-gray-500">No emails</span>
+													{/if}
+												{:else if column.key === 'assignedTo'}
+													{#if editingAssignedTo === order.invoice}
+														<select
+															class="w-full rounded border px-2 py-1 text-sm"
+															value={order.assignedTo}
+															on:change={(e) => saveAssignedTo(order.invoice, e.currentTarget.value)}
+															on:blur={() => editingAssignedTo = null}
+															use:focus
+														>
+															<option value="">Unassigned</option>
+															{#each availableUsers as user}
+																<option value={user}>{user}</option>
+															{/each}
+														</select>
+													{:else}
+														<button
+															type="button"
+															class="text-left hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded w-full"
+															on:click={() => editingAssignedTo = order.invoice}
+														>
+															{order.assignedTo || 'Unassigned'}
+														</button>
+													{/if}
+												{:else if column.key === 'followUp'}
+													{#if editingFollowUp === order.invoice}
+														<input
+															type="date"
+															class="w-full rounded border px-2 py-1 text-sm"
+															value={order.followUp}
+															on:change={(e) => saveFollowUp(order.invoice, e.currentTarget.value)}
+															on:blur={() => editingFollowUp = null}
+															use:focus
+														/>
+													{:else}
+														<button
+															type="button"
+															class="text-left hover:bg-gray-100 dark:hover:bg-gray-700 px-2 py-1 rounded w-full"
+															on:click={() => editingFollowUp = order.invoice}
+														>
+															{order.followUp ? new Date(order.followUp).toLocaleDateString() : 'No date set'}
+														</button>
 													{/if}
 												{:else if column.key === 'notes'}
 													<div class="text-xs">

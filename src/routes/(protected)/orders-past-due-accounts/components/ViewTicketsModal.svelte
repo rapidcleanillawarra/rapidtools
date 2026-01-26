@@ -2,6 +2,37 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { ProcessedOrder, Ticket } from '../pastDueAccounts';
 
+	function isPastDue(dateStr: string | null): boolean {
+		if (!dateStr) return false;
+		const dueDate = new Date(dateStr);
+		const now = new Date();
+		return dueDate < now;
+	}
+
+	function formatDueDate(dateStr: string | null): string {
+		if (!dateStr) return 'N/A';
+		try {
+			const date = new Date(dateStr);
+			return date.toLocaleString('en-US', {
+				year: 'numeric',
+				month: 'short',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit'
+			});
+		} catch {
+			return dateStr;
+		}
+	}
+
+	function getDueDateColor(ticket: any, order: ProcessedOrder | null): string {
+		const dueDate = ticket.due_date || order?.dueDate;
+		const isPast = isPastDue(dueDate);
+		return isPast
+			? 'text-red-600 dark:text-red-400 font-medium'
+			: 'text-gray-500 dark:text-gray-300';
+	}
+
 	export let showModal = false;
 	export let order: ProcessedOrder | null = null;
     export let tickets: Ticket[] = [];
@@ -57,7 +88,7 @@
 			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
 
 			<div
-				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-2xl sm:align-middle"
+				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-4xl sm:align-middle"
 			>
 				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
 					<div class="sm:flex sm:items-start">
@@ -82,6 +113,7 @@
                                                     <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Title</th>
                                                     <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
                                                     <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Priority</th>
+                                                    <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Due Date</th>
                                                     <th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Assigned To</th>
                                                 </tr>
                                             </thead>
@@ -101,6 +133,9 @@
                                                         </td>
                                                         <td class="whitespace-nowrap px-3 py-4 text-sm {getPriorityColor(ticket.priority)}">
                                                             {ticket.priority}
+                                                        </td>
+                                                        <td class="whitespace-nowrap px-3 py-4 text-sm {getDueDateColor(ticket, order)}">
+                                                            {formatDueDate((ticket as any).due_date || order?.dueDate || null)}
                                                         </td>
                                                         <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
                                                             {ticket.assigned_to || 'Unassigned'}

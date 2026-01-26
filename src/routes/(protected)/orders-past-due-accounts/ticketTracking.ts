@@ -27,7 +27,7 @@ export async function fetchTicketsForOrders(
         const { data, error } = await supabase
             .from('tickets')
             .select(
-                'ticket_number, ticket_title, status, priority, assigned_to, created_at, ticket_data'
+                'ticket_number, ticket_title, status, priority, assigned_to, created_at, due_date, ticket_data'
             )
             .eq('module', 'Past Due Accounts')
             .neq('status', 'Closed');

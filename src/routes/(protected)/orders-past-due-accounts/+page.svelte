@@ -24,6 +24,7 @@
 	import TicketModal from './components/TicketModal.svelte';
 	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
 	import type { Ticket } from './pastDueAccounts';
+	import { processInvoiceTracking } from './invoiceTracking';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
@@ -219,7 +220,11 @@
 
 				const trackingOrders = orders.filter((order) => {
 					// PD Counter Filter
-					if (pdFilterValue !== null && pdFilterValue !== undefined && String(pdFilterValue) !== '') {
+					if (
+						pdFilterValue !== null &&
+						pdFilterValue !== undefined &&
+						String(pdFilterValue) !== ''
+					) {
 						const pd = order.pdCounter;
 						const val = Number(pdFilterValue);
 						if (pdFilterOperator === '>' && !(pd > val)) return false;
@@ -260,76 +265,7 @@
 				 * - Mark invoices as completed when they're resolved externally
 				 * - Maintain audit trail for compliance and reporting
 				 */
-
-				// STEP 1: Create tracking records for current API response
-				// For each order that passed filters, create a tracking record to store in database
-				invoiceTrackingRecords.push(
-					...trackingOrders.map((order) => ({
-						order_id: order.invoice,        // Unique invoice identifier
-						does_exists: true,              // Invoice currently exists in external system
-						completed: false                // Will be processed/displayed in the UI
-					}))
-				);
-
-				// STEP 2: Synchronize tracking records to database
-				// Save all tracking records using upsert to handle new and existing records
-				if (invoiceTrackingRecords.length > 0) {
-					console.log(`Synchronizing ${invoiceTrackingRecords.length} orders to orders_past_due_accounts_invoice_tracking table`);
-					try {
-						const { error: trackingError } = await supabase
-							.from('orders_past_due_accounts_invoice_tracking')
-							.upsert(invoiceTrackingRecords, { onConflict: 'order_id' });
-
-						if (trackingError) {
-							console.error('Failed to save invoice tracking records:', trackingError);
-						}
-					} catch (trackingErr) {
-						console.error('Error saving invoice tracking records:', trackingErr);
-					}
-				}
-
-				// STEP 3: Clean up resolved invoices
-				// Mark invoices that no longer appear in API response as completed
-				// This handles cases where invoices are resolved externally (paid, cancelled, etc.)
-				if (data.Order && data.Order.length > 0) {
-					try {
-						// Get all order_ids from current API response
-						const currentOrderIds = data.Order.map((order: Order) => order.ID);
-
-						// Query tracking table for active (uncompleted) records
-						const { data: allTrackingRecords, error: fetchError } = await supabase
-							.from('orders_past_due_accounts_invoice_tracking')
-							.select('order_id')
-							.eq('completed', false); // Only check records that aren't already completed
-
-						if (fetchError) {
-							console.error('Error fetching tracking records:', fetchError);
-						} else if (allTrackingRecords) {
-							// Find invoices that exist in tracking table but not in current API response
-							const trackedOrderIds = allTrackingRecords.map((record) => record.order_id);
-							const missingOrderIds = trackedOrderIds.filter(
-								(id: string) => !currentOrderIds.includes(id)
-							);
-
-							// Mark missing invoices as completed - they've been resolved externally
-							if (missingOrderIds.length > 0) {
-								const { error: updateError } = await supabase
-									.from('orders_past_due_accounts_invoice_tracking')
-									.update({
-										completed: true,
-										updated_at: new Date().toISOString()
-									})
-									.in('order_id', missingOrderIds);
-
-								if (updateError) {
-									console.error('Error marking missing orders as completed:', updateError);
-								}
-							}
-						}
-					} catch (missingErr) {
-						console.error('Error processing missing orders:', missingErr);
-					}
-				}
+				await processInvoiceTracking(trackingOrders, data.Order);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An unknown error occurred';

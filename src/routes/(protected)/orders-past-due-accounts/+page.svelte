@@ -111,39 +111,7 @@
 		}
 	}
 
-	async function shouldTriggerTracking(): Promise<boolean> {
-		try {
-			// Get the first tracking record to check the timestamp
-			const { data, error } = await supabase
-				.from('orders_past_due_accounts_invoice_tracking')
-				.select('updated_at')
-				.order('updated_at', { ascending: true })
-				.limit(1)
-				.single();
-
-			if (error && error.code !== 'PGRST116') {
-				// PGRST116 is "no rows returned"
-				console.error('Error checking tracking timestamp:', error);
-				return true; // If there's an error, allow tracking to proceed
-			}
-
-			if (!data) {
-				// No tracking records exist yet, allow tracking
-				return true;
-			}
-
-			const lastTracked = new Date(data.updated_at);
-			const now = new Date();
-			const hoursSinceLastTrack = (now.getTime() - lastTracked.getTime()) / (1000 * 60 * 60);
-
-			return hoursSinceLastTrack >= 6;
-		} catch (error) {
-			console.error('Error in shouldTriggerTracking:', error);
-			return true; // Default to allowing tracking if there's an error
-		}
-	}
-
-	async function fetchOrders(forceTracking: boolean = false) {
+	async function fetchOrders() {
 		try {
 			loading = true;
 			error = '';
@@ -187,9 +155,6 @@
 					does_exists: boolean;
 					completed: boolean;
 				}[] = [];
-
-				// Check if we should trigger tracking (unless manually forced)
-				const shouldTrack = forceTracking || (await shouldTriggerTracking());
 
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
 					// Skip orders with grand total <= $0 (only synchronize orders with grand total > $0)
@@ -293,8 +258,8 @@
 					}))
 				);
 
-				// Save invoice tracking records to Supabase only if tracking should run
-				if (shouldTrack && invoiceTrackingRecords.length > 0) {
+				// Save invoice tracking records to Supabase
+				if (invoiceTrackingRecords.length > 0) {
 					console.log(`Synchronizing ${invoiceTrackingRecords.length} orders to orders_past_due_accounts_invoice_tracking table`);
 					try {
 						const { error: trackingError } = await supabase
@@ -310,7 +275,7 @@
 				}
 
 				// Mark order_ids that no longer exist in API response as completed
-				if (shouldTrack && data.Order && data.Order.length > 0) {
+				if (data.Order && data.Order.length > 0) {
 					try {
 						// Get all order_ids from current API response
 						const currentOrderIds = data.Order.map((order: Order) => order.ID);
@@ -878,7 +843,7 @@
 
 	async function manualTriggerTracking() {
 		try {
-			await fetchOrders(true); // Force tracking to run
+			await fetchOrders();
 		} catch (error) {
 			console.error('Error manually triggering tracking:', error);
 			error = 'Failed to manually trigger tracking';

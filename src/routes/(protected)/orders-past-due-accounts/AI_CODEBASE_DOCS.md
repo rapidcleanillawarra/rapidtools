@@ -30,7 +30,7 @@ This directory (`src/routes/(protected)/orders-past-due-accounts`) contains the 
 - **Table**: `orders_past_due_accounts_invoice_tracking`
 - **Purpose**: Tracks lifecycle of past due invoices and their email notification status.
 - **Logic**:
-    - `shouldTriggerTracking()`: Checks if it's been > 6 hours since last update to avoid spamming the database.
+    - Invoice tracking records are always synchronized when orders are fetched.
     - `fetchEmailTrackingStatus()`: Updates the local state to show if email notifications have been initialized for each order.
 
 ### 3. Email Conversations

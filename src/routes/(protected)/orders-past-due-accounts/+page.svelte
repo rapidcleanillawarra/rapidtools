@@ -192,8 +192,14 @@
 				const shouldTrack = forceTracking || (await shouldTriggerTracking());
 
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
+					// Skip orders with grand total <= $0 (only synchronize orders with grand total > $0)
+					const grandTotal = parseFloat(order.GrandTotal);
+					if (grandTotal <= 0) {
+						return acc;
+					}
+
 					// Calculate Amount (Outstanding) and Payments
-					let outstandingAmount = parseFloat(order.GrandTotal);
+					let outstandingAmount = grandTotal;
 					let totalPayments = 0;
 					if (order.OrderPayment && order.OrderPayment.length > 0) {
 						order.OrderPayment.forEach((payment) => {

@@ -23,7 +23,7 @@
 	import EmailModal from './components/EmailModal.svelte';
 	import TicketModal from './components/TicketModal.svelte';
 	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
-    import type { Ticket } from './pastDueAccounts';
+	import type { Ticket } from './pastDueAccounts';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
@@ -71,30 +71,40 @@
 	// Ticket Modal State
 	let showTicketModal = false;
 	let ticketOrder: ProcessedOrder | null = null;
-    let showViewTicketsModal = false;
-    let selectedTicketsOrder: ProcessedOrder | null = null;
+	let showViewTicketsModal = false;
+	let selectedTicketsOrder: ProcessedOrder | null = null;
 
 	// User information
 	let user: import('firebase/auth').User | null = null;
 	let profile: UserProfile | null = null;
 
 	// Assignment and follow-up state
-	let availableUsers: string[] = ['Windy', 'AJ', 'Joevenito', 'Orders Team', 'Olie', 'Sabina', 'Krista', 'Luke', 'Mario']; // Default users, will be updated from database
+	let availableUsers: string[] = [
+		'Windy',
+		'AJ',
+		'Joevenito',
+		'Orders Team',
+		'Olie',
+		'Sabina',
+		'Krista',
+		'Luke',
+		'Mario'
+	]; // Default users, will be updated from database
 
 	async function fetchAvailableUsers() {
 		try {
 			// TODO: Fetch users from your user management system/database
 			// For now, using a placeholder that could be replaced with actual API call
 			const { data, error } = await supabase
-				.from('users') 
+				.from('users')
 				.select('full_name')
-                .order('full_name', { ascending: true });
+				.order('full_name', { ascending: true });
 
 			if (error) {
 				console.error('Error fetching users:', error);
 				// Keep default users if fetch fails
 			} else if (data) {
-				availableUsers = data.map(user => user.full_name).filter(Boolean);
+				availableUsers = data.map((user) => user.full_name).filter(Boolean);
 			}
 		} catch (error) {
 			console.error('Error in fetchAvailableUsers:', error);
@@ -234,7 +244,6 @@
 						notes: [],
 						noteViews: [],
 						username: order.Username || '',
-						username: order.Username || '',
 						tickets: [] // Initialize as empty array
 					});
 
@@ -316,7 +325,7 @@
 			await fetchEmailTrackingStatus();
 			await fetchEmailConversations();
 			await fetchAssignments();
-            await fetchTickets();
+			await fetchTickets();
 		}
 	}
 
@@ -566,63 +575,64 @@
 		}
 	}
 
-    async function fetchTickets() {
-        try {
-            const invoiceIds = orders.map(order => order.invoice);
-            
-            // We need to query tickets where ticket_data->>order_id is in our invoice list
-            // Supabase postgrest doesn't support 'in' on JSONB fields directly in all versions well, 
-            // but we can try filtering locally or using a specific RPC if needed.
-            // For now, let's try fetching all tickets that have order_id in their data.
-            // A better way if efficient indexing is needed is to store order_id in a separate column.
-            // Assuming ticket_data is a jsonb column.
-            
-            // Strategy: Fetch tickets that MIGHT match (e.g., all tickets for 'Past Due Accounts' module) 
-            // and filter in memory, OR if list is small. 
-            // Actually, we can use the containment operator @> if we construct the query right, 
-            // but for a list of IDs it's hard.
-            
-            // Let's fetch all active tickets for this module and map them. 
-            // This might scale poorly if there are thousands of tickets.
-            // A better approach would be to have a dedicated `order_id` column on tickets table.
-            // Given I cannot change schema easily here without permissions check, I will fetch tickets based on module.
+	async function fetchTickets() {
+		try {
+			const invoiceIds = orders.map((order) => order.invoice);
 
-            const { data, error } = await supabase
-                .from('tickets')
-                .select('ticket_number, ticket_title, status, priority, assigned_to, created_at, ticket_data')
-                .eq('module', 'Past Due Accounts')
-                .neq('status', 'Closed'); // Assuming we want active tickets, or maybe all? User said "view tickets", implied existing.
+			// We need to query tickets where ticket_data->>order_id is in our invoice list
+			// Supabase postgrest doesn't support 'in' on JSONB fields directly in all versions well,
+			// but we can try filtering locally or using a specific RPC if needed.
+			// For now, let's try fetching all tickets that have order_id in their data.
+			// A better way if efficient indexing is needed is to store order_id in a separate column.
+			// Assuming ticket_data is a jsonb column.
 
-            if (error) {
-                console.error('Error fetching tickets:', error);
-                return;
-            }
+			// Strategy: Fetch tickets that MIGHT match (e.g., all tickets for 'Past Due Accounts' module)
+			// and filter in memory, OR if list is small.
+			// Actually, we can use the containment operator @> if we construct the query right,
+			// but for a list of IDs it's hard.
 
-            const tickets = data || [];
-            
-            // Map tickets to orders
-            const ticketsByOrder: Record<string, Ticket[]> = {};
-            
-            tickets.forEach((t: any) => {
-                const orderId = t.ticket_data?.order_id;
-                if (orderId && invoiceIds.includes(orderId)) {
-                    if (!ticketsByOrder[orderId]) {
-                        ticketsByOrder[orderId] = [];
-                    }
-                    ticketsByOrder[orderId].push(t);
-                }
-            });
+			// Let's fetch all active tickets for this module and map them.
+			// This might scale poorly if there are thousands of tickets.
+			// A better approach would be to have a dedicated `order_id` column on tickets table.
+			// Given I cannot change schema easily here without permissions check, I will fetch tickets based on module.
 
-            // Update orders
-            orders = orders.map(order => ({
-                ...order,
-                tickets: ticketsByOrder[order.invoice] || []
-            }));
+			const { data, error } = await supabase
+				.from('tickets')
+				.select(
+					'ticket_number, ticket_title, status, priority, assigned_to, created_at, ticket_data'
+				)
+				.eq('module', 'Past Due Accounts')
+				.neq('status', 'Closed'); // Assuming we want active tickets, or maybe all? User said "view tickets", implied existing.
 
-        } catch (error) {
-            console.error('Error in fetchTickets:', error);
-        }
-    }
+			if (error) {
+				console.error('Error fetching tickets:', error);
+				return;
+			}
+
+			const tickets = data || [];
+
+			// Map tickets to orders
+			const ticketsByOrder: Record<string, Ticket[]> = {};
+
+			tickets.forEach((t: any) => {
+				const orderId = t.ticket_data?.order_id;
+				if (orderId && invoiceIds.includes(orderId)) {
+					if (!ticketsByOrder[orderId]) {
+						ticketsByOrder[orderId] = [];
+					}
+					ticketsByOrder[orderId].push(t);
+				}
+			});
+
+			// Update orders
+			orders = orders.map((order) => ({
+				...order,
+				tickets: ticketsByOrder[order.invoice] || []
+			}));
+		} catch (error) {
+			console.error('Error in fetchTickets:', error);
+		}
+	}
 
 	async function fetchNotes(invoiceId: string) {
 		try {
@@ -777,35 +787,35 @@
 	function closeTicketModal() {
 		showTicketModal = false;
 		ticketOrder = null;
-        // If we came from ViewTicketsModal, reopen it to show the new ticket
-        if (selectedTicketsOrder) {
-             // Re-fetch tickets to update the list
-             fetchTickets().then(() => {
-                 // The order object in selectedTicketsOrder might be stale, update it
-                 const updatedOrder = orders.find(o => o.invoice === selectedTicketsOrder!.invoice);
-                 if (updatedOrder) {
-                     selectedTicketsOrder = updatedOrder;
-                     showViewTicketsModal = true;
-                 }
-             });
-        }
+		// If we came from ViewTicketsModal, reopen it to show the new ticket
+		if (selectedTicketsOrder) {
+			// Re-fetch tickets to update the list
+			fetchTickets().then(() => {
+				// The order object in selectedTicketsOrder might be stale, update it
+				const updatedOrder = orders.find((o) => o.invoice === selectedTicketsOrder!.invoice);
+				if (updatedOrder) {
+					selectedTicketsOrder = updatedOrder;
+					showViewTicketsModal = true;
+				}
+			});
+		}
 	}
 
-    function openViewTicketsModal(order: ProcessedOrder) {
-        selectedTicketsOrder = order;
-        showViewTicketsModal = true;
-    }
+	function openViewTicketsModal(order: ProcessedOrder) {
+		selectedTicketsOrder = order;
+		showViewTicketsModal = true;
+	}
 
-    function closeViewTicketsModal() {
-        showViewTicketsModal = false;
-        selectedTicketsOrder = null;
-    }
+	function closeViewTicketsModal() {
+		showViewTicketsModal = false;
+		selectedTicketsOrder = null;
+	}
 
-    function handleCreateTicketFromView(event: CustomEvent<ProcessedOrder>) {
-        closeViewTicketsModal();
-        // Keep selectedTicketsOrder set so we know to reopen it
-        openTicketModal(event.detail);
-    }
+	function handleCreateTicketFromView(event: CustomEvent<ProcessedOrder>) {
+		closeViewTicketsModal();
+		// Keep selectedTicketsOrder set so we know to reopen it
+		openTicketModal(event.detail);
+	}
 
 	// Pagination functions
 	function goToPage(page: number) {
@@ -1035,6 +1045,11 @@
 			}
 		});
 
+	// Log count of displayed orders (only after data is loaded)
+	$: if (!loading && orders.length > 0) {
+		console.log(`Displayed orders count: ${filteredOrders.length}`);
+	}
+
 	// Pagination logic
 	$: totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
 	$: paginatedOrders = filteredOrders.slice(
@@ -1211,12 +1226,12 @@
 	<!-- Ticket Modal -->
 	<TicketModal showModal={showTicketModal} order={ticketOrder} on:close={closeTicketModal} />
 
-    <!-- View Tickets Modal -->
-    <ViewTicketsModal
-        showModal={showViewTicketsModal}
-        order={selectedTicketsOrder}
-        tickets={selectedTicketsOrder ? selectedTicketsOrder.tickets : []}
-        on:close={closeViewTicketsModal}
-        on:createTicket={handleCreateTicketFromView}
-    />
+	<!-- View Tickets Modal -->
+	<ViewTicketsModal
+		showModal={showViewTicketsModal}
+		order={selectedTicketsOrder}
+		tickets={selectedTicketsOrder ? selectedTicketsOrder.tickets : []}
+		on:close={closeViewTicketsModal}
+		on:createTicket={handleCreateTicketFromView}
+	/>
 </div>

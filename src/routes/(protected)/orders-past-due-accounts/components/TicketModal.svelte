@@ -31,16 +31,32 @@
 	});
 
 	// Current time in Sydney timezone
-	$: currentSydneyTime = new Intl.DateTimeFormat('en-AU', {
-		timeZone: 'Australia/Sydney',
-		year: 'numeric',
-		month: 'long',
-		day: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit',
-		hour12: true
-	}).format(new Date());
+	$: currentSydneyTime = (() => {
+		try {
+			return new Intl.DateTimeFormat('en-AU', {
+				timeZone: 'Australia/Sydney',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: true
+			}).format(new Date());
+		} catch (error) {
+			// Fallback for Windows timezone issues
+			const now = new Date();
+			const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
+			return new Intl.DateTimeFormat('en-AU', {
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: true
+			}).format(sydney);
+		}
+	})();
 
 	// Fetch users when modal opens
 	$: if (showModal && !availableUsers.length) {

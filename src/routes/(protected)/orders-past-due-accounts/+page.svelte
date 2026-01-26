@@ -23,6 +23,7 @@
 	import EmailModal from './components/EmailModal.svelte';
 	import TicketModal from './components/TicketModal.svelte';
 	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
+	import EditTicketModal from './components/EditTicketModal.svelte';
 	import type { Ticket } from './pastDueAccounts';
 	import { processInvoiceTracking } from './invoiceTracking';
 	import { fetchTicketsForOrders } from './ticketTracking';
@@ -75,6 +76,8 @@
 	let ticketOrder: ProcessedOrder | null = null;
 	let showViewTicketsModal = false;
 	let selectedTicketsOrder: ProcessedOrder | null = null;
+	let showEditTicketModal = false;
+	let selectedTicket: Ticket | null = null;
 
 	// User information
 	let user: import('firebase/auth').User | null = null;
@@ -688,6 +691,22 @@
 		openTicketModal(event.detail);
 	}
 
+	function openEditTicketModal(ticket: Ticket) {
+		selectedTicket = ticket;
+		showEditTicketModal = true;
+	}
+
+	function closeEditTicketModal() {
+		showEditTicketModal = false;
+		selectedTicket = null;
+	}
+
+	function handleTicketUpdated() {
+		// Refresh tickets for the order that was just updated
+		fetchTickets();
+		closeEditTicketModal();
+	}
+
 	// Pagination functions
 	function goToPage(page: number) {
 		if (page >= 1 && page <= totalPages) {
@@ -1104,5 +1123,15 @@
 		on:close={closeViewTicketsModal}
 		on:createTicket={handleCreateTicketFromView}
 		on:ticketUpdated={fetchTickets}
+		on:editTicket={(e) => openEditTicketModal(e.detail)}
+	/>
+
+	<!-- Edit Ticket Modal -->
+	<EditTicketModal
+		showModal={showEditTicketModal}
+		ticket={selectedTicket}
+		order={selectedTicketsOrder}
+		on:close={closeEditTicketModal}
+		on:ticketUpdated={handleTicketUpdated}
 	/>
 </div>

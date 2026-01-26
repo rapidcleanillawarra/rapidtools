@@ -211,12 +211,6 @@
 
 					// Filter if outstanding amount is effectively 0
 					if (outstandingAmount <= 0.01) {
-						// Still track invoices that exist but have zero outstanding amount
-						invoiceTrackingRecords.push({
-							order_id: order.ID,
-							does_exists: true,
-							completed: true // Mark as completed since no action needed
-						});
 						return acc;
 					}
 
@@ -253,20 +247,55 @@
 						tickets: [] // Initialize as empty array
 					});
 
-					// Track this invoice as fetched
-					invoiceTrackingRecords.push({
-						order_id: order.ID,
-						does_exists: true,
-						completed: false // Will be processed/displayed in the UI
-					});
-
 					return acc;
 				}, []);
 
 				console.log(`Orders count from API: ${orders.length}`);
 
+				const trackingOrders = orders.filter((order) => {
+					// PD Counter Filter
+					if (pdFilterValue !== null && pdFilterValue !== undefined && String(pdFilterValue) !== '') {
+						const pd = order.pdCounter;
+						const val = Number(pdFilterValue);
+						if (pdFilterOperator === '>' && !(pd > val)) return false;
+						if (pdFilterOperator === '<' && !(pd < val)) return false;
+						if (pdFilterOperator === '=' && !(pd === val)) return false;
+					}
+
+					return Object.entries(searchFilters).every(([key, value]) => {
+						if (!value) return true;
+						const normalizedValue = value.toLowerCase();
+						const columnKey = key as ColumnKey;
+
+						if (columnKey === 'notes') {
+							return order.notes.some((note) => {
+								const noteText = note.note.toLowerCase();
+								const createdBy = note.created_by.toLowerCase();
+								const creatorName = note.creator_full_name?.toLowerCase() || '';
+								return (
+									noteText.includes(normalizedValue) ||
+									createdBy.includes(normalizedValue) ||
+									creatorName.includes(normalizedValue)
+								);
+							});
+						}
+
+						const orderValue = String(order[columnKey]).toLowerCase();
+						return orderValue.includes(normalizedValue);
+					});
+				});
+
+				invoiceTrackingRecords.push(
+					...trackingOrders.map((order) => ({
+						order_id: order.invoice,
+						does_exists: true,
+						completed: false // Will be processed/displayed in the UI
+					}))
+				);
+
 				// Save invoice tracking records to Supabase only if tracking should run
 				if (shouldTrack && invoiceTrackingRecords.length > 0) {
+					console.log(`Synchronizing ${invoiceTrackingRecords.length} orders to orders_past_due_accounts_invoice_tracking table`);
 					try {
 						const { error: trackingError } = await supabase
 							.from('orders_past_due_accounts_invoice_tracking')
@@ -918,8 +947,7 @@
 						tr:nth-child(even) { background-color: #f9f9f9; }
 						.amount { text-align: right; }
 						.pd-counter { font-weight: bold; }
-						@media print { body { margin: 0; } }
-					</style>
+						@media print { body { margin: 0; } }</style>
 				</head>
 				<body>
 					<h1>Past Due Accounts Report</h1>

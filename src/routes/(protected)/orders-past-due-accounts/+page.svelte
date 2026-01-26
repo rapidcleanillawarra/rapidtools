@@ -1103,5 +1103,6 @@
 		tickets={selectedTicketsOrder ? selectedTicketsOrder.tickets : []}
 		on:close={closeViewTicketsModal}
 		on:createTicket={handleCreateTicketFromView}
+		on:ticketUpdated={fetchTickets}
 	/>
 </div>

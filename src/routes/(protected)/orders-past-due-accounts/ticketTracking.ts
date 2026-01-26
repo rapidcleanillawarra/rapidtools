@@ -149,3 +149,42 @@ export function getTicketStatusColor(status: string): string {
             return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
     }
 }
+
+/**
+ * Updates a ticket in the database
+ * 
+ * @param ticketNumber - The ticket number to update
+ * @param updates - Object containing the fields to update
+ * @returns Promise containing success status and any error message
+ */
+export async function updateTicket(
+    ticketNumber: number,
+    updates: {
+        ticket_title?: string;
+        status?: string;
+        priority?: string;
+        assigned_to?: string | null;
+        due_date?: string | null;
+        notes?: string | null;
+    }
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { error } = await supabase
+            .from('tickets')
+            .update(updates)
+            .eq('ticket_number', ticketNumber);
+
+        if (error) {
+            console.error('Error updating ticket:', error);
+            return { success: false, error: error.message };
+        }
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error in updateTicket:', error);
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred'
+        };
+    }
+}

@@ -192,7 +192,6 @@
 
 				// Check if we should trigger tracking (unless manually forced)
 				const shouldTrack = forceTracking || (await shouldTriggerTracking());
-				console.log('shouldTrack:', shouldTrack, 'forceTracking:', forceTracking);
 
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
 					// Calculate Amount (Outstanding) and Payments
@@ -264,15 +263,12 @@
 				// Save invoice tracking records to Supabase only if tracking should run
 				if (shouldTrack && invoiceTrackingRecords.length > 0) {
 					try {
-						console.log('Upserting invoice tracking records:', invoiceTrackingRecords.length);
 						const { error: trackingError } = await supabase
 							.from('orders_past_due_accounts_invoice_tracking')
 							.upsert(invoiceTrackingRecords, { onConflict: 'order_id' });
 
 						if (trackingError) {
 							console.error('Failed to save invoice tracking records:', trackingError);
-						} else {
-							console.log(`Tracked ${invoiceTrackingRecords.length} invoices`);
 						}
 					} catch (trackingErr) {
 						console.error('Error saving invoice tracking records:', trackingErr);
@@ -284,7 +280,6 @@
 					try {
 						// Get all order_ids from current API response
 						const currentOrderIds = data.Order.map((order: Order) => order.ID);
-						console.log('Current API order IDs:', currentOrderIds.length);
 
 						// Get all order_ids that exist in tracking table
 						const { data: allTrackingRecords, error: fetchError } = await supabase
@@ -295,13 +290,11 @@
 						if (fetchError) {
 							console.error('Error fetching tracking records:', fetchError);
 						} else if (allTrackingRecords) {
-							console.log('Existing tracking records:', allTrackingRecords.length);
 							// Find order_ids that exist in tracking table but not in current API response
 							const trackedOrderIds = allTrackingRecords.map((record) => record.order_id);
 							const missingOrderIds = trackedOrderIds.filter(
 								(id: string) => !currentOrderIds.includes(id)
 							);
-							console.log('Missing order IDs:', missingOrderIds.length, missingOrderIds);
 
 							// Mark missing order_ids as completed (they've been resolved externally)
 							if (missingOrderIds.length > 0) {
@@ -312,10 +305,6 @@
 
 								if (updateError) {
 									console.error('Error marking missing orders as completed:', updateError);
-								} else {
-									console.log(
-										`Marked ${missingOrderIds.length} orders as completed (no longer in API response)`
-									);
 								}
 							}
 						}
@@ -854,9 +843,7 @@
 
 	async function manualTriggerTracking() {
 		try {
-			console.log('Manually triggering tracking...');
 			await fetchOrders(true); // Force tracking to run
-			console.log('Manual tracking completed successfully');
 		} catch (error) {
 			console.error('Error manually triggering tracking:', error);
 			error = 'Failed to manually trigger tracking';

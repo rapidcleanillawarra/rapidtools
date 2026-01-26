@@ -175,20 +175,6 @@
 				}
 			};
 
-			console.log('🚀 Sending email request:', {
-				order: order?.invoice,
-				customer: order?.customer,
-				emailData: {
-					...emailData,
-					email: {
-						...emailData.email,
-						// Truncate body for logging
-						body: emailData.email.body?.substring(0, 100) + (emailData.email.body?.length > 100 ? '...' : ''),
-						attachments: emailAttachments.map(att => ({ name: att.name, size: att.contentBytes.length }))
-					}
-				}
-			});
-
 			const response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4', {
 				method: 'POST',
 				headers: {
@@ -197,24 +183,12 @@
 				body: JSON.stringify(emailData)
 			});
 
-			console.log('📨 Email API response:', {
-				order: order?.invoice,
-				status: response.status,
-				statusText: response.statusText,
-				headers: Object.fromEntries(response.headers.entries()),
-				ok: response.ok
-			});
-
 			// Try to log response body if available
 			try {
 				const responseClone = response.clone();
 				const responseBody = await responseClone.text();
-				console.log('📨 Email API response body:', {
-					order: order?.invoice,
-					body: responseBody.substring(0, 500) + (responseBody.length > 500 ? '...' : '')
-				});
 			} catch (logError) {
-				console.log('📨 Could not log response body:', logError);
+				// Could not log response body
 			}
 
 			if (!response.ok) {
@@ -222,20 +196,11 @@
 			}
 
 			// Email sent successfully
-			console.log('✅ Email sent successfully:', {
-				order: order?.invoice,
-				customer: order?.customer,
-				recipient: to,
-				subject: subject.substring(0, 50) + (subject.length > 50 ? '...' : ''),
-				hasAttachments: emailAttachments.length > 0,
-				timestamp: new Date().toISOString()
-			});
 
 			// IMPORTANT: Set email_initialized = true immediately after successful email send
 			// This tracks that an email has been sent for this invoice
 			if (order?.invoice) {
 				try {
-					console.log('📝 Updating email tracking for order:', order.invoice);
 
 					// First check if record exists
 					const { data: existingRecord, error: fetchError } = await supabase
@@ -254,7 +219,6 @@
 
 					if (existingRecord) {
 						// Record exists, update it
-						console.log('📝 Record exists, updating email_initialized to true:', existingRecord);
 						const { error } = await supabase
 							.from('orders_past_due_accounts_invoice_tracking')
 							.update({
@@ -263,12 +227,8 @@
 							})
 							.eq('order_id', order.invoice);
 						trackingError = error;
-						if (!trackingError) {
-							console.log('✅ Successfully set email_initialized = true for existing record');
-						}
 					} else {
 						// Record doesn't exist, insert it
-						console.log('📝 Record does not exist, inserting new record with email_initialized = true');
 						const { error } = await supabase
 							.from('orders_past_due_accounts_invoice_tracking')
 							.insert({
@@ -278,16 +238,11 @@
 								completed: false
 							});
 						trackingError = error;
-						if (!trackingError) {
-							console.log('✅ Successfully inserted new record with email_initialized = true');
-						}
 					}
 
 					if (trackingError) {
 						console.error('Failed to log email initialization:', trackingError);
 						alert(`Email sent successfully, but failed to update tracking: ${trackingError.message}`);
-					} else {
-						console.log(`✅ Successfully updated email initialization for invoice: ${order.invoice}`);
 					}
 				} catch (trackingErr) {
 					console.error('Error logging email initialization:', trackingErr);

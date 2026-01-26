@@ -145,8 +145,6 @@ Due Date: ${order.dueDate}`;
 				ticket_data: { order_id: order.invoice }
 			};
 
-			console.log('Creating ticket:', ticketData);
-
 			const { data, error } = await supabase
 				.from('tickets')
 				.insert(ticketData)
@@ -157,7 +155,6 @@ Due Date: ${order.dueDate}`;
 				console.error('Error creating ticket:', error);
 				toastError(`Failed to create ticket: ${error.message}`);
 			} else {
-				console.log('Ticket created successfully:', data);
 				toastSuccess(`Ticket #${data.ticket_number} created successfully!`);
 				dispatch('close');
 				resetForm();

@@ -228,7 +228,7 @@
 								{#if tickets.length === 0}
 									<p class="text-sm text-gray-500 dark:text-gray-400 italic">No tickets found for this order.</p>
 								{:else}
-									<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
+									<div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
 										<table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
 											<thead class="bg-gray-50 dark:bg-gray-900">
 												<tr>
@@ -238,7 +238,7 @@
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Priority</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Due Date</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Assigned To</th>
-													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Actions</th>
+													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 w-32">Actions</th>
 												</tr>
 											</thead>
 											<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-900">
@@ -305,7 +305,7 @@
 																	</select>
 																{/if}
 															</td>
-															<td class="whitespace-nowrap px-3 py-4 text-sm">
+															<td class="whitespace-nowrap px-3 py-4 text-sm w-32">
 																<div class="flex gap-2">
 																	<button
 																		type="button"
@@ -347,18 +347,18 @@
 																{formatDueDate((ticket as any).due_date || order?.dueDate || null)}
 															</td>
 															<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
-																{ticket.assigned_to || 'Unassigned'}
+																{ticket.assigned_to ? (availableUsers.find(u => u.email === ticket.assigned_to)?.full_name || ticket.assigned_to) : 'Unassigned'}
 															</td>
-															<td class="whitespace-nowrap px-3 py-4 text-sm">
+															<td class="whitespace-nowrap px-3 py-4 text-sm w-32">
 																<button
 																	type="button"
 																	on:click={() => startEditing(ticket)}
-																	class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+																	class="inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+																	title="Edit ticket"
 																>
-																	<svg class="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
 																	</svg>
-																	Edit
 																</button>
 															</td>
 														</tr>

@@ -161,6 +161,7 @@ export async function updateTicket(
     ticketNumber: number,
     updates: {
         ticket_title?: string;
+        ticket_description?: string | null;
         status?: string;
         priority?: string;
         assigned_to?: string | null;

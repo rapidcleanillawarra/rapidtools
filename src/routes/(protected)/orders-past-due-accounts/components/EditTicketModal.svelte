@@ -152,6 +152,7 @@
 
 			const result = await updateTicket(ticket.ticket_number, {
 				ticket_title: ticketTitle.trim(),
+				ticket_description: ticketDescription.trim() || null,
 				status,
 				priority,
 				assigned_to: assignedTo || null,

@@ -61,9 +61,9 @@
 											class:invisible={sortField !== 'customer'}
 										>
 											{#if sortField === 'customer' && sortDirection === 'desc'}
-												â†“
+												↓
 											{:else}
-												â†‘
+												↑
 											{/if}
 										</span>
 									</button>
@@ -98,9 +98,9 @@
 												class:invisible={sortField !== column.key}
 											>
 												{#if sortField === column.key && sortDirection === 'desc'}
-													â†“
+													↓
 												{:else}
-													â†‘
+													↑
 												{/if}
 											</span>
 										</button>

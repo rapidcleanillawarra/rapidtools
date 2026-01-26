@@ -112,7 +112,7 @@
 		}
 	}
 
-	async function fetchOrders() {
+	async function fetchOrders(runTracking: boolean = false) {
 		try {
 			loading = true;
 			error = '';
@@ -265,7 +265,9 @@
 				 * - Mark invoices as completed when they're resolved externally
 				 * - Maintain audit trail for compliance and reporting
 				 */
-				await processInvoiceTracking(trackingOrders, data.Order);
+				if (runTracking) {
+					await processInvoiceTracking(trackingOrders, data.Order);
+				}
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An unknown error occurred';
@@ -798,7 +800,7 @@
 
 	async function manualTriggerTracking() {
 		try {
-			await fetchOrders();
+			await fetchOrders(true);
 		} catch (error) {
 			console.error('Error manually triggering tracking:', error);
 			error = 'Failed to manually trigger tracking';

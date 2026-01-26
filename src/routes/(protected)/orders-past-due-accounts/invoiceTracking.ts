@@ -52,13 +52,27 @@ export async function syncTrackingRecordsToDatabase(
     );
 
     try {
-        const { error } = await supabase
+        const cutoffTime = new Date(Date.now() - 1000 * 60).toISOString(); // 1 minute ago buffer
+
+        const { data, error } = await supabase
             .from('orders_past_due_accounts_invoice_tracking')
-            .upsert(records, { onConflict: 'order_id' });
+            .upsert(records, { onConflict: 'order_id' })
+            .select('created_at');
 
         if (error) {
             console.error('Failed to save invoice tracking records:', error);
             throw error;
+        }
+
+        if (data) {
+            // Count records created recently (newly inserted)
+            // We assume 'created_at' is standard and immutable on update
+            const newRecordsCount = data.filter((r) => r.created_at >= cutoffTime).length;
+            if (newRecordsCount > 0) {
+                console.log(`Successfully added ${newRecordsCount} new tracking records.`);
+            } else {
+                console.log('No new tracking records added (all existing updated).');
+            }
         }
     } catch (err) {
         console.error('Error saving invoice tracking records:', err);
@@ -68,70 +82,78 @@ export async function syncTrackingRecordsToDatabase(
 
 /**
  * Marks invoices that no longer appear in the API response as completed
- * 
+ *
  * This function handles cases where invoices are resolved externally (paid,
  * cancelled, etc.) by comparing the current API response with active tracking
  * records and marking any missing invoices as completed.
- * 
+ *
  * The process:
- * 1. Gets all order_ids from current API response
- * 2. Queries tracking table for active (uncompleted) records
- * 3. Finds invoices that exist in tracking table but not in current API response
- * 4. Marks those missing invoices as completed
- * 
+ * 1. Store all order_ids from the API in a variable (Set)
+ * 2. Pull all relevant order_ids from the Supabase table (those that exist or are incomplete)
+ * 3. Cross-check: If an ID from DB is not in the API variable -> it's gone
+ * 4. Set does_exists = false and completed = true for those missing IDs
+ *
  * @param allOrders - Array of all orders from the API response (raw Order data)
  * @returns Promise that resolves when the operation completes
  */
 export async function markMissingOrdersAsCompleted(allOrders: Order[]): Promise<void> {
-    if (!allOrders || allOrders.length === 0) {
-        console.log('No orders in API response, skipping cleanup');
+    if (!allOrders) {
+        console.log('No orders provided to markMissingOrdersAsCompleted');
         return;
     }
 
     try {
-        // Get all order_ids from current API response
-        const currentOrderIds = allOrders.map((order) => order.ID);
+        // 1. Store API Order IDs in a variable
+        const apiOrderIds = new Set(allOrders.map((order) => order.ID));
+        console.log(`Checking against ${apiOrderIds.size} API orders`);
 
-        // Query tracking table for active (uncompleted) records
-        const { data: allTrackingRecords, error: fetchError } = await supabase
+        // 2. Pull all relevant order_ids from Supabase
+        // We act on any record that is currently marked as 'existing' or 'active' (not completed)
+        // This ensures we catch everything that thinks it should be there.
+        const { data: dbRecords, error: fetchError } = await supabase
             .from('orders_past_due_accounts_invoice_tracking')
             .select('order_id')
-            .eq('completed', false); // Only check records that aren't already completed
+            .or('completed.eq.false,does_exists.eq.true');
 
         if (fetchError) {
             console.error('Error fetching tracking records:', fetchError);
             throw fetchError;
         }
 
-        if (!allTrackingRecords || allTrackingRecords.length === 0) {
-            console.log('No active tracking records found');
+        console.log(`Fetched ${dbRecords?.length || 0} tracking records from DB to check.`);
+
+        if (!dbRecords || dbRecords.length === 0) {
+            console.log('No active tracking records found in DB to check');
             return;
         }
 
-        // Find invoices that exist in tracking table but not in current API response
-        const trackedOrderIds = allTrackingRecords.map((record) => record.order_id);
-        const missingOrderIds = trackedOrderIds.filter(
-            (id: string) => !currentOrderIds.includes(id)
-        );
+        // 3. Cross-check: Identify IDs from DB that are NOT in the API
+        const idsMissingFromApi = dbRecords
+            .map((r) => r.order_id)
+            .filter((dbId) => !apiOrderIds.has(dbId));
 
-        // Mark missing invoices as completed - they've been resolved externally
-        if (missingOrderIds.length > 0) {
-            console.log(`Marking ${missingOrderIds.length} missing orders as completed`);
+        // 4. Update the missing IDs
+        if (idsMissingFromApi.length > 0) {
+            console.log(
+                `Found ${idsMissingFromApi.length} orders in DB that are missing from API. marking as completed...`
+            );
 
             const { error: updateError } = await supabase
                 .from('orders_past_due_accounts_invoice_tracking')
                 .update({
+                    does_exists: false,
                     completed: true,
                     updated_at: new Date().toISOString()
                 })
-                .in('order_id', missingOrderIds);
+                .in('order_id', idsMissingFromApi);
 
             if (updateError) {
                 console.error('Error marking missing orders as completed:', updateError);
                 throw updateError;
             }
+            console.log(`Successfully updated ${idsMissingFromApi.length} missing orders records in the table.`);
         } else {
-            console.log('No missing orders to mark as completed');
+            console.log('Database is in sync with API (no stale active records found).');
         }
     } catch (err) {
         console.error('Error processing missing orders:', err);

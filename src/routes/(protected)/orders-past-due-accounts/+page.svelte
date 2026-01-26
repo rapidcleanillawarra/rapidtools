@@ -250,15 +250,29 @@
 					});
 				});
 
+				/**
+				 * INVOICE TRACKING PROCESS
+				 *
+				 * This process maintains a persistent record of all past due invoices in the
+				 * `orders_past_due_accounts_invoice_tracking` table. This allows the system to:
+				 * - Track invoice status changes over time
+				 * - Prevent duplicate processing of the same invoices
+				 * - Mark invoices as completed when they're resolved externally
+				 * - Maintain audit trail for compliance and reporting
+				 */
+
+				// STEP 1: Create tracking records for current API response
+				// For each order that passed filters, create a tracking record to store in database
 				invoiceTrackingRecords.push(
 					...trackingOrders.map((order) => ({
-						order_id: order.invoice,
-						does_exists: true,
-						completed: false // Will be processed/displayed in the UI
+						order_id: order.invoice,        // Unique invoice identifier
+						does_exists: true,              // Invoice currently exists in external system
+						completed: false                // Will be processed/displayed in the UI
 					}))
 				);
 
-				// Save invoice tracking records to Supabase
+				// STEP 2: Synchronize tracking records to database
+				// Save all tracking records using upsert to handle new and existing records
 				if (invoiceTrackingRecords.length > 0) {
 					console.log(`Synchronizing ${invoiceTrackingRecords.length} orders to orders_past_due_accounts_invoice_tracking table`);
 					try {
@@ -274,13 +288,15 @@
 					}
 				}
 
-				// Mark order_ids that no longer exist in API response as completed
+				// STEP 3: Clean up resolved invoices
+				// Mark invoices that no longer appear in API response as completed
+				// This handles cases where invoices are resolved externally (paid, cancelled, etc.)
 				if (data.Order && data.Order.length > 0) {
 					try {
 						// Get all order_ids from current API response
 						const currentOrderIds = data.Order.map((order: Order) => order.ID);
 
-						// Get all order_ids that exist in tracking table
+						// Query tracking table for active (uncompleted) records
 						const { data: allTrackingRecords, error: fetchError } = await supabase
 							.from('orders_past_due_accounts_invoice_tracking')
 							.select('order_id')
@@ -289,17 +305,20 @@
 						if (fetchError) {
 							console.error('Error fetching tracking records:', fetchError);
 						} else if (allTrackingRecords) {
-							// Find order_ids that exist in tracking table but not in current API response
+							// Find invoices that exist in tracking table but not in current API response
 							const trackedOrderIds = allTrackingRecords.map((record) => record.order_id);
 							const missingOrderIds = trackedOrderIds.filter(
 								(id: string) => !currentOrderIds.includes(id)
 							);
 
-							// Mark missing order_ids as completed (they've been resolved externally)
+							// Mark missing invoices as completed - they've been resolved externally
 							if (missingOrderIds.length > 0) {
 								const { error: updateError } = await supabase
 									.from('orders_past_due_accounts_invoice_tracking')
-									.update({ completed: true, updated_at: new Date().toISOString() })
+									.update({
+										completed: true,
+										updated_at: new Date().toISOString()
+									})
 									.in('order_id', missingOrderIds);
 
 								if (updateError) {

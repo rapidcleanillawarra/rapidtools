@@ -282,7 +282,6 @@
 			await fetchNotesAndViews();
 			await fetchEmailTrackingStatus();
 			await fetchEmailConversations();
-			await fetchAssignments();
 			await fetchTickets();
 		}
 	}
@@ -496,42 +495,6 @@
 		}
 	}
 
-	async function fetchAssignments() {
-		try {
-			const invoiceIds = orders.map((order) => order.invoice);
-
-			// Fetch assignments for all orders
-			const { data: assignmentsData, error } = await supabase
-				.from('orders_past_due_accounts_assignments')
-				.select('order_id, assigned_to, follow_up_date')
-				.in('order_id', invoiceIds);
-
-			if (error) {
-				console.error('Error fetching assignments:', error);
-				return;
-			}
-
-			// Create a map of order_id to assignment data
-			const assignmentsMap: Record<string, { assigned_to: string; follow_up_date: string }> = {};
-			if (assignmentsData) {
-				assignmentsData.forEach((assignment) => {
-					assignmentsMap[assignment.order_id] = {
-						assigned_to: assignment.assigned_to || '',
-						follow_up_date: assignment.follow_up_date || ''
-					};
-				});
-			}
-
-			// Update orders with assignment data
-			orders = orders.map((order) => ({
-				...order,
-				assignedTo: assignmentsMap[order.invoice]?.assigned_to || '',
-				followUp: assignmentsMap[order.invoice]?.follow_up_date || ''
-			}));
-		} catch (error) {
-			console.error('Error in fetchAssignments:', error);
-		}
-	}
 
 	/**
 	 * Fetches tickets for all orders using the modularized ticket tracking service

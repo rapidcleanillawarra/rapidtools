@@ -277,12 +277,14 @@
 			loading = false;
 		}
 
-		// Fetch notes and views for all orders (in parallel)
+		// Fetch notes, views, email data, and tickets for all orders (in parallel)
 		if (orders.length > 0) {
-			await fetchNotesAndViews();
-			await fetchEmailTrackingStatus();
-			await fetchEmailConversations();
-			await fetchTickets();
+			await Promise.all([
+				fetchNotesAndViews(),
+				fetchEmailTrackingStatus(),
+				fetchEmailConversations(),
+				fetchTickets()
+			]);
 		}
 	}
 

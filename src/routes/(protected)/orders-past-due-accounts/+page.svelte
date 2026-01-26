@@ -260,6 +260,8 @@
 					return acc;
 				}, []);
 
+				console.log(`Orders count from API: ${orders.length}`);
+
 				// Save invoice tracking records to Supabase only if tracking should run
 				if (shouldTrack && invoiceTrackingRecords.length > 0) {
 					try {

@@ -3,24 +3,10 @@
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile, type UserProfile } from '$lib/userProfile';
-	import { base } from '$app/paths';
-
-	// Focus action for auto-focusing inputs when editing starts
-	function focus(node: HTMLElement) {
-		node.focus();
-	}
 	import {
 		columns,
 		defaultColumnVisibility,
 		parseDate,
-		getPdCounterBgColor,
-		getPdCounterColor,
-		getUnreadNotesCount,
-		getLatestNotesForDisplay,
-		getNotesSummary,
-		isOutboundEmail,
-		getLatestEmailPreview,
-		getEmailConversationSummary,
 		type ColumnKey,
 		type Note,
 		type NoteView,
@@ -31,6 +17,9 @@
 	import PastDueLegend from './components/PastDueLegend.svelte';
 	import PastDueToolbar from './components/PastDueToolbar.svelte';
 	import ColumnVisibilityPills from './components/ColumnVisibilityPills.svelte';
+	import PastDueOrdersTable from './components/PastDueOrdersTable.svelte';
+	import PastDuePagination from './components/PastDuePagination.svelte';
+	import NotesModal from './components/NotesModal.svelte';
 	import EmailModal from './components/EmailModal.svelte';
 	import TicketModal from './components/TicketModal.svelte';
 	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
@@ -49,7 +38,6 @@
 		(column) => column.key === 'customer' || columnVisibility[column.key]
 	);
 	let nonCustomerColumns = visibleColumns.filter((column) => column.key !== 'customer');
-	let tableColumnCount = nonCustomerColumns.length + 1;
 	let filteredOrders: ProcessedOrder[] = [];
 
 	// PD Counter Filter State
@@ -986,8 +974,6 @@
 		(column) => column.key === 'customer' || columnVisibility[column.key]
 	);
 	$: nonCustomerColumns = visibleColumns.filter((column) => column.key !== 'customer');
-	$: tableColumnCount = nonCustomerColumns.length + 1;
-
 	$: filteredOrders = orders
 		.filter((order) => {
 			// PD Counter Filter
@@ -1148,156 +1134,17 @@
 		<p class="mt-2 text-sm text-gray-700 dark:text-gray-400">A list of all past due accounts.</p>
 	</div>
 
-	<!-- Toolbar: Filter on Left, Actions on Right -->
-	<div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<!-- Left: PD Counter Filter + Toggle Buttons -->
-		<div class="flex flex-wrap items-center gap-3">
-			<!-- PD Counter Filter -->
-			<div class="flex items-center gap-2">
-				<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300"
-					>PD Counter:</label
-				>
-				<select
-					bind:value={tempPdFilterOperator}
-					class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
-				>
-					<option value=">">&gt;</option>
-					<option value="<">&lt;</option>
-					<option value="=">=</option>
-				</select>
-				<input
-					id="pd-filter"
-					type="number"
-					placeholder="Days"
-					class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-					bind:value={tempPdFilterValue}
-				/>
-				<button
-					type="button"
-					on:click={applyPdFilter}
-					class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-				>
-					Apply
-				</button>
-			</div>
-
-			<!-- Toggle Buttons -->
-			<button
-				type="button"
-				on:click={() => (showLegend = !showLegend)}
-				class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {showLegend
-					? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50'
-					: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
-				title={showLegend ? 'Hide Legend' : 'Show Legend'}
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					{#if showLegend}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-						></path>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-						></path>
-					{:else}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-						></path>
-					{/if}
-				</svg>
-				Legend
-			</button>
-			<button
-				type="button"
-				on:click={() => (showColumnVisibility = !showColumnVisibility)}
-				class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {showColumnVisibility
-					? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50'
-					: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
-				title={showColumnVisibility ? 'Hide Columns' : 'Show Columns'}
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					{#if showColumnVisibility}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-						></path>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-						></path>
-					{:else}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-						></path>
-					{/if}
-				</svg>
-				Columns
-			</button>
-		</div>
-
-		<!-- Right: Action Buttons -->
-		<div class="flex flex-wrap items-center gap-2">
-			<button
-				type="button"
-				on:click={exportToCSV}
-				disabled={filteredOrders.length === 0}
-				class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:cursor-not-allowed disabled:opacity-50"
-			>
-				Export CSV
-			</button>
-			<button
-				type="button"
-				on:click={printTable}
-				disabled={filteredOrders.length === 0}
-				class="rounded-md bg-gray-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-			>
-				Print Report
-			</button>
-			<button
-				type="button"
-				on:click={manualTriggerTracking}
-				class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
-			>
-				Check Completed
-			</button>
-			<a
-				href="{base}/orders-past-due-accounts/settings"
-				class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-				title="Email Settings"
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-					></path>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-					></path>
-				</svg>
-				Settings
-			</a>
-		</div>
-	</div>
+	<PastDueToolbar
+		bind:operator={tempPdFilterOperator}
+		bind:value={tempPdFilterValue}
+		bind:showLegend
+		bind:showColumnVisibility
+		disableActions={filteredOrders.length === 0}
+		on:apply={applyPdFilter}
+		on:exportCsv={exportToCSV}
+		on:print={printTable}
+		on:manualTrigger={manualTriggerTracking}
+	/>
 
 	<!-- Collapsible Legend Section -->
 	{#if showLegend}
@@ -1319,726 +1166,45 @@
 
 	<!-- Pagination Controls -->
 	{#if filteredOrders.length > 0}
-		<div class="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
-			<!-- Items per page selector -->
-			<div class="flex items-center gap-2">
-				<label for="items-per-page" class="text-sm text-gray-700 dark:text-gray-300"> Show: </label>
-				<select
-					id="items-per-page"
-					bind:value={itemsPerPage}
-					on:change={(e) => changeItemsPerPage(Number(e.currentTarget.value))}
-					class="rounded-md border border-gray-300 py-1 pl-3 pr-8 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
-				>
-					<option value={10}>10</option>
-					<option value={25}>25</option>
-					<option value={50}>50</option>
-					<option value={100}>100</option>
-				</select>
-				<span class="text-sm text-gray-700 dark:text-gray-300"> entries per page </span>
-			</div>
-
-			<!-- Pagination info and controls -->
-			<div class="flex items-center gap-4">
-				<div class="text-sm text-gray-700 dark:text-gray-300">
-					Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredOrders.length)} to {Math.min(
-						currentPage * itemsPerPage,
-						filteredOrders.length
-					)} of {filteredOrders.length} entries
-				</div>
-
-				<div class="flex items-center gap-1">
-					<button
-						type="button"
-						on:click={previousPage}
-						disabled={currentPage === 1}
-						class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-						title="Previous page"
-					>
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 19l-7-7 7-7"
-							></path>
-						</svg>
-					</button>
-
-					<!-- Page numbers -->
-					{#each Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-						const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-						return pageNum <= totalPages ? pageNum : null;
-					}).filter((n): n is number => n !== null) as pageNum}
-						<button
-							type="button"
-							on:click={() => goToPage(pageNum)}
-							class="rounded-md px-3 py-1.5 text-sm font-medium {pageNum === currentPage
-								? 'border border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-400 dark:bg-indigo-900/30 dark:text-indigo-400'
-								: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
-						>
-							{pageNum}
-						</button>
-					{/each}
-
-					<button
-						type="button"
-						on:click={nextPage}
-						disabled={currentPage === totalPages}
-						class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-						title="Next page"
-					>
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"
-							></path>
-						</svg>
-					</button>
-				</div>
-			</div>
-		</div>
+		<PastDuePagination
+			filteredCount={filteredOrders.length}
+			{currentPage}
+			{itemsPerPage}
+			{totalPages}
+			on:previous={previousPage}
+			on:next={nextPage}
+			on:goToPage={(e) => goToPage(e.detail)}
+			on:changeItemsPerPage={(e) => changeItemsPerPage(e.detail)}
+		/>
 	{/if}
 
 	<!-- Orders Table -->
-	<div class="mt-8 flex flex-col">
-		<div class="-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
-			<div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-				<div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-					<table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-						<thead class="bg-gray-50 dark:bg-gray-800">
-							<tr>
-								<th
-									scope="col"
-									class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-100 sm:pl-6"
-								>
-									<div class="flex flex-col gap-2">
-										<button
-											type="button"
-											class="group inline-flex cursor-pointer font-semibold"
-											on:click={() => handleSort('customer')}
-										>
-											Customer
-											<span
-												class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible"
-												class:visible={sortField === 'customer'}
-												class:invisible={sortField !== 'customer'}
-											>
-												{#if sortField === 'customer' && sortDirection === 'desc'}
-													↓
-												{:else}
-													↑
-												{/if}
-											</span>
-										</button>
-										<input
-											type="text"
-											placeholder="Search..."
-											class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
-											value={searchFilters['customer'] || ''}
-											on:input={(e) => handleSearchChange('customer', e.currentTarget.value)}
-										/>
-									</div>
-								</th>
-								{#each nonCustomerColumns as column}
-									<th
-										scope="col"
-										class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-gray-100"
-									>
-										<div class="flex flex-col gap-2">
-											<button
-												type="button"
-												class="group inline-flex cursor-pointer font-semibold"
-												on:click={() => handleSort(column.key)}
-											>
-												{column.label}
-												<span
-													class="ml-2 flex-none rounded text-gray-400 group-hover:visible group-focus:visible"
-													class:visible={sortField === column.key}
-													class:invisible={sortField !== column.key}
-												>
-													{#if sortField === column.key && sortDirection === 'desc'}
-														↓
-													{:else}
-														↑
-													{/if}
-												</span>
-											</button>
-											<input
-												type="text"
-												placeholder="Search..."
-												class="w-full rounded border px-2 py-1 text-xs font-normal text-gray-900"
-												value={searchFilters[column.key] || ''}
-												on:input={(e) => handleSearchChange(column.key, e.currentTarget.value)}
-											/>
-										</div>
-									</th>
-								{/each}
-							</tr>
-						</thead>
-						<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
-							{#if loading}
-								<tr>
-									<td
-										colspan={tableColumnCount}
-										class="py-4 pl-4 pr-3 text-center text-sm text-gray-500 sm:pl-6">Loading...</td
-									>
-								</tr>
-							{:else if error}
-								<tr>
-									<td
-										colspan={tableColumnCount}
-										class="py-4 pl-4 pr-3 text-center text-sm text-red-500 sm:pl-6">{error}</td
-									>
-								</tr>
-							{:else if filteredOrders.length === 0}
-								<tr>
-									<td
-										colspan={tableColumnCount}
-										class="py-4 pl-4 pr-3 text-center text-sm text-gray-500 sm:pl-6"
-										>No past due orders found.</td
-									>
-								</tr>
-							{:else}
-								{#each paginatedOrders as order, index}
-									<!-- Main row with all columns spanning 3 rows except customer -->
-									<tr
-										class="!border-b-0 {index % 2 === 0
-											? 'bg-white dark:bg-gray-900'
-											: 'bg-gray-50 dark:bg-gray-800/50'}"
-									>
-										<td
-											class="!border-b-0 py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6"
-										>
-											{#if order.username}
-												<a
-													href="https://www.rapidsupplies.com.au/_cpanel/customer/view?id={order.username}"
-													target="_blank"
-													rel="noopener noreferrer"
-													class="group inline-flex items-center gap-1.5 text-[rgb(40,40,40)] transition-colors hover:text-black dark:text-gray-200 dark:hover:text-white"
-												>
-													<span>{order.customer}</span>
-													<svg
-														class="h-4 w-4 opacity-70 transition-all group-hover:scale-110 group-hover:opacity-100"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-														></path>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-														></path>
-													</svg>
-												</a>
-											{:else}
-												{order.customer}
-											{/if}
-										</td>
-										{#each nonCustomerColumns as column}
-											<td
-												class="{column.key === 'notes' || column.key === 'emailNotifs'
-													? 'whitespace-normal'
-													: 'whitespace-nowrap'} px-3 py-4 text-sm {column.key === 'pdCounter'
-													? `${getPdCounterColor(order[column.key] as number)} ${getPdCounterBgColor(order[column.key] as number)} font-semibold`
-													: column.key === 'notes' && (order[column.key] as Note[]).length > 0
-														? 'rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20'
-														: 'text-gray-500 dark:text-gray-400'}"
-											>
-												{#if column.key === 'amount' || column.key === 'payments'}
-													${order[column.key]}
-												{:else if column.key === 'invoice'}
-													<a
-														href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={order[
-															column.key
-														]}"
-														target="_blank"
-														rel="noopener noreferrer"
-														class="group inline-flex items-center gap-1.5 text-[rgb(40,40,40)] transition-colors hover:text-black dark:text-gray-200 dark:hover:text-white"
-													>
-														<span>{order[column.key]}</span>
-														<svg
-															class="h-4 w-4 opacity-70 transition-all group-hover:scale-110 group-hover:opacity-100"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-															></path>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-															></path>
-														</svg>
-													</a>
-												{:else if column.key === 'emailNotifs'}
-													{#if order.emailConversations && order.emailConversations.length > 0}
-														{@const summary = getEmailConversationSummary(order.emailConversations)}
-														{@const latestConversation = order.emailConversations[0]}
-														{@const isOutbound = isOutboundEmail(latestConversation)}
-														{#if summary.inbound + summary.outbound > 1}
-															<div class="text-xs">
-																<div
-																	class="font-medium {isOutbound
-																		? 'text-green-700 dark:text-green-300'
-																		: 'text-blue-700 dark:text-blue-300'}"
-																>
-																	<a
-																		href={latestConversation.web_link}
-																		target="_blank"
-																		rel="noopener noreferrer"
-																		class="hover:underline"
-																	>
-																		{getLatestEmailPreview(order.emailConversations)}
-																	</a>
-																</div>
-																<div class="mt-1 text-gray-500 dark:text-gray-400">
-																	{summary.inbound} in / {summary.outbound} out
-																</div>
-															</div>
-														{:else}
-															<a
-																href={latestConversation.web_link}
-																target="_blank"
-																rel="noopener noreferrer"
-																class="block h-full w-full p-0 text-xs {isOutbound
-																	? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-																	: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'} rounded px-2 py-1 hover:underline"
-															>
-																{getLatestEmailPreview(order.emailConversations)}
-															</a>
-														{/if}
-													{:else}
-														<span class="italic text-gray-400 dark:text-gray-500">No emails</span>
-													{/if}
-												{:else if column.key === 'assignedTo'}
-													<span class="px-2 py-1">{order.assignedTo || 'Unassigned'}</span>
-												{:else if column.key === 'followUp'}
-													<span class="px-2 py-1">{order.followUp ? new Date(order.followUp).toLocaleDateString() : 'No date set'}</span>
-												{:else if column.key === 'tickets'}
-                                                    {#if (order.tickets && order.tickets.length > 0)}
-                                                         <button
-                                                            type="button"
-                                                            on:click={() => openViewTicketsModal(order)}
-                                                            class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/50"
-                                                        >
-                                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                            </svg>
-                                                            View ({order.tickets.length})
-                                                        </button>
-                                                    {:else}
-                                                        <button
-                                                            type="button"
-                                                            on:click={() => openTicketModal(order)}
-                                                            class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-                                                        >
-                                                            <svg
-                                                                class="h-3.5 w-3.5"
-                                                                fill="none"
-                                                                stroke="currentColor"
-                                                                viewBox="0 0 24 24"
-                                                            >
-                                                                <path
-                                                                    stroke-linecap="round"
-                                                                    stroke-linejoin="round"
-                                                                    stroke-width="2"
-                                                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                                                                ></path>
-                                                            </svg>
-                                                            Create Ticket
-                                                        </button>
-                                                    {/if}
-												{:else if column.key === 'notes'}
-													<div class="text-xs">
-														{#if (order[column.key] as Note[]).length > 0}
-															<div class="text-gray-700 dark:text-gray-300">
-																{getLatestNotesForDisplay(order)}
-															</div>
-															<div class="mt-1 text-gray-500 dark:text-gray-400">
-																{getNotesSummary(order)}
-															</div>
-														{:else}
-															<span class="italic text-gray-400 dark:text-gray-500">No notes</span>
-														{/if}
-													</div>
-												{:else}
-													{order[column.key]}
-												{/if}
-											</td>
-										{/each}
-									</tr>
-									<!-- Phone row -->
-									<tr
-										class={index % 2 === 0
-											? 'bg-white dark:bg-gray-900'
-											: 'bg-gray-50 dark:bg-gray-800/50'}
-									>
-										<td class="py-2 pl-4 pr-3 text-sm text-gray-600 dark:text-gray-400 sm:pl-6">
-											{#if order.contacts}
-												<div class="flex items-center gap-2">
-													<svg
-														class="h-4 w-4 flex-shrink-0 text-gray-400 dark:text-gray-500"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-														></path>
-													</svg>
-													<a
-														href="tel:{order.contacts}"
-														class="group inline-flex items-center gap-1.5 text-[rgb(40,40,40)] transition-colors hover:text-black dark:text-gray-200 dark:hover:text-white"
-													>
-														<span>{order.contacts}</span>
-														<svg
-															class="h-3.5 w-3.5 opacity-70 transition-all group-hover:scale-110 group-hover:opacity-100"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-															></path>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-															></path>
-														</svg>
-													</a>
-												</div>
-											{:else}
-												<div class="flex items-center gap-2">
-													<svg
-														class="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-														></path>
-													</svg>
-													<span class="italic text-gray-400 dark:text-gray-500">No phone</span>
-												</div>
-											{/if}
-										</td>
-										{#each nonCustomerColumns as column}
-											<td
-												class="{column.key === 'notes' || column.key === 'emailNotifs'
-													? 'whitespace-normal'
-													: 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
-											>
-												{#if column.key === 'notes'}
-													{#if order.notes.length > 1}
-														<div class="text-xs">
-															<div class="text-gray-600 dark:text-gray-400">
-																Latest: {new Date(order.notes[0].created_at).toLocaleDateString()}
-															</div>
-															{#if order.notes.length > 2}
-																<div class="mt-1 text-gray-500 dark:text-gray-500">
-																	+{order.notes.length - 1} more notes
-																</div>
-															{/if}
-														</div>
-													{:else if order.notes.length === 1}
-														<div class="text-xs text-gray-600 dark:text-gray-400">
-															Created: {new Date(order.notes[0].created_at).toLocaleDateString()}
-														</div>
-													{/if}
-												{:else}
-													<!-- Empty cell for other columns in phone row -->
-												{/if}
-											</td>
-										{/each}
-									</tr>
-									<!-- Email row -->
-									<tr
-										class="!border-t-0 {index % 2 === 0
-											? 'bg-white dark:bg-gray-900'
-											: 'bg-gray-50 dark:bg-gray-800/50'}"
-									>
-										<td
-											class="!border-t-0 py-2 pl-4 pr-3 text-sm text-gray-600 dark:text-gray-400 sm:pl-6"
-										>
-											{#if order.email}
-												<div class="flex items-center gap-2">
-													<svg
-														class="h-4 w-4 flex-shrink-0 text-gray-400 dark:text-gray-500"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-														></path>
-													</svg>
-													<button
-														type="button"
-														on:click={() => openEmailModal(order)}
-														class="group inline-flex items-center gap-1.5 text-[rgb(40,40,40)] transition-colors hover:text-black dark:text-gray-200 dark:hover:text-white"
-													>
-														<span>{order.email}</span>
-														<svg
-															class="h-3.5 w-3.5 opacity-70 transition-all group-hover:scale-110 group-hover:opacity-100"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-															></path>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-															></path>
-														</svg>
-													</button>
-												</div>
-											{:else}
-												<div class="flex items-center gap-2">
-													<svg
-														class="h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
-													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-														></path>
-													</svg>
-													<button
-														type="button"
-														on:click={() => openEmailModal(order)}
-														class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-all hover:border-gray-400 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
-														title="Draft email (no email address available)"
-													>
-														<svg
-															class="h-3.5 w-3.5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-															></path>
-														</svg>
-														Draft Email
-													</button>
-												</div>
-											{/if}
-										</td>
-										{#each nonCustomerColumns as column}
-											<td
-												class="!border-t-0 {column.key === 'notes' || column.key === 'emailNotifs'
-													? 'whitespace-normal'
-													: 'whitespace-nowrap'} px-3 py-2 text-sm text-gray-600 dark:text-gray-400"
-											>
-												{#if column.key === 'notes'}
-													{@const unreadCount = getUnreadNotesCount(order, user?.email || null)}
-													<button
-														type="button"
-														on:click={() => openNotesModal(order)}
-														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {order
-															.notes.length > 0
-															? 'border-blue-300 bg-blue-100 text-blue-800 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-600 dark:hover:bg-blue-900/50'
-															: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
-													>
-														<svg
-															class="h-3.5 w-3.5"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-															></path>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-															></path>
-														</svg>
-														View Notes
-														{#if unreadCount > 0}
-															<span
-																class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white"
-															>
-																{unreadCount}
-															</span>
-														{/if}
-													</button>
-												{:else}
-													<!-- Empty cell for other columns in email row -->
-												{/if}
-											</td>
-										{/each}
-									</tr>
-								{/each}
-							{/if}
-						</tbody>
-					</table>
-				</div>
-			</div>
-		</div>
-	</div>
-
+	<PastDueOrdersTable
+		{loading}
+		{error}
+		{paginatedOrders}
+		{nonCustomerColumns}
+		{searchFilters}
+		{sortField}
+		{sortDirection}
+		filteredCount={filteredOrders.length}
+		userEmail={user?.email || null}
+		on:sort={(e) => handleSort(e.detail)}
+		on:searchChange={(e) => handleSearchChange(e.detail.key, e.detail.value)}
+		on:openNotes={(e) => openNotesModal(e.detail)}
+		on:openEmail={(e) => openEmailModal(e.detail)}
+		on:openTicket={(e) => openTicketModal(e.detail)}
+		on:openViewTickets={(e) => openViewTicketsModal(e.detail)}
+	/>
 	<!-- Notes Modal -->
-	{#if showNotesModal && selectedOrder}
-		<div
-			class="fixed inset-0 z-50 overflow-y-auto"
-			aria-labelledby="modal-title"
-			role="dialog"
-			aria-modal="true"
-		>
-			<div
-				class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
-			>
-				<div
-					class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-					aria-hidden="true"
-					on:click={closeNotesModal}
-				></div>
-
-				<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
-					>&#8203;</span
-				>
-
-				<div
-					class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
-				>
-					<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
-						<div class="sm:flex sm:items-start">
-							<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-								<h3
-									class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-									id="modal-title"
-								>
-									Notes for Invoice {selectedOrder.invoice}
-								</h3>
-								<div class="mt-4">
-									<p class="mb-2 text-sm text-gray-500 dark:text-gray-400">
-										Customer: {selectedOrder.customer}
-									</p>
-
-									<!-- Existing Notes -->
-									<div class="mb-4 max-h-60 overflow-y-auto">
-										<h4 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-											Past Notes:
-										</h4>
-										{#if notesLoading}
-											<p class="text-sm text-gray-500 dark:text-gray-400">Loading notes...</p>
-										{:else if selectedOrder.notes.length === 0}
-											<p class="text-sm italic text-gray-500 dark:text-gray-400">No notes yet</p>
-										{:else}
-											<div class="space-y-2">
-												{#each selectedOrder.notes as note, index}
-													<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-700">
-														<p class="text-sm text-gray-900 dark:text-gray-100">{note.note}</p>
-														<div class="mt-1 flex items-center justify-between">
-															<p class="text-xs text-gray-500 dark:text-gray-400">
-																Note #{index + 1}
-															</p>
-															<p class="text-xs text-gray-500 dark:text-gray-400">
-																{note.creator_full_name || note.created_by} • {new Date(
-																	note.created_at
-																).toLocaleDateString()}
-															</p>
-														</div>
-													</div>
-												{/each}
-											</div>
-										{/if}
-									</div>
-
-									<!-- Add New Note -->
-									<div>
-										<label
-											for="new-note"
-											class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>
-											Add New Note:
-										</label>
-										<textarea
-											id="new-note"
-											rows="3"
-											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											placeholder="Enter your note here..."
-											bind:value={newNote}
-											disabled={notesLoading}
-										></textarea>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="bg-gray-50 px-4 py-3 dark:bg-gray-700 sm:flex sm:flex-row-reverse sm:px-6">
-						<button
-							type="button"
-							on:click={saveNote}
-							disabled={!newNote.trim() || notesLoading}
-							class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm"
-						>
-							{#if notesLoading}
-								Saving...
-							{:else}
-								Add Note
-							{/if}
-						</button>
-						<button
-							type="button"
-							on:click={closeNotesModal}
-							class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
-						>
-							Close
-						</button>
-					</div>
-				</div>
-			</div>
-		</div>
-	{/if}
-
+	<NotesModal
+		show={showNotesModal}
+		{selectedOrder}
+		bind:newNote
+		{notesLoading}
+		on:save={saveNote}
+		on:close={closeNotesModal}
+	/>
 	<!-- Email Modal -->
 	<EmailModal showModal={showEmailModal} order={emailOrder} on:close={closeEmailModal} />
 

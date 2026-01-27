@@ -10,6 +10,8 @@
 	export let order: ProcessedOrder | null = null;
 
 	const dispatch = createEventDispatcher();
+	const TICKET_WEBHOOK_URL =
+		'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
 
 	// Form data
 	let ticketTitle = '';
@@ -33,6 +35,10 @@
 
 	// Current time in Sydney timezone
 	$: currentSydneyTime = (() => {
+		return formatSydneyDateTime(new Date());
+	})();
+
+	function formatSydneyDateTime(date: Date): string {
 		try {
 			return new Intl.DateTimeFormat('en-AU', {
 				timeZone: 'Australia/Sydney',
@@ -42,11 +48,10 @@
 				hour: '2-digit',
 				minute: '2-digit',
 				hour12: true
-			}).format(new Date());
+			}).format(date);
 		} catch (error) {
 			// Fallback for Windows timezone issues
-			const now = new Date();
-			const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+			const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
 			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
 			return new Intl.DateTimeFormat('en-AU', {
 				year: 'numeric',
@@ -57,7 +62,7 @@
 				hour12: true
 			}).format(sydney);
 		}
-	})();
+	}
 
 	// Fetch users when modal opens
 	$: if (showModal && !availableUsers.length) {
@@ -137,6 +142,142 @@ Due Date: ${order.dueDate}`;
 		};
 	}
 
+	type TicketInsertData = {
+		module: string;
+		ticket_title: string;
+		ticket_description: string | null;
+		assigned_to: string | null;
+		assigned_by: string;
+		priority: string;
+		status: string;
+		due_date: string | null;
+		notes: string | null;
+		ticket_data: { order_id: string };
+	};
+
+	const HTML_ESCAPE_MAP: Record<string, string> = {
+		'&': '&amp;',
+		'<': '&lt;',
+		'>': '&gt;',
+		'"': '&quot;',
+		"'": '&#39;'
+	};
+
+	function escapeHtml(value: string): string {
+		return value.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
+	}
+
+	function formatPlain(value: unknown): string {
+		if (value === null || value === undefined) return 'N/A';
+		if (typeof value === 'string' && value.trim() === '') return 'N/A';
+		return escapeHtml(String(value));
+	}
+
+	function formatMultiline(value: string | null | undefined): string {
+		if (!value || value.trim() === '') return 'N/A';
+		return escapeHtml(value).replace(/\r?\n/g, '<br />');
+	}
+
+	function renderRow(label: string, value: string): string {
+		return `<tr>
+			<th style="text-align:left;padding:6px 8px;border:1px solid #E5E7EB;background:#F9FAFB;font-weight:600;">${label}</th>
+			<td style="padding:6px 8px;border:1px solid #E5E7EB;">${value}</td>
+		</tr>`;
+	}
+
+	function buildTicketHtml(options: {
+		ticketNumber: number;
+		ticket: TicketInsertData;
+		dueDateInput: string;
+		order: ProcessedOrder;
+		createdAtIso: string;
+		createdAtSydney: string;
+	}): string {
+		const { ticketNumber, ticket, dueDateInput, order, createdAtIso, createdAtSydney } = options;
+		const dueDateSydney = dueDateInput ? dueDateInput.replace('T', ' ') : 'N/A';
+
+		const ticketRows = [
+			renderRow('Ticket Number', formatPlain(ticketNumber)),
+			renderRow('Module', formatPlain(ticket.module)),
+			renderRow('Title', formatPlain(ticket.ticket_title)),
+			renderRow('Description', formatMultiline(ticket.ticket_description)),
+			renderRow('Status', formatPlain(ticket.status)),
+			renderRow('Priority', formatPlain(ticket.priority)),
+			renderRow('Assigned To', formatPlain(ticket.assigned_to || 'Unassigned')),
+			renderRow('Assigned By', formatPlain(ticket.assigned_by)),
+			renderRow('Due Date (Sydney)', formatPlain(dueDateSydney)),
+			renderRow('Due Date (UTC)', formatPlain(ticket.due_date)),
+			renderRow('Notes', formatMultiline(ticket.notes)),
+			renderRow('Ticket Data - Order ID', formatPlain(ticket.ticket_data?.order_id)),
+			renderRow('Created At (Sydney)', formatPlain(createdAtSydney)),
+			renderRow('Created At (UTC)', formatPlain(createdAtIso))
+		].join('');
+
+		const orderRows = [
+			renderRow('Customer', formatPlain(order.customer)),
+			renderRow('Invoice', formatPlain(order.invoice)),
+			renderRow('Amount', formatPlain(order.amount)),
+			renderRow('Days Past Due', formatPlain(order.pdCounter)),
+			renderRow('Date Issued', formatPlain(order.dateIssued)),
+			renderRow('Due Date', formatPlain(order.dueDate)),
+			renderRow('Contacts', formatPlain(order.contacts)),
+			renderRow('Email', formatPlain(order.email)),
+			renderRow('Payments', formatPlain(order.payments)),
+			renderRow('Email Notifications', formatPlain(order.emailNotifs)),
+			renderRow('Assigned To', formatPlain(order.assignedTo)),
+			renderRow('Follow Up', formatPlain(order.followUp)),
+			renderRow('Username', formatPlain(order.username))
+		].join('');
+
+		return `
+			<div style="font-family: Arial, sans-serif; padding: 20px;">
+				<h2 style="margin:0 0 12px;">New Past Due Accounts Ticket</h2>
+				<p style="margin:0 0 16px;">A new ticket has been created in RapidTools.</p>
+
+				<h3 style="margin:16px 0 8px;">Ticket Details</h3>
+				<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+					${ticketRows}
+				</table>
+
+				<h3 style="margin:16px 0 8px;">Order Details</h3>
+				<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+					${orderRows}
+				</table>
+			</div>
+		`.trim();
+	}
+
+	async function sendTicketNotification(options: {
+		ticketNumber: number;
+		ticket: TicketInsertData;
+		dueDateInput: string;
+		order: ProcessedOrder;
+	}): Promise<void> {
+		const createdAt = new Date();
+		const htmlBody = buildTicketHtml({
+			...options,
+			createdAtIso: createdAt.toISOString(),
+			createdAtSydney: formatSydneyDateTime(createdAt)
+		});
+
+		const payload = {
+			body: htmlBody,
+			action: 'accounts'
+		};
+
+		const response = await fetch(TICKET_WEBHOOK_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(payload)
+		});
+
+		if (!response.ok) {
+			throw new Error(`Ticket webhook failed with status ${response.status}`);
+		}
+	}
+
 	async function createTicket() {
 		if (!order || !user?.email) return;
 
@@ -149,7 +290,9 @@ Due Date: ${order.dueDate}`;
 		try {
 			isLoading = true;
 
-			const ticketData = {
+			const dueDateUtc = sydneyInputToUtcIso(dueDate);
+			const dueDateInput = dueDate;
+			const ticketData: TicketInsertData = {
 				module: 'Past Due Accounts',
 				ticket_title: ticketTitle.trim(),
 				ticket_description: ticketDescription.trim() || null,
@@ -157,7 +300,7 @@ Due Date: ${order.dueDate}`;
 				assigned_by: user.email,
 				priority,
 				status,
-				due_date: sydneyInputToUtcIso(dueDate),
+				due_date: dueDateUtc,
 				notes: notes.trim() || null,
 				ticket_data: { order_id: order.invoice }
 			};
@@ -172,7 +315,19 @@ Due Date: ${order.dueDate}`;
 				console.error('Error creating ticket:', error);
 				toastError(`Failed to create ticket: ${error.message}`);
 			} else {
-				toastSuccess(`Ticket #${data.ticket_number} created successfully!`);
+				try {
+					await sendTicketNotification({
+						ticketNumber: data.ticket_number,
+						ticket: ticketData,
+						dueDateInput,
+						order
+					});
+					toastSuccess(`Ticket #${data.ticket_number} created successfully!`);
+				} catch (notifyError) {
+					console.error('Error sending ticket notification:', notifyError);
+					toastSuccess(`Ticket #${data.ticket_number} created successfully!`);
+					toastError('Ticket created, but failed to send notification.');
+				}
 				dispatch('close');
 				resetForm();
 			}

@@ -132,7 +132,9 @@ Due Date: ${order.dueDate}`;
 			errors.push('Please select a valid user for assignment');
 		}
 
-		if (isSydneyInputInPast(dueDate)) {
+		if (!dueDate || dueDate.trim() === '') {
+			errors.push('Due date is required');
+		} else if (isSydneyInputInPast(dueDate)) {
 			errors.push('Due date must be in the future');
 		}
 
@@ -150,7 +152,7 @@ Due Date: ${order.dueDate}`;
 		assigned_by: string;
 		priority: string;
 		status: string;
-		due_date: string | null;
+		due_date: string;
 		notes: string | null;
 		ticket_data: { order_id: string };
 	};
@@ -290,7 +292,7 @@ Due Date: ${order.dueDate}`;
 		try {
 			isLoading = true;
 
-			const dueDateUtc = sydneyInputToUtcIso(dueDate);
+			const dueDateUtc = sydneyInputToUtcIso(dueDate) as string;
 			const dueDateInput = dueDate;
 			const ticketData: TicketInsertData = {
 				module: 'Past Due Accounts',
@@ -544,7 +546,7 @@ Due Date: ${order.dueDate}`;
 								<div>
 									<div class="flex items-center justify-between mb-1">
 										<label for="due-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-											Due Date & Time
+											Due Date & Time <span class="text-red-500">*</span>
 										</label>
 										<span class="text-xs text-gray-500 dark:text-gray-400">
 											Sydney: {currentSydneyTime}
@@ -555,6 +557,7 @@ Due Date: ${order.dueDate}`;
 										id="due-date"
 										bind:value={dueDate}
 										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
+										required
 										disabled={isLoading}
 									/>
 									<div class="mt-2 flex flex-wrap gap-2">

@@ -5,9 +5,7 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
 		fetchInvoiceSendLogs,
-		createInvoiceSendLog,
-		updateInvoiceSendLog,
-		deleteInvoiceSendLog
+		updateInvoiceSendLog
 	} from './services';
 	import type { InvoiceSendLog, InvoiceSendLogFormData } from './types';
 	import { emptyFormData } from './types';
@@ -24,14 +22,10 @@
 	let currentPage = 1;
 	let itemsPerPage = 25;
 
-	let showAddModal = false;
 	let showEditModal = false;
-	let showDeleteModal = false;
 	let isSubmitting = false;
-	let isDeleting = false;
 	let formData: InvoiceSendLogFormData = { ...emptyFormData };
 	let editingLog: InvoiceSendLog | null = null;
-	let deletingLog: InvoiceSendLog | null = null;
 
 	onMount(loadLogs);
 
@@ -71,15 +65,6 @@
 		currentPage = 1;
 	}
 
-	function openAdd() {
-		formData = { ...emptyFormData };
-		showAddModal = true;
-	}
-
-	function closeAdd() {
-		showAddModal = false;
-		formData = { ...emptyFormData };
-	}
 
 	function openEdit(log: InvoiceSendLog) {
 		editingLog = log;
@@ -102,33 +87,7 @@
 		formData = { ...emptyFormData };
 	}
 
-	function openDelete(log: InvoiceSendLog) {
-		deletingLog = log;
-		showDeleteModal = true;
-	}
 
-	function closeDelete() {
-		showDeleteModal = false;
-		deletingLog = null;
-	}
-
-	async function handleAdd() {
-		if (!formData.order_id.trim()) {
-			toastError('Order ID is required');
-			return;
-		}
-		isSubmitting = true;
-		try {
-			await createInvoiceSendLog(formData);
-			await loadLogs();
-			closeAdd();
-			toastSuccess('Log added');
-		} catch (e) {
-			toastError(e instanceof Error ? e.message : 'Failed to add log');
-		} finally {
-			isSubmitting = false;
-		}
-	}
 
 	async function handleEdit() {
 		if (!editingLog) return;
@@ -149,20 +108,6 @@
 		}
 	}
 
-	async function handleDelete() {
-		if (!deletingLog) return;
-		isDeleting = true;
-		try {
-			await deleteInvoiceSendLog(deletingLog.id);
-			await loadLogs();
-			closeDelete();
-			toastSuccess('Log deleted');
-		} catch (e) {
-			toastError(e instanceof Error ? e.message : 'Failed to delete log');
-		} finally {
-			isDeleting = false;
-		}
-	}
 
 	function openPdfUrl(url: string | null) {
 		if (!url?.trim()) return;
@@ -181,16 +126,6 @@
 				class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
 			>
 				Refresh
-			</button>
-			<button
-				type="button"
-				on:click={openAdd}
-				class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-			>
-				<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-				</svg>
-				Add log
 			</button>
 		</div>
 	</div>
@@ -232,13 +167,6 @@
 	{:else if logs.length === 0}
 		<div class="rounded-lg border border-gray-200 bg-white py-12 text-center shadow">
 			<p class="text-gray-500">No invoice send logs yet.</p>
-			<button
-				type="button"
-				on:click={openAdd}
-				class="mt-4 text-blue-600 hover:text-blue-800 focus:outline-none focus:underline"
-			>
-				Add your first log
-			</button>
 		</div>
 	{:else}
 		<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
@@ -353,16 +281,6 @@
 											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
 										</svg>
 									</button>
-									<button
-										type="button"
-										on:click={() => openDelete(log)}
-										class="rounded p-1 text-red-600 hover:bg-red-50"
-										title="Delete"
-									>
-										<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-										</svg>
-									</button>
 								</td>
 							</tr>
 						{/each}
@@ -420,96 +338,6 @@
 	{/if}
 </div>
 
-<!-- Add modal -->
-<Modal show={showAddModal} on:close={closeAdd} size="xl">
-	<span slot="header">Add invoice send log</span>
-	<div slot="body">
-		<form on:submit|preventDefault={handleAdd} class="space-y-4">
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<label for="add-order_id" class="block text-sm font-medium text-gray-700">Order ID <span class="text-red-500">*</span></label>
-					<input
-						id="add-order_id"
-						type="text"
-						bind:value={formData.order_id}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-						required
-					/>
-				</div>
-				<div>
-					<label for="add-customer_email" class="block text-sm font-medium text-gray-700">Customer email</label>
-					<input
-						id="add-customer_email"
-						type="email"
-						bind:value={formData.customer_email}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					/>
-				</div>
-				<div>
-					<label for="add-document_id" class="block text-sm font-medium text-gray-700">Document ID</label>
-					<input
-						id="add-document_id"
-						type="text"
-						bind:value={formData.document_id}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					/>
-				</div>
-				<div>
-					<label for="add-pdf_path" class="block text-sm font-medium text-gray-700">PDF path / URL</label>
-					<input
-						id="add-pdf_path"
-						type="url"
-						bind:value={formData.pdf_path}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					/>
-				</div>
-			</div>
-			<div class="flex flex-wrap gap-6">
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.order_details} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">Order details</span>
-				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.pdf_exists} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">PDF exists</span>
-				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.email_sent} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">Email sent</span>
-				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.email_bounced} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">Email bounced</span>
-				</label>
-			</div>
-		</form>
-	</div>
-	<div slot="footer" class="flex justify-end gap-3">
-		<button
-			type="button"
-			on:click={closeAdd}
-			class="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
-		>
-			Cancel
-		</button>
-		<button
-			type="button"
-			on:click={handleAdd}
-			disabled={isSubmitting}
-			class="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-		>
-			{#if isSubmitting}
-				<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-				</svg>
-				Adding…
-			{:else}
-				Add
-			{/if}
-		</button>
-	</div>
-</Modal>
 
 <!-- Edit modal -->
 <Modal show={showEditModal} on:close={closeEdit} size="xl">
@@ -602,12 +430,3 @@
 	</div>
 </Modal>
 
-<DeleteConfirmationModal
-	show={showDeleteModal}
-	title="Delete invoice send log"
-	message="Are you sure you want to delete the log for order "
-	itemName={deletingLog?.order_id ?? ''}
-	isDeleting={isDeleting}
-	on:confirm={handleDelete}
-	on:cancel={closeDelete}
-/>

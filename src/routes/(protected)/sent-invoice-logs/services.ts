@@ -13,31 +13,17 @@ export async function fetchInvoiceSendLogs(): Promise<InvoiceSendLog[]> {
 		console.error('Error fetching invoice send logs:', error);
 		throw new Error('Failed to fetch invoice send logs');
 	}
-	return (data ?? []) as InvoiceSendLog[];
+
+	// Deduplicate by order_id, keeping only the latest (first occurrence since ordered by created_at desc)
+	const seen = new Set<string>();
+	return (data ?? []).filter((log) => {
+		const oid = log.order_id ?? '';
+		if (seen.has(oid)) return false;
+		seen.add(oid);
+		return true;
+	}) as InvoiceSendLog[];
 }
 
-export async function createInvoiceSendLog(form: InvoiceSendLogFormData): Promise<InvoiceSendLog> {
-	const { data, error } = await supabase
-		.from(TABLE)
-		.insert({
-			order_id: form.order_id.trim(),
-			customer_email: form.customer_email.trim() || null,
-			order_details: form.order_details,
-			document_id: form.document_id.trim() || null,
-			pdf_path: form.pdf_path.trim() || null,
-			pdf_exists: form.pdf_exists,
-			email_sent: form.email_sent,
-			email_bounced: form.email_bounced
-		})
-		.select()
-		.single();
-
-	if (error) {
-		console.error('Error creating invoice send log:', error);
-		throw new Error('Failed to create invoice send log');
-	}
-	return data as InvoiceSendLog;
-}
 
 export async function updateInvoiceSendLog(
 	id: string,
@@ -66,11 +52,3 @@ export async function updateInvoiceSendLog(
 	return data as InvoiceSendLog;
 }
 
-export async function deleteInvoiceSendLog(id: string): Promise<void> {
-	const { error } = await supabase.from(TABLE).delete().eq('id', id);
-
-	if (error) {
-		console.error('Error deleting invoice send log:', error);
-		throw new Error('Failed to delete invoice send log');
-	}
-}

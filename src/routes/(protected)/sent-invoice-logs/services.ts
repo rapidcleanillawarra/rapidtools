@@ -24,45 +24,76 @@ export async function fetchInvoiceSendLogs(query: InvoiceSendLogQuery): Promise<
 	const safePage = Math.max(1, page);
 	const safePerPage = Math.max(1, perPage);
 
-	let request = supabase
-		.from(TABLE)
-		.select('*', { count: 'exact' })
-		.order(sortField, { ascending: sortDirection === 'asc', nullsFirst: false });
+	// First, apply all filters to get candidate records
+	let filteredRequest = supabase.from(TABLE).select('*');
 
 	const orderId = search?.orderId?.trim();
-	if (orderId) request = request.ilike('order_id', `%${orderId}%`);
+	if (orderId) filteredRequest = filteredRequest.ilike('order_id', `%${orderId}%`);
 
 	const customerEmail = search?.customerEmail?.trim();
-	if (customerEmail) request = request.ilike('customer_email', `%${customerEmail}%`);
+	if (customerEmail) filteredRequest = filteredRequest.ilike('customer_email', `%${customerEmail}%`);
 
 	const documentId = search?.documentId?.trim();
-	if (documentId) request = request.ilike('document_id', `%${documentId}%`);
+	if (documentId) filteredRequest = filteredRequest.ilike('document_id', `%${documentId}%`);
 
 	const emailSent = toFilterBoolean(filters?.emailSent);
-	if (emailSent !== undefined) request = request.eq('email_sent', emailSent);
+	if (emailSent !== undefined) filteredRequest = filteredRequest.eq('email_sent', emailSent);
 
 	const emailBounced = toFilterBoolean(filters?.emailBounced);
-	if (emailBounced !== undefined) request = request.eq('email_bounced', emailBounced);
+	if (emailBounced !== undefined) filteredRequest = filteredRequest.eq('email_bounced', emailBounced);
 
 	const pdfExists = toFilterBoolean(filters?.pdfExists);
-	if (pdfExists !== undefined) request = request.eq('pdf_exists', pdfExists);
+	if (pdfExists !== undefined) filteredRequest = filteredRequest.eq('pdf_exists', pdfExists);
 
 	const orderDetails = toFilterBoolean(filters?.orderDetails);
-	if (orderDetails !== undefined) request = request.eq('order_details', orderDetails);
+	if (orderDetails !== undefined) filteredRequest = filteredRequest.eq('order_details', orderDetails);
 
-	const from = Math.max(0, (safePage - 1) * safePerPage);
-	const to = Math.max(from, from + safePerPage - 1);
+	// Get all matching records to find distinct order_ids and their latest records
+	const { data: allFilteredData, error: filterError } = await filteredRequest
+		.not('order_id', 'is', null)
+		.order('order_id')
+		.order('created_at', { ascending: false });
 
-	const { data, error, count } = await request.range(from, to);
-
-	if (error) {
-		console.error('Error fetching invoice send logs:', error);
+	if (filterError) {
+		console.error('Error fetching filtered invoice send logs:', filterError);
 		throw new Error('Failed to fetch invoice send logs');
 	}
 
+	if (!allFilteredData || allFilteredData.length === 0) {
+		return { data: [], total: 0 };
+	}
+
+	// Group by order_id and get the latest record for each
+	const latestRecordsMap = new Map<string, InvoiceSendLog>();
+	for (const record of allFilteredData) {
+		if (!latestRecordsMap.has(record.order_id)) {
+			latestRecordsMap.set(record.order_id, record);
+		}
+	}
+
+	const distinctRecords = Array.from(latestRecordsMap.values());
+
+	// Apply sorting to the distinct records
+	distinctRecords.sort((a, b) => {
+		const aValue = a[sortField] ?? '';
+		const bValue = b[sortField] ?? '';
+
+		let comparison = 0;
+		if (aValue < bValue) comparison = -1;
+		else if (aValue > bValue) comparison = 1;
+
+		return sortDirection === 'asc' ? comparison : -comparison;
+	});
+
+	// Apply pagination
+	const total = distinctRecords.length;
+	const from = (safePage - 1) * safePerPage;
+	const to = Math.min(from + safePerPage, total);
+	const paginatedData = distinctRecords.slice(from, to);
+
 	return {
-		data: (data ?? []) as InvoiceSendLog[],
-		total: count ?? 0
+		data: paginatedData,
+		total: total
 	};
 }
 

@@ -6,14 +6,12 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
 		fetchInvoiceSendLogs,
-		updateInvoiceSendLog,
 		getOrderEmail,
 		getCustomerEmail,
 		updateOrderEmail,
 		triggerInvoiceEmail
 	} from './services';
-	import type { InvoiceSendLog, InvoiceSendLogFormData } from './types';
-	import { emptyFormData } from './types';
+	import type { InvoiceSendLog } from './types';
 	import { getSortIcon, sortData, getPaginated, formatCreatedAt } from './utils';
 
 	let logs: InvoiceSendLog[] = [];
@@ -27,10 +25,6 @@
 	let currentPage = 1;
 	let itemsPerPage = 25;
 
-	let showEditModal = false;
-	let isSubmitting = false;
-	let formData: InvoiceSendLogFormData = { ...emptyFormData };
-	let editingLog: InvoiceSendLog | null = null;
 
 	// Retry email state
 	let isRetrying = new Set<string>();
@@ -73,49 +67,6 @@
 			sortDirection = 'asc';
 		}
 		currentPage = 1;
-	}
-
-
-	function openEdit(log: InvoiceSendLog) {
-		editingLog = log;
-		formData = {
-			order_id: log.order_id ?? '',
-			customer_email: log.customer_email ?? '',
-			order_details: log.order_details ?? false,
-			document_id: log.document_id ?? '',
-			pdf_path: log.pdf_path ?? '',
-			pdf_exists: log.pdf_exists ?? false,
-			email_sent: log.email_sent ?? false,
-			email_bounced: log.email_bounced ?? false
-		};
-		showEditModal = true;
-	}
-
-	function closeEdit() {
-		showEditModal = false;
-		editingLog = null;
-		formData = { ...emptyFormData };
-	}
-
-
-
-	async function handleEdit() {
-		if (!editingLog) return;
-		if (!formData.order_id.trim()) {
-			toastError('Order ID is required');
-			return;
-		}
-		isSubmitting = true;
-		try {
-			await updateInvoiceSendLog(editingLog.id, formData);
-			await loadLogs();
-			closeEdit();
-			toastSuccess('Log updated');
-		} catch (e) {
-			toastError(e instanceof Error ? e.message : 'Failed to update log');
-		} finally {
-			isSubmitting = false;
-		}
 	}
 
 
@@ -340,7 +291,20 @@
 					<tbody class="divide-y divide-gray-200 bg-white">
 						{#each paginated as log}
 							<tr class="hover:bg-gray-50">
-								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{log.order_id}</td>
+								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
+									{#if log.order_id}
+										<a
+											href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={log.order_id}"
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-blue-600 hover:text-blue-800 hover:underline"
+										>
+											{log.order_id}
+										</a>
+									{:else}
+										—
+									{/if}
+								</td>
 								<td class="max-w-[200px] truncate px-4 py-3 text-sm text-gray-600" title={log.customer_email ?? ''}>
 									{log.customer_email || '—'}
 								</td>
@@ -406,16 +370,6 @@
 												</svg>
 											{/if}
 										</button>
-										<button
-											type="button"
-											on:click={() => openEdit(log)}
-											class="rounded p-1 text-blue-600 hover:bg-blue-50"
-											title="Edit"
-										>
-											<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-											</svg>
-										</button>
 									</div>
 								</td>
 							</tr>
@@ -475,94 +429,10 @@
 </div>
 
 
-<!-- Edit modal -->
-<Modal show={showEditModal} on:close={closeEdit} size="xl">
-	<span slot="header">Edit invoice send log</span>
-	<div slot="body">
-		<form on:submit|preventDefault={handleEdit} class="space-y-4">
-			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-				<div>
-					<label for="edit-order_id" class="block text-sm font-medium text-gray-700">Order ID <span class="text-red-500">*</span></label>
-					<input
-						id="edit-order_id"
-						type="text"
-						bind:value={formData.order_id}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-						required
-					/>
-				</div>
-				<div>
-					<label for="edit-customer_email" class="block text-sm font-medium text-gray-700">Customer email</label>
-					<input
-						id="edit-customer_email"
-						type="email"
-						bind:value={formData.customer_email}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					/>
-				</div>
-				<div>
-					<label for="edit-document_id" class="block text-sm font-medium text-gray-700">Document ID</label>
-					<input
-						id="edit-document_id"
-						type="text"
-						bind:value={formData.document_id}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					/>
-				</div>
-				<div>
-					<label for="edit-pdf_path" class="block text-sm font-medium text-gray-700">PDF path / URL</label>
-					<input
-						id="edit-pdf_path"
-						type="url"
-						bind:value={formData.pdf_path}
-						class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					/>
-				</div>
-			</div>
-			<div class="flex flex-wrap gap-6">
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.order_details} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">Order details</span>
-				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.pdf_exists} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">PDF exists</span>
-				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.email_sent} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">Email sent</span>
-				</label>
-				<label class="flex cursor-pointer items-center gap-2">
-					<input type="checkbox" bind:checked={formData.email_bounced} class="rounded border-gray-300" />
-					<span class="text-sm text-gray-700">Email bounced</span>
-				</label>
-			</div>
-		</form>
-	</div>
-	<div slot="footer" class="flex justify-end gap-3">
-		<button
-			type="button"
-			on:click={closeEdit}
-			class="rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
-		>
-			Cancel
-		</button>
-		<button
-			type="button"
-			on:click={handleEdit}
-			disabled={isSubmitting}
-			class="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-		>
-			{#if isSubmitting}
-				<svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-				</svg>
-				Saving…
-			{:else}
-				Save
-			{/if}
-		</button>
-	</div>
-</Modal>
+<!-- Email input modal -->
+<EmailInputModal
+	show={showEmailModal}
+	on:close={handleEmailModalClose}
+	on:submit={handleEmailModalSubmit}
+/>
 

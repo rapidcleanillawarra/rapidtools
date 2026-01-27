@@ -686,7 +686,7 @@
 	}
 
 	function handleCreateTicketFromView(event: CustomEvent<ProcessedOrder>) {
-		closeViewTicketsModal();
+		showViewTicketsModal = false;
 		// Keep selectedTicketsOrder set so we know to reopen it
 		openTicketModal(event.detail);
 	}

@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Modal from '$lib/components/Modal.svelte';
-	import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
 	import EmailInputModal from './components/EmailInputModal.svelte';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
@@ -11,19 +9,31 @@
 		updateOrderEmail,
 		triggerInvoiceEmail
 	} from './services';
-	import type { InvoiceSendLog } from './types';
-	import { getSortIcon, sortData, getPaginated, formatCreatedAt } from './utils';
+	import type {
+		InvoiceSendLog,
+		InvoiceSendLogQuery,
+		InvoiceSendLogSortField,
+		YesNoAll
+	} from './types';
+	import { getSortIcon, formatCreatedAt } from './utils';
 
 	let logs: InvoiceSendLog[] = [];
+	let totalCount = 0;
 	let loading = true;
 	let error = '';
 
 	let searchOrderId = '';
 	let searchCustomerEmail = '';
-	let sortField: keyof InvoiceSendLog | '' = 'created_at';
+	let searchDocumentId = '';
+	let filterEmailSent: YesNoAll = 'all';
+	let filterEmailBounced: YesNoAll = 'all';
+	let filterPdfExists: YesNoAll = 'all';
+	let filterOrderDetails: YesNoAll = 'all';
+	let sortField: InvoiceSendLogSortField = 'created_at';
 	let sortDirection: 'asc' | 'desc' = 'desc';
 	let currentPage = 1;
 	let itemsPerPage = 25;
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 
 	// Retry email state
@@ -37,7 +47,31 @@
 		loading = true;
 		error = '';
 		try {
-			logs = await fetchInvoiceSendLogs();
+			const perPage = Number(itemsPerPage) || 25;
+			if (perPage !== itemsPerPage) {
+				itemsPerPage = perPage;
+			}
+			const query: InvoiceSendLogQuery = {
+				page: currentPage,
+				perPage,
+				sortField,
+				sortDirection,
+				search: {
+					orderId: searchOrderId,
+					customerEmail: searchCustomerEmail,
+					documentId: searchDocumentId
+				},
+				filters: {
+					emailSent: filterEmailSent,
+					emailBounced: filterEmailBounced,
+					pdfExists: filterPdfExists,
+					orderDetails: filterOrderDetails
+				}
+			};
+
+			const result = await fetchInvoiceSendLogs(query);
+			logs = result.data;
+			totalCount = result.total;
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to load logs';
 			console.error(e);
@@ -46,27 +80,28 @@
 		}
 	}
 
-	$: filtered = (() => {
-		let out = [...logs];
-		const o = searchOrderId.trim().toLowerCase();
-		const e = searchCustomerEmail.trim().toLowerCase();
-		if (o) out = out.filter((l) => l.order_id?.toLowerCase().includes(o));
-		if (e) out = out.filter((l) => (l.customer_email ?? '').toLowerCase().includes(e));
-		return out;
-	})();
+	$: totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
 
-	$: sorted = sortField ? sortData(filtered, sortField as keyof InvoiceSendLog, sortDirection) : filtered;
-	$: totalPages = Math.max(1, Math.ceil(sorted.length / itemsPerPage));
-	$: if (currentPage > totalPages) currentPage = totalPages;
-	$: paginated = getPaginated(sorted, currentPage, itemsPerPage);
+	function scheduleLoad(resetPage = false) {
+		if (resetPage) currentPage = 1;
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			loadLogs();
+		}, 300);
+	}
 
-	function handleSort(f: keyof InvoiceSendLog) {
+	function handleFilterChange() {
+		scheduleLoad(true);
+	}
+
+	function handleSort(f: InvoiceSendLogSortField) {
 		if (sortField === f) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
 		else {
 			sortField = f;
 			sortDirection = 'asc';
 		}
 		currentPage = 1;
+		loadLogs();
 	}
 
 
@@ -202,26 +237,110 @@
 	{/if}
 
 	<!-- Filters -->
-	<div class="mb-4 flex flex-wrap gap-4">
-		<div class="min-w-[180px]">
+	<div class="mb-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+		<div>
 			<label for="search-order" class="block text-sm font-medium text-gray-700">Order ID</label>
 			<input
 				id="search-order"
 				type="text"
 				bind:value={searchOrderId}
-				placeholder="Search…"
+				placeholder="Search..."
 				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:input={handleFilterChange}
 			/>
 		</div>
-		<div class="min-w-[200px]">
+		<div>
 			<label for="search-email" class="block text-sm font-medium text-gray-700">Customer email</label>
 			<input
 				id="search-email"
 				type="text"
 				bind:value={searchCustomerEmail}
-				placeholder="Search…"
+				placeholder="Search..."
 				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:input={handleFilterChange}
 			/>
+		</div>
+		<div>
+			<label for="search-document" class="block text-sm font-medium text-gray-700">Document ID</label>
+			<input
+				id="search-document"
+				type="text"
+				bind:value={searchDocumentId}
+				placeholder="Search..."
+				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:input={handleFilterChange}
+			/>
+		</div>
+		<div>
+			<label for="filter-email-sent" class="block text-sm font-medium text-gray-700">Email sent</label>
+			<select
+				id="filter-email-sent"
+				bind:value={filterEmailSent}
+				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:change={handleFilterChange}
+			>
+				<option value="all">All</option>
+				<option value="yes">Yes</option>
+				<option value="no">No</option>
+			</select>
+		</div>
+		<div>
+			<label for="filter-email-bounced" class="block text-sm font-medium text-gray-700">Email bounced</label>
+			<select
+				id="filter-email-bounced"
+				bind:value={filterEmailBounced}
+				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:change={handleFilterChange}
+			>
+				<option value="all">All</option>
+				<option value="yes">Yes</option>
+				<option value="no">No</option>
+			</select>
+		</div>
+		<div>
+			<label for="filter-pdf-exists" class="block text-sm font-medium text-gray-700">PDF exists</label>
+			<select
+				id="filter-pdf-exists"
+				bind:value={filterPdfExists}
+				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:change={handleFilterChange}
+			>
+				<option value="all">All</option>
+				<option value="yes">Yes</option>
+				<option value="no">No</option>
+			</select>
+		</div>
+		<div>
+			<label for="filter-order-details" class="block text-sm font-medium text-gray-700">Order details</label>
+			<select
+				id="filter-order-details"
+				bind:value={filterOrderDetails}
+				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+				on:change={handleFilterChange}
+			>
+				<option value="all">All</option>
+				<option value="yes">Yes</option>
+				<option value="no">No</option>
+			</select>
+		</div>
+		<div class="flex items-end">
+			<button
+				type="button"
+				on:click={() => {
+					searchOrderId = '';
+					searchCustomerEmail = '';
+					searchDocumentId = '';
+					filterEmailSent = 'all';
+					filterEmailBounced = 'all';
+					filterPdfExists = 'all';
+					filterOrderDetails = 'all';
+					currentPage = 1;
+					loadLogs();
+				}}
+				class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+			>
+				Clear filters
+			</button>
 		</div>
 	</div>
 
@@ -231,9 +350,9 @@
 				class="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
 			></div>
 		</div>
-	{:else if logs.length === 0}
+	{:else if totalCount === 0}
 		<div class="rounded-lg border border-gray-200 bg-white py-12 text-center shadow">
-			<p class="text-gray-500">No invoice send logs yet.</p>
+			<p class="text-gray-500">No results found.</p>
 		</div>
 	{:else}
 		<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
@@ -259,17 +378,35 @@
 							>
 								Customer email {getSortIcon('customer_email', sortField, sortDirection)}
 							</th>
-							<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-								Order details
+							<th
+								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+								on:click={() => handleSort('order_details')}
+								role="button"
+								tabindex="0"
+								on:keydown={(e) => e.key === 'Enter' && handleSort('order_details')}
+							>
+								Order details {getSortIcon('order_details', sortField, sortDirection)}
 							</th>
-							<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-								Document ID
+							<th
+								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+								on:click={() => handleSort('document_id')}
+								role="button"
+								tabindex="0"
+								on:keydown={(e) => e.key === 'Enter' && handleSort('document_id')}
+							>
+								Document ID {getSortIcon('document_id', sortField, sortDirection)}
 							</th>
 							<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
 								PDF
 							</th>
-							<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-								Email sent
+							<th
+								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+								on:click={() => handleSort('email_sent')}
+								role="button"
+								tabindex="0"
+								on:keydown={(e) => e.key === 'Enter' && handleSort('email_sent')}
+							>
+								Email sent {getSortIcon('email_sent', sortField, sortDirection)}
 							</th>
 							<th
 								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
@@ -280,8 +417,14 @@
 							>
 								Created {getSortIcon('created_at', sortField, sortDirection)}
 							</th>
-							<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-								Bounced
+							<th
+								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
+								on:click={() => handleSort('email_bounced')}
+								role="button"
+								tabindex="0"
+								on:keydown={(e) => e.key === 'Enter' && handleSort('email_bounced')}
+							>
+								Bounced {getSortIcon('email_bounced', sortField, sortDirection)}
 							</th>
 							<th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
 								Actions
@@ -289,12 +432,12 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-200 bg-white">
-						{#each paginated as log}
+						{#each logs as log}
 							<tr class="hover:bg-gray-50">
 								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
 									{#if log.order_id}
 										<a
-											href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={log.order_id}"
+											href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view-id={log.order_id}"
 											target="_blank"
 											rel="noopener noreferrer"
 											class="text-blue-600 hover:text-blue-800 hover:underline"
@@ -306,19 +449,19 @@
 									{/if}
 								</td>
 								<td class="max-w-[200px] truncate px-4 py-3 text-sm text-gray-600" title={log.customer_email ?? ''}>
-									{log.customer_email || '—'}
+									{log.customer_email || '-'}
 								</td>
 								<td class="px-4 py-3">
 									{#if log.order_details == null}
 										<span class="text-gray-400">—</span>
 									{:else}
-										<span class={log.order_details ? 'text-green-600' : 'text-gray-500'}>
-											{log.order_details ? 'Yes' : 'No'}
-										</span>
+									<span class={log.order_details ? 'text-green-600' : 'text-gray-500'}>
+										{log.order_details ? 'Yes' : 'No'}
+									</span>
 									{/if}
 								</td>
 								<td class="max-w-[120px] truncate px-4 py-3 font-mono text-xs text-gray-600" title={log.document_id ?? ''}>
-									{log.document_id || '—'}
+									{log.document_id || '-'}
 								</td>
 								<td class="px-4 py-3">
 									{#if log.pdf_path}
@@ -381,10 +524,10 @@
 			<!-- Pagination -->
 			<div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 bg-gray-50 px-4 py-3">
 				<div class="text-sm text-gray-600">
-					{#if sorted.length === 0}
+					{#if totalCount === 0}
 						No results
 					{:else}
-						Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, sorted.length)} of {sorted.length}
+						Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
 					{/if}
 				</div>
 				<div class="flex items-center gap-4">
@@ -393,7 +536,10 @@
 						<select
 							bind:value={itemsPerPage}
 							class="rounded border border-gray-300 px-2 py-1 text-sm"
-							on:change={() => (currentPage = 1)}
+							on:change={() => {
+								currentPage = 1;
+								loadLogs();
+							}}
 						>
 							<option value={10}>10</option>
 							<option value={25}>25</option>
@@ -405,7 +551,10 @@
 						<button
 							type="button"
 							disabled={currentPage <= 1}
-							on:click={() => (currentPage = currentPage - 1)}
+							on:click={() => {
+								currentPage = currentPage - 1;
+								loadLogs();
+							}}
 							class="rounded border border-gray-300 bg-white px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100"
 						>
 							Previous
@@ -416,7 +565,10 @@
 						<button
 							type="button"
 							disabled={currentPage >= totalPages}
-							on:click={() => (currentPage = currentPage + 1)}
+							on:click={() => {
+								currentPage = currentPage + 1;
+								loadLogs();
+							}}
 							class="rounded border border-gray-300 bg-white px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100"
 						>
 							Next

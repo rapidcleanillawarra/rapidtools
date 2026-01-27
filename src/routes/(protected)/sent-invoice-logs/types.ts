@@ -11,6 +11,36 @@ export interface InvoiceSendLog {
 	email_bounced: boolean | null;
 }
 
+export type YesNoAll = 'all' | 'yes' | 'no';
+export type InvoiceSendLogSortField = keyof InvoiceSendLog;
+
+export interface InvoiceSendLogSearch {
+	orderId?: string;
+	customerEmail?: string;
+	documentId?: string;
+}
+
+export interface InvoiceSendLogFilters {
+	emailSent?: YesNoAll;
+	emailBounced?: YesNoAll;
+	pdfExists?: YesNoAll;
+	orderDetails?: YesNoAll;
+}
+
+export interface InvoiceSendLogQuery {
+	page: number;
+	perPage: number;
+	sortField: InvoiceSendLogSortField;
+	sortDirection: 'asc' | 'desc';
+	search?: InvoiceSendLogSearch;
+	filters?: InvoiceSendLogFilters;
+}
+
+export interface InvoiceSendLogResult {
+	data: InvoiceSendLog[];
+	total: number;
+}
+
 export type InvoiceSendLogFormKey =
 	| 'order_id'
 	| 'customer_email'

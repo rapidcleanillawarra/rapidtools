@@ -1,5 +1,11 @@
 import { supabase } from '$lib/supabase';
-import type { InvoiceSendLog, InvoiceSendLogFormData } from './types';
+import type {
+	InvoiceSendLog,
+	InvoiceSendLogFormData,
+	InvoiceSendLogQuery,
+	InvoiceSendLogResult,
+	YesNoAll
+} from './types';
 
 const TABLE = 'invoice_send_logs';
 
@@ -7,25 +13,57 @@ const TABLE = 'invoice_send_logs';
 const MAROPOST_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 const EMAIL_TRIGGER_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/085d23545582412795e162562558953d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HLKhlTnMPzldKLVFn2pfHoFx3tCqAkFO0BXwhITJfIs';
 
-export async function fetchInvoiceSendLogs(): Promise<InvoiceSendLog[]> {
-	const { data, error } = await supabase
+function toFilterBoolean(value?: YesNoAll): boolean | undefined {
+	if (value === 'yes') return true;
+	if (value === 'no') return false;
+	return undefined;
+}
+
+export async function fetchInvoiceSendLogs(query: InvoiceSendLogQuery): Promise<InvoiceSendLogResult> {
+	const { page, perPage, sortField, sortDirection, search, filters } = query;
+	const safePage = Math.max(1, page);
+	const safePerPage = Math.max(1, perPage);
+
+	let request = supabase
 		.from(TABLE)
-		.select('*')
-		.order('created_at', { ascending: false });
+		.select('*', { count: 'exact' })
+		.order(sortField, { ascending: sortDirection === 'asc', nullsFirst: false });
+
+	const orderId = search?.orderId?.trim();
+	if (orderId) request = request.ilike('order_id', `%${orderId}%`);
+
+	const customerEmail = search?.customerEmail?.trim();
+	if (customerEmail) request = request.ilike('customer_email', `%${customerEmail}%`);
+
+	const documentId = search?.documentId?.trim();
+	if (documentId) request = request.ilike('document_id', `%${documentId}%`);
+
+	const emailSent = toFilterBoolean(filters?.emailSent);
+	if (emailSent !== undefined) request = request.eq('email_sent', emailSent);
+
+	const emailBounced = toFilterBoolean(filters?.emailBounced);
+	if (emailBounced !== undefined) request = request.eq('email_bounced', emailBounced);
+
+	const pdfExists = toFilterBoolean(filters?.pdfExists);
+	if (pdfExists !== undefined) request = request.eq('pdf_exists', pdfExists);
+
+	const orderDetails = toFilterBoolean(filters?.orderDetails);
+	if (orderDetails !== undefined) request = request.eq('order_details', orderDetails);
+
+	const from = Math.max(0, (safePage - 1) * safePerPage);
+	const to = Math.max(from, from + safePerPage - 1);
+
+	const { data, error, count } = await request.range(from, to);
 
 	if (error) {
 		console.error('Error fetching invoice send logs:', error);
 		throw new Error('Failed to fetch invoice send logs');
 	}
 
-	// Deduplicate by order_id, keeping only the latest (first occurrence since ordered by created_at desc)
-	const seen = new Set<string>();
-	return (data ?? []).filter((log) => {
-		const oid = log.order_id ?? '';
-		if (seen.has(oid)) return false;
-		seen.add(oid);
-		return true;
-	}) as InvoiceSendLog[];
+	return {
+		data: (data ?? []) as InvoiceSendLog[],
+		total: count ?? 0
+	};
 }
 
 

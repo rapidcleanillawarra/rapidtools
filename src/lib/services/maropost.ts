@@ -122,7 +122,7 @@ export async function createOrder(customerData: any): Promise<OrderApiData> {
           "ShipCountry": customer.ShippingAddress?.ShipCountry || "",
           "ShipPhone": customer.ShippingAddress?.ShipPhone || "",
           "ShipFax": customer.ShippingAddress?.ShipFax || "",
-          "EmailAddress": customer.EmailAddress || "",
+          "Email": customer.EmailAddress || "",
           "OrderLine": [
             {
               "SKU": "LABOUR",

@@ -2,10 +2,15 @@
 	import { onMount } from 'svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+	import EmailInputModal from './components/EmailInputModal.svelte';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
 		fetchInvoiceSendLogs,
-		updateInvoiceSendLog
+		updateInvoiceSendLog,
+		getOrderEmail,
+		getCustomerEmail,
+		updateOrderEmail,
+		triggerInvoiceEmail
 	} from './services';
 	import type { InvoiceSendLog, InvoiceSendLogFormData } from './types';
 	import { emptyFormData } from './types';
@@ -26,6 +31,11 @@
 	let isSubmitting = false;
 	let formData: InvoiceSendLogFormData = { ...emptyFormData };
 	let editingLog: InvoiceSendLog | null = null;
+
+	// Retry email state
+	let isRetrying = new Set<string>();
+	let showEmailModal = false;
+	let pendingRetryLog: InvoiceSendLog | null = null;
 
 	onMount(loadLogs);
 
@@ -112,6 +122,112 @@
 	function openPdfUrl(url: string | null) {
 		if (!url?.trim()) return;
 		window.open(url, '_blank', 'noopener,noreferrer');
+	}
+
+	async function handleRetryEmail(log: InvoiceSendLog) {
+		if (!log.order_id) {
+			toastError('Order ID is missing - cannot retry email');
+			return;
+		}
+
+		// Set loading state
+		isRetrying.add(log.id);
+
+		try {
+			let emailToUse: string | null = null;
+			let username: string | null = null;
+
+			// Step 1: Check if order has email
+			console.log('Step 1: Checking order email for', log.order_id);
+			const orderData = await getOrderEmail(log.order_id);
+
+			if (orderData.email && orderData.email.trim()) {
+				emailToUse = orderData.email.trim();
+				console.log('Found email in order record:', emailToUse);
+			} else {
+				username = orderData.username;
+				console.log('No email in order record, checking customer record for username:', username);
+
+				// Step 2: If order email is empty, check customer email
+				if (username) {
+					const customerEmail = await getCustomerEmail(username);
+
+					if (customerEmail && customerEmail.trim()) {
+						emailToUse = customerEmail.trim();
+						console.log('Found email in customer record:', emailToUse);
+					} else {
+						console.log('No email in customer record, showing modal for user input');
+						// Step 3: If customer email is also empty, show modal for user input
+						pendingRetryLog = log;
+						showEmailModal = true;
+						return; // Exit here, will continue after modal submission
+					}
+				} else {
+					console.log('No username in order record, showing modal for user input');
+					// No username available, show modal for user input
+					pendingRetryLog = log;
+					showEmailModal = true;
+					return; // Exit here, will continue after modal submission
+				}
+			}
+
+			// If we have an email, proceed with update and trigger
+			await proceedWithEmailRetry(log, emailToUse!);
+
+		} catch (error) {
+			console.error('Error during email retry process:', error);
+			toastError(error instanceof Error ? error.message : 'Failed to retry email');
+		} finally {
+			isRetrying.delete(log.id);
+		}
+	}
+
+	async function proceedWithEmailRetry(log: InvoiceSendLog, email: string) {
+		try {
+			// Step 4: Update order email
+			console.log('Step 4: Updating order email');
+			await updateOrderEmail(log.order_id!, email);
+
+			// Step 5: Trigger invoice email
+			console.log('Step 5: Triggering invoice email');
+			await triggerInvoiceEmail(log.order_id!);
+
+			// Success - refresh the logs to show updated data
+			await loadLogs();
+			toastSuccess('Email retry completed successfully');
+
+		} catch (error) {
+			console.error('Error in email retry process:', error);
+			toastError(error instanceof Error ? error.message : 'Failed to retry email');
+			throw error; // Re-throw to ensure loading state is cleared
+		}
+	}
+
+	function handleEmailModalSubmit(event: CustomEvent<{ email: string }>) {
+		const { email } = event.detail;
+
+		if (pendingRetryLog) {
+			// Continue with the retry process using the provided email
+			proceedWithEmailRetry(pendingRetryLog, email).finally(() => {
+				// Clear pending state regardless of success/failure
+				pendingRetryLog = null;
+			});
+		}
+
+		showEmailModal = false;
+	}
+
+	function handleEmailModalClose() {
+		// Clear pending state when modal is closed
+		showEmailModal = false;
+
+		// Clear loading state for the pending log if it exists
+		if (pendingRetryLog) {
+			isRetrying.delete(pendingRetryLog.id);
+		}
+
+		// Clear pending state
+		pendingRetryLog = null;
 	}
 </script>
 
@@ -222,7 +338,7 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-200 bg-white">
-						{#each paginated as log (log.id)}
+						{#each paginated as log}
 							<tr class="hover:bg-gray-50">
 								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900">{log.order_id}</td>
 								<td class="max-w-[200px] truncate px-4 py-3 text-sm text-gray-600" title={log.customer_email ?? ''}>
@@ -271,16 +387,36 @@
 									{/if}
 								</td>
 								<td class="whitespace-nowrap px-4 py-3 text-right text-sm">
-									<button
-										type="button"
-										on:click={() => openEdit(log)}
-										class="rounded p-1 text-blue-600 hover:bg-blue-50"
-										title="Edit"
-									>
-										<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-										</svg>
-									</button>
+									<div class="flex items-center justify-end gap-1">
+										<button
+											type="button"
+											on:click={() => handleRetryEmail(log)}
+											disabled={isRetrying.has(log.id)}
+											class="rounded p-1 text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+											title="Retry Email"
+										>
+											{#if isRetrying.has(log.id)}
+												<svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+													<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+													<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+												</svg>
+											{:else}
+												<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+												</svg>
+											{/if}
+										</button>
+										<button
+											type="button"
+											on:click={() => openEdit(log)}
+											class="rounded p-1 text-blue-600 hover:bg-blue-50"
+											title="Edit"
+										>
+											<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+											</svg>
+										</button>
+									</div>
 								</td>
 							</tr>
 						{/each}

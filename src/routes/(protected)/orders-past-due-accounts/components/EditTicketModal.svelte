@@ -4,6 +4,11 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import type { Ticket, ProcessedOrder } from '../pastDueAccounts';
 	import { updateTicket } from '../ticketTracking';
+	import {
+		isSydneyInputInPast,
+		sydneyInputToUtcIso,
+		utcIsoToSydneyInput
+	} from '../utils/dueDate';
 
 	export let showModal = false;
 	export let ticket: Ticket | null = null;
@@ -65,22 +70,8 @@
 		assignedTo = ticket.assigned_to || '';
 		priority = ticket.priority || 'Medium';
 		status = ticket.status || 'Not Started';
-		dueDate = ticket.due_date ? formatDateForInput(ticket.due_date) : '';
+		dueDate = ticket.due_date ? utcIsoToSydneyInput(ticket.due_date) : '';
 		notes = ticket.notes || '';
-	}
-
-	function formatDateForInput(dateStr: string): string {
-		try {
-			const date = new Date(dateStr);
-			const year = date.getFullYear();
-			const month = String(date.getMonth() + 1).padStart(2, '0');
-			const day = String(date.getDate()).padStart(2, '0');
-			const hours = String(date.getHours()).padStart(2, '0');
-			const minutes = String(date.getMinutes()).padStart(2, '0');
-			return `${year}-${month}-${day}T${hours}:${minutes}`;
-		} catch {
-			return '';
-		}
 	}
 
 	async function fetchUsers() {
@@ -128,7 +119,7 @@
 			errors.push('Please select a valid user for assignment');
 		}
 
-		if (dueDate && new Date(dueDate) < new Date()) {
+		if (isSydneyInputInPast(dueDate)) {
 			errors.push('Due date must be in the future');
 		}
 
@@ -156,7 +147,7 @@
 				status,
 				priority,
 				assigned_to: assignedTo || null,
-				due_date: dueDate || null,
+				due_date: sydneyInputToUtcIso(dueDate),
 				notes: notes.trim() || null
 			});
 

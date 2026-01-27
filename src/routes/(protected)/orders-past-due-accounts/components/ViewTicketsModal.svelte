@@ -2,33 +2,34 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { ProcessedOrder, Ticket } from '../pastDueAccounts';
 	import { supabase } from '$lib/supabase';
+	import { parseDate } from '../pastDueAccounts';
+	import { formatSydneyDisplay, isUtcIsoPast } from '../utils/dueDate';
 
-	function isPastDue(dateStr: string | null): boolean {
-		if (!dateStr) return false;
-		const dueDate = new Date(dateStr);
-		const now = new Date();
-		return dueDate < now;
+	function isPastDue(ticketDue: string | null, orderDue: string | null): boolean {
+		if (ticketDue) {
+			return isUtcIsoPast(ticketDue);
+		}
+		if (orderDue) {
+			const parsed = parseDate(orderDue);
+			return parsed ? parsed < Date.now() : false;
+		}
+		return false;
 	}
 
-	function formatDueDate(dateStr: string | null): string {
-		if (!dateStr) return 'N/A';
-		try {
-			const date = new Date(dateStr);
-			return date.toLocaleString('en-US', {
-				year: 'numeric',
-				month: 'short',
-				day: 'numeric',
-				hour: '2-digit',
-				minute: '2-digit'
-			});
-		} catch {
-			return dateStr;
+	function formatDueDate(ticketDue: string | null, orderDue: string | null): string {
+		if (ticketDue) {
+			return formatSydneyDisplay(ticketDue);
 		}
+		if (orderDue) {
+			return orderDue;
+		}
+		return 'N/A';
 	}
 
 	function getDueDateColor(ticket: any, order: ProcessedOrder | null): string {
-		const dueDate = ticket.due_date || order?.dueDate;
-		const isPast = isPastDue(dueDate);
+		const ticketDue = ticket.due_date || null;
+		const orderDue = order?.dueDate || null;
+		const isPast = isPastDue(ticketDue, orderDue);
 		return isPast
 			? 'text-red-600 dark:text-red-400 font-medium'
 			: 'text-gray-500 dark:text-gray-300';
@@ -170,7 +171,7 @@
 															{ticket.priority}
 														</td>
 														<td class="whitespace-nowrap px-3 py-4 text-sm {getDueDateColor(ticket, order)}">
-															{formatDueDate((ticket as any).due_date || order?.dueDate || null)}
+															{formatDueDate((ticket as any).due_date || null, order?.dueDate || null)}
 														</td>
 														<td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
 															{ticket.assigned_to ? (availableUsers.find(u => u.email === ticket.assigned_to)?.full_name || ticket.assigned_to) : 'Unassigned'}

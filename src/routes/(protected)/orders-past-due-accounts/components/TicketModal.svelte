@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabase';
 	import type { ProcessedOrder } from '../pastDueAccounts';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import { isSydneyInputInPast, sydneyInputToUtcIso } from '../utils/dueDate';
 
 	export let showModal = false;
 	export let order: ProcessedOrder | null = null;
@@ -126,7 +127,7 @@ Due Date: ${order.dueDate}`;
 			errors.push('Please select a valid user for assignment');
 		}
 
-		if (dueDate && new Date(dueDate) < new Date()) {
+		if (isSydneyInputInPast(dueDate)) {
 			errors.push('Due date must be in the future');
 		}
 
@@ -156,7 +157,7 @@ Due Date: ${order.dueDate}`;
 				assigned_by: user.email,
 				priority,
 				status,
-				due_date: dueDate || null,
+				due_date: sydneyInputToUtcIso(dueDate),
 				notes: notes.trim() || null,
 				ticket_data: { order_id: order.invoice }
 			};

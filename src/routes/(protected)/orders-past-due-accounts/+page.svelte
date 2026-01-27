@@ -701,9 +701,19 @@
 		selectedTicket = null;
 	}
 
-	function handleTicketUpdated() {
+	async function handleTicketUpdated() {
 		// Refresh tickets for the order that was just updated
-		fetchTickets();
+		await fetchTickets();
+
+		// Update selectedTicketsOrder to point to the fresh order data
+		// This ensures ViewTicketsModal displays updated ticket information
+		if (selectedTicketsOrder) {
+			const updatedOrder = orders.find((o) => o.invoice === selectedTicketsOrder!.invoice);
+			if (updatedOrder) {
+				selectedTicketsOrder = updatedOrder;
+			}
+		}
+
 		closeEditTicketModal();
 	}
 

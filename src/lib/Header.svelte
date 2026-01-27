@@ -433,31 +433,9 @@
 								on:click={closeSidebar}>Customer Group Invoices</a
 							>
 							<a
-								href="{base}/customer-groups"
-								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
-								on:click={closeSidebar}>Customer Groups</a
-							>
-							<a
 								href="{base}/product-order-management"
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Product Order Management</a
-							>
-							<a
-								href="{base}/batch-payments"
-								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
-								on:click={closeSidebar}
-								data-sveltekit-preload-data="off">Batch Payments</a
-							>
-							<a
-								href="{base}/xero-maropost-history"
-								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
-								on:click={closeSidebar}
-								data-sveltekit-preload-data="off">Xero Maropost History</a
-							>
-							<a
-								href="{base}/rebates"
-								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
-								on:click={closeSidebar}>Rebates</a
 							>
 							<a
 								href="{base}/orders-past-due-accounts"

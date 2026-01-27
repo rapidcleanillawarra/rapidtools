@@ -437,7 +437,7 @@
 								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
 									{#if log.order_id}
 										<a
-											href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view-id={log.order_id}"
+											href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={log.order_id}"
 											target="_blank"
 											rel="noopener noreferrer"
 											class="text-blue-600 hover:text-blue-800 hover:underline"

@@ -52,10 +52,13 @@ export interface EmailConversation {
 export interface Ticket {
 	ticket_number: number;
 	ticket_title: string;
+	ticket_description?: string | null;
 	status: string;
 	priority: string;
 	assigned_to: string | null;
 	created_at: string;
+	due_date?: string | null;
+	notes?: string | null;
 	ticket_data: any;
 }
 

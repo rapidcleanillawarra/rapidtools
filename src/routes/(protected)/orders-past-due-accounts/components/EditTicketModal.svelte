@@ -61,12 +61,12 @@
 	// Pre-populate form when ticket changes
 	$: if (ticket && showModal) {
 		ticketTitle = ticket.ticket_title || '';
-		ticketDescription = (ticket as any).ticket_description || '';
+		ticketDescription = ticket.ticket_description || '';
 		assignedTo = ticket.assigned_to || '';
 		priority = ticket.priority || 'Medium';
 		status = ticket.status || 'Not Started';
-		dueDate = (ticket as any).due_date ? formatDateForInput((ticket as any).due_date) : '';
-		notes = (ticket as any).notes || '';
+		dueDate = ticket.due_date ? formatDateForInput(ticket.due_date) : '';
+		notes = ticket.notes || '';
 	}
 
 	function formatDateForInput(dateStr: string): string {

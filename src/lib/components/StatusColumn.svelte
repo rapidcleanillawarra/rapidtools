@@ -8,6 +8,7 @@
   export let workshops: WorkshopRecord[] = [];
   export let draggedWorkshopId: string | null = null;
   export let recentlyMovedWorkshopId: string | null = null;
+  export let showImages: boolean = true;
 
   const dispatch = createEventDispatcher<{
     drop: { workshopId: string; newStatus: string };
@@ -131,6 +132,7 @@
             viewMode="board"
             {draggedWorkshopId}
             {recentlyMovedWorkshopId}
+            {showImages}
             on:click
             on:photoClick
             on:deleteClick

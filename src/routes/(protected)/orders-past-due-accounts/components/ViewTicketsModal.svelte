@@ -109,7 +109,7 @@
 		}
 	}
 
-	async function markAsComplete(ticket: any) {
+	async function markAsComplete(ticket: Ticket) {
 		if (!$currentUser?.email) {
 			console.error('User not logged in');
 			return;
@@ -119,8 +119,7 @@
 			const { error } = await supabase
 				.from('tickets')
 				.update({
-					status: 'Completed',
-					assigned_to: $currentUser.email
+					status: 'Completed'
 				})
 				.eq('id', ticket.id);
 
@@ -129,7 +128,7 @@
 			// Update local state
 			tickets = tickets.map(t => 
 				t.id === ticket.id 
-					? { ...t, status: 'Completed', assigned_to: $currentUser.email }
+					? { ...t, status: 'Completed' }
 					: t
 			);
 			
@@ -205,13 +204,15 @@
 														</td>
 														<td class="whitespace-nowrap px-3 py-4 text-sm">
 															{#if ticket.status !== 'Completed'}
-																<button
-																	type="button"
-																	on:click={() => markAsComplete(ticket)}
-																	class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900"
-																>
-																	Mark Complete
-																</button>
+																{#if $currentUser?.email === ticket.assigned_to || $currentUser?.email === 'marketing@rapidcleanillawarra.com.au'}
+																	<button
+																		type="button"
+																		on:click={() => markAsComplete(ticket)}
+																		class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900"
+																	>
+																		Mark Complete
+																	</button>
+																{/if}
 															{:else}
 																<span class="text-green-600 dark:text-green-400 text-xs font-medium">Completed</span>
 															{/if}

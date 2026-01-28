@@ -8,6 +8,7 @@
 	export let draggable: boolean = true;
 	export let draggedWorkshopId: string | null = null;
 	export let recentlyMovedWorkshopId: string | null = null;
+	export let showImages: boolean = true;
 
 	const dispatch = createEventDispatcher<{
 		click: { workshop: WorkshopRecord };
@@ -131,30 +132,41 @@
 		</td>
 		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-900">
 			{#if workshop.photo_urls && workshop.photo_urls.length > 0}
-				<div class="flex items-center space-x-1">
-					{#each workshop.photo_urls.slice(0, 3) as photoUrl, index}
-						<div class="group relative">
-							<!-- Photo thumbnail -->
-							<button
-								type="button"
-								class="h-28 w-28 cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
-								on:click={(e) => handlePhotoClick(index, e)}
-								aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
-							>
-								<img src={photoUrl} alt="" class="h-full w-full rounded-md object-cover" />
-							</button>
-						</div>
-					{/each}
+				{#if showImages}
+					<div class="flex items-center space-x-1">
+						{#each workshop.photo_urls.slice(0, 3) as photoUrl, index}
+							<div class="group relative">
+								<!-- Photo thumbnail -->
+								<button
+									type="button"
+									class="h-28 w-28 cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
+									on:click={(e) => handlePhotoClick(index, e)}
+									aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
+								>
+									<img src={photoUrl} alt="" class="h-full w-full rounded-md object-cover" />
+								</button>
+							</div>
+						{/each}
 
-					<!-- Show count if more than 3 photos -->
-					{#if workshop.photo_urls.length > 3}
-						<div
-							class="flex h-28 w-28 items-center justify-center rounded bg-gray-100 text-lg font-medium text-gray-600"
-						>
-							+{workshop.photo_urls.length - 3}
-						</div>
-					{/if}
-				</div>
+						<!-- Show count if more than 3 photos -->
+						{#if workshop.photo_urls.length > 3}
+							<div
+								class="flex h-28 w-28 items-center justify-center rounded bg-gray-100 text-lg font-medium text-gray-600"
+							>
+								+{workshop.photo_urls.length - 3}
+							</div>
+						{/if}
+					</div>
+				{:else}
+					<button
+						type="button"
+						class="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+						on:click={(e) => handlePhotoClick(0, e)}
+						aria-label="View {workshop.photo_urls.length} photos"
+					>
+						View photos ({workshop.photo_urls.length})
+					</button>
+				{/if}
 			{:else}
 				<div class="text-xs text-gray-400">No photos</div>
 			{/if}
@@ -247,52 +259,65 @@
 	>
 		<!-- Photo Section -->
 		{#if workshop.photo_urls && workshop.photo_urls.length > 0}
-			<div class="mb-3">
-				{#if workshop.photo_urls.length === 1}
-					<!-- Single photo display -->
-					<div class="relative">
-						<!-- Photo thumbnail -->
-						<button
-							type="button"
-							class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
-							on:click={(e) => handlePhotoClick(0, e)}
-							aria-label="View photo for {workshop.product_name} workshop"
-						>
-							<img
-								src={workshop.photo_urls[0]}
-								alt=""
-								class="h-full w-full rounded-md object-cover"
-							/>
-						</button>
-					</div>
-				{:else}
-					<!-- Multiple photos display - show only first image -->
-					<div class="relative">
-						<!-- Photo thumbnail -->
-						<button
-							type="button"
-							class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
-							on:click={(e) => handlePhotoClick(0, e)}
-							aria-label="View first photo of {workshop.photo_urls.length} total photos"
-						>
-							<img
-								src={workshop.photo_urls[0]}
-								alt=""
-								class="h-full w-full rounded-md object-cover"
-							/>
-						</button>
-
-						<!-- Photo count indicator for multiple photos -->
-						{#if workshop.photo_urls.length > 1}
-							<div
-								class="absolute right-1 top-1 rounded-full bg-black bg-opacity-70 px-1.5 py-0.5 text-xs text-white"
+			{#if showImages}
+				<div class="mb-3">
+					{#if workshop.photo_urls.length === 1}
+						<!-- Single photo display -->
+						<div class="relative">
+							<!-- Photo thumbnail -->
+							<button
+								type="button"
+								class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
+								on:click={(e) => handlePhotoClick(0, e)}
+								aria-label="View photo for {workshop.product_name} workshop"
 							>
-								{workshop.photo_urls.length}
-							</div>
-						{/if}
-					</div>
-				{/if}
-			</div>
+								<img
+									src={workshop.photo_urls[0]}
+									alt=""
+									class="h-full w-full rounded-md object-cover"
+								/>
+							</button>
+						</div>
+					{:else}
+						<!-- Multiple photos display - show only first image -->
+						<div class="relative">
+							<!-- Photo thumbnail -->
+							<button
+								type="button"
+								class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
+								on:click={(e) => handlePhotoClick(0, e)}
+								aria-label="View first photo of {workshop.photo_urls.length} total photos"
+							>
+								<img
+									src={workshop.photo_urls[0]}
+									alt=""
+									class="h-full w-full rounded-md object-cover"
+								/>
+							</button>
+
+							<!-- Photo count indicator for multiple photos -->
+							{#if workshop.photo_urls.length > 1}
+								<div
+									class="absolute right-1 top-1 rounded-full bg-black bg-opacity-70 px-1.5 py-0.5 text-xs text-white"
+								>
+									{workshop.photo_urls.length}
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{:else}
+				<div class="mb-3">
+					<button
+						type="button"
+						class="flex w-full items-center justify-center gap-1 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+						on:click={(e) => handlePhotoClick(0, e)}
+						aria-label="View {workshop.photo_urls.length} photos"
+					>
+						View photos ({workshop.photo_urls.length})
+					</button>
+				</div>
+			{/if}
 		{:else}
 			<!-- No photos placeholder -->
 			<div class="mb-3">

@@ -50,6 +50,7 @@ export interface EmailConversation {
 }
 
 export interface Ticket {
+	id: string;
 	ticket_number: number;
 	ticket_title: string;
 	ticket_description?: string | null;

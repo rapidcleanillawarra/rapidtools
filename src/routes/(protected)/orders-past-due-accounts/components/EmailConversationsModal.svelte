@@ -12,7 +12,7 @@
 		from: string;
 		subject: string;
 		bodyPreview: string;
-		internetMessageId: string;
+		id: string;
 		webLink: string;
 	}
 
@@ -49,6 +49,11 @@
 		return query;
 	}
 
+	// Create Outlook Web deep link from message ID
+	function createDeepLink(messageId: string): string {
+		return `https://outlook.office365.com/owa/?ItemID=${encodeURIComponent(messageId)}&exvsurl=1&viewmodel=ReadMessageItem`;
+	}
+
 	// Fetch conversations from Power Automate API
 	async function fetchConversations(orderId: string, filters: string[]): Promise<void> {
 		try {
@@ -78,7 +83,7 @@
 				from: item.from,
 				subject: item.subject,
 				body_preview: item.bodyPreview,
-				web_link: item.webLink,
+				web_link: createDeepLink(item.id),
 				order_id: orderId,
 				has_value: 'true' // API responses always have value
 			}));

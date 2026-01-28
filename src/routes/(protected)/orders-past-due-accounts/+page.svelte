@@ -1154,7 +1154,12 @@
 	<EmailModal showModal={showEmailModal} order={emailOrder} on:close={closeEmailModal} />
 
 	<!-- Ticket Modal -->
-	<TicketModal showModal={showTicketModal} order={ticketOrder} on:close={closeTicketModal} />
+	<TicketModal
+		showModal={showTicketModal}
+		order={ticketOrder}
+		on:close={closeTicketModal}
+		on:ticketCreated={fetchTickets}
+	/>
 
 	<!-- View Tickets Modal -->
 	<ViewTicketsModal

@@ -172,7 +172,7 @@ Due Date: ${order.dueDate}`;
 	}
 
 	function getUserFullName(email: string): string {
-		const user = availableUsers.find(u => u.email === email);
+		const user = availableUsers.find((u) => u.email === email);
 		return user ? user.full_name : email;
 	}
 
@@ -288,6 +288,10 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 					toastSuccess(`Ticket #${data.ticket_number} created successfully!`);
 					toastError('Ticket created, but failed to send notification.');
 				}
+				dispatch('ticketCreated', {
+					...ticketData,
+					ticket_number: data.ticket_number
+				});
 				dispatch('close');
 				resetForm();
 			}

@@ -4,7 +4,7 @@
 	import { supabase } from '$lib/supabase';
 	import type { ProcessedOrder } from '../pastDueAccounts';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
-	import { isSydneyInputInPast, sydneyInputToUtcIso } from '../utils/dueDate';
+	import { isSydneyInputInPast, sydneyInputToUtcIso, utcIsoToSydneyInput } from '../utils/dueDate';
 
 	export let showModal = false;
 	export let order: ProcessedOrder | null = null;
@@ -51,8 +51,8 @@
 			}).format(date);
 		} catch (error) {
 			// Fallback for Windows timezone issues
-			const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
+			const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+			const sydney = new Date(utc + 10 * 3600000); // UTC+10 for AEST
 			return new Intl.DateTimeFormat('en-AU', {
 				year: 'numeric',
 				month: 'long',
@@ -130,7 +130,7 @@ Due Date: ${order.dueDate}`;
 
 		if (!assignedTo || assignedTo.trim() === '') {
 			errors.push('Assigned to is required');
-		} else if (!availableUsers.some(user => user.email === assignedTo)) {
+		} else if (!availableUsers.some((user) => user.email === assignedTo)) {
 			errors.push('Please select a valid user for assignment');
 		}
 
@@ -322,8 +322,8 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 			hour12: false
 		});
 		const parts = tf.formatToParts(date);
-		const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0');
-		
+		const getPart = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0');
+
 		return {
 			year: getPart('year'),
 			month: getPart('month') - 1, // 0-indexed
@@ -333,7 +333,13 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 		};
 	}
 
-	function formatIsLocal(year: number, month: number, day: number, hour: number, minute: number): string {
+	function formatIsLocal(
+		year: number,
+		month: number,
+		day: number,
+		hour: number,
+		minute: number
+	): string {
 		const pad = (n: number) => n.toString().padStart(2, '0');
 		return `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
 	}
@@ -349,7 +355,7 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 		// We calculate 2 hours ahead in real time, then get the Sydney Wall Time for that moment
 		const now = new Date();
 		const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-		
+
 		const s = getSydneyDateValues(twoHoursLater);
 		dueDate = formatIsLocal(s.year, s.month, s.day, s.hour, s.minute);
 	}
@@ -357,13 +363,49 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 	function setDueDateEndOfMonth() {
 		// Target: Last day of current Sydney month, 17:00 Sydney Wall Time
 		const s = getSydneyDateValues();
-		
+
 		// Find last day of this sydney month
 		// new Date(year, month + 1, 0) works in local time, but days in month are constant regardless of timezone
 		// (except very rare historic calendar changes which don't apply here)
 		const daysInMonth = new Date(s.year, s.month + 1, 0).getDate();
-		
+
 		dueDate = formatIsLocal(s.year, s.month, daysInMonth, 17, 0);
+	}
+
+	async function pasteTicketData() {
+		try {
+			const text = await navigator.clipboard.readText();
+			if (!text) return;
+
+			const data = JSON.parse(text);
+
+			if (data.ticket_title) ticketTitle = data.ticket_title;
+			if (data.ticket_description) ticketDescription = data.ticket_description;
+			if (data.priority) priority = data.priority;
+			if (data.status) status = data.status;
+			if (data.notes) notes = data.notes;
+
+			if (data.assigned_to) {
+				// Check if user exists
+				if (availableUsers.some((u) => u.email === data.assigned_to)) {
+					assignedTo = data.assigned_to;
+				}
+			}
+
+			if (data.due_date) {
+				// Try to convert ISO to local input format
+				try {
+					dueDate = utcIsoToSydneyInput(data.due_date);
+				} catch (e) {
+					console.error('Error parsing due date', e);
+				}
+			}
+
+			toastSuccess('Ticket data pasted successfully');
+		} catch (err) {
+			console.error('Failed to paste ticket data:', err);
+			toastError('Failed to paste ticket data');
+		}
 	}
 
 	// Close modal when clicking outside
@@ -382,13 +424,17 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 		aria-modal="true"
 		on:click={handleBackdropClick}
 	>
-		<div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+		<div
+			class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
+		>
 			<div
 				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
 				aria-hidden="true"
 			></div>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
+				>&#8203;</span
+			>
 
 			<div
 				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
@@ -396,16 +442,36 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
 					<div class="sm:flex sm:items-start">
 						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<h3
-								class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-								id="ticket-modal-title"
-							>
-								Create Ticket - {order?.customer}
-							</h3>
+							<div class="flex items-center justify-between">
+								<h3
+									class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+									id="ticket-modal-title"
+								>
+									Create Ticket - {order?.customer}
+								</h3>
+								<button
+									type="button"
+									on:click={pasteTicketData}
+									class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+								>
+									<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+										/>
+									</svg>
+									Paste Data
+								</button>
+							</div>
 							<div class="mt-4 space-y-4">
 								<!-- Ticket Title -->
 								<div>
-									<label for="ticket-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="ticket-title"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Ticket Title <span class="text-red-500">*</span>
 									</label>
 									<input
@@ -421,7 +487,10 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 
 								<!-- Ticket Description -->
 								<div>
-									<label for="ticket-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="ticket-description"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Description
 									</label>
 									<textarea
@@ -436,13 +505,20 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 
 								<!-- Assigned To -->
 								<div>
-									<label for="assigned-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="assigned-to"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Assign To <span class="text-red-500">*</span>
 									</label>
 									{#if usersLoading}
 										<div class="mt-1 flex items-center">
-											<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-											<span class="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading users...</span>
+											<div
+												class="h-4 w-4 animate-spin rounded-full border-b-2 border-indigo-600"
+											></div>
+											<span class="ml-2 text-sm text-gray-500 dark:text-gray-400"
+												>Loading users...</span
+											>
 										</div>
 									{:else}
 										<select
@@ -463,7 +539,10 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 								<!-- Priority and Status Row -->
 								<div class="grid grid-cols-2 gap-4">
 									<div>
-										<label for="priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										<label
+											for="priority"
+											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>
 											Priority <span class="text-red-500">*</span>
 										</label>
 										<select
@@ -480,7 +559,10 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 									</div>
 
 									<div>
-										<label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										<label
+											for="status"
+											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>
 											Status <span class="text-red-500">*</span>
 										</label>
 										<select
@@ -499,8 +581,11 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 
 								<!-- Due Date -->
 								<div>
-									<div class="flex items-center justify-between mb-1">
-										<label for="due-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<div class="mb-1 flex items-center justify-between">
+										<label
+											for="due-date"
+											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>
 											Due Date & Time <span class="text-red-500">*</span>
 										</label>
 										<span class="text-xs text-gray-500 dark:text-gray-400">
@@ -519,7 +604,7 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 										<button
 											type="button"
 											on:click={setDueDateEndOfDay}
-											class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 											disabled={isLoading}
 										>
 											End of Day (5PM)
@@ -527,7 +612,7 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 										<button
 											type="button"
 											on:click={setDueDateTwoHours}
-											class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 											disabled={isLoading}
 										>
 											2 Hours
@@ -535,7 +620,7 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 										<button
 											type="button"
 											on:click={setDueDateEndOfMonth}
-											class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 											disabled={isLoading}
 										>
 											End of Month
@@ -545,7 +630,10 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 
 								<!-- Notes -->
 								<div>
-									<label for="ticket-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="ticket-notes"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Notes
 									</label>
 									<textarea
@@ -562,9 +650,11 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 								{#if order}
 									<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-700">
 										<p class="text-sm text-gray-600 dark:text-gray-400">
-											<strong>Invoice:</strong> {order.invoice} |
+											<strong>Invoice:</strong>
+											{order.invoice} |
 											<strong>Amount:</strong> ${order.amount} |
-											<strong>Days Past Due:</strong> {order.pdCounter}
+											<strong>Days Past Due:</strong>
+											{order.pdCounter}
 										</p>
 									</div>
 								{/if}

@@ -51,8 +51,8 @@
 		} catch (error) {
 			// Fallback for Windows timezone issues
 			const now = new Date();
-			const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
+			const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+			const sydney = new Date(utc + 10 * 3600000); // UTC+10 for AEST
 			return new Intl.DateTimeFormat('en-AU', {
 				year: 'numeric',
 				month: 'long',
@@ -122,7 +122,7 @@
 			errors.push('Please select a valid status');
 		}
 
-		if (assignedTo && !availableUsers.some(user => user.email === assignedTo)) {
+		if (assignedTo && !availableUsers.some((user) => user.email === assignedTo)) {
 			errors.push('Please select a valid user for assignment');
 		}
 
@@ -149,8 +149,8 @@
 			}).format(date);
 		} catch (error) {
 			// Fallback for Windows timezone issues
-			const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
-			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
+			const utc = date.getTime() + date.getTimezoneOffset() * 60000;
+			const sydney = new Date(utc + 10 * 3600000); // UTC+10 for AEST
 			return new Intl.DateTimeFormat('en-AU', {
 				year: 'numeric',
 				month: 'long',
@@ -168,7 +168,7 @@
 	}
 
 	function getUserFullName(email: string): string {
-		const user = availableUsers.find(u => u.email === email);
+		const user = availableUsers.find((u) => u.email === email);
 		return user ? user.full_name : email;
 	}
 
@@ -184,11 +184,15 @@
 
 		// Compare all fields that can change
 		if (oldTicket.ticket_title !== newTicket.ticket_title) {
-			changes.push(`Title: ${formatPlain(oldTicket.ticket_title)} → ${formatPlain(newTicket.ticket_title)}`);
+			changes.push(
+				`Title: ${formatPlain(oldTicket.ticket_title)} → ${formatPlain(newTicket.ticket_title)}`
+			);
 		}
 
 		if (oldTicket.ticket_description !== newTicket.ticket_description) {
-			changes.push(`Description: ${formatPlain(oldTicket.ticket_description)} → ${formatPlain(newTicket.ticket_description)}`);
+			changes.push(
+				`Description: ${formatPlain(oldTicket.ticket_description)} → ${formatPlain(newTicket.ticket_description)}`
+			);
 		}
 
 		if (oldTicket.status !== newTicket.status) {
@@ -196,7 +200,9 @@
 		}
 
 		if (oldTicket.priority !== newTicket.priority) {
-			changes.push(`Priority: ${formatPlain(oldTicket.priority)} → ${formatPlain(newTicket.priority)}`);
+			changes.push(
+				`Priority: ${formatPlain(oldTicket.priority)} → ${formatPlain(newTicket.priority)}`
+			);
 		}
 
 		if (oldTicket.assigned_to !== newTicket.assigned_to) {
@@ -340,7 +346,7 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 			hour12: false
 		});
 		const parts = tf.formatToParts(date);
-		const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0');
+		const getPart = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || '0');
 
 		return {
 			year: getPart('year'),
@@ -351,7 +357,13 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 		};
 	}
 
-	function formatIsLocal(year: number, month: number, day: number, hour: number, minute: number): string {
+	function formatIsLocal(
+		year: number,
+		month: number,
+		day: number,
+		hour: number,
+		minute: number
+	): string {
 		const pad = (n: number) => n.toString().padStart(2, '0');
 		return `${year}-${pad(month + 1)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
 	}
@@ -384,6 +396,32 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 		dueDate = formatIsLocal(s.year, s.month, daysInMonth, 17, 0);
 	}
 
+	async function copyTicketData() {
+		const ticketData = {
+			ticket_title: ticketTitle,
+			ticket_description: ticketDescription,
+			priority: priority,
+			status: status,
+			assigned_to: assignedTo,
+			due_date: ticket?.due_date, // Use the ISO string from the ticket if available, or we might want to construct it
+			notes: notes
+		};
+
+		// If we want to copy the currently edited values:
+		// We should construct the due_date properly if it was changed
+		if (dueDate) {
+			ticketData.due_date = sydneyInputToUtcIso(dueDate);
+		}
+
+		try {
+			await navigator.clipboard.writeText(JSON.stringify(ticketData));
+			toastSuccess('Ticket data copied to clipboard');
+		} catch (err) {
+			console.error('Failed to copy ticket data:', err);
+			toastError('Failed to copy ticket data');
+		}
+	}
+
 	// Close modal when clicking outside
 	function handleBackdropClick(event: MouseEvent) {
 		if (event.target === event.currentTarget) {
@@ -400,13 +438,17 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 		aria-modal="true"
 		on:click={handleBackdropClick}
 	>
-		<div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+		<div
+			class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
+		>
 			<div
 				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
 				aria-hidden="true"
 			></div>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
+				>&#8203;</span
+			>
 
 			<div
 				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
@@ -414,16 +456,36 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
 					<div class="sm:flex sm:items-start">
 						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<h3
-								class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-								id="edit-ticket-modal-title"
-							>
-								Edit Ticket #{ticket?.ticket_number}
-							</h3>
+							<div class="flex items-center justify-between">
+								<h3
+									class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
+									id="edit-ticket-modal-title"
+								>
+									Edit Ticket #{ticket?.ticket_number}
+								</h3>
+								<button
+									type="button"
+									on:click={copyTicketData}
+									class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+								>
+									<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+										/>
+									</svg>
+									Copy Data
+								</button>
+							</div>
 							<div class="mt-4 space-y-4">
 								<!-- Ticket Title -->
 								<div>
-									<label for="edit-ticket-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="edit-ticket-title"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Ticket Title <span class="text-red-500">*</span>
 									</label>
 									<input
@@ -439,7 +501,10 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 
 								<!-- Ticket Description -->
 								<div>
-									<label for="edit-ticket-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="edit-ticket-description"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Description
 									</label>
 									<textarea
@@ -454,13 +519,20 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 
 								<!-- Assigned To -->
 								<div>
-									<label for="edit-assigned-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="edit-assigned-to"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Assign To
 									</label>
 									{#if usersLoading}
 										<div class="mt-1 flex items-center">
-											<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
-											<span class="ml-2 text-sm text-gray-500 dark:text-gray-400">Loading users...</span>
+											<div
+												class="h-4 w-4 animate-spin rounded-full border-b-2 border-indigo-600"
+											></div>
+											<span class="ml-2 text-sm text-gray-500 dark:text-gray-400"
+												>Loading users...</span
+											>
 										</div>
 									{:else}
 										<select
@@ -480,7 +552,10 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 								<!-- Priority and Status Row -->
 								<div class="grid grid-cols-2 gap-4">
 									<div>
-										<label for="edit-priority" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										<label
+											for="edit-priority"
+											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>
 											Priority <span class="text-red-500">*</span>
 										</label>
 										<select
@@ -497,7 +572,10 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 									</div>
 
 									<div>
-										<label for="edit-status" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+										<label
+											for="edit-status"
+											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>
 											Status <span class="text-red-500">*</span>
 										</label>
 										<select
@@ -517,8 +595,11 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 
 								<!-- Due Date -->
 								<div>
-									<div class="flex items-center justify-between mb-1">
-										<label for="edit-due-date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<div class="mb-1 flex items-center justify-between">
+										<label
+											for="edit-due-date"
+											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+										>
 											Due Date & Time
 										</label>
 										<span class="text-xs text-gray-500 dark:text-gray-400">
@@ -536,7 +617,7 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 										<button
 											type="button"
 											on:click={setDueDateEndOfDay}
-											class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 											disabled={isLoading}
 										>
 											End of Day (5PM)
@@ -544,7 +625,7 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 										<button
 											type="button"
 											on:click={setDueDateTwoHours}
-											class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 											disabled={isLoading}
 										>
 											2 Hours
@@ -552,7 +633,7 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 										<button
 											type="button"
 											on:click={setDueDateEndOfMonth}
-											class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
 											disabled={isLoading}
 										>
 											End of Month
@@ -562,7 +643,10 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 
 								<!-- Notes -->
 								<div>
-									<label for="edit-ticket-notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+									<label
+										for="edit-ticket-notes"
+										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+									>
 										Notes
 									</label>
 									<textarea
@@ -579,9 +663,11 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 								{#if order}
 									<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-700">
 										<p class="text-sm text-gray-600 dark:text-gray-400">
-											<strong>Invoice:</strong> {order.invoice} |
+											<strong>Invoice:</strong>
+											{order.invoice} |
 											<strong>Amount:</strong> ${order.amount} |
-											<strong>Days Past Due:</strong> {order.pdCounter}
+											<strong>Days Past Due:</strong>
+											{order.pdCounter}
 										</p>
 									</div>
 								{/if}

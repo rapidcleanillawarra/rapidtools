@@ -5,6 +5,8 @@
 	import { parseDate } from '../pastDueAccounts';
 	import { formatSydneyDisplay, isUtcIsoPast } from '../utils/dueDate';
 	import { currentUser } from '$lib/firebase';
+	import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
 
 	function isPastDue(ticketDue: string | null, orderDue: string | null): boolean {
 		if (ticketDue) {
@@ -47,6 +49,11 @@
 
 	let availableUsers: { email: string; full_name: string }[] = [];
 	let usersLoading = false;
+
+	// Delete modal state
+	let showDeleteModal = false;
+	let ticketToDelete: Ticket | null = null;
+	let isDeleting = false;
 
 	// Fetch users when modal opens
 	$: if (showModal && availableUsers.length === 0) {
@@ -137,6 +144,42 @@
 		} catch (error) {
 			console.error('Error marking ticket as complete:', error);
 			alert('Failed to update ticket');
+		}
+	}
+
+	function deleteTicket(ticket: Ticket) {
+		ticketToDelete = ticket;
+		showDeleteModal = true;
+	}
+
+	async function confirmDelete() {
+		if (!ticketToDelete) return;
+
+		try {
+			isDeleting = true;
+			const { error } = await supabase
+				.from('tickets')
+				.delete()
+				.eq('id', ticketToDelete.id);
+
+			if (error) throw error;
+
+			// Update local state
+			tickets = tickets.filter(t => t.id !== ticketToDelete!.id);
+
+			// Dispatch event to refresh parent data
+			dispatch('ticketUpdated');
+
+			toastSuccess(`Ticket #${ticketToDelete.ticket_number} deleted successfully!`);
+
+			// Close modal and reset state
+			showDeleteModal = false;
+			ticketToDelete = null;
+		} catch (error) {
+			console.error('Error deleting ticket:', error);
+			toastError('Failed to delete ticket');
+		} finally {
+			isDeleting = false;
 		}
 	}
 </script>
@@ -237,6 +280,18 @@
 																	<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
 																</svg>
 															</button>
+															{#if $currentUser?.email === 'marketing@rapidcleanillawarra.com.au'}
+																<button
+																	type="button"
+																	on:click={() => deleteTicket(ticket)}
+																	class="inline-flex items-center ml-2 px-2 py-1 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:border-red-600 dark:bg-gray-700 dark:text-red-300 dark:hover:bg-red-900/50"
+																	title="Delete ticket"
+																>
+																	<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+																	</svg>
+																</button>
+															{/if}
 														</td>
 													</tr>
 												{/each}
@@ -265,3 +320,13 @@
 		</div>
 	</div>
 {/if}
+
+<DeleteConfirmationModal
+	show={showDeleteModal}
+	title="Delete Ticket"
+	message="Are you sure you want to delete this ticket?"
+	itemName={ticketToDelete ? `Ticket #${ticketToDelete.ticket_number}: ${ticketToDelete.ticket_title}` : ''}
+	isDeleting={isDeleting}
+	on:confirm={confirmDelete}
+	on:cancel={() => { showDeleteModal = false; ticketToDelete = null; }}
+/>

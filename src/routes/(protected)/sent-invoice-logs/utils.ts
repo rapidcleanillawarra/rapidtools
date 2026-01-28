@@ -49,9 +49,14 @@ export function getPaginated(
 export function formatCreatedAt(iso: string): string {
 	try {
 		const d = new Date(iso);
-		return d.toLocaleString(undefined, {
-			dateStyle: 'short',
-			timeStyle: 'short'
+		return d.toLocaleString('en-US', {
+			timeZone: 'Australia/Sydney',
+			month: 'short',
+			day: 'numeric',
+			year: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true
 		});
 	} catch {
 		return iso;

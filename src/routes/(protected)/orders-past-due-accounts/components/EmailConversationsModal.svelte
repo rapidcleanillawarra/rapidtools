@@ -36,7 +36,7 @@
 	let apiConversations: EmailConversation[] = [];
 
 	// API endpoint
-	const POWER_AUTOMATE_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cc753c3b1e8a4aee8a80f233c080144e/triggers/manual/paths/invoke?api-version=1';
+	const POWER_AUTOMATE_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cc753c3b1e8a4aee8a80f233c080144e/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=heCHmHU5mvtcMc2Tqo1MOg5g4vd8wJ8ZwNdZNMrfRks';
 
 	// Build search query from order_id and filters
 	function buildSearchQuery(orderId: string, filters: string[]): string {

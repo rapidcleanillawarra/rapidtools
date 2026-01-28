@@ -175,18 +175,6 @@ Due Date: ${order.dueDate}`;
 		return escapeHtml(String(value));
 	}
 
-	function formatMultiline(value: string | null | undefined): string {
-		if (!value || value.trim() === '') return 'N/A';
-		return escapeHtml(value).replace(/\r?\n/g, '<br />');
-	}
-
-	function renderRow(label: string, value: string): string {
-		return `<tr>
-			<th style="text-align:left;padding:6px 8px;border:1px solid #E5E7EB;background:#F9FAFB;font-weight:600;">${label}</th>
-			<td style="padding:6px 8px;border:1px solid #E5E7EB;">${value}</td>
-		</tr>`;
-	}
-
 	function buildTicketHtml(options: {
 		ticketNumber: number;
 		ticket: TicketInsertData;
@@ -195,56 +183,35 @@ Due Date: ${order.dueDate}`;
 		createdAtIso: string;
 		createdAtSydney: string;
 	}): string {
-		const { ticketNumber, ticket, dueDateInput, order, createdAtIso, createdAtSydney } = options;
+		const { ticketNumber, ticket, dueDateInput, order, createdAtSydney } = options;
 		const dueDateSydney = dueDateInput ? dueDateInput.replace('T', ' ') : 'N/A';
 
-		const ticketRows = [
-			renderRow('Ticket Number', formatPlain(ticketNumber)),
-			renderRow('Module', formatPlain(ticket.module)),
-			renderRow('Title', formatPlain(ticket.ticket_title)),
-			renderRow('Description', formatMultiline(ticket.ticket_description)),
-			renderRow('Status', formatPlain(ticket.status)),
-			renderRow('Priority', formatPlain(ticket.priority)),
-			renderRow('Assigned To', formatPlain(ticket.assigned_to || 'Unassigned')),
-			renderRow('Assigned By', formatPlain(ticket.assigned_by)),
-			renderRow('Due Date (Sydney)', formatPlain(dueDateSydney)),
-			renderRow('Due Date (UTC)', formatPlain(ticket.due_date)),
-			renderRow('Notes', formatMultiline(ticket.notes)),
-			renderRow('Ticket Data - Order ID', formatPlain(ticket.ticket_data?.order_id)),
-			renderRow('Created At (Sydney)', formatPlain(createdAtSydney)),
-			renderRow('Created At (UTC)', formatPlain(createdAtIso))
-		].join('');
-
-		const orderRows = [
-			renderRow('Customer', formatPlain(order.customer)),
-			renderRow('Invoice', formatPlain(order.invoice)),
-			renderRow('Amount', formatPlain(order.amount)),
-			renderRow('Days Past Due', formatPlain(order.pdCounter)),
-			renderRow('Date Issued', formatPlain(order.dateIssued)),
-			renderRow('Due Date', formatPlain(order.dueDate)),
-			renderRow('Contacts', formatPlain(order.contacts)),
-			renderRow('Email', formatPlain(order.email)),
-			renderRow('Payments', formatPlain(order.payments)),
-			renderRow('Email Notifications', formatPlain(order.emailNotifs)),
-			renderRow('Assigned To', formatPlain(order.assignedTo)),
-			renderRow('Follow Up', formatPlain(order.followUp)),
-			renderRow('Username', formatPlain(order.username))
-		].join('');
-
 		return `
-			<div style="font-family: Arial, sans-serif; padding: 20px;">
-				<h2 style="margin:0 0 12px;">New Past Due Accounts Ticket</h2>
-				<p style="margin:0 0 16px;">A new ticket has been created in RapidTools.</p>
+			<div style="font-family: Arial, sans-serif; padding: 15px; max-width: 600px;">
+				<h2 style="margin:0 0 10px; color: #2563eb;">New Past Due Ticket Created</h2>
+				<p style="margin:0 0 15px; font-size: 14px;">Ticket #${ticketNumber} has been created in RapidTools.</p>
 
-				<h3 style="margin:16px 0 8px;">Ticket Details</h3>
-				<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
-					${ticketRows}
-				</table>
+				<div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+					<strong style="color: #1f2937;">${formatPlain(ticket.ticket_title)}</strong><br>
+					<span style="color: #6b7280; font-size: 13px;">
+						Priority: <strong>${formatPlain(ticket.priority)}</strong> |
+						Status: <strong>${formatPlain(ticket.status)}</strong> |
+						Due: <strong>${formatPlain(dueDateSydney)}</strong>
+					</span>
+				</div>
 
-				<h3 style="margin:16px 0 8px;">Order Details</h3>
-				<table style="border-collapse: collapse; width: 100%; font-size: 14px;">
-					${orderRows}
-				</table>
+				<div style="margin-bottom: 12px;">
+					<strong>Customer:</strong> ${formatPlain(order.customer)}<br>
+					<strong>Invoice:</strong> ${formatPlain(order.invoice)} |
+					<strong>Amount:</strong> $${formatPlain(order.amount)}<br>
+					<strong>Days Past Due:</strong> ${formatPlain(order.pdCounter)}
+				</div>
+
+				<div style="color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 8px;">
+					<strong>Assigned to:</strong> ${formatPlain(ticket.assigned_to || 'Unassigned')} |
+					<strong>Created by:</strong> ${formatPlain(ticket.assigned_by)} |
+					<strong>Created:</strong> ${formatPlain(createdAtSydney)}
+				</div>
 			</div>
 		`.trim();
 	}

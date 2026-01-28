@@ -4,6 +4,7 @@
 	import { supabase } from '$lib/supabase';
 	import { parseDate } from '../pastDueAccounts';
 	import { formatSydneyDisplay, isUtcIsoPast } from '../utils/dueDate';
+	import { currentUser } from '$lib/firebase';
 
 	function isPastDue(ticketDue: string | null, orderDue: string | null): boolean {
 		if (ticketDue) {
@@ -104,6 +105,38 @@
 			default: return 'text-gray-600 dark:text-gray-400';
 		}
 	}
+
+	async function markAsComplete(ticket: any) {
+		if (!$currentUser?.email) {
+			console.error('User not logged in');
+			return;
+		}
+
+		try {
+			const { error } = await supabase
+				.from('tickets')
+				.update({
+					status: 'Completed',
+					assigned_to: $currentUser.email
+				})
+				.eq('id', ticket.id);
+
+			if (error) throw error;
+
+			// Update local state
+			tickets = tickets.map(t => 
+				t.id === ticket.id 
+					? { ...t, status: 'Completed', assigned_to: $currentUser.email }
+					: t
+			);
+			
+			// Optional: Dispatch event if parent needs to refresh strict state
+			// dispatch('ticketUpdated', ticket); 
+		} catch (error) {
+			console.error('Error marking ticket as complete:', error);
+			alert('Failed to update ticket');
+		}
+	}
 </script>
 
 {#if showModal && order}
@@ -147,7 +180,7 @@
 													<th scope="col" class="py-3.5 pl-4 pr-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:pl-6">Ticket #</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Title</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
-													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Priority</th>
+													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Mark Complete</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Due Date</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Assigned To</th>
 													<th scope="col" class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 w-32">Actions</th>
@@ -167,8 +200,18 @@
 																{ticket.status}
 															</span>
 														</td>
-														<td class="whitespace-nowrap px-3 py-4 text-sm {getPriorityColor(ticket.priority)}">
-															{ticket.priority}
+														<td class="whitespace-nowrap px-3 py-4 text-sm">
+															{#if ticket.status !== 'Completed'}
+																<button
+																	type="button"
+																	on:click={() => markAsComplete(ticket)}
+																	class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-900"
+																>
+																	Mark Complete
+																</button>
+															{:else}
+																<span class="text-green-600 dark:text-green-400 text-xs font-medium">Completed</span>
+															{/if}
 														</td>
 														<td class="whitespace-nowrap px-3 py-4 text-sm {getDueDateColor(ticket, order)}">
 															{formatDueDate((ticket as any).due_date || null, order?.dueDate || null)}

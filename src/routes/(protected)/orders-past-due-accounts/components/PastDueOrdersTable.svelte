@@ -32,6 +32,7 @@
 		openEmail: ProcessedOrder;
 		openTicket: ProcessedOrder;
 		openViewTickets: ProcessedOrder;
+		openEmailConversations: ProcessedOrder;
 	}>();
 
 	$: tableColumnCount = nonCustomerColumns.length + 1;
@@ -229,45 +230,27 @@
 													</svg>
 												</a>
 											{:else if column.key === 'emailNotifs'}
-												{#if order.emailConversations && order.emailConversations.length > 0}
-													{@const summary = getEmailConversationSummary(order.emailConversations)}
-													{@const latestConversation = order.emailConversations[0]}
-													{@const isOutbound = isOutboundEmail(latestConversation)}
-													{#if summary.inbound + summary.outbound > 1}
-														<div class="text-xs">
-															<div
-																class="font-medium {isOutbound
-																	? 'text-green-700 dark:text-green-300'
-																	: 'text-blue-700 dark:text-blue-300'}"
-															>
-																<a
-																	href={latestConversation.web_link}
-																	target="_blank"
-																	rel="noopener noreferrer"
-																	class="hover:underline"
-																>
-																	{getLatestEmailPreview(order.emailConversations)}
-																</a>
-															</div>
-															<div class="mt-1 text-gray-500 dark:text-gray-400">
-																{summary.inbound} in / {summary.outbound} out
-															</div>
-														</div>
-													{:else}
-														<a
-															href={latestConversation.web_link}
-															target="_blank"
-															rel="noopener noreferrer"
-															class="block h-full w-full p-0 text-xs {isOutbound
-																? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300'
-																: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'} rounded px-2 py-1 hover:underline"
-														>
-															{getLatestEmailPreview(order.emailConversations)}
-														</a>
-													{/if}
-												{:else}
-													<span class="italic text-gray-400 dark:text-gray-500">No emails</span>
-												{/if}
+												<button
+													type="button"
+													on:click={() => dispatch('openEmailConversations', order)}
+													class="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-700 transition-all duration-200 hover:border-blue-300 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-700 dark:hover:bg-blue-900/50"
+												>
+													<svg
+														class="h-3.5 w-3.5"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+														xmlns="http://www.w3.org/2000/svg"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+														></path>
+													</svg>
+													View Emails
+												</button>
 											{:else if column.key === 'assignedTo'}
 												<span class="px-2 py-1">{order.assignedTo || 'Unassigned'}</span>
 											{:else if column.key === 'followUp'}

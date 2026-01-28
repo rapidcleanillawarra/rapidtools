@@ -81,7 +81,7 @@ export interface ProcessedOrder {
 	username: string;
 	tickets: Ticket[]; // Changed from string to Ticket[]
 	emailConversations?: EmailConversation[];
-	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[] | Ticket[];
+	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[] | Ticket[] | undefined;
 }
 
 export type ColumnKey =

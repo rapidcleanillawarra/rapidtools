@@ -24,6 +24,7 @@
 	import TicketModal from './components/TicketModal.svelte';
 	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
 	import EditTicketModal from './components/EditTicketModal.svelte';
+	import EmailConversationsModal from './components/EmailConversationsModal.svelte';
 	import type { Ticket } from './pastDueAccounts';
 	import { processInvoiceTracking } from './invoiceTracking';
 	import { fetchTicketsForOrders } from './ticketTracking';
@@ -82,6 +83,12 @@
 	let selectedTicketsOrder: ProcessedOrder | null = null;
 	let showEditTicketModal = false;
 	let selectedTicket: Ticket | null = null;
+
+	// Email Conversations Modal State
+	let showEmailConversationsModal = false;
+	let selectedEmailOrder: ProcessedOrder | null = null;
+	let emailConversationsLoading = false;
+	let currentEmailConversations: EmailConversation[] = [];
 
 	// User information
 	let user: import('firebase/auth').User | null = null;
@@ -289,7 +296,6 @@
 			await Promise.all([
 				fetchNotesAndViews(),
 				fetchEmailTrackingStatus(),
-				fetchEmailConversations(),
 				fetchTickets()
 			]);
 		}
@@ -720,6 +726,48 @@
 		closeEditTicketModal();
 	}
 
+	async function openEmailConversationsModal(order: ProcessedOrder) {
+		selectedEmailOrder = order;
+		showEmailConversationsModal = true;
+		emailConversationsLoading = true;
+		currentEmailConversations = [];
+
+		try {
+			// Call Power Automate endpoint with single order ID
+			const response = await fetch(
+				'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c464173437d741278f6f8932654e1550/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NtiA92yZ4QU7KRsr7SbDddjYU4_UrTe9gknJb8OGToA',
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ order_ids: [order.invoice] })
+				}
+			);
+
+			if (!response.ok) {
+				throw new Error('Failed to fetch email conversations');
+			}
+
+			const conversations = await response.json();
+
+			// Filter conversations for this specific order
+			currentEmailConversations = conversations.filter(
+				(conv: EmailConversation) => conv.order_id === order.invoice && conv.has_value === 'true'
+			);
+		} catch (error) {
+			console.error('Error fetching email conversations:', error);
+			currentEmailConversations = [];
+		} finally {
+			emailConversationsLoading = false;
+		}
+	}
+
+	function closeEmailConversationsModal() {
+		showEmailConversationsModal = false;
+		selectedEmailOrder = null;
+		emailConversationsLoading = false;
+		currentEmailConversations = [];
+	}
+
 	// Pagination functions
 	function goToPage(page: number) {
 		if (page >= 1 && page <= totalPages) {
@@ -1140,6 +1188,7 @@
 		on:openEmail={(e) => openEmailModal(e.detail)}
 		on:openTicket={(e) => openTicketModal(e.detail)}
 		on:openViewTickets={(e) => openViewTicketsModal(e.detail)}
+		on:openEmailConversations={(e) => openEmailConversationsModal(e.detail)}
 	/>
 	<!-- Notes Modal -->
 	<NotesModal
@@ -1179,5 +1228,14 @@
 		order={selectedTicketsOrder}
 		on:close={closeEditTicketModal}
 		on:ticketUpdated={handleTicketUpdated}
+	/>
+
+	<!-- Email Conversations Modal -->
+	<EmailConversationsModal
+		showModal={showEmailConversationsModal}
+		order={selectedEmailOrder}
+		loading={emailConversationsLoading}
+		conversations={currentEmailConversations}
+		on:close={closeEmailConversationsModal}
 	/>
 </div>

@@ -14,15 +14,24 @@
 </script>
 
 {#if show && selectedOrder}
-	<div class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-		<div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+	<div
+		class="fixed inset-0 z-50 overflow-y-auto"
+		aria-labelledby="modal-title"
+		role="dialog"
+		aria-modal="true"
+	>
+		<div
+			class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
+		>
 			<div
 				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
 				aria-hidden="true"
 				on:click={() => dispatch('close')}
 			></div>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
+				>&#8203;</span
+			>
 
 			<div
 				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
@@ -86,6 +95,7 @@
 										placeholder="Enter your note here..."
 										bind:value={newNote}
 										disabled={notesLoading}
+										autofocus
 									></textarea>
 								</div>
 							</div>

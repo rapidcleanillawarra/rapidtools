@@ -281,11 +281,26 @@
 													<button
 														type="button"
 														on:click={() => dispatch('openViewTickets', order)}
-														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-indigo-200 bg-indigo-50 text-indigo-700 hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/50"
+														class="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition-all duration-200 hover:border-indigo-300 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/50"
 													>
-														<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+														<svg
+															class="h-3.5 w-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+															/>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+															/>
 														</svg>
 														View ({order.tickets.length})
 													</button>
@@ -293,7 +308,7 @@
 													<button
 														type="button"
 														on:click={() => dispatch('openTicket', order)}
-														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
+														class="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-all duration-200 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700"
 													>
 														<svg
 															class="h-3.5 w-3.5"
@@ -524,42 +539,64 @@
 										>
 											{#if column.key === 'notes'}
 												{@const unreadCount = getUnreadNotesCount(order, userEmail)}
-												<button
-													type="button"
-													on:click={() => dispatch('openNotes', order)}
-													class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {order
-														.notes.length > 0
-														? 'border-blue-300 bg-blue-100 text-blue-800 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-600 dark:hover:bg-blue-900/50'
-														: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
-												>
-													<svg
-														class="h-3.5 w-3.5"
-														fill="none"
-														stroke="currentColor"
-														viewBox="0 0 24 24"
+												<div class="flex flex-wrap gap-2">
+													<button
+														type="button"
+														on:click={() => dispatch('openNotes', order)}
+														class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 {order
+															.notes.length > 0
+															? 'border-blue-300 bg-blue-100 text-blue-800 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:border-blue-600 dark:hover:bg-blue-900/50'
+															: 'border-gray-200 bg-gray-50 text-gray-700 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-gray-500 dark:hover:bg-gray-700'}"
 													>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-														></path>
-														<path
-															stroke-linecap="round"
-															stroke-linejoin="round"
-															stroke-width="2"
-															d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-														></path>
-													</svg>
-													View Notes
-													{#if unreadCount > 0}
-														<span
-															class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white"
+														<svg
+															class="h-3.5 w-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
 														>
-															{unreadCount}
-														</span>
-													{/if}
-												</button>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+															></path>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+															></path>
+														</svg>
+														View Notes
+														{#if unreadCount > 0}
+															<span
+																class="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 py-0.5 text-xs font-bold leading-none text-white"
+															>
+																{unreadCount}
+															</span>
+														{/if}
+													</button>
+													<button
+														type="button"
+														on:click={() => dispatch('openNotes', order)}
+														class="inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-2.5 py-1.5 text-xs font-medium text-green-700 transition-all duration-200 hover:border-green-300 hover:bg-green-100 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300 dark:hover:border-green-700 dark:hover:bg-green-900/50"
+													>
+														<svg
+															class="h-3.5 w-3.5"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																stroke-linecap="round"
+																stroke-linejoin="round"
+																stroke-width="2"
+																d="M12 4v16m8-8H4"
+															></path>
+														</svg>
+														Add Notes
+													</button>
+												</div>
 											{:else}
 												<!-- Empty cell for other columns in email row -->
 											{/if}

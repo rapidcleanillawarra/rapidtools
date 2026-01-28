@@ -167,11 +167,14 @@
 								class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
 								id="view-tickets-modal-title"
 							>
-								Tickets for {order.customer} 
+								Tickets for {order.customer}
 								<span class="text-sm font-normal text-gray-500 dark:text-gray-400 ml-2">(Invoice: {order.invoice})</span>
 							</h3>
-							
-							<div class="mt-4">
+						</div>
+					</div>
+				</div>
+
+				<div class="overflow-y-auto px-4 pt-4 dark:bg-gray-800 sm:px-6" style="max-height: 60vh;">
 								{#if sortedTickets.length === 0}
 									<p class="text-sm text-gray-500 dark:text-gray-400 italic">No tickets found for this order.</p>
 								{:else}
@@ -241,10 +244,6 @@
 										</table>
 									</div>
 								{/if}
-							</div>
-
-						</div>
-					</div>
 				</div>
 				<div class="bg-gray-50 px-4 py-3 dark:bg-gray-700 sm:flex sm:flex-row-reverse sm:px-6">
 					<button

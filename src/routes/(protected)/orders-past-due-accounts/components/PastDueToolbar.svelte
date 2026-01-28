@@ -6,6 +6,8 @@
 	export let value: number | null;
 	export let showLegend = false;
 	export let showColumnVisibility = false;
+	export let invoiceIds = '';
+	export let showInvoiceFilter = false;
 	export let disableActions = false;
 
 	const dispatch = createEventDispatcher<{
@@ -112,8 +114,49 @@
 						d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
 					></path>
 				{/if}
+				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					{#if showColumnVisibility}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+						></path>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+						></path>
+					{:else}
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+						></path>
+					{/if}
+				</svg>
+				Columns
+			</svg></button
+		>
+		<button
+			type="button"
+			on:click={() => (showInvoiceFilter = !showInvoiceFilter)}
+			class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {showInvoiceFilter
+				? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50'
+				: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+			title={showInvoiceFilter ? 'Hide Invoice Filter' : 'Show Invoice Filter'}
+		>
+			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+				/>
 			</svg>
-			Columns
+			Invoice Filter
 		</button>
 	</div>
 
@@ -165,3 +208,41 @@
 		</a>
 	</div>
 </div>
+
+{#if showInvoiceFilter}
+	<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
+		<div
+			class="relative rounded-md border border-gray-300 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+		>
+			<label
+				for="invoice-filter"
+				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+			>
+				Filter by Invoice IDs (one per line):
+			</label>
+			<div class="relative">
+				<textarea
+					id="invoice-filter"
+					bind:value={invoiceIds}
+					rows="4"
+					placeholder="24-004437&#10;24-004439"
+					class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:bg-gray-900 dark:text-white dark:ring-gray-600 sm:text-sm sm:leading-6"
+				></textarea>
+				{#if invoiceIds}
+					<div class="absolute bottom-2 right-2">
+						<button
+							type="button"
+							on:click={() => (invoiceIds = '')}
+							class="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+						>
+							Clear
+						</button>
+					</div>
+				{/if}
+			</div>
+			<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+				Only orders with these specific Invoice IDs will be shown in the table.
+			</p>
+		</div>
+	</div>
+{/if}

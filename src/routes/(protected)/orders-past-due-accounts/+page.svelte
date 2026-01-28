@@ -55,6 +55,10 @@
 	// UI Toggle States
 	let showLegend = false;
 	let showColumnVisibility = false;
+	let showInvoiceFilter = false;
+
+	// Invoice ID Filter State
+	let invoiceIds = '';
 
 	// Pagination State
 	let currentPage = 1;
@@ -500,7 +504,6 @@
 		}
 	}
 
-
 	/**
 	 * Fetches tickets for all orders using the modularized ticket tracking service
 	 */
@@ -894,6 +897,24 @@
 				if (pdFilterOperator === '=' && !(pd === val)) return false;
 			}
 
+			// Invoice IDs Filter
+			if (invoiceIds && invoiceIds.trim() !== '') {
+				// Parse IDs from textarea (split by newlines and trim)
+				const idsToFilter = invoiceIds
+					.split('\n')
+					.map((id) => id.trim())
+					.filter((id) => id !== '');
+
+				if (idsToFilter.length > 0) {
+					// Check if current order invoice is in the list of IDs
+					// Using some() to allow fuzzy matching if needed, or includes for exact match
+					// The request implies exact match "24-004437"
+					if (!idsToFilter.includes(order.invoice)) {
+						return false;
+					}
+				}
+			}
+
 			return Object.entries(searchFilters).every(([key, value]) => {
 				if (!value) return true;
 				const normalizedValue = value.toLowerCase();
@@ -969,6 +990,8 @@
 			localStorage.setItem('orders-show-column-visibility', String(showColumnVisibility));
 			localStorage.setItem('orders-current-page', String(currentPage));
 			localStorage.setItem('orders-items-per-page', String(itemsPerPage));
+			localStorage.setItem('orders-invoice-ids', invoiceIds);
+			localStorage.setItem('orders-show-invoice-filter', String(showInvoiceFilter));
 		}
 	}
 
@@ -989,6 +1012,8 @@
 			const storedShowColumnVisibility = localStorage.getItem('orders-show-column-visibility');
 			const storedCurrentPage = localStorage.getItem('orders-current-page');
 			const storedItemsPerPage = localStorage.getItem('orders-items-per-page');
+			const storedInvoiceIds = localStorage.getItem('orders-invoice-ids');
+			const storedShowInvoiceFilter = localStorage.getItem('orders-show-invoice-filter');
 
 			// Set defaults if no localStorage data exists
 			if (!storedOp && !storedVal) {
@@ -1024,6 +1049,10 @@
 			// Load UI toggle preferences (default to false)
 			showLegend = storedShowLegend === 'true';
 			showColumnVisibility = storedShowColumnVisibility === 'true';
+			showInvoiceFilter = storedShowInvoiceFilter === 'true';
+
+			// Load invoice filter
+			if (storedInvoiceIds) invoiceIds = storedInvoiceIds;
 
 			// Load pagination preferences
 			if (storedCurrentPage) currentPage = Number(storedCurrentPage);
@@ -1053,6 +1082,8 @@
 		bind:value={tempPdFilterValue}
 		bind:showLegend
 		bind:showColumnVisibility
+		bind:invoiceIds
+		bind:showInvoiceFilter
 		disableActions={filteredOrders.length === 0}
 		on:apply={applyPdFilter}
 		on:exportCsv={exportToCSV}

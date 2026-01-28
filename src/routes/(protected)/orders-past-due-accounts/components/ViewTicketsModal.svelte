@@ -42,6 +42,9 @@
 
 	const dispatch = createEventDispatcher();
 
+	// Sort tickets by created_at in descending order (latest first)
+	$: sortedTickets = tickets.slice().sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
 	let availableUsers: { email: string; full_name: string }[] = [];
 	let usersLoading = false;
 
@@ -170,7 +173,7 @@
 							</h3>
 							
 							<div class="mt-4">
-								{#if tickets.length === 0}
+								{#if sortedTickets.length === 0}
 									<p class="text-sm text-gray-500 dark:text-gray-400 italic">No tickets found for this order.</p>
 								{:else}
 									<div class="overflow-x-auto shadow ring-1 ring-black ring-opacity-5 rounded-lg">
@@ -187,7 +190,7 @@
 												</tr>
 											</thead>
 											<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-900">
-												{#each tickets as ticket}
+												{#each sortedTickets as ticket}
 													<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
 														<td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6">
 															#{ticket.ticket_number}

@@ -171,6 +171,11 @@ Due Date: ${order.dueDate}`;
 		return value.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
 	}
 
+	function getUserFullName(email: string): string {
+		const user = availableUsers.find(u => u.email === email);
+		return user ? user.full_name : email;
+	}
+
 	function formatPlain(value: unknown): string {
 		if (value === null || value === undefined) return 'N/A';
 		if (typeof value === 'string' && value.trim() === '') return 'N/A';
@@ -189,17 +194,16 @@ Due Date: ${order.dueDate}`;
 		const dueDateSydney = dueDateInput ? dueDateInput.replace('T', ' ') : 'N/A';
 
 		return `<p>New Past Due Ticket Created<br>
-Ticket #${ticketNumber} has been created in RapidTools.<br>
-<br>
-<b>${formatPlain(ticket.ticket_title)}</b><br>
+Ticket #${ticketNumber}<br>
+${formatPlain(ticket.ticket_title)}<br>
 Priority: ${formatPlain(ticket.priority)} | Status: ${formatPlain(ticket.status)} | Due: ${formatPlain(dueDateSydney)}<br>
 <br>
 Customer: ${formatPlain(order.customer)}<br>
 Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
 Days Past Due: ${formatPlain(order.pdCounter)}<br>
 <br>
-Assigned to: ${formatPlain(ticket.assigned_to || 'Unassigned')}<br>
-Created by: ${formatPlain(ticket.assigned_by)}<br>
+Assigned to: ${formatPlain(getUserFullName(ticket.assigned_to || ''))}<br>
+Created by: ${formatPlain(getUserFullName(ticket.assigned_by))}<br>
 Created: ${formatPlain(createdAtSydney)}</p>`;
 	}
 

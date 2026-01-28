@@ -170,20 +170,15 @@
 			changes.push(`Status: ${formatPlain(oldTicket.status)} → ${formatPlain(newTicket.status)}`);
 		}
 
-		if (changes.length === 0) {
-			return `<p>Ticket #${ticketNumber} - No changes detected<br>
-Ticket #${ticketNumber} was updated but no fields changed.<br>
-<br>
-Customer: ${formatPlain(order.customer)}<br>
-Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
-Updated by: ${formatPlain(updatedBy)}<br>
-Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
+		if (oldTicket.due_date !== newTicket.due_date) {
+			const oldDueDate = oldTicket.due_date ? formatSydneyDisplay(oldTicket.due_date) : 'N/A';
+			const newDueDate = newTicket.due_date ? formatSydneyDisplay(newTicket.due_date) : 'N/A';
+			changes.push(`Due Date: ${formatPlain(oldDueDate)} → ${formatPlain(newDueDate)}`);
 		}
 
 		return `<p>Ticket #${ticketNumber} Updated<br>
-Ticket #${ticketNumber} has been updated in RapidTools.<br>
 <br>
-<b>Changes:</b><br>
+Changes:<br>
 ${changes.join('<br>')}<br>
 <br>
 Customer: ${formatPlain(order.customer)}<br>

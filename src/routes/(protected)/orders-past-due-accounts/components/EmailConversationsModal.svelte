@@ -3,10 +3,25 @@
 	import { supabase } from '$lib/supabase';
 	import type { ProcessedOrder, EmailConversation } from '../pastDueAccounts';
 
+	// API Types
+	interface PowerAutomateRequest {
+		query: string;
+	}
+
+	interface PowerAutomateResponseItem {
+		from: string;
+		subject: string;
+		bodyPreview: string;
+		internetMessageId: string;
+		webLink: string;
+	}
+
+	interface PowerAutomateResponse {
+		value: PowerAutomateResponseItem[];
+	}
+
 	export let showModal = false;
 	export let order: ProcessedOrder | null = null;
-	export let loading = false;
-	export let conversations: EmailConversation[] = [];
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -16,20 +31,84 @@
 	let filters: string[] = [];
 	let newFilter = '';
 
+	// API state management
+	let apiLoading = false;
+	let apiConversations: EmailConversation[] = [];
+
+	// API endpoint
+	const POWER_AUTOMATE_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/cc753c3b1e8a4aee8a80f233c080144e/triggers/manual/paths/invoke?api-version=1';
+
+	// Build search query from order_id and filters
+	function buildSearchQuery(orderId: string, filters: string[]): string {
+		let query = `(subject:"${orderId}" AND body:"${orderId}")`;
+
+		for (const filter of filters) {
+			query += ` OR (subject:"${filter}" body:"${filter}")`;
+		}
+
+		return query;
+	}
+
+	// Fetch conversations from Power Automate API
+	async function fetchConversations(orderId: string, filters: string[]): Promise<void> {
+		try {
+			apiLoading = true;
+			const query = buildSearchQuery(orderId, filters);
+
+			const requestBody: PowerAutomateRequest = {
+				query
+			};
+
+			const response = await fetch(POWER_AUTOMATE_URL, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(requestBody)
+			});
+
+			if (!response.ok) {
+				throw new Error(`API request failed: ${response.status}`);
+			}
+
+			const data: PowerAutomateResponse = await response.json();
+
+			// Map API response to EmailConversation format
+			apiConversations = data.value.map(item => ({
+				from: item.from,
+				subject: item.subject,
+				body_preview: item.bodyPreview,
+				web_link: item.webLink,
+				order_id: orderId,
+				has_value: 'true' // API responses always have value
+			}));
+
+		} catch (error) {
+			console.error('Error fetching conversations:', error);
+			apiConversations = [];
+		} finally {
+			apiLoading = false;
+		}
+	}
+
 	// Initialize filters from order data when modal opens
 	$: if (showModal && order) {
 		filters = [...(order.emailFilters || [])];
 	}
 
-	// Reactive filtered conversations
-	$: filteredConversations = filters.length === 0
-		? conversations
-		: conversations.filter(conv =>
-			filters.some(filter =>
-				conv.from.toLowerCase().includes(filter.toLowerCase()) ||
-				conv.body_preview.toLowerCase().includes(filter.toLowerCase())
-			)
-		);
+	// Use API conversations instead of local filtering
+	$: filteredConversations = apiConversations;
+
+	// Fetch conversations when modal opens or filters change
+	$: if (showModal && order) {
+		filters = [...(order.emailFilters || [])];
+		fetchConversations(order.invoice, filters);
+	}
+
+	// Re-fetch when filters change
+	$: if (order && filters !== undefined) {
+		fetchConversations(order.invoice, filters);
+	}
 
 	function closeModal() {
 		dispatch('close');
@@ -171,7 +250,7 @@
 								</div>
 
 								<!-- Loading State -->
-								{#if loading}
+								{#if apiLoading}
 									<div class="flex items-center justify-center py-8">
 										<div class="flex items-center space-x-2">
 											<svg
@@ -226,8 +305,8 @@
 								{:else}
 									<!-- Email Conversations List -->
 									<div class="mb-2 text-sm text-gray-600 dark:text-gray-400">
-										Showing {filteredConversations.length} of {conversations.length} conversations
-										{filters.length > 0 ? ` (filtered by: ${filters.join(', ')})` : ''}
+										Showing {filteredConversations.length} conversations
+										{filters.length > 0 ? ` (searched for: ${filters.join(', ')})` : ''}
 									</div>
 									<div class="max-h-96 overflow-y-auto">
 										<div class="space-y-3">
@@ -238,6 +317,11 @@
 															<p class="text-sm font-medium text-gray-900 dark:text-gray-100">
 																{conversation.from}
 															</p>
+															{#if conversation.subject}
+																<p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-200">
+																	Subject: {conversation.subject}
+																</p>
+															{/if}
 															<p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
 																{conversation.body_preview}
 															</p>

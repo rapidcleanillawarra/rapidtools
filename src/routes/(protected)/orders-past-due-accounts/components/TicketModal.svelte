@@ -128,7 +128,9 @@ Due Date: ${order.dueDate}`;
 			errors.push('Please select a valid status');
 		}
 
-		if (assignedTo && !availableUsers.some(user => user.email === assignedTo)) {
+		if (!assignedTo || assignedTo.trim() === '') {
+			errors.push('Assigned to is required');
+		} else if (!availableUsers.some(user => user.email === assignedTo)) {
 			errors.push('Please select a valid user for assignment');
 		}
 
@@ -435,7 +437,7 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 								<!-- Assigned To -->
 								<div>
 									<label for="assigned-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										Assign To
+										Assign To <span class="text-red-500">*</span>
 									</label>
 									{#if usersLoading}
 										<div class="mt-1 flex items-center">
@@ -447,6 +449,7 @@ Created: ${formatPlain(createdAtSydney)}</p>`;
 											id="assigned-to"
 											bind:value={assignedTo}
 											class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
+											required
 											disabled={isLoading}
 										>
 											<option value="">Unassigned</option>

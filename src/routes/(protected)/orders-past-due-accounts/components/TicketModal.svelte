@@ -186,34 +186,19 @@ Due Date: ${order.dueDate}`;
 		const { ticketNumber, ticket, dueDateInput, order, createdAtSydney } = options;
 		const dueDateSydney = dueDateInput ? dueDateInput.replace('T', ' ') : 'N/A';
 
-		return `
-			<div style="font-family: Arial, sans-serif; padding: 15px; max-width: 600px;">
-				<h2 style="margin:0 0 10px; color: #2563eb;">New Past Due Ticket Created</h2>
-				<p style="margin:0 0 15px; font-size: 14px;">Ticket #${ticketNumber} has been created in RapidTools.</p>
-
-				<div style="background: #f8fafc; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-					<strong style="color: #1f2937;">${formatPlain(ticket.ticket_title)}</strong><br>
-					<span style="color: #6b7280; font-size: 13px;">
-						Priority: <strong>${formatPlain(ticket.priority)}</strong> |
-						Status: <strong>${formatPlain(ticket.status)}</strong> |
-						Due: <strong>${formatPlain(dueDateSydney)}</strong>
-					</span>
-				</div>
-
-				<div style="margin-bottom: 12px;">
-					<strong>Customer:</strong> ${formatPlain(order.customer)}<br>
-					<strong>Invoice:</strong> ${formatPlain(order.invoice)} |
-					<strong>Amount:</strong> $${formatPlain(order.amount)}<br>
-					<strong>Days Past Due:</strong> ${formatPlain(order.pdCounter)}
-				</div>
-
-				<div style="color: #6b7280; font-size: 12px; border-top: 1px solid #e5e7eb; padding-top: 8px;">
-					<strong>Assigned to:</strong> ${formatPlain(ticket.assigned_to || 'Unassigned')} |
-					<strong>Created by:</strong> ${formatPlain(ticket.assigned_by)} |
-					<strong>Created:</strong> ${formatPlain(createdAtSydney)}
-				</div>
-			</div>
-		`.trim();
+		return `<p>New Past Due Ticket Created<br>
+Ticket #${ticketNumber} has been created in RapidTools.<br>
+<br>
+<b>${formatPlain(ticket.ticket_title)}</b><br>
+Priority: ${formatPlain(ticket.priority)} | Status: ${formatPlain(ticket.status)} | Due: ${formatPlain(dueDateSydney)}<br>
+<br>
+Customer: ${formatPlain(order.customer)}<br>
+Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
+Days Past Due: ${formatPlain(order.pdCounter)}<br>
+<br>
+Assigned to: ${formatPlain(ticket.assigned_to || 'Unassigned')}<br>
+Created by: ${formatPlain(ticket.assigned_by)}<br>
+Created: ${formatPlain(createdAtSydney)}</p>`;
 	}
 
 	async function sendTicketNotification(options: {

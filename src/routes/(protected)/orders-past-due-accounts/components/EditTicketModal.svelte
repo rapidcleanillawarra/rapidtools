@@ -34,6 +34,7 @@
 	let isLoading = false;
 	let usersLoading = false;
 	let availableUsers: { email: string; full_name: string }[] = [];
+	let originalDueDate: string | null = null; // Track original due date from database
 
 	// Current time in Sydney timezone
 	$: currentSydneyTime = (() => {
@@ -75,6 +76,7 @@
 		assignedTo = ticket.assigned_to || '';
 		priority = ticket.priority || 'Medium';
 		status = ticket.status || 'Not Started';
+		originalDueDate = ticket.due_date || null; // Store original due date
 		dueDate = ticket.due_date ? utcIsoToSydneyInput(ticket.due_date) : '';
 		notes = ticket.notes || '';
 	}
@@ -203,8 +205,8 @@
 			changes.push(`Assigned To: ${formatPlain(oldName)} → ${formatPlain(newName)}`);
 		}
 
-		if (oldTicket.due_date !== newTicket.due_date) {
-			const oldDueDate = oldTicket.due_date ? formatSydneyDisplay(oldTicket.due_date) : 'N/A';
+		if (originalDueDate !== newTicket.due_date) {
+			const oldDueDate = originalDueDate ? formatSydneyDisplay(originalDueDate) : 'N/A';
 			const newDueDate = newTicket.due_date ? formatSydneyDisplay(newTicket.due_date) : 'N/A';
 			changes.push(`Due Date: ${formatPlain(oldDueDate)} → ${formatPlain(newDueDate)}`);
 		}
@@ -332,6 +334,7 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 		assignedTo = '';
 		priority = 'Medium';
 		status = 'Not Started';
+		originalDueDate = null;
 		dueDate = '';
 		notes = '';
 	}

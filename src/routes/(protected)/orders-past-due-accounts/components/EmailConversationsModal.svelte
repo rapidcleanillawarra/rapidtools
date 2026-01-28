@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { supabase } from '$lib/supabase';
 	import type { ProcessedOrder, EmailConversation } from '../pastDueAccounts';
 
 	export let showModal = false;
@@ -11,8 +12,73 @@
 		close: void;
 	}>();
 
+	// Filter state management
+	let filters: string[] = [];
+	let newFilter = '';
+
+	// Initialize filters from order data when modal opens
+	$: if (showModal && order) {
+		filters = [...(order.emailFilters || [])];
+	}
+
+	// Reactive filtered conversations
+	$: filteredConversations = filters.length === 0
+		? conversations
+		: conversations.filter(conv =>
+			filters.some(filter =>
+				conv.from.toLowerCase().includes(filter.toLowerCase()) ||
+				conv.body_preview.toLowerCase().includes(filter.toLowerCase())
+			)
+		);
+
 	function closeModal() {
 		dispatch('close');
+	}
+
+	// Filter management functions
+	async function updateFilters(newFilters: string[]) {
+		if (!order) return;
+
+		try {
+			// Update local state immediately for UI responsiveness
+			filters = [...newFilters];
+			order.emailFilters = [...newFilters];
+
+			// Update database
+			const { error } = await supabase
+				.from('orders_past_due_accounts_invoice_tracking')
+				.update({ email_filters: newFilters })
+				.eq('order_id', order.invoice);
+
+			if (error) {
+				console.error('Error updating email filters:', error);
+				// Revert local state on error
+				filters = [...(order.emailFilters || [])];
+			}
+		} catch (error) {
+			console.error('Error in updateFilters:', error);
+		}
+	}
+
+	function addFilter() {
+		const trimmedFilter = newFilter.trim();
+		if (trimmedFilter && !filters.includes(trimmedFilter)) {
+			const newFilters = [...filters, trimmedFilter];
+			updateFilters(newFilters);
+			newFilter = '';
+		}
+	}
+
+	function removeFilter(filterToRemove: string) {
+		const newFilters = filters.filter(f => f !== filterToRemove);
+		updateFilters(newFilters);
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			addFilter();
+		}
 	}
 </script>
 
@@ -53,6 +119,57 @@
 									Customer: {order.customer}
 								</p>
 
+								<!-- Email Filters Section -->
+								<div class="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50">
+									<h4 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+										Email Filters
+									</h4>
+
+									<!-- Filter Input -->
+									<div class="mb-3 flex gap-2">
+										<input
+											type="text"
+											bind:value={newFilter}
+											on:keydown={handleKeydown}
+											placeholder="Enter keyword to filter emails..."
+											class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+										/>
+										<button
+											type="button"
+											on:click={addFilter}
+											disabled={!newFilter.trim()}
+											class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+										>
+											Add
+										</button>
+									</div>
+
+									<!-- Active Filters -->
+									{#if filters.length > 0}
+										<div class="flex flex-wrap gap-2">
+											{#each filters as filter}
+												<span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+													{filter}
+													<button
+														type="button"
+														on:click={() => removeFilter(filter)}
+														class="ml-1 inline-flex items-center justify-center rounded-full p-0.5 text-indigo-600 hover:bg-indigo-200 hover:text-indigo-900 dark:text-indigo-400 dark:hover:bg-indigo-800 dark:hover:text-indigo-100"
+													>
+														<span class="sr-only">Remove filter</span>
+														<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+														</svg>
+													</button>
+												</span>
+											{/each}
+										</div>
+									{:else}
+										<p class="text-xs text-gray-500 dark:text-gray-400">
+											No filters applied. All emails will be shown.
+										</p>
+									{/if}
+								</div>
+
 								<!-- Loading State -->
 								{#if loading}
 									<div class="flex items-center justify-center py-8">
@@ -80,7 +197,7 @@
 											<span class="text-sm text-gray-500 dark:text-gray-400">Loading conversations...</span>
 										</div>
 									</div>
-								{:else if conversations.length === 0}
+								{:else if filteredConversations.length === 0}
 									<div class="py-8 text-center">
 										<svg
 											class="mx-auto h-12 w-12 text-gray-400"
@@ -97,17 +214,24 @@
 											></path>
 										</svg>
 										<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-											No conversations found
+											{filters.length > 0 ? 'No matching conversations' : 'No conversations found'}
 										</h3>
 										<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-											There are no email conversations for this order.
+											{filters.length > 0
+												? 'Try adjusting your filters or remove them to see all conversations.'
+												: 'There are no email conversations for this order.'
+											}
 										</p>
 									</div>
 								{:else}
 									<!-- Email Conversations List -->
+									<div class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+										Showing {filteredConversations.length} of {conversations.length} conversations
+										{filters.length > 0 ? ` (filtered by: ${filters.join(', ')})` : ''}
+									</div>
 									<div class="max-h-96 overflow-y-auto">
 										<div class="space-y-3">
-											{#each conversations as conversation}
+											{#each filteredConversations as conversation}
 												<div class="rounded-md border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50">
 													<div class="flex items-start justify-between">
 														<div class="flex-1 min-w-0">

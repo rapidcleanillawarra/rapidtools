@@ -432,7 +432,7 @@
 			// Fetch email tracking status for all invoices
 			const { data: trackingData, error } = await supabase
 				.from('orders_past_due_accounts_invoice_tracking')
-				.select('order_id, email_initialized')
+				.select('order_id, email_initialized, email_filters')
 				.in('order_id', invoiceIds);
 
 			if (error) {
@@ -440,18 +440,21 @@
 				return;
 			}
 
-			// Create a map of order_id to email_initialized status
+			// Create maps for tracking data
 			const trackingMap: Record<string, boolean> = {};
+			const emailFiltersMap: Record<string, string[]> = {};
 			if (trackingData) {
 				trackingData.forEach((record) => {
 					trackingMap[record.order_id] = record.email_initialized || false;
+					emailFiltersMap[record.order_id] = record.email_filters || [];
 				});
 			}
 
-			// Update orders with email tracking status
+			// Update orders with email tracking status and filters
 			orders = orders.map((order) => ({
 				...order,
-				emailNotifs: trackingMap[order.invoice] ? '✓' : ''
+				emailNotifs: trackingMap[order.invoice] ? '✓' : '',
+				emailFilters: emailFiltersMap[order.invoice] || []
 			}));
 		} catch (error) {
 			console.error('Error in fetchEmailTrackingStatus:', error);

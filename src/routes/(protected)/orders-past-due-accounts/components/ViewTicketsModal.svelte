@@ -8,6 +8,9 @@
 	import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 
+	const TICKET_WEBHOOK_URL =
+		'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
+
 	function isPastDue(ticketDue: string | null, orderDue: string | null): boolean {
 		if (ticketDue) {
 			return isUtcIsoPast(ticketDue);
@@ -116,11 +119,114 @@
 		}
 	}
 
+	function formatSydneyDateTime(date: Date): string {
+		try {
+			return new Intl.DateTimeFormat('en-AU', {
+				timeZone: 'Australia/Sydney',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: true
+			}).format(date);
+		} catch (error) {
+			// Fallback for Windows timezone issues
+			const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
+			return new Intl.DateTimeFormat('en-AU', {
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: true
+			}).format(sydney);
+		}
+	}
+
+	function formatPlain(value: any): string {
+		if (value === null || value === undefined || value === '') return 'N/A';
+		return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	function getUserFullName(email: string): string {
+		const user = availableUsers.find(u => u.email === email);
+		return user ? user.full_name : email;
+	}
+
+	function buildUpdateNotificationHtml(options: {
+		ticketNumber: number;
+		oldTicket: Ticket;
+		newTicket: Ticket;
+		order: ProcessedOrder;
+		updatedBy: string;
+	}): string {
+		const { ticketNumber, oldTicket, newTicket, order, updatedBy } = options;
+		const changes: string[] = [];
+
+		// Compare all fields that can change
+		if (oldTicket.status !== newTicket.status) {
+			changes.push(`Status: ${formatPlain(oldTicket.status)} → ${formatPlain(newTicket.status)}`);
+		}
+
+		if (changes.length === 0) {
+			return `<p>Ticket #${ticketNumber} - No changes detected<br>
+Ticket #${ticketNumber} was updated but no fields changed.<br>
+<br>
+Customer: ${formatPlain(order.customer)}<br>
+Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
+Updated by: ${formatPlain(updatedBy)}<br>
+Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
+		}
+
+		return `<p>Ticket #${ticketNumber} Updated<br>
+Ticket #${ticketNumber} has been updated in RapidTools.<br>
+<br>
+<b>Changes:</b><br>
+${changes.join('<br>')}<br>
+<br>
+Customer: ${formatPlain(order.customer)}<br>
+Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
+Updated by: ${formatPlain(updatedBy)}<br>
+Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
+	}
+
+	async function sendTicketUpdateNotification(options: {
+		ticketNumber: number;
+		oldTicket: Ticket;
+		newTicket: Ticket;
+		order: ProcessedOrder;
+		updatedBy: string;
+	}): Promise<void> {
+		const htmlBody = buildUpdateNotificationHtml(options);
+
+		const payload = {
+			body: htmlBody,
+			action: 'accounts'
+		};
+
+		const response = await fetch(TICKET_WEBHOOK_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(payload)
+		});
+
+		if (!response.ok) {
+			throw new Error(`Ticket update webhook failed with status ${response.status}`);
+		}
+	}
+
 	async function markAsComplete(ticket: Ticket) {
 		if (!$currentUser?.email) {
 			console.error('User not logged in');
 			return;
 		}
+
+		// Capture the old ticket state for notification
+		const oldTicket = { ...ticket };
 
 		try {
 			const { error } = await supabase
@@ -132,15 +238,34 @@
 
 			if (error) throw error;
 
+			// Create the updated ticket state
+			const newTicket = { ...ticket, status: 'Completed' };
+
 			// Update local state
-			tickets = tickets.map(t => 
-				t.id === ticket.id 
-					? { ...t, status: 'Completed' }
+			tickets = tickets.map(t =>
+				t.id === ticket.id
+					? newTicket
 					: t
 			);
-			
+
+			// Send notification with comparison
+			try {
+				if (order) {
+					await sendTicketUpdateNotification({
+						ticketNumber: ticket.ticket_number,
+						oldTicket,
+						newTicket,
+						order,
+						updatedBy: getUserFullName($currentUser.email)
+					});
+				}
+			} catch (notificationError) {
+				console.error('Failed to send ticket update notification:', notificationError);
+				// Don't block the ticket update if notification fails
+			}
+
 			// Optional: Dispatch event if parent needs to refresh strict state
-			// dispatch('ticketUpdated', ticket); 
+			// dispatch('ticketUpdated', ticket);
 		} catch (error) {
 			console.error('Error marking ticket as complete:', error);
 			alert('Failed to update ticket');

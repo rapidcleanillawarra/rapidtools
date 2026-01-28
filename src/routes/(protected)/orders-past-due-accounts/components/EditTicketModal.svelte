@@ -2,13 +2,18 @@
 	import { createEventDispatcher } from 'svelte';
 	import { supabase } from '$lib/supabase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import { currentUser } from '$lib/firebase';
 	import type { Ticket, ProcessedOrder } from '../pastDueAccounts';
 	import { updateTicket } from '../ticketTracking';
 	import {
 		isSydneyInputInPast,
 		sydneyInputToUtcIso,
-		utcIsoToSydneyInput
+		utcIsoToSydneyInput,
+		formatSydneyDisplay
 	} from '../utils/dueDate';
+
+	const TICKET_WEBHOOK_URL =
+		'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
 
 	export let showModal = false;
 	export let ticket: Ticket | null = null;
@@ -129,6 +134,134 @@
 		};
 	}
 
+	function formatSydneyDateTime(date: Date): string {
+		try {
+			return new Intl.DateTimeFormat('en-AU', {
+				timeZone: 'Australia/Sydney',
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: true
+			}).format(date);
+		} catch (error) {
+			// Fallback for Windows timezone issues
+			const utc = date.getTime() + (date.getTimezoneOffset() * 60000);
+			const sydney = new Date(utc + (10 * 3600000)); // UTC+10 for AEST
+			return new Intl.DateTimeFormat('en-AU', {
+				year: 'numeric',
+				month: 'long',
+				day: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: true
+			}).format(sydney);
+		}
+	}
+
+	function formatPlain(value: any): string {
+		if (value === null || value === undefined || value === '') return 'N/A';
+		return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+	}
+
+	function getUserFullName(email: string): string {
+		const user = availableUsers.find(u => u.email === email);
+		return user ? user.full_name : email;
+	}
+
+	function buildUpdateNotificationHtml(options: {
+		ticketNumber: number;
+		oldTicket: Ticket;
+		newTicket: any; // Updated ticket data
+		order: ProcessedOrder;
+		updatedBy: string;
+	}): string {
+		const { ticketNumber, oldTicket, newTicket, order, updatedBy } = options;
+		const changes: string[] = [];
+
+		// Compare all fields that can change
+		if (oldTicket.ticket_title !== newTicket.ticket_title) {
+			changes.push(`Title: ${formatPlain(oldTicket.ticket_title)} → ${formatPlain(newTicket.ticket_title)}`);
+		}
+
+		if (oldTicket.ticket_description !== newTicket.ticket_description) {
+			changes.push(`Description: ${formatPlain(oldTicket.ticket_description)} → ${formatPlain(newTicket.ticket_description)}`);
+		}
+
+		if (oldTicket.status !== newTicket.status) {
+			changes.push(`Status: ${formatPlain(oldTicket.status)} → ${formatPlain(newTicket.status)}`);
+		}
+
+		if (oldTicket.priority !== newTicket.priority) {
+			changes.push(`Priority: ${formatPlain(oldTicket.priority)} → ${formatPlain(newTicket.priority)}`);
+		}
+
+		if (oldTicket.assigned_to !== newTicket.assigned_to) {
+			const oldName = oldTicket.assigned_to ? getUserFullName(oldTicket.assigned_to) : 'Unassigned';
+			const newName = newTicket.assigned_to ? getUserFullName(newTicket.assigned_to) : 'Unassigned';
+			changes.push(`Assigned To: ${formatPlain(oldName)} → ${formatPlain(newName)}`);
+		}
+
+		if (oldTicket.due_date !== newTicket.due_date) {
+			const oldDueDate = oldTicket.due_date ? formatSydneyDisplay(oldTicket.due_date) : 'N/A';
+			const newDueDate = newTicket.due_date ? formatSydneyDisplay(newTicket.due_date) : 'N/A';
+			changes.push(`Due Date: ${formatPlain(oldDueDate)} → ${formatPlain(newDueDate)}`);
+		}
+
+		if (oldTicket.notes !== newTicket.notes) {
+			changes.push(`Notes: ${formatPlain(oldTicket.notes)} → ${formatPlain(newTicket.notes)}`);
+		}
+
+		if (changes.length === 0) {
+			return `<p>Ticket #${ticketNumber} - No changes detected<br>
+Ticket #${ticketNumber} was updated but no fields changed.<br>
+<br>
+Customer: ${formatPlain(order.customer)}<br>
+Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
+Updated by: ${formatPlain(updatedBy)}<br>
+Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
+		}
+
+		return `<p>Ticket #${ticketNumber} Updated<br>
+Ticket #${ticketNumber} has been updated in RapidTools.<br>
+<br>
+<b>Changes:</b><br>
+${changes.join('<br>')}<br>
+<br>
+Customer: ${formatPlain(order.customer)}<br>
+Invoice: ${formatPlain(order.invoice)} | Amount: $${formatPlain(order.amount)}<br>
+Updated by: ${formatPlain(updatedBy)}<br>
+Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
+	}
+
+	async function sendTicketUpdateNotification(options: {
+		ticketNumber: number;
+		oldTicket: Ticket;
+		newTicket: any;
+		order: ProcessedOrder;
+		updatedBy: string;
+	}): Promise<void> {
+		const htmlBody = buildUpdateNotificationHtml(options);
+
+		const payload = {
+			body: htmlBody,
+			action: 'accounts'
+		};
+
+		const response = await fetch(TICKET_WEBHOOK_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(payload)
+		});
+
+		if (!response.ok) {
+			throw new Error(`Ticket update webhook failed with status ${response.status}`);
+		}
+	}
+
 	async function updateTicketRecord() {
 		if (!ticket) return;
 
@@ -138,20 +271,42 @@
 			return;
 		}
 
+		// Capture the old ticket state for notification
+		const oldTicket = { ...ticket };
+
+		// Prepare the update data
+		const updateData = {
+			ticket_title: ticketTitle.trim(),
+			ticket_description: ticketDescription.trim() || null,
+			status,
+			priority,
+			assigned_to: assignedTo || null,
+			due_date: sydneyInputToUtcIso(dueDate),
+			notes: notes.trim() || null
+		};
+
 		try {
 			isLoading = true;
 
-			const result = await updateTicket(ticket.ticket_number, {
-				ticket_title: ticketTitle.trim(),
-				ticket_description: ticketDescription.trim() || null,
-				status,
-				priority,
-				assigned_to: assignedTo || null,
-				due_date: sydneyInputToUtcIso(dueDate),
-				notes: notes.trim() || null
-			});
+			const result = await updateTicket(ticket.ticket_number, updateData);
 
 			if (result.success) {
+				// Send notification with comparison
+				try {
+					if (order) {
+						await sendTicketUpdateNotification({
+							ticketNumber: ticket.ticket_number,
+							oldTicket,
+							newTicket: updateData,
+							order,
+							updatedBy: getUserFullName($currentUser?.email || '')
+						});
+					}
+				} catch (notificationError) {
+					console.error('Failed to send ticket update notification:', notificationError);
+					// Don't block the ticket update if notification fails
+				}
+
 				toastSuccess('Ticket updated successfully!');
 				dispatch('ticketUpdated');
 				closeModal();

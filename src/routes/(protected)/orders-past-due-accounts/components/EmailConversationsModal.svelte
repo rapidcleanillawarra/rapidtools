@@ -5,7 +5,7 @@
 
 	// API Types
 	interface PowerAutomateRequest {
-		query: string;
+		filter_query: string;
 	}
 
 	interface PowerAutomateResponseItem {
@@ -40,13 +40,8 @@
 
 	// Build search query from order_id and filters
 	function buildSearchQuery(orderId: string, filters: string[]): string {
-		let query = `(subject:"${orderId}" AND body:"${orderId}")`;
-
-		for (const filter of filters) {
-			query += ` OR (subject:"${filter}" body:"${filter}")`;
-		}
-
-		return query;
+		const allTerms = [orderId, ...filters];
+		return allTerms.join(' OR ');
 	}
 
 	// Create Outlook Web deep link from message ID
@@ -61,8 +56,10 @@
 			const query = buildSearchQuery(orderId, filters);
 
 			const requestBody: PowerAutomateRequest = {
-				query
+				filter_query: query
 			};
+
+			console.log('Email conversations fetch payload:', requestBody);
 
 			const response = await fetch(POWER_AUTOMATE_URL, {
 				method: 'POST',

@@ -452,6 +452,11 @@
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Sent Invoice Logs</a
 							>
+							<a
+								href="{base}/batch-payments"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Batch Payments</a
+							>
 						</div>
 					{/if}
 				</div>

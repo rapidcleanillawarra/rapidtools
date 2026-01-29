@@ -10,8 +10,10 @@
 
 	interface PowerAutomateResponseItem {
 		from: string;
+		toRecipients?: string;
 		subject: string;
 		bodyPreview: string;
+		receivedDateTime?: string;
 		id: string;
 		webLink: string;
 	}
@@ -49,6 +51,21 @@
 		return `https://outlook.office365.com/owa/?ItemID=${encodeURIComponent(messageId)}&exvsurl=1&viewmodel=ReadMessageItem`;
 	}
 
+	// Format date for display
+	function formatReceivedDate(dateString: string): string {
+		if (!dateString) return '';
+		const date = new Date(dateString);
+		return date.toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'long',
+			day: '2-digit'
+		}) + ' ' + date.toLocaleTimeString('en-US', {
+			hour: 'numeric',
+			minute: '2-digit',
+			hour12: true
+		});
+	}
+
 	// Fetch conversations from Power Automate API
 	async function fetchConversations(orderId: string, filters: string[]): Promise<void> {
 		try {
@@ -78,8 +95,10 @@
 			// Map API response to EmailConversation format
 			apiConversations = data.value.map(item => ({
 				from: item.from,
+				to: item.toRecipients,
 				subject: item.subject,
 				body_preview: item.bodyPreview,
+				received_datetime: item.receivedDateTime,
 				web_link: createDeepLink(item.id),
 				order_id: orderId,
 				has_value: 'true' // API responses always have value
@@ -317,11 +336,21 @@
 													<div class="flex items-start justify-between">
 														<div class="flex-1 min-w-0">
 															<p class="text-sm font-medium text-gray-900 dark:text-gray-100">
-																{conversation.from}
+																From: {conversation.from}
 															</p>
+															{#if conversation.to}
+																<p class="text-sm text-gray-600 dark:text-gray-400">
+																	To: {conversation.to}
+																</p>
+															{/if}
 															{#if conversation.subject}
 																<p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-200">
 																	Subject: {conversation.subject}
+																</p>
+															{/if}
+															{#if conversation.received_datetime}
+																<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+																	{formatReceivedDate(conversation.received_datetime)}
 																</p>
 															{/if}
 															<p class="mt-1 text-sm text-gray-700 dark:text-gray-300">

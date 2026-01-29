@@ -43,8 +43,10 @@ export interface NoteView {
 
 export interface EmailConversation {
 	from: string;
+	to?: string;
 	subject?: string;
 	body_preview: string;
+	received_datetime?: string;
 	web_link: string;
 	order_id: string;
 	has_value: string;

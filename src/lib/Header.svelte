@@ -457,6 +457,11 @@
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Batch Payments</a
 							>
+							<a
+								href="{base}/generate-invoice-pdf"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Generate Invoice PDF</a
+							>
 						</div>
 					{/if}
 				</div>

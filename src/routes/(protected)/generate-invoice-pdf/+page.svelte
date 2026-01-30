@@ -1,97 +1,152 @@
 <script lang="ts">
-    import { enhance } from '$app/forms';
-    import type { ActionData } from './$types';
+	let order_id = '';
+	let loading = false;
+	let error = '';
+	let details = '';
+	let result: any = null;
 
-    export let form: ActionData;
+	async function handleGenerate() {
+		if (!order_id) return;
 
-    let loading = false;
+		loading = true;
+		error = '';
+		details = '';
+		result = null;
 
-    function handleSubmit() {
-        loading = true;
-        return async ({ update }: { update: () => Promise<void> }) => {
-            await update();
-            loading = false;
-        };
-    }
+		const endpoint =
+			'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/085d23545582412795e162562558953d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=HLKhlTnMPzldKLVFn2pfHoFx3tCqAkFO0BXwhITJfIs';
+
+		// Current time format: 2026-01-23 03:13:17
+		const now = new Date();
+		const currentTime = now.toISOString().replace('T', ' ').substring(0, 19);
+
+		const xmlPayload = `<?xml version="1.0" encoding="utf-8"?>
+<ns:Event xmlns:ns="NetoAPI">
+  <CurrentTime>${currentTime}</CurrentTime>
+  <EventID>15954</EventID>
+  <EventType>Order</EventType>
+  <Order>
+    <OrderID>${order_id}</OrderID>
+    <OrderStatus>generate</OrderStatus>
+  </Order>
+</ns:Event>`;
+
+		try {
+			const response = await fetch(endpoint, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/xml'
+				},
+				body: xmlPayload
+			});
+
+			if (!response.ok) {
+				const text = await response.text();
+				error = 'Failed to generate invoice.';
+				details = text;
+				return;
+			}
+
+			result = await response.json();
+		} catch (err: any) {
+			console.error('Request failed:', err);
+			error = 'Internal server error or CORS issue.';
+			details = err.message;
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
-<div class="container mx-auto p-6 max-w-2xl">
-    <div class="bg-white shadow-md rounded-lg p-6">
-        <h1 class="text-2xl font-bold mb-6 text-gray-800">Generate Invoice PDF</h1>
+<div class="container mx-auto max-w-2xl p-6">
+	<div class="rounded-lg bg-white p-6 shadow-md">
+		<h1 class="mb-6 text-2xl font-bold text-gray-800">Generate Invoice PDF</h1>
 
-        <form method="POST" use:enhance={handleSubmit} class="space-y-4">
-            <div>
-                <label for="order_id" class="block text-sm font-medium text-gray-700 mb-1">Order ID</label>
-                <input
-                    type="text"
-                    id="order_id"
-                    name="order_id"
-                    required
-                    placeholder="e.g. 26-0012128"
-                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-            </div>
+		<form on:submit|preventDefault={handleGenerate} class="space-y-4">
+			<div>
+				<label for="order_id" class="mb-1 block text-sm font-medium text-gray-700">Order ID</label>
+				<input
+					type="text"
+					id="order_id"
+					bind:value={order_id}
+					required
+					placeholder="e.g. 26-0012128"
+					class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-blue-500"
+				/>
+			</div>
 
-            <button
-                type="submit"
-                disabled={loading}
-                class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-            >
-                {loading ? 'Generating...' : 'Generate PDF'}
-            </button>
-        </form>
+			<button
+				type="submit"
+				disabled={loading}
+				class="w-full rounded-md bg-blue-600 px-4 py-2 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+			>
+				{loading ? 'Generating...' : 'Generate PDF'}
+			</button>
+		</form>
 
-        {#if form?.error}
-            <div class="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
-                <p class="text-red-700 font-medium">Error: {form.error}</p>
-                {#if form.details}
-                    <pre class="mt-2 text-xs text-red-600 whitespace-pre-wrap">{form.details}</pre>
-                {/if}
-            </div>
-        {/if}
+		{#if error}
+			<div class="mt-6 rounded-md border border-red-200 bg-red-50 p-4">
+				<p class="font-medium text-red-700">Error: {error}</p>
+				{#if details}
+					<pre class="mt-2 whitespace-pre-wrap text-xs text-red-600">{details}</pre>
+				{/if}
+			</div>
+		{/if}
 
-        {#if form?.success && form?.data}
-            <div class="mt-8 border-t pt-6">
-                <h2 class="text-lg font-semibold mb-4 text-green-700 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    Invoice Generated Successfully
-                </h2>
-                
-                <div class="grid grid-cols-1 gap-4 bg-gray-50 p-4 rounded-md">
-                    <div class="grid grid-cols-3 gap-2">
-                        <span class="text-gray-500 text-sm font-medium">Execution By:</span>
-                        <span class="col-span-2 text-gray-800 text-sm">{form.data.created_by}</span>
-                    </div>
-                     <div class="grid grid-cols-3 gap-2">
-                        <span class="text-gray-500 text-sm font-medium">Customer:</span>
-                        <span class="col-span-2 text-gray-800 text-sm">{form.data.customer_username}</span>
-                    </div>
-                    <div class="grid grid-cols-3 gap-2">
-                        <span class="text-gray-500 text-sm font-medium">Created At:</span>
-                        <span class="col-span-2 text-gray-800 text-sm">{new Date(form.data.created_at).toLocaleString()}</span>
-                    </div>
-                     <div class="grid grid-cols-3 gap-2">
-                        <span class="text-gray-500 text-sm font-medium">File Name:</span>
-                        <span class="col-span-2 text-gray-800 text-sm break-all">{form.data.file_name}</span>
-                    </div>
-                </div>
+		{#if result}
+			<div class="mt-8 border-t pt-6">
+				<h2 class="mb-4 flex items-center text-lg font-semibold text-green-700">
+					<svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 13l4 4L19 7"
+						/>
+					</svg>
+					Invoice Generated Successfully
+				</h2>
 
-                <div class="mt-6">
-                    <a
-                        href={form.data.onedrive_id}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center justify-center w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors"
-                    >
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        Open in OneDrive
-                    </a>
-                </div>
-            </div>
-        {/if}
-    </div>
+				<div class="grid grid-cols-1 gap-4 rounded-md bg-gray-50 p-4">
+					<div class="grid grid-cols-3 gap-2">
+						<span class="text-sm font-medium text-gray-500">Execution By:</span>
+						<span class="col-span-2 text-sm text-gray-800">{result.created_by}</span>
+					</div>
+					<div class="grid grid-cols-3 gap-2">
+						<span class="text-sm font-medium text-gray-500">Customer:</span>
+						<span class="col-span-2 text-sm text-gray-800">{result.customer_username}</span>
+					</div>
+					<div class="grid grid-cols-3 gap-2">
+						<span class="text-sm font-medium text-gray-500">Created At:</span>
+						<span class="col-span-2 text-sm text-gray-800"
+							>{new Date(result.created_at).toLocaleString()}</span
+						>
+					</div>
+					<div class="grid grid-cols-3 gap-2">
+						<span class="text-sm font-medium text-gray-500">File Name:</span>
+						<span class="col-span-2 break-all text-sm text-gray-800">{result.file_name}</span>
+					</div>
+				</div>
+
+				<div class="mt-6">
+					<a
+						href={result.onedrive_id}
+						target="_blank"
+						rel="noopener noreferrer"
+						class="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+					>
+						<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+							/>
+						</svg>
+						Open in OneDrive
+					</a>
+				</div>
+			</div>
+		{/if}
+	</div>
 </div>

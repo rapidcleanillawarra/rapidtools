@@ -20,8 +20,8 @@
 
 	let sender = 'accounts@rapidcleanillawarra.com.au';
 	let to = '';
-	let cc = '';
-	let bcc = '';
+	let cc: string[] = [];
+	let bcc: string[] = [];
 	let subject = '';
 	let body = '';
 	let isLoading = false;
@@ -92,8 +92,9 @@
 		sender = emailSettings.default_from;
 		// If order has email, use it; otherwise leave empty for manual entry
 		to = order.email || '';
-		cc = emailSettings.default_cc;
-		bcc = emailSettings.default_bcc;
+		// Convert default CC/BCC strings to arrays, filtering out empty values
+		cc = emailSettings.default_cc ? emailSettings.default_cc.split(';').filter(email => email.trim()) : [];
+		bcc = emailSettings.default_bcc ? emailSettings.default_bcc.split(';').filter(email => email.trim()) : [];
 		
 		// Replace {invoice} placeholder in subject
 		subject = replacePlaceholders(emailSettings.default_subject, {
@@ -144,6 +145,38 @@
 		});
 	}
 
+	function addEmailToList(list: string[], email: string): string[] {
+		const trimmedEmail = email.trim();
+		if (trimmedEmail && !list.includes(trimmedEmail)) {
+			// Basic email validation
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (emailRegex.test(trimmedEmail)) {
+				return [...list, trimmedEmail];
+			}
+		}
+		return list;
+	}
+
+	function removeEmailFromList(list: string[], emailToRemove: string): string[] {
+		return list.filter(email => email !== emailToRemove);
+	}
+
+	function handleEmailKeydown(event: KeyboardEvent, list: string[], inputElement: EventTarget | null) {
+		if (event.key === 'Enter' || event.key === ',') {
+			event.preventDefault();
+			const input = inputElement as HTMLInputElement;
+			const email = input.value.trim();
+			if (email) {
+				if (list === cc) {
+					cc = addEmailToList(cc, email);
+				} else if (list === bcc) {
+					bcc = addEmailToList(bcc, email);
+				}
+				input.value = '';
+			}
+		}
+	}
+
 	async function sendEmail() {
 		// Get the HTML content from Quill editor
 		if (quillEditor) {
@@ -173,8 +206,8 @@
 					sender,
 					email: {
 						to,
-						cc,
-						bcc,
+						cc: cc.join(';'),
+						bcc: bcc.join(';'),
 						subject,
 						body,
 						attachments: emailAttachments
@@ -351,8 +384,8 @@
 	function resetForm() {
 		sender = emailSettings?.default_from || 'accounts@rapidcleanillawarra.com.au';
 		to = '';
-		cc = '';
-		bcc = '';
+		cc = [];
+		bcc = [];
 		subject = '';
 		body = '';
 		attachments = [];
@@ -442,14 +475,34 @@
 									<label for="email-cc" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
 										CC:
 									</label>
-									<input
-										type="email"
-										id="email-cc"
-										bind:value={cc}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="cc@example.com"
-										multiple
-									/>
+									<div class="mt-1">
+										<!-- CC Pills -->
+										<div class="flex flex-wrap gap-2 mb-2">
+											{#each cc as email}
+												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+													{email}
+													<button
+														type="button"
+														class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+														on:click={() => cc = removeEmailFromList(cc, email)}
+														aria-label="Remove {email}"
+													>
+														<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+															<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+														</svg>
+													</button>
+												</span>
+											{/each}
+										</div>
+										<!-- CC Input -->
+										<input
+											type="email"
+											id="email-cc"
+											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
+											placeholder="Type email and press Enter or comma to add"
+											on:keydown={(event) => handleEmailKeydown(event, cc, event.target)}
+										/>
+									</div>
 								</div>
 
 								<!-- BCC Field -->
@@ -457,14 +510,34 @@
 									<label for="email-bcc" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
 										BCC:
 									</label>
-									<input
-										type="email"
-										id="email-bcc"
-										bind:value={bcc}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="bcc@example.com"
-										multiple
-									/>
+									<div class="mt-1">
+										<!-- BCC Pills -->
+										<div class="flex flex-wrap gap-2 mb-2">
+											{#each bcc as email}
+												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+													{email}
+													<button
+														type="button"
+														class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-green-200 dark:hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
+														on:click={() => bcc = removeEmailFromList(bcc, email)}
+														aria-label="Remove {email}"
+													>
+														<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+															<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+														</svg>
+													</button>
+												</span>
+											{/each}
+										</div>
+										<!-- BCC Input -->
+										<input
+											type="email"
+											id="email-bcc"
+											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
+											placeholder="Type email and press Enter or comma to add"
+											on:keydown={(event) => handleEmailKeydown(event, bcc, event.target)}
+										/>
+									</div>
 								</div>
 
 								<!-- Attachments Field -->

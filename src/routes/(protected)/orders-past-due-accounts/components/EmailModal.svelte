@@ -177,6 +177,19 @@
 		}
 	}
 
+	function handleEmailBlur(event: FocusEvent, list: string[]) {
+		const input = event.target as HTMLInputElement;
+		const email = input.value.trim();
+		if (email) {
+			if (list === cc) {
+				cc = addEmailToList(cc, email);
+			} else if (list === bcc) {
+				bcc = addEmailToList(bcc, email);
+			}
+			input.value = '';
+		}
+	}
+
 	async function sendEmail() {
 		// Get the HTML content from Quill editor
 		if (quillEditor) {
@@ -499,8 +512,9 @@
 											type="email"
 											id="email-cc"
 											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											placeholder="Type email and press Enter or comma to add"
+											placeholder="Type email and press Enter, comma, or leave field to add"
 											on:keydown={(event) => handleEmailKeydown(event, cc, event.target)}
+											on:blur={(event) => handleEmailBlur(event, cc)}
 										/>
 									</div>
 								</div>
@@ -534,8 +548,9 @@
 											type="email"
 											id="email-bcc"
 											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											placeholder="Type email and press Enter or comma to add"
+											placeholder="Type email and press Enter, comma, or leave field to add"
 											on:keydown={(event) => handleEmailKeydown(event, bcc, event.target)}
+											on:blur={(event) => handleEmailBlur(event, bcc)}
 										/>
 									</div>
 								</div>

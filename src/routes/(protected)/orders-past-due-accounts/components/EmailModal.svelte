@@ -155,45 +155,99 @@
 		isLoading = true;
 
 		try {
-			// Convert attachments to the required format
-			const attachmentPromises = attachments.map(async (file) => ({
-				name: file.name,
-				contentBytes: await fileToBase64(file)
-			}));
+			// Retry configuration
+			const maxRetries = 2;
+			const baseDelay = 1000; // 1 second
 
-			const emailAttachments = await Promise.all(attachmentPromises);
-
-			const emailData = {
-				sender,
-				email: {
-					to,
-					cc,
-					bcc,
-					subject,
-					body,
-					attachments: emailAttachments
-				}
-			};
-
-			const response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(emailData)
-			});
-
-			// Try to log response body if available
+		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				const responseClone = response.clone();
-				const responseBody = await responseClone.text();
-			} catch (logError) {
-				// Could not log response body
-			}
+				// Convert attachments to the required format
+				const attachmentPromises = attachments.map(async (file) => ({
+					name: file.name,
+					contentBytes: await fileToBase64(file)
+				}));
 
-			if (!response.ok) {
-				throw new Error(`Failed to send email: ${response.status} ${response.statusText}`);
+				const emailAttachments = await Promise.all(attachmentPromises);
+
+				const emailData = {
+					sender,
+					email: {
+						to,
+						cc,
+						bcc,
+						subject,
+						body,
+						attachments: emailAttachments
+					}
+				};
+
+				// Create AbortController for timeout handling
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+				let response;
+				try {
+					response = await fetch('https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify(emailData),
+						signal: controller.signal
+					});
+				} finally {
+					clearTimeout(timeoutId);
+				}
+
+				// Try to log response body if available
+				try {
+					const responseClone = response.clone();
+					const responseBody = await responseClone.text();
+				} catch (logError) {
+					// Could not log response body
+				}
+
+				if (!response.ok) {
+					// For 5xx errors, retry if we have attempts left
+					if (response.status >= 500 && attempt < maxRetries) {
+						const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+						console.warn(`Email send failed with ${response.status}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+						await new Promise(resolve => setTimeout(resolve, delay));
+						continue;
+					}
+					throw new Error(`Failed to send email: ${response.status} ${response.statusText}`);
+				}
+
+				// Success - break out of retry loop
+				break;
+
+			} catch (fetchError) {
+				// Handle different types of errors
+				const error = fetchError as Error;
+
+				if (error.name === 'AbortError') {
+					// Timeout occurred
+					if (attempt < maxRetries) {
+						const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+						console.warn(`Email send timed out, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+						await new Promise(resolve => setTimeout(resolve, delay));
+						continue;
+					}
+					throw new Error('Email send timed out after multiple attempts. The email service may be experiencing issues.');
+				}
+
+				// Network errors - retry if we have attempts left
+				if ((error.message.includes('fetch') || error.message.includes('network')) && attempt < maxRetries) {
+					const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
+					console.warn(`Network error during email send, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries + 1}):`, error.message);
+					await new Promise(resolve => setTimeout(resolve, delay));
+					continue;
+				}
+
+				// Re-throw the error if no more retries or it's not a retryable error
+				throw error;
 			}
+		}
 
 			// Email sent successfully
 
@@ -261,7 +315,25 @@
 				stack: error instanceof Error ? error.stack : undefined,
 				timestamp: new Date().toISOString()
 			});
-			alert('Failed to send email. Please try again.');
+
+			// Provide user-friendly error messages based on error type
+			let errorMessage = 'Failed to send email. Please try again.';
+
+			if (error instanceof Error) {
+				if (error.message.includes('timed out')) {
+					errorMessage = 'Email service is taking too long to respond. This may be due to high server load. Please try again in a few minutes.';
+				} else if (error.message.includes('Failed to send email: 504')) {
+					errorMessage = 'Email service temporarily unavailable (Gateway Timeout). Please try again in a few minutes.';
+				} else if (error.message.includes('Failed to send email: 502') || error.message.includes('Failed to send email: 503')) {
+					errorMessage = 'Email service is currently experiencing issues. Please try again later.';
+				} else if (error.message.includes('Failed to send email: 500')) {
+					errorMessage = 'Internal server error occurred while sending email. Please contact support if this persists.';
+				} else if (error.message.includes('fetch') || error.message.includes('network')) {
+					errorMessage = 'Network connection issue. Please check your internet connection and try again.';
+				}
+			}
+
+			alert(errorMessage);
 		} finally {
 			isLoading = false;
 		}

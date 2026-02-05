@@ -329,6 +329,11 @@
 			action: 'UpdateCustomer'
 		};
 
+		// Log payload after changing email
+		if (field === 'EmailAddress') {
+			console.log('Email update payload:', payload);
+		}
+
 		// UI Optimistic Update or Loading State?
 		// User didn't request optimistic UI, but usually safer to wait.
 		// Let's add a local loading indicator if possible, or just reuse global isLoading?
@@ -351,6 +356,12 @@
 			// Assume success if no error? Or check Ack?
 			// The previous fetch checked for Ack === 'Success'.
 			const data = await response.json();
+
+			// Log API response after changing email
+			if (field === 'EmailAddress') {
+				console.log('Email update API response:', data);
+			}
+
 			if (data.Ack !== 'Success') {
 				throw new Error('API returned unsuccessful acknowledgment');
 			}

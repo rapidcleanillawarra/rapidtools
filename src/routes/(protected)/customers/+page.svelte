@@ -9,9 +9,11 @@
 		getCustomerName,
 		getCompanyName,
 		getPersonName,
-		getAccountManagerName
+		getAccountManagerName,
+		validateEmail,
+		getEmailValidationError
 	} from './utils';
-	import { toastSuccess } from '$lib/utils/toast';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
 
 	// Stores
@@ -236,9 +238,14 @@
 	// Inline editing state
 	let editingCell: { username: string; field: string } | null = null;
 	let editValue: string = '';
+	let emailValidationError: string | null = null;
+	let isSavingEmail: boolean = false;
 
 	function startEditing(customer: Customer, field: string) {
 		editingCell = { username: customer.Username, field };
+		emailValidationError = null;
+		isSavingEmail = false;
+
 		// Initialize editValue based on the field
 		if (field === 'managerName') {
 			editValue = customer.managerName || '';
@@ -246,12 +253,16 @@
 			editValue = customer.OnCreditHold || 'False';
 		} else if (field === 'DefaultInvoiceTerms') {
 			editValue = customer.DefaultInvoiceTerms || '';
+		} else if (field === 'EmailAddress') {
+			editValue = customer.EmailAddress || '';
 		}
 	}
 
 	function cancelEditing() {
 		editingCell = null;
 		editValue = '';
+		emailValidationError = null;
+		isSavingEmail = false;
 	}
 
 	async function saveEdit() {
@@ -302,13 +313,17 @@
 		const payloadDefaultInvoiceTerms =
 			field === 'DefaultInvoiceTerms' ? editValue : customer.DefaultInvoiceTerms;
 
+		const payloadEmailAddress =
+			field === 'EmailAddress' ? editValue : customer.EmailAddress;
+
 		const payload = {
 			Customer: [
 				{
 					Username: username,
 					DefaultInvoiceTerms: payloadDefaultInvoiceTerms,
 					OnCreditHold: payloadOnCreditHold,
-					AccountManager: payloadAccountManager
+					AccountManager: payloadAccountManager,
+					EmailAddress: payloadEmailAddress
 				}
 			],
 			action: 'UpdateCustomer'
@@ -367,6 +382,8 @@
 					updated.OnCreditHold = editValue; // 'True' or 'False'
 				} else if (field === 'DefaultInvoiceTerms') {
 					updated.DefaultInvoiceTerms = editValue;
+				} else if (field === 'EmailAddress') {
+					updated.EmailAddress = editValue;
 				}
 				return updated;
 			};
@@ -378,8 +395,68 @@
 			cancelEditing();
 		} catch (err) {
 			console.error('Error updating customer:', err);
-			alert('Failed to update customer: ' + (err instanceof Error ? err.message : 'Unknown error'));
+			toastError('Failed to update customer', err instanceof Error ? err.message : 'Unknown error');
 		}
+	}
+
+	// Handle email editing validation and save
+	function handleEmailValidation() {
+		if (!editingCell || editingCell.field !== 'EmailAddress') return;
+
+		emailValidationError = getEmailValidationError(editValue);
+	}
+
+	async function saveEmailEdit() {
+		if (!editingCell || editingCell.field !== 'EmailAddress') return;
+
+		// Validate email before saving
+		const validationError = getEmailValidationError(editValue);
+		if (validationError) {
+			emailValidationError = validationError;
+			return;
+		}
+
+		isSavingEmail = true;
+		emailValidationError = null;
+
+		try {
+			await saveEdit();
+		} catch (err) {
+			console.error('Error updating email:', err);
+			toastError('Failed to update email address', err instanceof Error ? err.message : 'Unknown error');
+		} finally {
+			isSavingEmail = false;
+		}
+	}
+
+	// Handle email input changes with real-time validation
+	function handleEmailInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		editValue = target.value;
+
+		// Real-time validation
+		handleEmailValidation();
+	}
+
+	// Handle email keyboard events
+	function handleEmailKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			saveEmailEdit();
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			cancelEditing();
+		}
+	}
+
+	// Focus management action for input elements
+	function focusInput(node: HTMLInputElement) {
+		// Focus the input and position cursor at the end
+		node.focus();
+		// Use setTimeout to ensure the input is focused before setting cursor position
+		setTimeout(() => {
+			node.selectionStart = node.selectionEnd = node.value.length;
+		}, 0);
 	}
 
 	// Computed visible columns
@@ -547,7 +624,108 @@
 												{:else if column.key === 'displayName'}
 													{customer.displayName}
 												{:else if column.key === 'EmailAddress'}
-													{customer.EmailAddress || 'N/A'}
+													{#if editingCell?.username === customer.Username && editingCell?.field === 'EmailAddress'}
+														<div class="flex items-center gap-2">
+															<div class="relative flex-1">
+																<input
+																	type="email"
+																	bind:value={editValue}
+																	on:input={handleEmailInput}
+																	on:keydown={handleEmailKeydown}
+																	use:focusInput
+																	class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm {emailValidationError ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}"
+																	placeholder="Enter email address"
+																	aria-label="Email address"
+																	aria-invalid={emailValidationError ? 'true' : 'false'}
+																	aria-describedby={emailValidationError ? `email-error-${customer.Username}` : undefined}
+																	aria-busy={isSavingEmail}
+																	disabled={isSavingEmail}
+																/>
+																{#if isSavingEmail}
+																	<div class="absolute right-2 top-1/2 transform -translate-y-1/2">
+																		<div class="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+																	</div>
+																{/if}
+															</div>
+															<button
+																on:click={saveEmailEdit}
+																disabled={isSavingEmail || !!emailValidationError}
+																class="text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+																title="Save email address"
+																aria-label="Save email address"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M5 13l4 4L19 7"
+																	/>
+																</svg>
+															</button>
+															<button
+																on:click={cancelEditing}
+																disabled={isSavingEmail}
+																class="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+																title="Cancel editing"
+																aria-label="Cancel email editing"
+															>
+																<svg
+																	class="h-5 w-5"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M6 18L18 6M6 6l12 12"
+																	/>
+																</svg>
+															</button>
+														</div>
+														{#if emailValidationError}
+															<div
+																id="email-error-{customer.Username}"
+																class="mt-1 text-sm text-red-600"
+																role="alert"
+																aria-live="polite"
+															>
+																{emailValidationError}
+															</div>
+														{/if}
+													{:else}
+														<div class="group flex items-center justify-between">
+															<span class="break-all">{customer.EmailAddress || 'N/A'}</span>
+															<button
+																on:click={() => startEditing(customer, 'EmailAddress')}
+																class="text-gray-400 opacity-0 transition-opacity hover:text-blue-600 focus:opacity-100 group-hover:opacity-100"
+																title="Edit email address"
+																aria-label="Edit email address for {customer.customerName || customer.Username}"
+															>
+																<svg
+																	class="h-4 w-4"
+																	fill="none"
+																	stroke="currentColor"
+																	viewBox="0 0 24 24"
+																	xmlns="http://www.w3.org/2000/svg"
+																>
+																	<path
+																		stroke-linecap="round"
+																		stroke-linejoin="round"
+																		stroke-width="2"
+																		d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+																	/>
+																</svg>
+															</button>
+														</div>
+													{/if}
 												{:else if column.key === 'phone'}
 													{customer.BillingAddress.BillPhone || 'N/A'}
 												{:else if column.key === 'managerName'}

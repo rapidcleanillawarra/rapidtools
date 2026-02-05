@@ -177,3 +177,31 @@ export function getAccountManagerName(accountManager: any): string {
     if (!accountManager) return 'N/A';
     return `${accountManager.FirstName} ${accountManager.LastName}`;
 }
+
+/**
+ * Validates email address using RFC 5322 compliant regex pattern
+ * This is a comprehensive pattern that covers most valid email formats
+ */
+export function validateEmail(email: string): boolean {
+    if (!email || typeof email !== 'string') return false;
+
+    // RFC 5322 compliant email regex (simplified but comprehensive)
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+    return emailRegex.test(email.trim());
+}
+
+/**
+ * Gets validation error message for email
+ */
+export function getEmailValidationError(email: string): string | null {
+    if (!email || email.trim() === '') {
+        return 'Email address is required';
+    }
+
+    if (!validateEmail(email)) {
+        return 'Please enter a valid email address';
+    }
+
+    return null;
+}

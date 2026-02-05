@@ -11,7 +11,8 @@
 		getPersonName,
 		getAccountManagerName,
 		validateEmail,
-		getEmailValidationError
+		getEmailValidationError,
+		parseUsernameFilter
 	} from './utils';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import ColumnVisibilityControls from './ColumnVisibilityControls.svelte';
@@ -44,6 +45,12 @@
 	const initialVisibility = storedVisibility ? JSON.parse(storedVisibility) : defaultVisibility;
 
 	const visibleColumns = writable<Record<string, boolean>>(initialVisibility);
+
+	// Username filter stores
+	const usernameFilterText = writable<string>('');
+	const parsedUsernameFilter = derived(usernameFilterText, $usernameFilterText =>
+		parseUsernameFilter($usernameFilterText)
+	);
 
 	// Save to localStorage when visibility changes
 	visibleColumns.subscribe((value) => {
@@ -180,7 +187,7 @@
 	$: {
 		clearTimeout(filterTimeout);
 		filterTimeout = window.setTimeout(() => {
-			const filtered = filterCustomers($originalData, $searchFilters);
+			const filtered = filterCustomers($originalData, $searchFilters, $parsedUsernameFilter);
 			tableData.set(filtered);
 			const currentSig = JSON.stringify($searchFilters);
 			const filtersChanged = currentSig !== lastFiltersSig;
@@ -560,6 +567,53 @@
 				onShowAll={showAllColumns}
 				onHideAll={hideAllColumns}
 			/>
+
+			<!-- Username Filter Section -->
+			<div class="mb-6 rounded-lg bg-white p-6 shadow-md">
+				<div class="mb-4">
+					<h3 class="text-lg font-medium text-gray-900">Filter by Usernames</h3>
+					<p class="mt-1 text-sm text-gray-600">
+						Enter usernames separated by commas or new lines. Only customers with matching usernames will be shown.
+					</p>
+				</div>
+				<div class="space-y-4">
+					<div>
+						<label for="username-filter" class="block text-sm font-medium text-gray-700">
+							Usernames
+						</label>
+						<textarea
+							id="username-filter"
+							bind:value={$usernameFilterText}
+							placeholder="Enter usernames, one per line or separated by commas&#10;Example:&#10;john.doe&#10;jane.smith, bob.wilson"
+							rows="4"
+							class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+							aria-describedby="username-filter-description"
+						></textarea>
+						<p id="username-filter-description" class="mt-2 text-sm text-gray-500">
+							Separate usernames with commas (,) or new lines. Whitespace will be trimmed automatically.
+						</p>
+					</div>
+					{#if $parsedUsernameFilter.length > 0}
+						<div class="rounded-md bg-blue-50 p-4">
+							<div class="flex">
+								<div class="flex-shrink-0">
+									<svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+										<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+									</svg>
+								</div>
+								<div class="ml-3">
+									<h3 class="text-sm font-medium text-blue-800">
+										Filtering by {$parsedUsernameFilter.length} username{$parsedUsernameFilter.length === 1 ? '' : 's'}
+									</h3>
+									<div class="mt-2 text-sm text-blue-700">
+										<p>Showing only customers with usernames: {$parsedUsernameFilter.join(', ')}</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					{/if}
+				</div>
+			</div>
 
 			<!-- Customers Table -->
 			<div class="overflow-hidden rounded-lg bg-white shadow-md">

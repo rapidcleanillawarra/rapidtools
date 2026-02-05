@@ -99,7 +99,8 @@ export function sortData(
 
 export function filterCustomers(
     customers: Customer[],
-    searchFilters: Record<string, string>
+    searchFilters: Record<string, string>,
+    usernameFilter?: string[]
 ): Customer[] {
     let filtered = customers;
 
@@ -146,6 +147,14 @@ export function filterCustomers(
                 return fieldValue.toLowerCase().includes(value.toLowerCase());
             });
         }
+    }
+
+    // Apply username filter if provided
+    if (usernameFilter && usernameFilter.length > 0) {
+        filtered = filtered.filter((customer) => {
+            const customerUsername = (customer.Username || '').toLowerCase();
+            return usernameFilter.some(filterUsername => customerUsername === filterUsername);
+        });
     }
 
     return filtered;
@@ -204,4 +213,20 @@ export function getEmailValidationError(email: string): string | null {
     }
 
     return null;
+}
+
+/**
+ * Parses username filter input into normalized array
+ * Supports comma and newline separators, trims whitespace, removes empty entries, converts to lowercase
+ */
+export function parseUsernameFilter(input: string): string[] {
+    if (!input || typeof input !== 'string') {
+        return [];
+    }
+
+    return input
+        .split(/[,\n]/) // Split on commas and newlines
+        .map(username => username.trim()) // Trim whitespace
+        .filter(username => username.length > 0) // Remove empty entries
+        .map(username => username.toLowerCase()); // Convert to lowercase
 }

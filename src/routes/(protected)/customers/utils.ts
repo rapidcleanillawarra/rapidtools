@@ -100,7 +100,8 @@ export function sortData(
 export function filterCustomers(
     customers: Customer[],
     searchFilters: Record<string, string>,
-    usernameFilter?: string[]
+    usernameFilter?: string[],
+    emailFilter?: string[]
 ): Customer[] {
     let filtered = customers;
 
@@ -154,6 +155,14 @@ export function filterCustomers(
         filtered = filtered.filter((customer) => {
             const customerUsername = (customer.Username || '').toLowerCase();
             return usernameFilter.some(filterUsername => customerUsername === filterUsername);
+        });
+    }
+
+    // Apply email filter if provided
+    if (emailFilter && emailFilter.length > 0) {
+        filtered = filtered.filter((customer) => {
+            const customerEmail = (customer.EmailAddress || '').toLowerCase();
+            return emailFilter.some(filterEmail => customerEmail === filterEmail);
         });
     }
 
@@ -229,4 +238,20 @@ export function parseUsernameFilter(input: string): string[] {
         .map(username => username.trim()) // Trim whitespace
         .filter(username => username.length > 0) // Remove empty entries
         .map(username => username.toLowerCase()); // Convert to lowercase
+}
+
+/**
+ * Parses email filter input into normalized array
+ * Supports comma and newline separators, trims whitespace, removes empty entries, converts to lowercase
+ */
+export function parseEmailFilter(input: string): string[] {
+    if (!input || typeof input !== 'string') {
+        return [];
+    }
+
+    return input
+        .split(/[,\n]/) // Split on commas and newlines
+        .map(email => email.trim()) // Trim whitespace
+        .filter(email => email.length > 0) // Remove empty entries
+        .map(email => email.toLowerCase()); // Convert to lowercase
 }

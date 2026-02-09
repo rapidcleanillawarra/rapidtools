@@ -330,6 +330,10 @@ export async function triggerInvoiceEmail(orderId: string): Promise<any> {
 		const data = await response.text(); // XML response, so get as text
 		console.log('Email trigger response:', data);
 
+		// Log the parsed JSON response
+		const jsonResponse = JSON.parse(data);
+		console.log('Parsed Power Automate response:', jsonResponse);
+
 		return data;
 	} catch (error) {
 		console.error('Error triggering invoice email:', error);

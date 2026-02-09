@@ -118,6 +118,7 @@
 
 		// Set loading state
 		isRetrying.add(log.id);
+		isRetrying = new Set(isRetrying);
 
 		try {
 			let emailToUse: string | null = null;
@@ -165,6 +166,7 @@
 			toastError(error instanceof Error ? error.message : 'Failed to retry email');
 		} finally {
 			isRetrying.delete(log.id);
+			isRetrying = new Set(isRetrying);
 		}
 	}
 
@@ -193,9 +195,12 @@
 		const { email } = event.detail;
 
 		if (pendingRetryLog) {
+			const logToRetry = pendingRetryLog;
 			// Continue with the retry process using the provided email
-			proceedWithEmailRetry(pendingRetryLog, email).finally(() => {
-				// Clear pending state regardless of success/failure
+			proceedWithEmailRetry(logToRetry, email).finally(() => {
+				// Clear loading state and pending state regardless of success/failure
+				isRetrying.delete(logToRetry.id);
+				isRetrying = new Set(isRetrying);
 				pendingRetryLog = null;
 			});
 		}
@@ -210,6 +215,7 @@
 		// Clear loading state for the pending log if it exists
 		if (pendingRetryLog) {
 			isRetrying.delete(pendingRetryLog.id);
+			isRetrying = new Set(isRetrying);
 		}
 
 		// Clear pending state

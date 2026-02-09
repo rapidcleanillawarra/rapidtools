@@ -19,59 +19,63 @@ function toFilterBoolean(value?: YesNoAll): boolean | undefined {
 	return undefined;
 }
 
+function recordMatchesFilters(record: InvoiceSendLog, filters?: InvoiceSendLogQuery['filters']): boolean {
+	if (!filters) return true;
+	const emailSent = toFilterBoolean(filters.emailSent);
+	if (emailSent !== undefined && record.email_sent !== emailSent) return false;
+	const emailBounced = toFilterBoolean(filters.emailBounced);
+	if (emailBounced !== undefined && record.email_bounced !== emailBounced) return false;
+	const pdfExists = toFilterBoolean(filters.pdfExists);
+	if (pdfExists !== undefined && record.pdf_exists !== pdfExists) return false;
+	const orderDetails = toFilterBoolean(filters.orderDetails);
+	if (orderDetails !== undefined && record.order_details !== orderDetails) return false;
+	return true;
+}
+
 export async function fetchInvoiceSendLogs(query: InvoiceSendLogQuery): Promise<InvoiceSendLogResult> {
 	const { page, perPage, sortField, sortDirection, search, filters } = query;
 	const safePage = Math.max(1, page);
 	const safePerPage = Math.max(1, perPage);
 
-	// First, apply all filters to get candidate records
-	let filteredRequest = supabase.from(TABLE).select('*');
+	// Apply only search filters to get candidate records (no yes/no filters yet)
+	let baseRequest = supabase.from(TABLE).select('*');
 
 	const orderId = search?.orderId?.trim();
-	if (orderId) filteredRequest = filteredRequest.ilike('order_id', `%${orderId}%`);
+	if (orderId) baseRequest = baseRequest.ilike('order_id', `%${orderId}%`);
 
 	const customerEmail = search?.customerEmail?.trim();
-	if (customerEmail) filteredRequest = filteredRequest.ilike('customer_email', `%${customerEmail}%`);
+	if (customerEmail) baseRequest = baseRequest.ilike('customer_email', `%${customerEmail}%`);
 
 	const documentId = search?.documentId?.trim();
-	if (documentId) filteredRequest = filteredRequest.ilike('document_id', `%${documentId}%`);
+	if (documentId) baseRequest = baseRequest.ilike('document_id', `%${documentId}%`);
 
-	const emailSent = toFilterBoolean(filters?.emailSent);
-	if (emailSent !== undefined) filteredRequest = filteredRequest.eq('email_sent', emailSent);
-
-	const emailBounced = toFilterBoolean(filters?.emailBounced);
-	if (emailBounced !== undefined) filteredRequest = filteredRequest.eq('email_bounced', emailBounced);
-
-	const pdfExists = toFilterBoolean(filters?.pdfExists);
-	if (pdfExists !== undefined) filteredRequest = filteredRequest.eq('pdf_exists', pdfExists);
-
-	const orderDetails = toFilterBoolean(filters?.orderDetails);
-	if (orderDetails !== undefined) filteredRequest = filteredRequest.eq('order_details', orderDetails);
-
-	// Get all matching records to find distinct order_ids and their latest records
-	const { data: allFilteredData, error: filterError } = await filteredRequest
+	// Fetch all matching rows, then resolve latest record per order
+	const { data: allRows, error: fetchError } = await baseRequest
 		.not('order_id', 'is', null)
 		.order('order_id')
 		.order('created_at', { ascending: false });
 
-	if (filterError) {
-		console.error('Error fetching filtered invoice send logs:', filterError);
+	if (fetchError) {
+		console.error('Error fetching invoice send logs:', fetchError);
 		throw new Error('Failed to fetch invoice send logs');
 	}
 
-	if (!allFilteredData || allFilteredData.length === 0) {
+	if (!allRows || allRows.length === 0) {
 		return { data: [], total: 0 };
 	}
 
-	// Group by order_id and get the latest record for each
+	// Group by order_id and keep the latest record for each (first seen = most recent by created_at desc)
 	const latestRecordsMap = new Map<string, InvoiceSendLog>();
-	for (const record of allFilteredData) {
+	for (const record of allRows) {
 		if (!latestRecordsMap.has(record.order_id)) {
 			latestRecordsMap.set(record.order_id, record);
 		}
 	}
 
-	const distinctRecords = Array.from(latestRecordsMap.values());
+	// Apply yes/no filters on the latest record only (e.g. "Email sent = No" means latest record has email_sent === false)
+	let distinctRecords = Array.from(latestRecordsMap.values()).filter((r) =>
+		recordMatchesFilters(r, filters)
+	);
 
 	// Apply sorting to the distinct records
 	distinctRecords.sort((a, b) => {

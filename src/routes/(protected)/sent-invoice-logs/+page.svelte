@@ -35,6 +35,22 @@
 	let itemsPerPage = 25;
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
+	// Helper function to check if error is a timeout/network issue
+	function isTimeoutError(error: Error): boolean {
+		const message = error.message.toLowerCase();
+		return message.includes('504') ||
+			   message.includes('gateway timeout') ||
+			   message.includes('timeout') ||
+			   message.includes('network error');
+	}
+
+	// Helper function to get user-friendly error message
+	function getUserFriendlyErrorMessage(error: Error): string {
+		if (isTimeoutError(error)) {
+			return 'Email service is temporarily unavailable. Please try again in a few moments.';
+		}
+		return error.message || 'Failed to retry email';
+	}
 
 	// Retry email state
 	let isRetrying = new Set<string>();
@@ -163,7 +179,8 @@
 
 		} catch (error) {
 			console.error('Error during email retry process:', error);
-			toastError(error instanceof Error ? error.message : 'Failed to retry email');
+			const errorMessage = error instanceof Error ? getUserFriendlyErrorMessage(error) : 'Failed to retry email';
+			toastError(errorMessage);
 		} finally {
 			isRetrying.delete(log.id);
 			isRetrying = new Set(isRetrying);
@@ -188,7 +205,8 @@
 
 		} catch (error) {
 			console.error('Error in email retry process:', error);
-			toastError(error instanceof Error ? error.message : 'Failed to retry email');
+			const errorMessage = error instanceof Error ? getUserFriendlyErrorMessage(error) : 'Failed to retry email';
+			toastError(errorMessage);
 			throw error; // Re-throw to ensure loading state is cleared
 		}
 	}

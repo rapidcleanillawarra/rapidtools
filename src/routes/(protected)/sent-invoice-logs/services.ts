@@ -327,14 +327,19 @@ export async function triggerInvoiceEmail(orderId: string): Promise<any> {
 			throw new Error(`Email trigger API call failed: ${response.status} ${response.statusText}`);
 		}
 
-		const data = await response.text(); // XML response, so get as text
+		const data = await response.text(); // JSON response, so get as text
 		console.log('Email trigger response:', data);
 
-		// Log the parsed JSON response
+		// Parse the JSON response
 		const jsonResponse = JSON.parse(data);
 		console.log('Parsed Power Automate response:', jsonResponse);
 
-		return data;
+		// Check if email was sent successfully based on email_sent field
+		if (jsonResponse.email_sent === false) {
+			throw new Error('Email retry failed - Power Automate reported email_sent: false');
+		}
+
+		return jsonResponse;
 	} catch (error) {
 		console.error('Error triggering invoice email:', error);
 		throw error;

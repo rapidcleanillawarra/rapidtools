@@ -180,8 +180,10 @@
 			console.log('Step 5: Triggering invoice email');
 			await triggerInvoiceEmail(log.order_id!);
 
-			// Success - refresh the logs to show updated data
-			await loadLogs();
+			// Success - update the UI to show email sent for this log
+			logs = logs.map((l) =>
+				l.id === log.id ? { ...l, email_sent: true } : l
+			);
 			toastSuccess('Email retry completed successfully');
 
 		} catch (error) {

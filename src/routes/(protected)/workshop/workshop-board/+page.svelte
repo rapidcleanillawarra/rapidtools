@@ -66,13 +66,11 @@
 
   let visibleStatusCount = 0;
   let showAllStatuses = true;
-  let completedJobsCount = 0;
-  let scrappedJobsCount = 0;
 
   $: visibleStatusCount = Object.values(visibleStatuses).filter(Boolean).length;
   $: showAllStatuses = visibleStatusCount === BOARD_STATUS_KEYS.length;
 
-  $: activeWorkshops = workshops.filter((workshop) => BOARD_STATUS_KEY_SET.has(workshop.status));
+  $: activeWorkshops = workshops;
 
   $: {
     const normalizedSearch = searchFilter.trim().toLowerCase();
@@ -82,15 +80,6 @@
   }
 
   $: workshopsByStatus = groupWorkshopsByStatus(filteredWorkshops);
-
-  $: ({ completedJobsCount, scrappedJobsCount } = workshops.reduce(
-    (acc, workshop) => {
-      if (workshop.status === 'completed') acc.completedJobsCount += 1;
-      if (workshop.status === 'to_be_scrapped') acc.scrappedJobsCount += 1;
-      return acc;
-    },
-    { completedJobsCount: 0, scrappedJobsCount: 0 }
-  ));
 
   function createAllStatusesVisibility(value: boolean): Record<BoardStatusKey, boolean> {
     return BOARD_STATUS_KEYS.reduce(
@@ -144,7 +133,7 @@
     try {
       loading = true;
       error = null;
-      workshops = await getWorkshops();
+      workshops = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'] });
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to load workshops:', err);
       error = err instanceof Error ? err.message : 'Failed to load workshops';
@@ -467,7 +456,7 @@
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               ></path>
             </svg>
-            Completed Jobs ({completedJobsCount})
+            Completed Jobs
           </a>
           <a
             href="{base}/workshop/scrapped"
@@ -481,7 +470,7 @@
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
               />
             </svg>
-            To Be Scrapped ({scrappedJobsCount})
+            To Be Scrapped
           </a>
         </div>
       </div>

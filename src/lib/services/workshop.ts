@@ -414,6 +414,7 @@ export async function getWorkshops(filters?: {
   status?: string;
   customer_name?: string;
   limit?: number;
+  excludeStatuses?: string[];
 }): Promise<WorkshopRecord[]> {
   try {
     let query = supabase
@@ -421,6 +422,12 @@ export async function getWorkshops(filters?: {
       .select('*')
       .neq('status', 'deleted') // Exclude soft-deleted records
       .order('created_at', { ascending: false });
+
+    if (filters?.excludeStatuses?.length) {
+      for (const s of filters.excludeStatuses) {
+        query = query.neq('status', s);
+      }
+    }
 
     if (filters?.status) {
       query = query.eq('status', filters.status);

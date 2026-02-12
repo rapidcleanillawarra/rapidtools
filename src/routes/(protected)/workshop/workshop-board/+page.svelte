@@ -55,6 +55,7 @@
 
   // Filter states
   let searchFilter = '';
+  let showImages = false;
 
   // Status visibility states
   let visibleStatuses: Record<BoardStatusKey, boolean> = createAllStatusesVisibility(true);
@@ -544,6 +545,7 @@
                     workshops={workshopsByStatus[status.key]}
                     {draggedWorkshopId}
                     {recentlyMovedWorkshopId}
+                    {showImages}
                     on:click={handleCardClick}
                     on:photoClick={handleCardPhotoClick}
                     on:deleteClick={handleCardDeleteClick}

@@ -55,7 +55,6 @@
 
   // Filter states
   let searchFilter = '';
-  let showImages = false;
 
   // Status visibility states
   let visibleStatuses: Record<BoardStatusKey, boolean> = createAllStatusesVisibility(true);
@@ -393,14 +392,6 @@
         </div>
         <!-- Action Buttons -->
         <div class="flex items-center gap-3">
-          <button
-            type="button"
-            on:click={() => (showImages = !showImages)}
-            class="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
-            aria-pressed={showImages}
-          >
-            {showImages ? 'Hide Images' : 'Show Images'}
-          </button>
           <a
             href="{base}/workshop/form?workshop_id="
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -553,7 +544,6 @@
                     workshops={workshopsByStatus[status.key]}
                     {draggedWorkshopId}
                     {recentlyMovedWorkshopId}
-                    {showImages}
                     on:click={handleCardClick}
                     on:photoClick={handleCardPhotoClick}
                     on:deleteClick={handleCardDeleteClick}

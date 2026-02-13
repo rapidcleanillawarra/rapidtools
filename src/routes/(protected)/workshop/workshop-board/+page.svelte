@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
-  import { toastSuccess } from '$lib/utils/toast';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyPickupToTeams, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
+  import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
 
@@ -308,6 +308,13 @@
         `Workshop "${workshop.customer_name ?? 'Unknown Customer'}" moved to ${formatStatusForToast(nextStatus)}`,
         'Status Updated'
       );
+      if (nextStatus === 'pickup') {
+        notifyPickupToTeams(workshop).then((ok) => {
+          if (!ok) {
+            toastError('Teams notification failed. Status was updated.');
+          }
+        });
+      }
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to update workshop status:', workshopId, 'Error:', err);
       error = 'Failed to update workshop status';

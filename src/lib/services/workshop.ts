@@ -154,21 +154,25 @@ export interface WorkshopPhoto {
 const PICKUP_POWER_AUTOMATE_URL =
   'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
 
-function buildPickupHtmlBody(workshop: WorkshopRecord): string {
+function buildPickupHtmlBody(
+  workshop: WorkshopRecord,
+  status: 'pickup' | 'return'
+): string {
+  const header = status === 'return' ? 'FOR RETURN' : 'FOR PICK UP';
   const company =
     workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
   const firstName = workshop.customer_data?.BillingAddress?.BillFirstName ?? '';
   const lastName = workshop.customer_data?.BillingAddress?.BillLastName ?? '';
   const phone = workshop.customer_data?.BillingAddress?.BillPhone ?? workshop.contact_number ?? '';
-const contactName =
-      (`${firstName} ${lastName}`.trim() || workshop.customer_name) ?? 'N/A';
+  const contactName =
+    (`${firstName} ${lastName}`.trim() || workshop.customer_name) ?? 'N/A';
   const contactLine = phone ? `${contactName} - ${phone}` : contactName;
   const orderId = workshop.order_id ?? 'N/A';
   const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
   const fault = workshop.fault_description ?? 'N/A';
 
   return [
-    '<p><strong>FOR PICK UP</strong></p>',
+    `<p><strong>${header}</strong></p>`,
     `<p>Order #${orderId}</p>`,
     `<p>${escapeHtml(company)}</p>`,
     `<p>${escapeHtml(contactLine)}</p>`,
@@ -190,12 +194,15 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Notify Teams via Power Automate when a workshop is marked for pickup.
+ * Notify Teams via Power Automate when a workshop is marked for pickup or return.
  * Returns true on success, false on failure. Does not throw.
  */
-export async function notifyPickupToTeams(workshop: WorkshopRecord): Promise<boolean> {
+export async function notifyPickupToTeams(
+  workshop: WorkshopRecord,
+  status: 'pickup' | 'return' = 'pickup'
+): Promise<boolean> {
   try {
-    const body = buildPickupHtmlBody(workshop);
+    const body = buildPickupHtmlBody(workshop, status);
     const payload = { body, action: 'pickup_deliveries' };
 
     const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {

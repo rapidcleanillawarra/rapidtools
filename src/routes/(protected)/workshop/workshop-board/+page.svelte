@@ -308,8 +308,8 @@
         `Workshop "${workshop.customer_name ?? 'Unknown Customer'}" moved to ${formatStatusForToast(nextStatus)}`,
         'Status Updated'
       );
-      if (nextStatus === 'pickup') {
-        notifyPickupToTeams(workshop).then((ok) => {
+      if (nextStatus === 'pickup' || nextStatus === 'return') {
+        notifyPickupToTeams(workshop, nextStatus).then((ok) => {
           if (!ok) {
             toastError('Teams notification failed. Status was updated.');
           }

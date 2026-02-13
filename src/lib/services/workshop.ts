@@ -182,6 +182,25 @@ function buildPickupHtmlBody(
   ].join('\n');
 }
 
+function buildCompletedHtmlBody(workshop: WorkshopRecord, triggeredBy: string): string {
+  const company =
+    workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
+  const orderId = workshop.order_id ?? 'N/A';
+  const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
+  const fault = workshop.fault_description ?? 'N/A';
+
+  return [
+    '<p><strong>WORKSHOP COMPLETED</strong></p>',
+    `<p>Order #${escapeHtml(orderId)}</p>`,
+    `<p>${escapeHtml(company)}</p>`,
+    '<p><br></p>',
+    `<p>${escapeHtml(product)}</p>`,
+    `<p>${escapeHtml(fault)}</p>`,
+    '<p><br></p>',
+    `<p><strong>Marked as completed by: ${escapeHtml(triggeredBy)}</strong></p>`
+  ].join('\n');
+}
+
 function escapeHtml(text: string): string {
   const map: Record<string, string> = {
     '&': '&amp;',
@@ -204,6 +223,30 @@ export async function notifyPickupToTeams(
   try {
     const body = buildPickupHtmlBody(workshop, status);
     const payload = { body, action: 'pickup_deliveries' };
+
+    const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Notify Teams via Power Automate when a workshop is marked as completed.
+ * Returns true on success, false on failure. Does not throw.
+ */
+export async function notifyCompletedToTeams(
+  workshop: WorkshopRecord,
+  triggeredBy: string
+): Promise<boolean> {
+  try {
+    const body = buildCompletedHtmlBody(workshop, triggeredBy);
+    const payload = { body, action: 'workshop_completed' };
 
     const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
       method: 'POST',

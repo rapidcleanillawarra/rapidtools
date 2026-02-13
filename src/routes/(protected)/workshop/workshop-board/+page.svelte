@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyPickupToTeams, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
@@ -338,6 +338,15 @@
     try {
       await persistWorkshopStatusChange(workshop, 'completed');
       toastSuccess(`Workshop "${workshop.customer_name ?? 'Unknown Customer'}" marked as completed`, 'Workshop Completed');
+
+      const user = $currentUser;
+      const profile = $userProfile;
+      const triggeredBy = user
+        ? (profile ? `${profile.firstName} ${profile.lastName}`.trim() : user.displayName || user.email?.split('@')[0] || 'Unknown User') || 'Unknown User'
+        : 'Unknown User';
+      notifyCompletedToTeams(workshop, triggeredBy).then((ok) => {
+        if (!ok) toastError('Teams notification failed. Status was updated.');
+      });
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to complete workshop:', workshopId, 'Error:', err);
       error = 'Failed to complete workshop';

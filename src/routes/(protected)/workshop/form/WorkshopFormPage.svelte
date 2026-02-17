@@ -32,6 +32,7 @@
 	import WorkshopModals from './components/WorkshopModals.svelte';
 	import type { LocationType, QuoteOrRepairType, PartItem, JobStatus } from './types/types';
 	import { evaluateJobStatus } from './logic/jobStatus';
+	import { getScheduleKey, getScheduleLabel, formatPickupSchedule, getMinDateTime } from './utils/schedule';
 
 	// Machine Information
 	let locationOfMachine: LocationType = 'Site';
@@ -45,14 +46,7 @@
 	let schedules: any = null;
 
 	// Dynamic schedule key based on action
-	$: scheduleKey =
-		action === 'Pickup'
-			? 'pickup_schedule'
-			: action === 'Repair'
-				? 'repair_schedule'
-				: action === 'Deliver to Workshop'
-					? 'delivery_schedule'
-					: 'pickup_schedule';
+	$: scheduleKey = getScheduleKey(action);
 
 	// Computed property for schedule (dynamically named based on action)
 	$: pickupSchedule = schedules?.[scheduleKey] || '';
@@ -65,37 +59,9 @@
 		};
 	}
 
-	// Function to format pickup schedule for display
-	function formatPickupSchedule(datetimeString: string): string {
-		if (!datetimeString) return '';
-
-		try {
-			const date = new Date(datetimeString);
-
-			// Format as "Sep 17, 2:30 PM"
-			return date.toLocaleDateString('en-US', {
-				month: 'short',
-				day: 'numeric',
-				hour: 'numeric',
-				minute: '2-digit',
-				hour12: true
-			});
-		} catch (error) {
-			console.warn('Error formatting pickup schedule:', error);
-			return datetimeString; // Return original string if formatting fails
-		}
-	}
 
 	// Get minimum date/time for pickup schedule (current date/time)
-	$: minDateTime = (() => {
-		const now = new Date();
-		const year = now.getFullYear();
-		const month = String(now.getMonth() + 1).padStart(2, '0');
-		const day = String(now.getDate()).padStart(2, '0');
-		const hours = String(now.getHours()).padStart(2, '0');
-		const minutes = String(now.getMinutes()).padStart(2, '0');
-		return `${year}-${month}-${day}T${hours}:${minutes}`;
-	})();
+	$: minDateTime = getMinDateTime();
 
 	// User Information
 	let customerName = '';
@@ -437,14 +403,7 @@
 		(workshopStatus === 'new' || !existingWorkshopId) && action === 'Pickup';
 
 	// Dynamic schedule label based on action
-	$: scheduleLabel =
-		action === 'Pickup'
-			? 'Pickup Schedule'
-			: action === 'Repair'
-				? 'Repair Schedule'
-				: action === 'Deliver to Workshop'
-					? 'Delivery Schedule'
-					: 'Schedule';
+	$: scheduleLabel = getScheduleLabel(action);
 
 	// Check referrer to determine if user came from camera page
 	$: if (typeof window !== 'undefined') {

@@ -23,6 +23,8 @@
   const STORAGE_KEY = 'price-lists-rows';
   const skuCheckUrl =
     'https://prod-03.australiasoutheast.logic.azure.com:443/workflows/151bc47e0ba4447b893d1c9fea9af46f/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=bRyr_oW-ud06XlU5VLhBqQ7tyU__jD3clEOGIEhax-Q';
+  const getOrderUrl =
+    'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
   let rows: Row[] = createEmptyRows();
   let mounted = false;
@@ -37,6 +39,9 @@
   let confirmDeleteId: string | null = null;
   let confirmDeleteName = '';
   let duplicatingId: string | null = null;
+  let orderId = '';
+  let loadingOrder = false;
+  let orderError = '';
 
   const sanitizePrice = (raw: string): string => {
     const numericOnly = raw.replace(/[^0-9.]/g, '');
@@ -182,6 +187,50 @@
     rows = createEmptyRows();
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(STORAGE_KEY);
+    }
+  };
+
+  type OrderLineResponse = { SKU?: string; UnitPrice?: string; Quantity?: string; OrderLineID?: string };
+  const loadFromOrder = async () => {
+    const id = orderId.trim();
+    if (!id) {
+      orderError = 'Enter an order ID';
+      return;
+    }
+    orderError = '';
+    loadingOrder = true;
+    try {
+      const payload = {
+        Filter: {
+          OrderID: [id],
+          OutputSelector: ['OrderLine', 'OrderLine.SKU', 'OrderLine.UnitPrice']
+        },
+        action: 'GetOrder'
+      };
+      const response = await fetch(getOrderUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data?.Ack !== 'Success' || !Array.isArray(data?.Order) || data.Order.length === 0) {
+        orderError = data?.Ack === 'Success' ? 'Order not found' : 'Failed to load order. Please try again.';
+        return;
+      }
+      const orderLines: OrderLineResponse[] = data.Order[0]?.OrderLine ?? [];
+      if (!orderLines.length) {
+        orderError = 'Order has no lines';
+        return;
+      }
+      rows = orderLines.map((line) => ({
+        sku: (line.SKU ?? '').toString().trim(),
+        price: sanitizePrice((line.UnitPrice ?? '').toString())
+      }));
+    } catch (error) {
+      console.error('Failed to load order', error);
+      orderError = 'Unable to load order. Please try again.';
+    } finally {
+      loadingOrder = false;
     }
   };
 
@@ -361,6 +410,25 @@
     </div>
 
     <div class="flex flex-wrap items-center gap-3">
+      <div class="flex items-center gap-2">
+        <label for="order-id" class="text-sm font-medium text-gray-700 sr-only">Order ID</label>
+        <input
+          id="order-id"
+          type="text"
+          class="rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Order ID (e.g. 26-0012347)"
+          bind:value={orderId}
+          on:keydown={(e) => e.key === 'Enter' && loadFromOrder()}
+        />
+        <button
+          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          type="button"
+          on:click={loadFromOrder}
+          disabled={loadingOrder}
+        >
+          {loadingOrder ? 'Loading…' : 'Load from order'}
+        </button>
+      </div>
       <button
         class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         type="button"
@@ -384,6 +452,9 @@
         {submitting ? 'Submitting...' : 'Submit'}
       </button>
     </div>
+    {#if orderError}
+      <p class="text-sm text-red-600">{orderError}</p>
+    {/if}
     {#if skuCheckError}
       <p class="text-sm text-red-600">{skuCheckError}</p>
     {/if}

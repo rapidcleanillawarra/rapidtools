@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
-  import { disableProduct, fetchDisabledProducts } from './services';
+  import { disableProduct, fetchDisabledProducts, updateDisabledProductReason } from './services';
   import type { ProductDisableFormData } from './types';
   import { emptyProductDisableForm } from './types';
   import {
@@ -31,6 +31,47 @@
 
   // Form state
   let productFormData: ProductDisableFormData = { ...emptyProductDisableForm };
+
+  // Inline edit state for reason
+  let editingId: string | null = null;
+  let editReason = '';
+  let savingReasonId: string | null = null;
+
+  function startEdit(row: DisabledProduct) {
+    editingId = row.id;
+    editReason = row.reason ?? '';
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    editReason = '';
+  }
+
+  async function saveEdit(id: string) {
+    if (editingId !== id) return;
+    const newReason = editReason.trim() || null;
+    savingReasonId = id;
+    try {
+      await updateDisabledProductReason(id, newReason);
+      cancelEdit();
+      await loadDisabledProducts();
+      toastSuccess('Reason updated');
+    } catch (err) {
+      toastError('Failed to update reason');
+      console.error(err);
+    } finally {
+      savingReasonId = null;
+    }
+  }
+
+  function handleReasonKeydown(id: string, e: KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveEdit(id);
+    } else if (e.key === 'Escape') {
+      cancelEdit();
+    }
+  }
 
   async function loadDisabledProducts() {
     isLoading.set(true);
@@ -267,8 +308,31 @@
                 <tr class="hover:bg-gray-50">
                   <td class="px-4 py-3 text-sm text-gray-900">{row.sku}</td>
                   <td class="px-4 py-3 text-sm text-gray-900">{row.replacement_product_sku}</td>
-                  <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={row.reason ?? ''}>
-                    {row.reason ?? '—'}
+                  <td class="px-4 py-3 text-sm text-gray-600 align-top">
+                    {#if editingId === row.id}
+                      <div class="flex items-start gap-1">
+                        <input
+                          type="text"
+                          bind:value={editReason}
+                          on:blur={() => saveEdit(row.id)}
+                          on:keydown={(e) => handleReasonKeydown(row.id, e)}
+                          class="min-w-[12rem] px-2 py-1.5 text-sm border border-orange-500 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          placeholder="Reason (optional)"
+                        />
+                        {#if savingReasonId === row.id}
+                          <span class="text-gray-400 text-xs self-center">Saving...</span>
+                        {/if}
+                      </div>
+                    {:else}
+                      <button
+                        type="button"
+                        on:click={() => startEdit(row)}
+                        class="text-left w-full max-w-xs truncate block hover:bg-gray-100 rounded px-1 -mx-1 py-0.5 -my-0.5"
+                        title={row.reason ?? 'Click to edit reason'}
+                      >
+                        {row.reason ?? '—'}
+                      </button>
+                    {/if}
                   </td>
                   <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                     {formatDate(row.created_at)}

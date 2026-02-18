@@ -139,3 +139,15 @@ export async function fetchDisabledProducts(): Promise<DisabledProduct[]> {
   }
   return (data ?? []) as DisabledProduct[];
 }
+
+export async function updateDisabledProductReason(id: string, reason: string | null): Promise<void> {
+  const { error } = await supabase
+    .from(DISABLED_PRODUCTS_TABLE)
+    .update({ reason: reason?.trim() || null })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating disabled product reason:', error);
+    throw error;
+  }
+}

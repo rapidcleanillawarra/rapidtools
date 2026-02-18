@@ -32,3 +32,14 @@ CREATE POLICY "Allow select for authenticated" ON disabled_products
 CREATE POLICY "Allow select for anon" ON disabled_products
   FOR SELECT TO anon
   USING (true);
+
+-- Allow updating reason (e.g. from table list)
+CREATE POLICY "Allow update for authenticated" ON disabled_products
+  FOR UPDATE TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+CREATE POLICY "Allow update for anon" ON disabled_products
+  FOR UPDATE TO anon
+  USING (true)
+  WITH CHECK (true);

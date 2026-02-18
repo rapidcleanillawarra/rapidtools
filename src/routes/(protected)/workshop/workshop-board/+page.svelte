@@ -296,6 +296,12 @@
     return status.replace(/_/g, ' ').toUpperCase();
   }
 
+  function formatAddress(workshop: WorkshopRecord): string {
+    if (!workshop.site_location) return '';
+
+    return ` (${workshop.site_location})`;
+  }
+
   async function persistWorkshopStatusChange(workshop: WorkshopRecord, newStatus: WorkshopRecord['status']) {
     const updatedHistory = addHistoryEntry(workshop, newStatus);
     await updateWorkshop(workshop.id, { status: newStatus, history: updatedHistory });
@@ -315,8 +321,9 @@
 
     try {
       await persistWorkshopStatusChange(workshop, nextStatus);
+      const addressInfo = (nextStatus === 'pickup' || nextStatus === 'return') ? formatAddress(workshop) : '';
       toastSuccess(
-        `Workshop "${workshop.customer_name ?? 'Unknown Customer'}" moved to ${formatStatusForToast(nextStatus)}`,
+        `Workshop "${workshop.customer_name ?? 'Unknown Customer'}"${addressInfo} moved to ${formatStatusForToast(nextStatus)}`,
         'Status Updated'
       );
     } catch (err) {

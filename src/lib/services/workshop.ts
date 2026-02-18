@@ -151,6 +151,115 @@ export interface WorkshopPhoto {
   created_at: string;
 }
 
+const PICKUP_POWER_AUTOMATE_URL =
+  'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
+
+function buildPickupHtmlBody(
+  workshop: WorkshopRecord,
+  status: 'pickup' | 'return'
+): string {
+  const header = status === 'return' ? 'FOR RETURN' : 'FOR PICK UP';
+  const company =
+    workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
+  const firstName = workshop.customer_data?.BillingAddress?.BillFirstName ?? '';
+  const lastName = workshop.customer_data?.BillingAddress?.BillLastName ?? '';
+  const phone = workshop.customer_data?.BillingAddress?.BillPhone ?? workshop.contact_number ?? '';
+  const contactName =
+    (`${firstName} ${lastName}`.trim() || workshop.customer_name) ?? 'N/A';
+  const contactLine = phone ? `${contactName} - ${phone}` : contactName;
+  const orderId = workshop.order_id ?? 'N/A';
+  const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
+  const fault = workshop.fault_description ?? 'N/A';
+
+  return [
+    `<p><strong>${header}</strong></p>`,
+    `<p>Order #${orderId}</p>`,
+    `<p>${escapeHtml(company)}</p>`,
+    `<p>${escapeHtml(contactLine)}</p>`,
+    '<p><br></p>',
+    `<p>${escapeHtml(product)}</p>`,
+    `<p>${escapeHtml(fault)}</p>`
+  ].join('\n');
+}
+
+function buildCompletedHtmlBody(workshop: WorkshopRecord, triggeredBy: string): string {
+  const company =
+    workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
+  const orderId = workshop.order_id ?? 'N/A';
+  const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
+  const fault = workshop.fault_description ?? 'N/A';
+
+  return [
+    '<p><strong>WORKSHOP COMPLETED</strong></p>',
+    `<p>Order #${escapeHtml(orderId)}</p>`,
+    `<p>${escapeHtml(company)}</p>`,
+    '<p><br></p>',
+    `<p>${escapeHtml(product)}</p>`,
+    `<p>${escapeHtml(fault)}</p>`,
+    '<p><br></p>',
+    `<p><strong>Marked as completed by: ${escapeHtml(triggeredBy)}</strong></p>`
+  ].join('\n');
+}
+
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+/**
+ * Notify Teams via Power Automate when a workshop is marked for pickup or return.
+ * Returns true on success, false on failure. Does not throw.
+ */
+export async function notifyPickupToTeams(
+  workshop: WorkshopRecord,
+  status: 'pickup' | 'return' = 'pickup'
+): Promise<boolean> {
+  try {
+    const body = buildPickupHtmlBody(workshop, status);
+    const payload = { body, action: 'pickup_deliveries' };
+
+    const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Notify Teams via Power Automate when a workshop is marked as completed.
+ * Returns true on success, false on failure. Does not throw.
+ */
+export async function notifyCompletedToTeams(
+  workshop: WorkshopRecord,
+  triggeredBy: string
+): Promise<boolean> {
+  try {
+    const body = buildCompletedHtmlBody(workshop, triggeredBy);
+    const payload = { body, action: 'workshop_completed' };
+
+    const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Create a new workshop record
  */
@@ -414,6 +523,7 @@ export async function getWorkshops(filters?: {
   status?: string;
   customer_name?: string;
   limit?: number;
+  excludeStatuses?: string[];
 }): Promise<WorkshopRecord[]> {
   try {
     let query = supabase
@@ -421,6 +531,12 @@ export async function getWorkshops(filters?: {
       .select('*')
       .neq('status', 'deleted') // Exclude soft-deleted records
       .order('created_at', { ascending: false });
+
+    if (filters?.excludeStatuses?.length) {
+      for (const s of filters.excludeStatuses) {
+        query = query.neq('status', s);
+      }
+    }
 
     if (filters?.status) {
       query = query.eq('status', filters.status);

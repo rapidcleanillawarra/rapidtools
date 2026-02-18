@@ -116,10 +116,18 @@
 
 	// Update print data when stores change
 	$: {
-		printData.customerGroupLabel = $selectedCustomerGroup
-			? $customerGroups.find((group) => group.value === $selectedCustomerGroup)?.label ||
-				'All Groups'
-			: 'All Groups';
+		if ($filterType === 'group' && $selectedCustomerGroup) {
+			printData.customerGroupLabel =
+				$customerGroups.find((group) => group.value === $selectedCustomerGroup)?.label ||
+				'All Groups';
+		} else if ($filterType === 'customer' && $selectedCustomer?.length) {
+			printData.customerGroupLabel =
+				$selectedCustomer.length === 1
+					? $selectedCustomer[0].label
+					: $selectedCustomer.map((c) => c.label).join(', ');
+		} else {
+			printData.customerGroupLabel = 'All Groups';
+		}
 
 		if ($dateFrom && $dateTo) {
 			printData.dateFrom = new Date($dateFrom);

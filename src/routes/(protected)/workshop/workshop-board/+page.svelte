@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
-  import { toastSuccess } from '$lib/utils/toast';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
+  import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
 
@@ -66,13 +66,11 @@
 
   let visibleStatusCount = 0;
   let showAllStatuses = true;
-  let completedJobsCount = 0;
-  let scrappedJobsCount = 0;
 
   $: visibleStatusCount = Object.values(visibleStatuses).filter(Boolean).length;
   $: showAllStatuses = visibleStatusCount === BOARD_STATUS_KEYS.length;
 
-  $: activeWorkshops = workshops.filter((workshop) => BOARD_STATUS_KEY_SET.has(workshop.status));
+  $: activeWorkshops = workshops;
 
   $: {
     const normalizedSearch = searchFilter.trim().toLowerCase();
@@ -82,15 +80,6 @@
   }
 
   $: workshopsByStatus = groupWorkshopsByStatus(filteredWorkshops);
-
-  $: ({ completedJobsCount, scrappedJobsCount } = workshops.reduce(
-    (acc, workshop) => {
-      if (workshop.status === 'completed') acc.completedJobsCount += 1;
-      if (workshop.status === 'to_be_scrapped') acc.scrappedJobsCount += 1;
-      return acc;
-    },
-    { completedJobsCount: 0, scrappedJobsCount: 0 }
-  ));
 
   function createAllStatusesVisibility(value: boolean): Record<BoardStatusKey, boolean> {
     return BOARD_STATUS_KEYS.reduce(
@@ -144,7 +133,7 @@
     try {
       loading = true;
       error = null;
-      workshops = await getWorkshops();
+      workshops = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'] });
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to load workshops:', err);
       error = err instanceof Error ? err.message : 'Failed to load workshops';
@@ -326,6 +315,13 @@
         `Workshop "${workshop.customer_name ?? 'Unknown Customer'}"${addressInfo} moved to ${formatStatusForToast(nextStatus)}`,
         'Status Updated'
       );
+      if (nextStatus === 'pickup' || nextStatus === 'return') {
+        notifyPickupToTeams(workshop, nextStatus).then((ok) => {
+          if (!ok) {
+            toastError('Teams notification failed. Status was updated.');
+          }
+        });
+      }
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to update workshop status:', workshopId, 'Error:', err);
       error = 'Failed to update workshop status';
@@ -349,6 +345,15 @@
     try {
       await persistWorkshopStatusChange(workshop, 'completed');
       toastSuccess(`Workshop "${workshop.customer_name ?? 'Unknown Customer'}" marked as completed`, 'Workshop Completed');
+
+      const user = $currentUser;
+      const profile = $userProfile;
+      const triggeredBy = user
+        ? (profile ? `${profile.firstName} ${profile.lastName}`.trim() : user.displayName || user.email?.split('@')[0] || 'Unknown User') || 'Unknown User'
+        : 'Unknown User';
+      notifyCompletedToTeams(workshop, triggeredBy).then((ok) => {
+        if (!ok) toastError('Teams notification failed. Status was updated.');
+      });
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to complete workshop:', workshopId, 'Error:', err);
       error = 'Failed to complete workshop';
@@ -411,14 +416,6 @@
         </div>
         <!-- Action Buttons -->
         <div class="flex items-center gap-3">
-          <button
-            type="button"
-            on:click={() => (showImages = !showImages)}
-            class="inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
-            aria-pressed={showImages}
-          >
-            {showImages ? 'Hide Images' : 'Show Images'}
-          </button>
           <a
             href="{base}/workshop/form?workshop_id="
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -474,7 +471,7 @@
                 d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
               ></path>
             </svg>
-            Completed Jobs ({completedJobsCount})
+            Completed Jobs
           </a>
           <a
             href="{base}/workshop/scrapped"
@@ -488,7 +485,7 @@
                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
               />
             </svg>
-            To Be Scrapped ({scrappedJobsCount})
+            To Be Scrapped
           </a>
         </div>
       </div>

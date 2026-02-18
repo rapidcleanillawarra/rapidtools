@@ -81,6 +81,10 @@
   const skuCheckUrl =
     'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
+  let orderId = '';
+  let loadingOrder = false;
+  let orderError = '';
+
   const getStaticStyle = (type: StaticItem['type']) => staticColorMap[type] ?? staticColorMap.page_break;
 
   const toBuilderItem = (row: Row, index: number): BuilderItem => ({
@@ -458,6 +462,67 @@
     }
   };
 
+  type OrderLineResponse = { SKU?: string; UnitPrice?: string; Quantity?: string; OrderLineID?: string };
+  const loadFromOrder = async () => {
+    const id = orderId.trim();
+    if (!id) {
+      orderError = 'Enter an order ID';
+      return;
+    }
+    orderError = '';
+    loadingOrder = true;
+    detailError = '';
+    try {
+      const payload = {
+        Filter: {
+          OrderID: [id],
+          OutputSelector: ['OrderLine', 'OrderLine.SKU', 'OrderLine.UnitPrice']
+        },
+        action: 'GetOrder'
+      };
+      const response = await fetch(skuCheckUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (data?.Ack !== 'Success' || !Array.isArray(data?.Order) || data.Order.length === 0) {
+        orderError = data?.Ack === 'Success' ? 'Order not found' : 'Failed to load order. Please try again.';
+        return;
+      }
+      const orderLines: OrderLineResponse[] = data.Order[0]?.OrderLine ?? [];
+      if (!orderLines.length) {
+        orderError = 'Order has no lines';
+        return;
+      }
+      const rawPrice = (v: string) => {
+        const s = sanitizePrice(v);
+        const n = parseFloat(s);
+        return Number.isFinite(n) ? n.toFixed(2) : s;
+      };
+      rows = orderLines.map((line) => ({
+        sku: (line.SKU ?? '').toString().trim(),
+        price: rawPrice((line.UnitPrice ?? '').toString())
+      }));
+      const skusToEnrich = rows.map((r) => r.sku).filter(Boolean);
+      if (skusToEnrich.length) {
+        try {
+          const detailMap = await fetchSkuDetails(skusToEnrich);
+          mergeSkuDetails(detailMap);
+          mergeBuilderDetails(detailMap);
+        } catch (err) {
+          console.error('Failed to load SKU details after order load', err);
+          detailError = 'Order loaded; some SKU details could not be fetched.';
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load order', error);
+      orderError = 'Unable to load order. Please try again.';
+    } finally {
+      loadingOrder = false;
+    }
+  };
+
   const insertBuilderItemFromEvent = (event: DragEvent, insertIndex?: number) => {
     const targetIndex = typeof insertIndex === 'number' ? insertIndex : builderItems.length;
     const data = event.dataTransfer?.getData('application/json');
@@ -718,6 +783,29 @@
           <p class="text-xs text-red-600">{filenameError}</p>
         {/if}
       </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <label for="order-id-build" class="text-sm font-medium text-gray-700 sr-only">Order ID</label>
+        <input
+          id="order-id-build"
+          type="text"
+          class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Order ID (e.g. 26-0012347)"
+          bind:value={orderId}
+          on:keydown={(e) => e.key === 'Enter' && loadFromOrder()}
+        />
+        <button
+          type="button"
+          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          on:click={loadFromOrder}
+          disabled={loadingOrder}
+        >
+          {loadingOrder ? 'Loading…' : 'Load from order'}
+        </button>
+      </div>
+      {#if orderError}
+        <p class="text-sm text-red-600">{orderError}</p>
+      {/if}
 
       <div class="grid gap-4 lg:grid-cols-2">
         <div class="bg-white px-4 py-3 border border-gray-200 rounded-lg space-y-3">

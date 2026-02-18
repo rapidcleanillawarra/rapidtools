@@ -96,7 +96,7 @@
       <!-- Quick Actions -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <a
-          href="{base}/workshop/create"
+          href="{base}/workshop/form"
           class="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +207,7 @@
           </div>
         {:else}
           <div class="p-6 text-center text-gray-500">
-            No workshops found. <a href="{base}/workshop/create" class="text-blue-600 hover:text-blue-800">Create your first workshop</a>
+            No workshops found. <a href="{base}/workshop/form" class="text-blue-600 hover:text-blue-800">Create your first workshop</a>
           </div>
         {/if}
       </div>

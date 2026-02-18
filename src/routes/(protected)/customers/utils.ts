@@ -99,7 +99,9 @@ export function sortData(
 
 export function filterCustomers(
     customers: Customer[],
-    searchFilters: Record<string, string>
+    searchFilters: Record<string, string>,
+    usernameFilter?: string[],
+    emailFilter?: string[]
 ): Customer[] {
     let filtered = customers;
 
@@ -148,6 +150,22 @@ export function filterCustomers(
         }
     }
 
+    // Apply username filter if provided
+    if (usernameFilter && usernameFilter.length > 0) {
+        filtered = filtered.filter((customer) => {
+            const customerUsername = (customer.Username || '').toLowerCase();
+            return usernameFilter.some(filterUsername => customerUsername === filterUsername);
+        });
+    }
+
+    // Apply email filter if provided
+    if (emailFilter && emailFilter.length > 0) {
+        filtered = filtered.filter((customer) => {
+            const customerEmail = (customer.EmailAddress || '').toLowerCase();
+            return emailFilter.some(filterEmail => customerEmail === filterEmail);
+        });
+    }
+
     return filtered;
 }
 
@@ -176,4 +194,64 @@ export function getAccountManagerName(accountManager: any): string {
     if (typeof accountManager === 'string') return accountManager || 'N/A';
     if (!accountManager) return 'N/A';
     return `${accountManager.FirstName} ${accountManager.LastName}`;
+}
+
+/**
+ * Validates email address using RFC 5322 compliant regex pattern
+ * This is a comprehensive pattern that covers most valid email formats
+ */
+export function validateEmail(email: string): boolean {
+    if (!email || typeof email !== 'string') return false;
+
+    // RFC 5322 compliant email regex (simplified but comprehensive)
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+    return emailRegex.test(email.trim());
+}
+
+/**
+ * Gets validation error message for email
+ */
+export function getEmailValidationError(email: string): string | null {
+    if (!email || email.trim() === '') {
+        return 'Email address is required';
+    }
+
+    if (!validateEmail(email)) {
+        return 'Please enter a valid email address';
+    }
+
+    return null;
+}
+
+/**
+ * Parses username filter input into normalized array
+ * Supports comma and newline separators, trims whitespace, removes empty entries, converts to lowercase
+ */
+export function parseUsernameFilter(input: string): string[] {
+    if (!input || typeof input !== 'string') {
+        return [];
+    }
+
+    return input
+        .split(/[,\n]/) // Split on commas and newlines
+        .map(username => username.trim()) // Trim whitespace
+        .filter(username => username.length > 0) // Remove empty entries
+        .map(username => username.toLowerCase()); // Convert to lowercase
+}
+
+/**
+ * Parses email filter input into normalized array
+ * Supports comma and newline separators, trims whitespace, removes empty entries, converts to lowercase
+ */
+export function parseEmailFilter(input: string): string[] {
+    if (!input || typeof input !== 'string') {
+        return [];
+    }
+
+    return input
+        .split(/[,\n]/) // Split on commas and newlines
+        .map(email => email.trim()) // Trim whitespace
+        .filter(email => email.length > 0) // Remove empty entries
+        .map(email => email.toLowerCase()); // Convert to lowercase
 }

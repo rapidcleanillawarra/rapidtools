@@ -3,9 +3,25 @@
   import { fade } from 'svelte/transition';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
-  import { disableProduct } from './services';
+  import { disableProduct, fetchDisabledProducts } from './services';
   import type { ProductDisableFormData } from './types';
   import { emptyProductDisableForm } from './types';
+  import {
+    originalData,
+    tableData,
+    isLoading,
+    tableError,
+    currentPage,
+    itemsPerPage,
+    sortField,
+    sortDirection,
+    searchQuery,
+    paginatedData,
+    totalPages
+  } from './stores';
+  import { getSortIcon, sortData, formatDate } from './utils';
+  import type { DisabledProduct } from './types';
+  import type { SortField } from './stores';
 
   // State
   let loading = false;
@@ -16,10 +32,51 @@
   // Form state
   let productFormData: ProductDisableFormData = { ...emptyProductDisableForm };
 
-  // Load on mount
+  async function loadDisabledProducts() {
+    isLoading.set(true);
+    tableError.set(null);
+    try {
+      const data = await fetchDisabledProducts();
+      originalData.set(data);
+      tableData.set(data);
+    } catch (e) {
+      tableError.set(e instanceof Error ? e.message : 'Failed to load disabled products');
+    } finally {
+      isLoading.set(false);
+    }
+  }
+
   onMount(() => {
-    // Initialize any necessary data
+    loadDisabledProducts();
   });
+
+  // Apply search and sort to table data
+  $: {
+    const query = $searchQuery.trim().toLowerCase();
+    let filtered = $originalData;
+    if (query) {
+      filtered = filtered.filter(
+        (row) =>
+          row.sku.toLowerCase().includes(query) ||
+          row.replacement_product_sku.toLowerCase().includes(query) ||
+          (row.reason ?? '').toLowerCase().includes(query)
+      );
+    }
+    const field = $sortField as keyof DisabledProduct;
+    if (field) {
+      filtered = sortData(filtered, field, $sortDirection);
+    }
+    tableData.set(filtered);
+    currentPage.set(1);
+  }
+
+  function handleSortClick(field: SortField) {
+    if (!field) return;
+    const nextDir =
+      $sortField === field && $sortDirection === 'asc' ? 'desc' : 'asc';
+    sortField.set(field);
+    sortDirection.set(nextDir);
+  }
 
   async function handleDisableProduct() {
     if (!productFormData.sku.trim()) {
@@ -36,6 +93,7 @@
     try {
       await disableProduct(productFormData.sku, productFormData.replacementProductSku, productFormData.reason);
       toastSuccess('Product disabled successfully');
+      await loadDisabledProducts();
     } catch (err) {
       toastError('Failed to disable product');
       console.error(err);
@@ -135,4 +193,129 @@
         </div>
       </form>
     </div>
+
+  <!-- Disabled Products Table -->
+  <div class="bg-white rounded-lg shadow p-6 mt-8">
+    <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <h2 class="text-xl font-semibold text-gray-900">Disabled Products</h2>
+      <div class="flex items-center gap-3">
+        <label for="disabled-search" class="text-sm text-gray-600 sr-only">Search</label>
+        <input
+          id="disabled-search"
+          type="text"
+          placeholder="Search SKU, replacement, or reason..."
+          bind:value={$searchQuery}
+          class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+        />
+      </div>
+    </div>
+
+    {#if $tableError}
+      <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+        {$tableError}
+      </div>
+    {:else}
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th
+                scope="col"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                on:click={() => handleSortClick('sku')}
+              >
+                SKU {getSortIcon('sku', $sortField, $sortDirection)}
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                on:click={() => handleSortClick('replacement_product_sku')}
+              >
+                Replacement SKU {getSortIcon('replacement_product_sku', $sortField, $sortDirection)}
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                on:click={() => handleSortClick('reason')}
+              >
+                Reason {getSortIcon('reason', $sortField, $sortDirection)}
+              </th>
+              <th
+                scope="col"
+                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                on:click={() => handleSortClick('created_at')}
+              >
+                Disabled at {getSortIcon('created_at', $sortField, $sortDirection)}
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            {#if $isLoading}
+              <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                  Loading...
+                </td>
+              </tr>
+            {:else if $paginatedData.length === 0}
+              <tr>
+                <td colspan="4" class="px-4 py-8 text-center text-gray-500">
+                  No disabled products found.
+                </td>
+              </tr>
+            {:else}
+              {#each $paginatedData as row (row.id)}
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 py-3 text-sm text-gray-900">{row.sku}</td>
+                  <td class="px-4 py-3 text-sm text-gray-900">{row.replacement_product_sku}</td>
+                  <td class="px-4 py-3 text-sm text-gray-600 max-w-xs truncate" title={row.reason ?? ''}>
+                    {row.reason ?? '—'}
+                  </td>
+                  <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                    {formatDate(row.created_at)}
+                  </td>
+                </tr>
+              {/each}
+            {/if}
+          </tbody>
+        </table>
+      </div>
+
+      {#if !$isLoading && $tableData.length > 0}
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-200 pt-3">
+          <div class="text-sm text-gray-600">
+            Showing {($currentPage - 1) * $itemsPerPage + 1}–{Math.min($currentPage * $itemsPerPage, $tableData.length)} of {$tableData.length}
+          </div>
+          <div class="flex items-center gap-3">
+            <select
+              bind:value={$itemsPerPage}
+              class="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            >
+              <option value={10}>10 per page</option>
+              <option value={20}>20 per page</option>
+              <option value={50}>50 per page</option>
+            </select>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                on:click={() => currentPage.update((p) => Math.max(1, p - 1))}
+                disabled={$currentPage === 1}
+                class="px-2 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <span class="px-2 text-sm text-gray-600">Page {$currentPage} of {$totalPages}</span>
+              <button
+                type="button"
+                on:click={() => currentPage.update((p) => Math.min($totalPages, p + 1))}
+                disabled={$currentPage >= $totalPages}
+                class="px-2 py-1 text-sm rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      {/if}
+    {/if}
+  </div>
 </div>

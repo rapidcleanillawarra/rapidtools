@@ -3,6 +3,7 @@
  */
 
 import { supabase } from '$lib/supabase';
+import type { DisabledProduct } from './types';
 
 const PRODUCTS_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
@@ -124,4 +125,17 @@ export async function deleteOrder(orderId: string, reason: string): Promise<any>
     console.error('Error cancelling order:', error);
     throw error;
   }
+}
+
+export async function fetchDisabledProducts(): Promise<DisabledProduct[]> {
+  const { data, error } = await supabase
+    .from(DISABLED_PRODUCTS_TABLE)
+    .select('id, sku, replacement_product_sku, reason, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching disabled products:', error);
+    throw error;
+  }
+  return (data ?? []) as DisabledProduct[];
 }

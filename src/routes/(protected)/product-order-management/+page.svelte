@@ -130,6 +130,11 @@
       return;
     }
 
+    if (!productFormData.reason.trim()) {
+      toastError('Reason is required');
+      return;
+    }
+
     isSubmitting = true;
     try {
       await disableProduct(productFormData.sku, productFormData.replacementProductSku, productFormData.reason);
@@ -202,14 +207,15 @@
         </div>
         <div>
           <label for="disable-reason" class="block text-sm font-medium text-gray-700 mb-1">
-            Reason
+            Reason <span class="text-red-500">*</span>
           </label>
           <textarea
             id="disable-reason"
             bind:value={productFormData.reason}
             rows="3"
             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
-            placeholder="Optional: reason for disabling this product"
+            placeholder="Reason for disabling this product"
+            required
           ></textarea>
         </div>
         <div class="flex justify-end">
@@ -306,8 +312,22 @@
             {:else}
               {#each $paginatedData as row (row.id)}
                 <tr class="hover:bg-gray-50">
-                  <td class="px-4 py-3 text-sm text-gray-900">{row.sku}</td>
-                  <td class="px-4 py-3 text-sm text-gray-900">{row.replacement_product_sku}</td>
+                  <td class="px-4 py-3 text-sm text-gray-900">
+                    <a
+                      href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku={encodeURIComponent(row.sku)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-orange-600 hover:text-orange-700 hover:underline"
+                    >{row.sku}</a>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-gray-900">
+                    <a
+                      href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku={encodeURIComponent(row.replacement_product_sku)}"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-orange-600 hover:text-orange-700 hover:underline"
+                    >{row.replacement_product_sku}</a>
+                  </td>
                   <td class="px-4 py-3 text-sm text-gray-600 align-top">
                     {#if editingId === row.id}
                       <div class="flex items-start gap-1">

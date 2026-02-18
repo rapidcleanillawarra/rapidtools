@@ -2,10 +2,13 @@
  * Product & Order Management API service functions
  */
 
+import { supabase } from '$lib/supabase';
 
 const PRODUCTS_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
-export async function disableProduct(sku: string, replacementProductSku: string): Promise<any> {
+const DISABLED_PRODUCTS_TABLE = 'disabled_products';
+
+export async function disableProduct(sku: string, replacementProductSku: string, reason: string = ''): Promise<any> {
   if (!sku) {
     throw new Error('SKU is required for product disable operation');
   }
@@ -49,6 +52,16 @@ export async function disableProduct(sku: string, replacementProductSku: string)
     // Check API response status
     if (data.Ack === 'Success') {
       console.log('Product disabled successfully:', data);
+      // Save to Supabase for audit/log
+      const { error: insertError } = await supabase.from(DISABLED_PRODUCTS_TABLE).insert({
+        sku: sku.trim(),
+        replacement_product_sku: replacementProductSku.trim(),
+        reason: reason?.trim() || null
+      });
+      if (insertError) {
+        console.error('Failed to save disabled product to Supabase:', insertError);
+        // Don't throw - API succeeded; log only
+      }
       return data;
     } else if (data.Ack === 'Warning' && data.Messages?.Warning?.Message) {
       throw new Error(data.Messages.Warning.Message);

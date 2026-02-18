@@ -42,8 +42,7 @@
 
     isSubmitting = true;
     try {
-      await disableProduct(productFormData.sku, productFormData.replacementProductSku);
-      closeDisableProductModal();
+      await disableProduct(productFormData.sku, productFormData.replacementProductSku, productFormData.reason);
       toastSuccess('Product disabled successfully');
     } catch (err) {
       toastError('Failed to disable product');
@@ -169,6 +168,18 @@
               required
             />
           </div>
+        </div>
+        <div>
+          <label for="disable-reason" class="block text-sm font-medium text-gray-700 mb-1">
+            Reason
+          </label>
+          <textarea
+            id="disable-reason"
+            bind:value={productFormData.reason}
+            rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-vertical"
+            placeholder="Optional: reason for disabling this product"
+          ></textarea>
         </div>
         <div class="flex justify-end">
           <button

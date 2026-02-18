@@ -5,6 +5,7 @@
 export interface ProductDisableFormData {
   sku: string;
   replacementProductSku: string;
+  reason: string;
 }
 
 export interface OrderDeleteFormData {
@@ -14,7 +15,8 @@ export interface OrderDeleteFormData {
 
 export const emptyProductDisableForm: ProductDisableFormData = {
   sku: '',
-  replacementProductSku: ''
+  replacementProductSku: '',
+  reason: ''
 };
 
 export const emptyOrderDeleteForm: OrderDeleteFormData = {

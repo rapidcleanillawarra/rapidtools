@@ -2403,8 +2403,8 @@
 				/>
 			</div>
 
-			<!-- Single Column Layout for Photos -->
-			<div class="grid grid-cols-1 gap-6">
+			<!-- Two-column layout: Photos | Files -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<!-- Photos -->
 				<div>
 					<PhotoManager
@@ -2417,10 +2417,6 @@
 						on:photoClick={(event) => openPhotoViewer(event.detail.photoIndex)}
 					/>
 				</div>
-			</div>
-
-			<!-- Single Column Layout for Files -->
-			<div class="grid grid-cols-1 gap-6">
 				<!-- Files -->
 				<div>
 					<FileManager
@@ -2450,9 +2446,15 @@
 				{docketInfoBackgroundClass}
 			/>
 
-			<CommentsSection {comments} bind:newComment {addComment} />
-
-			<HistorySection {history} />
+			<!-- Two-column layout: Comments | History -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div>
+					<CommentsSection {comments} bind:newComment {addComment} />
+				</div>
+				<div>
+					<HistorySection {history} />
+				</div>
+			</div>
 
 			<FormActions
 				{base}

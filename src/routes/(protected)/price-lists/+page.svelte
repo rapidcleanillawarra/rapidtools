@@ -63,8 +63,8 @@
       errors.price = 'Price is required';
     } else {
       const numeric = Number(priceText);
-      if (!Number.isFinite(numeric) || numeric <= 0) {
-        errors.price = 'Price must be greater than 0';
+      if (!Number.isFinite(numeric) || numeric < 0) {
+        errors.price = 'Price cannot be negative';
       } else if (!/^\d+(\.\d{1,2})?$/.test(priceText)) {
         errors.price = 'Max 2 decimal places';
       }
@@ -404,8 +404,8 @@
     <div class="space-y-1">
       <h1 class="text-2xl font-semibold text-gray-900">Price Lists</h1>
       <p class="text-sm text-gray-600">
-        Paste SKUs and discounted prices. Prices sanitize commas and currency symbols, must be greater than
-        zero, and support up to two decimals.
+        Paste SKUs and discounted prices. Prices sanitize commas and currency symbols, must be 0 or greater,
+        and support up to two decimals.
       </p>
     </div>
 

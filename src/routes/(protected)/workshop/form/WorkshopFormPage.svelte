@@ -12,7 +12,9 @@
 		cleanupOrphanedPhotos,
 		getWorkshop,
 		updateWorkshop,
-		deleteWorkshop
+		deleteWorkshop,
+		getTransportByWorkshopId,
+		upsertWorkshopTransport
 	} from '$lib/services/workshop';
 	import { fetchCustomerData, createOrder, cancelOrder } from '$lib/services/maropost';
 	import { onMount, onDestroy } from 'svelte';
@@ -26,6 +28,7 @@
 	import MachineInformationSection from './components/MachineInformationSection.svelte';
 	import UserInformationSection from './components/UserInformationSection.svelte';
 	import DocketInfoSection from './components/DocketInfoSection.svelte';
+	import TransportSection from './components/TransportSection.svelte';
 	import CommentsSection from './components/CommentsSection.svelte';
 	import HistorySection from './components/HistorySection.svelte';
 	import FormActions from './components/FormActions.svelte';
@@ -277,6 +280,11 @@
 	let workshopStatus: JobStatus = null;
 	let existingOrderId: string | null = null;
 	let createdAt: string | null = null;
+
+	// Transport assignment (when status is pickup or return)
+	let transportAssignedTo = '';
+	let transportAssignedToName = '';
+	let transportSchedule = '';
 
 	// Store for submit button text to ensure reactivity
 	const submitButtonTextStore = writable('Loading...');
@@ -588,6 +596,33 @@
 					}));
 				}
 			}
+
+			// Load transport assignment when status is pickup or return
+			if (
+				(workshop.status === 'pickup' || workshop.status === 'return') &&
+				workshopId
+			) {
+				try {
+					const transport = await getTransportByWorkshopId(
+						workshopId,
+						workshop.status as 'pickup' | 'return'
+					);
+					if (transport) {
+						transportAssignedTo = transport.assigned_to ?? '';
+						transportAssignedToName = transport.assigned_to_name ?? '';
+						transportSchedule = transport.schedule ?? '';
+					} else {
+						transportAssignedTo = '';
+						transportAssignedToName = '';
+						transportSchedule = '';
+					}
+				} catch (transportErr) {
+					console.error('Failed to load transport assignment:', transportErr);
+					transportAssignedTo = '';
+					transportAssignedToName = '';
+					transportSchedule = '';
+				}
+			}
 		} catch (error) {
 			console.error('Error loading workshop:', error);
 			toastError('Failed to load existing workshop. Please try again.');
@@ -866,6 +901,29 @@
 			}
 
 			updateProcessingStep('savingWorkshop', false, true);
+
+			// Persist transport assignment when status is pickup or return
+			if (
+				existingWorkshopId &&
+				(workshopStatus === 'pickup' || workshopStatus === 'return')
+			) {
+				try {
+					await upsertWorkshopTransport({
+						workshopId: existingWorkshopId,
+						jobStatus: workshopStatus as 'pickup' | 'return',
+						assignedTo: transportAssignedTo || null,
+						assignedToName: transportAssignedToName || null,
+						schedule: transportSchedule || null,
+						assignedBy: get(currentUser)?.email ?? null,
+						assignedByName: profile
+							? `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() || null
+							: (get(currentUser)?.displayName as string) ?? null
+					});
+				} catch (transportErr) {
+					console.error('Failed to save transport assignment:', transportErr);
+					toastError('Workshop saved but transport assignment could not be saved.');
+				}
+			}
 
 			// Now that workshop is saved and we have the ID, call Power Automate if needed
 			if (
@@ -1274,6 +1332,29 @@
 			.then(async (workshop) => {
 				updateProcessingStep('savingWorkshop', false, true);
 
+				// Persist transport assignment when status is pickup or return
+				if (
+					existingWorkshopId &&
+					(workshopStatus === 'pickup' || workshopStatus === 'return')
+				) {
+					try {
+						await upsertWorkshopTransport({
+							workshopId: existingWorkshopId,
+							jobStatus: workshopStatus as 'pickup' | 'return',
+							assignedTo: transportAssignedTo || null,
+							assignedToName: transportAssignedToName || null,
+							schedule: transportSchedule || null,
+							assignedBy: get(currentUser)?.email ?? null,
+							assignedByName: profile
+								? `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim() || null
+								: (get(currentUser)?.displayName as string) ?? null
+						});
+					} catch (transportErr) {
+						console.error('Failed to save transport assignment:', transportErr);
+						toastError('Workshop saved but transport assignment could not be saved.');
+					}
+				}
+
 				// Call Power Automate API if needed
 				if (
 					(shouldCreateOrder && generatedOrderId) ||
@@ -1604,6 +1685,10 @@
 		workshopStatus = null;
 		existingOrderId = null;
 		repairedStatusTransition = '';
+
+		transportAssignedTo = '';
+		transportAssignedToName = '';
+		transportSchedule = '';
 
 		// Clear photos - only revoke URLs for new photos created with URL.createObjectURL
 		photos.forEach((p) => {
@@ -2444,6 +2529,15 @@
 				{addPartRow}
 				{removePartRow}
 				{docketInfoBackgroundClass}
+			/>
+
+			<TransportSection
+				{workshopStatus}
+				bind:assignedTo={transportAssignedTo}
+				bind:assignedToName={transportAssignedToName}
+				bind:schedule={transportSchedule}
+				canEdit={currentJobStatus?.canEditMachineInfo ?? true}
+				minDateTime={minDateTime}
 			/>
 
 			<!-- Two-column layout: Comments | History -->

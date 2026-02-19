@@ -151,6 +151,21 @@ export interface WorkshopPhoto {
   created_at: string;
 }
 
+/** workshop_transport table record (assign person + schedule for pickup/return) */
+export interface WorkshopTransportRecord {
+  id: string;
+  workshop_id: string;
+  job_status: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  transport_status: 'new' | 'confirmed';
+  schedule: string | null;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 const PICKUP_POWER_AUTOMATE_URL =
   'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
 
@@ -512,6 +527,87 @@ export async function getWorkshop(id: string): Promise<WorkshopRecord | null> {
     return data as WorkshopRecord;
   } catch (error) {
     console.error('Error fetching workshop:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get transport assignment(s) for a workshop, optionally filtered by job_status (pickup | return)
+ */
+export async function getTransportByWorkshopId(
+  workshopId: string,
+  jobStatus?: 'pickup' | 'return'
+): Promise<WorkshopTransportRecord | null> {
+  try {
+    let query = supabase
+      .from('workshop_transport')
+      .select('*')
+      .eq('workshop_id', workshopId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (jobStatus) {
+      query = query.eq('job_status', jobStatus);
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return (row as WorkshopTransportRecord) ?? null;
+  } catch (error) {
+    console.error('Error fetching workshop transport:', error);
+    throw error;
+  }
+}
+
+/**
+ * Insert or update a workshop_transport row for a workshop (pickup or return).
+ * If a record exists for this workshop_id + job_status, it is updated; otherwise a new row is inserted.
+ */
+export async function upsertWorkshopTransport(params: {
+  workshopId: string;
+  jobStatus: 'pickup' | 'return';
+  assignedTo?: string | null;
+  assignedToName?: string | null;
+  schedule?: string | null;
+  assignedBy?: string | null;
+  assignedByName?: string | null;
+  transportStatus?: 'new' | 'confirmed';
+}): Promise<WorkshopTransportRecord> {
+  try {
+    const existing = await getTransportByWorkshopId(params.workshopId, params.jobStatus);
+    const payload = {
+      workshop_id: params.workshopId,
+      job_status: params.jobStatus,
+      assigned_to: params.assignedTo ?? null,
+      assigned_to_name: params.assignedToName ?? null,
+      schedule: params.schedule ?? null,
+      assigned_by: params.assignedBy ?? null,
+      assigned_by_name: params.assignedByName ?? null,
+      transport_status: params.transportStatus ?? 'new'
+    };
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('workshop_transport')
+        .update(payload)
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as WorkshopTransportRecord;
+    }
+
+    const { data, error } = await supabase
+      .from('workshop_transport')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as WorkshopTransportRecord;
+  } catch (error) {
+    console.error('Error upserting workshop transport:', error);
     throw error;
   }
 }

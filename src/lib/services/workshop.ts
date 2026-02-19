@@ -171,7 +171,8 @@ const PICKUP_POWER_AUTOMATE_URL =
 
 function buildPickupHtmlBody(
   workshop: WorkshopRecord,
-  status: 'pickup' | 'return'
+  status: 'pickup' | 'return',
+  options?: { assignedToName?: string | null; schedule?: string | null }
 ): string {
   const header = status === 'return' ? 'FOR RETURN' : 'FOR PICK UP';
   const company =
@@ -186,7 +187,7 @@ function buildPickupHtmlBody(
   const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
   const fault = workshop.fault_description ?? 'N/A';
 
-  return [
+  const lines: string[] = [
     `<p><strong>${header}</strong></p>`,
     `<p>Order #${orderId}</p>`,
     `<p>${escapeHtml(company)}</p>`,
@@ -194,7 +195,27 @@ function buildPickupHtmlBody(
     '<p><br></p>',
     `<p>${escapeHtml(product)}</p>`,
     `<p>${escapeHtml(fault)}</p>`
-  ].join('\n');
+  ];
+
+  if (options?.assignedToName?.trim()) {
+    lines.push('<p><br></p>', `<p><strong>Assigned to: ${escapeHtml(options.assignedToName.trim())}</strong></p>`);
+  }
+  if (options?.schedule?.trim()) {
+    try {
+      const scheduleDate = new Date(options.schedule);
+      if (!isNaN(scheduleDate.getTime())) {
+        const formatted = scheduleDate.toLocaleString(undefined, {
+          dateStyle: 'medium',
+          timeStyle: 'short'
+        });
+        lines.push(`<p><strong>Scheduled: ${escapeHtml(formatted)}</strong></p>`);
+      }
+    } catch {
+      lines.push(`<p><strong>Scheduled: ${escapeHtml(options.schedule)}</strong></p>`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 function buildCompletedHtmlBody(workshop: WorkshopRecord, triggeredBy: string): string {
@@ -229,14 +250,16 @@ function escapeHtml(text: string): string {
 
 /**
  * Notify Teams via Power Automate when a workshop is marked for pickup or return.
+ * Optional assignedToName and schedule are included in the notification body.
  * Returns true on success, false on failure. Does not throw.
  */
 export async function notifyPickupToTeams(
   workshop: WorkshopRecord,
-  status: 'pickup' | 'return' = 'pickup'
+  status: 'pickup' | 'return' = 'pickup',
+  options?: { assignedToName?: string | null; schedule?: string | null }
 ): Promise<boolean> {
   try {
-    const body = buildPickupHtmlBody(workshop, status);
+    const body = buildPickupHtmlBody(workshop, status, options);
     const payload = { body, action: 'pickup_deliveries' };
 
     const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {

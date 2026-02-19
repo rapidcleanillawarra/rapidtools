@@ -2536,7 +2536,7 @@
 				bind:assignedTo={transportAssignedTo}
 				bind:assignedToName={transportAssignedToName}
 				bind:schedule={transportSchedule}
-				canEdit={currentJobStatus?.canEditMachineInfo ?? true}
+				canEdit={workshopStatus === 'pickup' || workshopStatus === 'return'}
 				minDateTime={minDateTime}
 			/>
 

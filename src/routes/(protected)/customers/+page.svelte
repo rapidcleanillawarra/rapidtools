@@ -26,7 +26,24 @@
 	const sortField = writable<string>('company');
 	const sortDirection = writable<'asc' | 'desc'>('asc');
 	const currentPageStore = writable(1);
-	const itemsPerPage = writable(10);
+
+	// Rows per page with localStorage persistence
+	const ROWS_PER_PAGE_OPTIONS = [10, 25, 50, 100] as const;
+	const storedPerPage =
+		typeof window !== 'undefined' ? localStorage.getItem('customers-items-per-page') : null;
+	const parsedStored = storedPerPage ? parseInt(storedPerPage, 10) : NaN;
+	const initialPerPage =
+		!Number.isNaN(parsedStored) &&
+		ROWS_PER_PAGE_OPTIONS.includes(parsedStored as (typeof ROWS_PER_PAGE_OPTIONS)[number])
+			? parsedStored
+			: 10;
+	const itemsPerPage = writable(initialPerPage);
+
+	itemsPerPage.subscribe((value) => {
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('customers-items-per-page', String(value));
+		}
+	});
 
 	// Column visibility with localStorage persistence
 	const defaultVisibility = {
@@ -220,6 +237,15 @@
 
 	function handlePrevPage() {
 		currentPageStore.update((page) => Math.max(page - 1, 1));
+	}
+
+	function handleItemsPerPageChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		const value = parseInt(target.value, 10);
+		if (!Number.isNaN(value) && ROWS_PER_PAGE_OPTIONS.includes(value as (typeof ROWS_PER_PAGE_OPTIONS)[number])) {
+			itemsPerPage.set(value);
+			currentPageStore.set(1);
+		}
 	}
 
 	// Column visibility handlers
@@ -487,6 +513,61 @@
 	// Computed visible columns
 	$: visibleColumnsList = columns.filter((col) => $visibleColumns[col.key]);
 
+	// CSV export: escape value for CSV (wrap in quotes if contains comma, newline, or quote)
+	function escapeCsvCell(value: string): string {
+		const s = String(value ?? '');
+		if (/[",\n\r]/.test(s)) {
+			return '"' + s.replace(/"/g, '""') + '"';
+		}
+		return s;
+	}
+
+	function getCellValueForCsv(customer: Customer, columnKey: string): string {
+		switch (columnKey) {
+			case 'Username':
+				return customer.Username ?? '';
+			case 'company':
+				return customer.company ?? '';
+			case 'customerName':
+				return customer.customerName ?? '';
+			case 'EmailAddress':
+				return customer.EmailAddress ?? 'N/A';
+			case 'phone':
+				return customer.BillingAddress?.BillPhone ?? 'N/A';
+			case 'managerName':
+				return customer.managerName ?? '';
+			case 'OnCreditHold':
+				return customer.OnCreditHold === 'True' ? 'Yes' : 'No';
+			case 'DefaultInvoiceTerms':
+				return customer.DefaultInvoiceTerms ?? 'N/A';
+			case 'AccountBalance':
+				return new Intl.NumberFormat('en-AU', {
+					style: 'decimal',
+					minimumFractionDigits: 2,
+					maximumFractionDigits: 2
+				}).format(customer.AccountBalance ?? 0);
+			default:
+				return '';
+		}
+	}
+
+	function exportToCsv() {
+		const visibleCols = columns.filter((col) => $visibleColumns[col.key]);
+		const headerRow = visibleCols.map((col) => escapeCsvCell(col.displayName)).join(',');
+		const dataRows = $tableData.map((customer) =>
+			visibleCols.map((col) => escapeCsvCell(getCellValueForCsv(customer, col.key))).join(',')
+		);
+		const csv = [headerRow, ...dataRows].join('\r\n');
+		const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = `customers-export-${new Date().toISOString().slice(0, 10)}.csv`;
+		a.click();
+		URL.revokeObjectURL(url);
+		toastSuccess('CSV exported successfully');
+	}
+
 	onMount(() => {
 		// Fetch customers on mount
 		fetchCustomers();
@@ -578,6 +659,33 @@
 				onShowAllColumns={showAllColumns}
 				onHideAllColumns={hideAllColumns}
 			/>
+
+			<!-- Export CSV -->
+			<div class="mb-4 flex justify-end">
+				<button
+					type="button"
+					on:click={exportToCsv}
+					disabled={$tableData.length === 0}
+					class="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+					title="Export current results to CSV"
+				>
+					<svg
+						class="h-5 w-5 text-gray-500"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						aria-hidden="true"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+					Export CSV
+				</button>
+			</div>
 
 			<!-- Customers Table -->
 			<div class="overflow-hidden rounded-lg bg-white shadow-md">
@@ -1023,24 +1131,40 @@
 				{#if $tableData.length > 0}
 					<div class="border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
 						<div class="flex items-center justify-between">
-							<div class="flex flex-1 justify-between sm:hidden">
-								<button
-									on:click={handlePrevPage}
-									disabled={$currentPageStore === 1}
-									class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-								>
-									Previous
-								</button>
-								<button
-									on:click={handleNextPage}
-									disabled={$currentPageStore >= Math.ceil($tableData.length / $itemsPerPage)}
-									class="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-								>
-									Next
-								</button>
+							<div class="flex flex-1 flex-wrap items-center justify-between gap-3 sm:hidden">
+								<div class="flex items-center gap-2">
+									<label for="customers-rows-per-page-mobile" class="text-sm text-gray-700">Rows</label>
+									<select
+										id="customers-rows-per-page-mobile"
+										value={$itemsPerPage}
+										on:change={handleItemsPerPageChange}
+										class="rounded-md border border-gray-300 bg-white py-1.5 pl-2 pr-8 text-sm text-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+										aria-label="Rows per page"
+									>
+										{#each ROWS_PER_PAGE_OPTIONS as option}
+											<option value={option}>{option}</option>
+										{/each}
+									</select>
+								</div>
+								<div class="flex gap-2">
+									<button
+										on:click={handlePrevPage}
+										disabled={$currentPageStore === 1}
+										class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										Previous
+									</button>
+									<button
+										on:click={handleNextPage}
+										disabled={$currentPageStore >= Math.ceil($tableData.length / $itemsPerPage)}
+										class="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										Next
+									</button>
+								</div>
 							</div>
 							<div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-								<div>
+								<div class="flex flex-wrap items-center gap-4">
 									<p class="text-sm text-gray-700">
 										Showing
 										<span class="font-medium">{($currentPageStore - 1) * $itemsPerPage + 1}</span>
@@ -1052,6 +1176,20 @@
 										<span class="font-medium">{$tableData.length}</span>
 										results
 									</p>
+									<label for="customers-rows-per-page" class="flex items-center gap-2 text-sm text-gray-700">
+										<span>Rows per page</span>
+										<select
+											id="customers-rows-per-page"
+											value={$itemsPerPage}
+											on:change={handleItemsPerPageChange}
+											class="rounded-md border border-gray-300 bg-white py-1.5 pl-2 pr-8 text-sm font-medium text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+											aria-label="Rows per page"
+										>
+											{#each ROWS_PER_PAGE_OPTIONS as option}
+												<option value={option}>{option}</option>
+											{/each}
+										</select>
+									</label>
 								</div>
 								<div>
 									<nav

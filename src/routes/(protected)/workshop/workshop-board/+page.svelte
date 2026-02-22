@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, type WorkshopRecord } from '$lib/services/workshop';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, type WorkshopRecord } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
@@ -10,6 +10,7 @@
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
   import StatusColumn from '$lib/components/StatusColumn.svelte';
+  import PickupReturnTransportModal from './components/PickupReturnTransportModal.svelte';
 
   const BOARD_STATUSES = [
     { key: 'new', title: 'New' },
@@ -47,6 +48,12 @@
   let showDeleteModal = false;
   let workshopToDelete: WorkshopRecord | null = null;
   let isDeletingWorkshop = false;
+
+  // Pickup/Return transport modal state (assign person + schedule before notifying)
+  let showPickupReturnModal = false;
+  let workshopForTransport: WorkshopRecord | null = null;
+  let nextStatusForTransport: 'pickup' | 'return' | null = null;
+  let pickupReturnSubmitting = false;
 
   // Drag states
   let draggedWorkshopId: string | null = null;
@@ -228,6 +235,52 @@
     closeDeleteModal();
   }
 
+  function closePickupReturnModal() {
+    showPickupReturnModal = false;
+    workshopForTransport = null;
+    nextStatusForTransport = null;
+  }
+
+  async function handlePickupReturnConfirm(event: CustomEvent<{ assignedTo: string; assignedToName: string; schedule: string }>) {
+    const workshop = workshopForTransport;
+    const status = nextStatusForTransport;
+    if (!workshop || !status) return;
+
+    const { assignedTo, assignedToName, schedule } = event.detail;
+    const user = $currentUser;
+    const profile = $userProfile;
+    const assignedByName = user
+      ? (profile ? `${profile.firstName} ${profile.lastName}`.trim() : user.displayName || user.email?.split('@')[0] || 'Unknown User')
+      : 'Unknown User';
+    const assignedBy = user?.email ?? null;
+
+    try {
+      pickupReturnSubmitting = true;
+      await upsertWorkshopTransport({
+        workshopId: workshop.id,
+        jobStatus: status,
+        assignedTo: assignedTo || null,
+        assignedToName: assignedToName || null,
+        schedule: schedule || null,
+        assignedBy: assignedBy ?? undefined,
+        assignedByName: assignedByName || undefined
+      });
+      const ok = await notifyPickupToTeams(workshop, status, {
+        assignedToName: assignedToName || null,
+        schedule: schedule || null
+      });
+      closePickupReturnModal();
+      if (!ok) {
+        toastError('Teams notification failed. Transport was saved.');
+      }
+    } catch (err) {
+      console.error('[WORKSHOP_BOARD] Failed to save transport or notify:', err);
+      toastError('Failed to save transport. Please try again.');
+    } finally {
+      pickupReturnSubmitting = false;
+    }
+  }
+
   async function deleteWorkshop(workshopId: string) {
     if (isDeletingWorkshop) return;
 
@@ -285,6 +338,12 @@
     return status.replace(/_/g, ' ').toUpperCase();
   }
 
+  function formatAddress(workshop: WorkshopRecord): string {
+    if (!workshop.site_location) return '';
+
+    return ` (${workshop.site_location})`;
+  }
+
   async function persistWorkshopStatusChange(workshop: WorkshopRecord, newStatus: WorkshopRecord['status']) {
     const updatedHistory = addHistoryEntry(workshop, newStatus);
     await updateWorkshop(workshop.id, { status: newStatus, history: updatedHistory });
@@ -304,16 +363,15 @@
 
     try {
       await persistWorkshopStatusChange(workshop, nextStatus);
+      const addressInfo = (nextStatus === 'pickup' || nextStatus === 'return') ? formatAddress(workshop) : '';
       toastSuccess(
-        `Workshop "${workshop.customer_name ?? 'Unknown Customer'}" moved to ${formatStatusForToast(nextStatus)}`,
+        `Workshop "${workshop.customer_name ?? 'Unknown Customer'}"${addressInfo} moved to ${formatStatusForToast(nextStatus)}`,
         'Status Updated'
       );
       if (nextStatus === 'pickup' || nextStatus === 'return') {
-        notifyPickupToTeams(workshop, nextStatus).then((ok) => {
-          if (!ok) {
-            toastError('Teams notification failed. Status was updated.');
-          }
-        });
+        workshopForTransport = workshop;
+        nextStatusForTransport = nextStatus;
+        showPickupReturnModal = true;
       }
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to update workshop status:', workshopId, 'Error:', err);
@@ -606,6 +664,15 @@
   isDeleting={isDeletingWorkshop}
   on:confirm={handleDeleteConfirm}
   on:cancel={handleDeleteCancel}
+/>
+
+<!-- Pickup/Return transport modal: assign person + schedule, then save and notify -->
+<PickupReturnTransportModal
+  show={showPickupReturnModal}
+  jobStatus={nextStatusForTransport ?? 'pickup'}
+  submitting={pickupReturnSubmitting}
+  on:confirm={handlePickupReturnConfirm}
+  on:cancel={closePickupReturnModal}
 />
 
 <style>

@@ -5,6 +5,7 @@
 export interface ProductDisableFormData {
   sku: string;
   replacementProductSku: string;
+  reason: string;
 }
 
 export interface OrderDeleteFormData {
@@ -12,9 +13,19 @@ export interface OrderDeleteFormData {
   reason: string;
 }
 
+/** Row from disabled_products table (Supabase) */
+export interface DisabledProduct {
+  id: string;
+  sku: string;
+  replacement_product_sku: string;
+  reason: string | null;
+  created_at: string;
+}
+
 export const emptyProductDisableForm: ProductDisableFormData = {
   sku: '',
-  replacementProductSku: ''
+  replacementProductSku: '',
+  reason: ''
 };
 
 export const emptyOrderDeleteForm: OrderDeleteFormData = {

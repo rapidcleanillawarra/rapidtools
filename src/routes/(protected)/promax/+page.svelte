@@ -190,16 +190,20 @@
 		const w = toPx(template_config.width);
 		const h = toPx(template_config.height);
 		const br = toRadiusPx(template_config.borderRadius);
-		const doc = new jsPDF({
-			unit: 'px',
-			format: [w, h],
-			hotfixes: ['px_scaling']
-		});
+		// 96 dpi: 1 px = 25.4/96 mm
+		const pxToMm = 25.4 / 96;
+		const wMm = w * pxToMm;
+		const hMm = h * pxToMm;
+		const brMm = br * pxToMm;
+		const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+		// Center template on A4 (210 x 297 mm)
+		const offsetX = (210 - wMm) / 2;
+		const offsetY = (297 - hMm) / 2;
 		// Template background and border (rounded rect)
 		doc.setFillColor(249, 250, 251);
 		doc.setDrawColor(156, 163, 175);
-		doc.setLineWidth(2);
-		doc.roundedRect(0, 0, w, h, br, br, 'FD');
+		doc.setLineWidth(2 * pxToMm);
+		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'FD');
 		// Shapes in order (lower order drawn first)
 		const sorted = [...template_contents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 		const shapeFill = [229, 231, 235] as [number, number, number];
@@ -207,19 +211,23 @@
 		for (const shape of sorted) {
 			doc.setFillColor(...shapeFill);
 			doc.setDrawColor(...shapeStroke);
-			doc.setLineWidth(1);
+			doc.setLineWidth(1 * pxToMm);
+			const sx = shape.x * pxToMm + offsetX;
+			const sy = shape.y * pxToMm + offsetY;
+			const sw = shape.width * pxToMm;
+			const sh = shape.height * pxToMm;
 			if (shape.type === 'circle') {
-				const cx = shape.x + shape.width / 2;
-				const cy = shape.y + shape.height / 2;
-				const rx = shape.width / 2;
-				const ry = shape.height / 2;
+				const cx = sx + sw / 2;
+				const cy = sy + sh / 2;
+				const rx = sw / 2;
+				const ry = sh / 2;
 				doc.ellipse(cx, cy, rx, ry, 'FD');
 			} else {
-				const r = toRadiusPx(shape.borderRadius);
+				const r = toRadiusPx(shape.borderRadius) * pxToMm;
 				if (r > 0) {
-					doc.roundedRect(shape.x, shape.y, shape.width, shape.height, r, r, 'FD');
+					doc.roundedRect(sx, sy, sw, sh, r, r, 'FD');
 				} else {
-					doc.rect(shape.x, shape.y, shape.width, shape.height, 'FD');
+					doc.rect(sx, sy, sw, sh, 'FD');
 				}
 			}
 		}

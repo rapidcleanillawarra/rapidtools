@@ -19,7 +19,10 @@
 	let template_contents = $state<Shape[]>([]);
 
 	let templateEl = $state<HTMLDivElement | null>(null);
-	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number } | null>(null);
+	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
+	let selectedShapeId = $state<string | null>(null);
+
+	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
 	// Defaults used when adding new shapes (not part of template_config)
 	let newShapeDefaults = $state({
@@ -95,6 +98,7 @@
 	}
 
 	function removeShape(id: string) {
+		if (id === selectedShapeId) selectedShapeId = null;
 		template_contents = template_contents.filter((s) => s.id !== id);
 	}
 
@@ -108,7 +112,8 @@
 		dragging = {
 			shapeId: shape.id,
 			offsetX: clientX - rect.left - shape.x,
-			offsetY: clientY - rect.top - shape.y
+			offsetY: clientY - rect.top - shape.y,
+			hasMoved: false
 		};
 	}
 
@@ -128,12 +133,37 @@
 		newX = Math.max(0, Math.min(templateW - shape.width, newX));
 		newY = Math.max(0, Math.min(templateH - shape.height, newY));
 		template_contents = template_contents.map((s) =>
-			s.id === d.shapeId ? { ...s, x: Math.round(newX * 100) / 100, y: Math.round(newY * 100) / 100 } : s
+			s.id === d.shapeId
+				? { ...s, x: Math.round(newX * 100) / 100, y: Math.round(newY * 100) / 100 }
+				: s
 		);
+		dragging = { ...d, hasMoved: true };
 	}
 
 	function endDrag() {
+		const d = dragging;
+		if (d && !d.hasMoved) selectedShapeId = d.shapeId;
 		dragging = null;
+	}
+
+	function updateSelectedShape(updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadius' | 'x' | 'y'>>) {
+		if (!selectedShapeId) return;
+		const templateW = toPx(template_config.width);
+		const templateH = toPx(template_config.height);
+		template_contents = template_contents.map((s) => {
+			if (s.id !== selectedShapeId) return s;
+			const next = { ...s, ...updates };
+			next.width = toPx(next.width);
+			next.height = toPx(next.height);
+			if (next.borderRadius !== undefined) next.borderRadius = toRadiusPx(next.borderRadius);
+			next.x = Math.max(0, Math.min(templateW - next.width, next.x));
+			next.y = Math.max(0, Math.min(templateH - next.height, next.y));
+			return next;
+		});
+	}
+
+	function deselectShape() {
+		selectedShapeId = null;
 	}
 
 	$effect(() => {
@@ -236,6 +266,64 @@
 			</label>
 			<button type="button" class="btn btn-add" onclick={addCircle}>Add circle</button>
 		</div>
+		{#if selectedShape}
+			<div class="controls edit-shape">
+				<div class="edit-shape-header">
+					<h3 class="control-heading">Edit shape</h3>
+					<button type="button" class="btn btn-icon" onclick={deselectShape} title="Deselect" aria-label="Deselect">×</button>
+				</div>
+				{#if selectedShape.type === 'rectangle'}
+					<label>
+						<span>Width (px)</span>
+						<input
+							type="number"
+							min={minDim}
+							max={maxDim}
+							step="0.01"
+							value={selectedShape.width}
+							oninput={(e) => updateSelectedShape({ width: toPx((e.currentTarget as HTMLInputElement).value) })}
+						/>
+					</label>
+					<label>
+						<span>Height (px)</span>
+						<input
+							type="number"
+							min={minDim}
+							max={maxDim}
+							step="0.01"
+							value={selectedShape.height}
+							oninput={(e) => updateSelectedShape({ height: toPx((e.currentTarget as HTMLInputElement).value) })}
+						/>
+					</label>
+					<label>
+						<span>Border radius (px)</span>
+						<input
+							type="number"
+							min={minRadius}
+							max={maxRadius}
+							step="0.01"
+							value={selectedShape.borderRadius}
+							oninput={(e) => updateSelectedShape({ borderRadius: toRadiusPx((e.currentTarget as HTMLInputElement).value) })}
+						/>
+					</label>
+				{:else}
+					<label>
+						<span>Size (px)</span>
+						<input
+							type="number"
+							min={minDim}
+							max={maxDim}
+							step="0.01"
+							value={selectedShape.width}
+							oninput={(e) => {
+								const size = toPx((e.currentTarget as HTMLInputElement).value);
+								updateSelectedShape({ width: size, height: size });
+							}}
+						/>
+					</label>
+				{/if}
+			</div>
+		{/if}
 	</aside>
 	<main class="preview">
 		<div
@@ -249,6 +337,7 @@
 				<div
 					class="shape-wrap"
 					class:dragging={dragging?.shapeId === shape.id}
+					class:selected={selectedShapeId === shape.id}
 					style:left="{shape.x}px"
 					style:top="{shape.y}px"
 				>
@@ -333,6 +422,27 @@
 		align-self: flex-start;
 	}
 
+	.edit-shape {
+		background: #eff6ff;
+		border: 1px solid #93c5fd;
+		border-radius: 0.375rem;
+		padding: 1rem;
+		margin-top: 0.5rem;
+	}
+
+	.edit-shape-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.btn-icon {
+		padding: 0.25rem 0.5rem;
+		min-width: 1.75rem;
+	}
+
 	.controls label {
 		display: flex;
 		flex-direction: column;
@@ -377,6 +487,11 @@
 
 	.shape-wrap.dragging {
 		z-index: 1;
+	}
+
+	.shape-wrap.selected .shape {
+		outline: 2px solid #3b82f6;
+		outline-offset: 2px;
 	}
 
 	.shape {

@@ -376,17 +376,25 @@
 					</label>
 				{:else}
 					<label>
-						<span>Size (px)</span>
+						<span>Width (px)</span>
 						<input
 							type="number"
 							min={minDim}
 							max={maxDim}
 							step="0.01"
 							bind:value={editWidth}
-							onblur={() => {
-								const size = toPx(editWidth);
-								updateSelectedShape({ width: size, height: size });
-							}}
+							onblur={() => updateSelectedShape({ width: toPx(editWidth) })}
+						/>
+					</label>
+					<label>
+						<span>Height (px)</span>
+						<input
+							type="number"
+							min={minDim}
+							max={maxDim}
+							step="0.01"
+							bind:value={editHeight}
+							onblur={() => updateSelectedShape({ height: toPx(editHeight) })}
 						/>
 					</label>
 				{/if}

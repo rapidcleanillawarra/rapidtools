@@ -8,6 +8,7 @@
 		width: number;
 		height: number;
 		borderRadius: number;
+		order: number;
 	};
 
 	let template_config = $state({
@@ -28,6 +29,7 @@
 	let editWidth = $state(0);
 	let editHeight = $state(0);
 	let editBorderRadius = $state(0);
+	let editOrder = $state(0);
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -62,6 +64,7 @@
 		const h = defaultRectHeight;
 		const br = defaultRectBorderRadius;
 		const [x, y] = centerPosition(w, h);
+		const nextOrder = nextLayerOrder();
 		const newShape = {
 			id: crypto.randomUUID(),
 			type: 'rectangle' as const,
@@ -69,7 +72,8 @@
 			y,
 			width: w,
 			height: h,
-			borderRadius: br
+			borderRadius: br,
+			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
 		console.log('[promax] rectangle added', { id: newShape.id, x, y, countAfter: template_contents.length });
@@ -79,6 +83,7 @@
 		console.log('[promax] addCircle called', { countBefore: template_contents.length });
 		const size = defaultCircleSize;
 		const [x, y] = centerPosition(size, size);
+		const nextOrder = nextLayerOrder();
 		const newShape = {
 			id: crypto.randomUUID(),
 			type: 'circle' as const,
@@ -86,7 +91,8 @@
 			y,
 			width: size,
 			height: size,
-			borderRadius: 0
+			borderRadius: 0,
+			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
 		console.log('[promax] circle added', { id: newShape.id, x, y, countAfter: template_contents.length });
@@ -98,6 +104,12 @@
 		const x = Math.max(0, Math.round((templateW - w) / 2));
 		const y = Math.max(0, Math.round((templateH - h) / 2));
 		return [x, y];
+	}
+
+	function nextLayerOrder(): number {
+		if (template_contents.length === 0) return 1;
+		const max = Math.max(...template_contents.map((s) => s.order ?? 0));
+		return max + 1;
 	}
 
 	function removeShape(id: string) {
@@ -148,7 +160,7 @@
 		dragging = null;
 	}
 
-	function updateSelectedShape(updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadius' | 'x' | 'y'>>) {
+	function updateSelectedShape(updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadius' | 'x' | 'y' | 'order'>>) {
 		console.log('[promax] updateSelectedShape called', { selectedShapeId, updates, count: template_contents.length });
 		if (!selectedShapeId) return;
 		const templateW = toPx(template_config.width);
@@ -161,6 +173,7 @@
 			if (next.borderRadius !== undefined) next.borderRadius = toRadiusPx(next.borderRadius);
 			next.x = Math.max(0, Math.min(templateW - next.width, next.x));
 			next.y = Math.max(0, Math.min(templateH - next.height, next.y));
+			if (next.order !== undefined) next.order = Math.round(Number(next.order)) || 0;
 			return next;
 		});
 		template_contents = nextContents;
@@ -179,6 +192,7 @@
 			editWidth = shape.width;
 			editHeight = shape.height;
 			editBorderRadius = shape.borderRadius;
+			editOrder = shape.order ?? 0;
 		}
 	});
 
@@ -271,6 +285,19 @@
 						}}
 					/>
 				</label>
+				<label>
+					<span>Order (layer)</span>
+					<input
+						type="number"
+						min="0"
+						step="1"
+						bind:value={editOrder}
+						onblur={() => {
+							const v = Math.round(Number(editOrder));
+							if (!Number.isNaN(v) && v >= 0) updateSelectedShape({ order: v });
+						}}
+					/>
+				</label>
 				{#if selectedShape.type === 'rectangle'}
 					<label>
 						<span>Width (px)</span>
@@ -345,6 +372,7 @@
 					class:selected={selectedShapeId === shape.id}
 					style:left="{shape.x}px"
 					style:top="{shape.y}px"
+					style:z-index={dragging?.shapeId === shape.id ? 9999 : (shape.order ?? 0)}
 				>
 					<div
 						class="shape"

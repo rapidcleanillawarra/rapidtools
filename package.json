@@ -58,6 +58,7 @@
 		"@supabase/supabase-js": "^2.50.2",
 		"@tinymce/tinymce-svelte": "^3.2.0",
 		"firebase": "^11.8.0",
+		"jspdf": "^4.2.0",
 		"lucide-svelte": "^0.514.0",
 		"luxon": "^3.6.1",
 		"quill": "^2.0.3",

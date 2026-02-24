@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { jsPDF } from 'jspdf';
+
 	type ShapeType = 'rectangle' | 'circle';
 	type Shape = {
 		id: string;
@@ -184,6 +186,46 @@
 		selectedShapeId = null;
 	}
 
+	function exportPdf() {
+		const w = toPx(template_config.width);
+		const h = toPx(template_config.height);
+		const br = toRadiusPx(template_config.borderRadius);
+		const doc = new jsPDF({
+			unit: 'px',
+			format: [w, h],
+			hotfixes: ['px_scaling']
+		});
+		// Template background and border (rounded rect)
+		doc.setFillColor(249, 250, 251);
+		doc.setDrawColor(156, 163, 175);
+		doc.setLineWidth(2);
+		doc.roundedRect(0, 0, w, h, br, br, 'FD');
+		// Shapes in order (lower order drawn first)
+		const sorted = [...template_contents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+		const shapeFill = [229, 231, 235] as [number, number, number];
+		const shapeStroke = [156, 163, 175] as [number, number, number];
+		for (const shape of sorted) {
+			doc.setFillColor(...shapeFill);
+			doc.setDrawColor(...shapeStroke);
+			doc.setLineWidth(1);
+			if (shape.type === 'circle') {
+				const cx = shape.x + shape.width / 2;
+				const cy = shape.y + shape.height / 2;
+				const rx = shape.width / 2;
+				const ry = shape.height / 2;
+				doc.ellipse(cx, cy, rx, ry, 'FD');
+			} else {
+				const r = toRadiusPx(shape.borderRadius);
+				if (r > 0) {
+					doc.roundedRect(shape.x, shape.y, shape.width, shape.height, r, r, 'FD');
+				} else {
+					doc.rect(shape.x, shape.y, shape.width, shape.height, 'FD');
+				}
+			}
+		}
+		doc.save('promax-template.pdf');
+	}
+
 	$effect(() => {
 		const shape = selectedShape;
 		if (shape) {
@@ -358,6 +400,11 @@
 		{/if}
 	</aside>
 	<main class="preview">
+		<div class="preview-actions">
+			<button type="button" class="btn btn-export" onclick={exportPdf} title="Download template as PDF">
+				Export PDF
+			</button>
+		</div>
 		<div
 			bind:this={templateEl}
 			class="template"
@@ -507,10 +554,29 @@
 
 	.preview {
 		display: flex;
+		flex-direction: column;
 		align-items: center;
 		justify-content: center;
 		min-height: 80vh;
 		padding: 1rem;
+		gap: 1rem;
+	}
+
+	.preview-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.btn-export {
+		background: #1f2937;
+		border-color: #1f2937;
+		color: #fff;
+	}
+
+	.btn-export:hover {
+		background: #374151;
+		border-color: #374151;
+		color: #fff;
 	}
 
 	.template {

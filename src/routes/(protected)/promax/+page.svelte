@@ -30,44 +30,48 @@
 </script>
 
 <div class="promax-page">
-	<div class="controls">
-		<label>
-			<span>Width (px)</span>
-			<input
-				type="number"
-				min={minDim}
-				max={maxDim}
-				step="0.01"
-				bind:value={template_config.width}
-			/>
-		</label>
-		<label>
-			<span>Height (px)</span>
-			<input
-				type="number"
-				min={minDim}
-				max={maxDim}
-				step="0.01"
-				bind:value={template_config.height}
-			/>
-		</label>
-		<label>
-			<span>Border radius (px)</span>
-			<input
-				type="number"
-				min={minRadius}
-				max={maxRadius}
-				step="0.01"
-				bind:value={template_config.borderRadius}
-			/>
-		</label>
-	</div>
-	<div
-		class="rectangle"
-		style:width="{widthPx}px"
-		style:height="{heightPx}px"
-		style:border-radius="{borderRadiusPx}px"
-	></div>
+	<aside class="sidebar">
+		<div class="controls">
+			<label>
+				<span>Width (px)</span>
+				<input
+					type="number"
+					min={minDim}
+					max={maxDim}
+					step="0.01"
+					bind:value={template_config.width}
+				/>
+			</label>
+			<label>
+				<span>Height (px)</span>
+				<input
+					type="number"
+					min={minDim}
+					max={maxDim}
+					step="0.01"
+					bind:value={template_config.height}
+				/>
+			</label>
+			<label>
+				<span>Border radius (px)</span>
+				<input
+					type="number"
+					min={minRadius}
+					max={maxRadius}
+					step="0.01"
+					bind:value={template_config.borderRadius}
+				/>
+			</label>
+		</div>
+	</aside>
+	<main class="preview">
+		<div
+			class="rectangle"
+			style:width="{widthPx}px"
+			style:height="{heightPx}px"
+			style:border-radius="{borderRadiusPx}px"
+		></div>
+	</main>
 </div>
 
 <style>
@@ -75,17 +79,22 @@
 		margin: 0;
 		padding: 0;
 		min-height: 100vh;
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
+		display: grid;
+		grid-template-columns: minmax(0, 220px) 1fr;
 		gap: 1.5rem;
+		align-items: start;
+		padding: 1.5rem;
+	}
+
+	.sidebar {
+		position: sticky;
+		top: 1.5rem;
 	}
 
 	.controls {
 		display: flex;
-		gap: 1.5rem;
-		align-items: flex-end;
+		flex-direction: column;
+		gap: 1rem;
 	}
 
 	.controls label {
@@ -97,7 +106,8 @@
 	}
 
 	.controls input {
-		width: 6rem;
+		width: 100%;
+		max-width: 10rem;
 		padding: 0.375rem 0.5rem;
 		border: 1px solid #9ca3af;
 		border-radius: 0.25rem;
@@ -108,6 +118,13 @@
 		outline: none;
 		border-color: #3b82f6;
 		box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
+	}
+
+	.preview {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		min-height: 80vh;
 	}
 
 	.rectangle {

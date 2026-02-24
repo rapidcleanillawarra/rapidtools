@@ -8,6 +8,7 @@ type PriceListItem = {
 	price?: string;
 	rrp?: string;
 	model?: string;
+	note?: string;
 	imageUrl?: string;
 	hasDescription?: boolean;
 	shortDescription?: string;

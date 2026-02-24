@@ -12,6 +12,7 @@
 			price?: string;
 			rrp?: string;
 			model?: string;
+			note?: string;
 			imageUrl?: string;
 			hasDescription?: boolean;
 			shortDescription?: string;
@@ -134,7 +135,7 @@ onMount(() => {
 								<tr class="table-header-row">
 									<th class="col-image table-header-cell">Image</th>
 									<th class="col-sku table-header-cell">SKU</th>
-									<th class="col-model table-header-cell">Model</th>
+									<th class="col-model table-header-cell">Name</th>
 									{#if data.includeDescription !== false}
 										<th class="col-description table-header-cell">Description</th>
 									{/if}
@@ -149,7 +150,7 @@ onMount(() => {
 									<tr class="table-header-row">
 										<th class="col-image table-header-cell">Image</th>
 										<th class="col-sku table-header-cell">SKU</th>
-										<th class="col-model table-header-cell">Model</th>
+										<th class="col-model table-header-cell">Name</th>
 										{#if data.includeDescription !== false}
 											<th class="col-description table-header-cell">Description</th>
 										{/if}
@@ -173,7 +174,7 @@ onMount(() => {
 										{/if}
 									</td>
 									<td class="col-sku table-cell">{item.sku}</td>
-									<td class="col-model table-cell">{item.model || '—'}</td>
+									<td class="col-model table-cell">{[item.model, item.note].filter(Boolean).join(' — ') || '—'}</td>
 									{#if data.includeDescription !== false}
 										<td class="col-description table-cell">{item.shortDescription || '—'}</td>
 									{/if}
@@ -241,8 +242,8 @@ onMount(() => {
 							</div>
 							<div class="product-details">
 								<p class="product-sku">{item.sku}</p>
-								{#if item.model}
-									<p class="product-model">{item.model}</p>
+								{#if item.model || item.note}
+									<p class="product-model">{[item.model, item.note].filter(Boolean).join(' — ')}</p>
 								{/if}
 								<div class="product-pricing">
 									<span class="product-price">${item.price}</span>

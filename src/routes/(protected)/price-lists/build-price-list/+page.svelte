@@ -20,6 +20,7 @@
     staticType?: 'page_break' | 'range' | 'category';
     value?: string;
     sourceIndex?: number;
+    note?: string;
   };
   type StaticItem = { id: string; label: string; type: 'page_break' | 'range' | 'category' };
 
@@ -153,7 +154,8 @@
             rrp: item.rrp,
             model: item.model,
             imageUrl: item.imageUrl,
-            hasDescription: item.hasDescription
+            hasDescription: item.hasDescription,
+            note: item.note
           }))
         : [];
       builderItems = serverBuilder;
@@ -1053,6 +1055,18 @@
                           {#if item.rrp}
                             <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
                           {/if}
+                          <div class="flex flex-col gap-0.5">
+                            <label for={`note-${item.id}`} class="text-xs text-gray-600">Note (shows on print)</label>
+                            <input
+                              id={`note-${item.id}`}
+                              type="text"
+                              class="w-full rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Add note..."
+                              bind:value={item.note}
+                              on:mousedown|stopPropagation
+                              on:dragstart|preventDefault
+                            />
+                          </div>
                         {/if}
                       </div>
                     </div>

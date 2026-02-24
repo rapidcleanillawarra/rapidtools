@@ -22,6 +22,13 @@
 	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
 	let selectedShapeId = $state<string | null>(null);
 
+	// Local edit values for shape inputs (applied on blur)
+	let editX = $state(0);
+	let editY = $state(0);
+	let editWidth = $state(0);
+	let editHeight = $state(0);
+	let editBorderRadius = $state(0);
+
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
 	const defaultRectWidth = 120;
@@ -165,6 +172,17 @@
 	}
 
 	$effect(() => {
+		const shape = selectedShape;
+		if (shape) {
+			editX = shape.x;
+			editY = shape.y;
+			editWidth = shape.width;
+			editHeight = shape.height;
+			editBorderRadius = shape.borderRadius;
+		}
+	});
+
+	$effect(() => {
 		if (!dragging) return;
 		const onMove = (e: MouseEvent | TouchEvent) => onDragMove(e);
 		const onEnd = () => endDrag();
@@ -233,9 +251,9 @@
 						type="number"
 						min="0"
 						step="0.01"
-						value={selectedShape.x}
-						oninput={(e) => {
-							const v = Number((e.currentTarget as HTMLInputElement).value);
+						bind:value={editX}
+						onblur={() => {
+							const v = Number(editX);
 							if (!Number.isNaN(v)) updateSelectedShape({ x: v });
 						}}
 					/>
@@ -246,9 +264,9 @@
 						type="number"
 						min="0"
 						step="0.01"
-						value={selectedShape.y}
-						oninput={(e) => {
-							const v = Number((e.currentTarget as HTMLInputElement).value);
+						bind:value={editY}
+						onblur={() => {
+							const v = Number(editY);
 							if (!Number.isNaN(v)) updateSelectedShape({ y: v });
 						}}
 					/>
@@ -261,8 +279,8 @@
 							min={minDim}
 							max={maxDim}
 							step="0.01"
-							value={selectedShape.width}
-							oninput={(e) => updateSelectedShape({ width: toPx((e.currentTarget as HTMLInputElement).value) })}
+							bind:value={editWidth}
+							onblur={() => updateSelectedShape({ width: toPx(editWidth) })}
 						/>
 					</label>
 					<label>
@@ -272,8 +290,8 @@
 							min={minDim}
 							max={maxDim}
 							step="0.01"
-							value={selectedShape.height}
-							oninput={(e) => updateSelectedShape({ height: toPx((e.currentTarget as HTMLInputElement).value) })}
+							bind:value={editHeight}
+							onblur={() => updateSelectedShape({ height: toPx(editHeight) })}
 						/>
 					</label>
 					<label>
@@ -283,8 +301,8 @@
 							min={minRadius}
 							max={maxRadius}
 							step="0.01"
-							value={selectedShape.borderRadius}
-							oninput={(e) => updateSelectedShape({ borderRadius: toRadiusPx((e.currentTarget as HTMLInputElement).value) })}
+							bind:value={editBorderRadius}
+							onblur={() => updateSelectedShape({ borderRadius: toRadiusPx(editBorderRadius) })}
 						/>
 					</label>
 				{:else}
@@ -295,9 +313,9 @@
 							min={minDim}
 							max={maxDim}
 							step="0.01"
-							value={selectedShape.width}
-							oninput={(e) => {
-								const size = toPx((e.currentTarget as HTMLInputElement).value);
+							bind:value={editWidth}
+							onblur={() => {
+								const size = toPx(editWidth);
 								updateSelectedShape({ width: size, height: size });
 							}}
 						/>

@@ -226,6 +226,32 @@
 					<h3 class="control-heading">Edit shape</h3>
 					<button type="button" class="btn btn-icon" onclick={deselectShape} title="Deselect" aria-label="Deselect">×</button>
 				</div>
+				<label>
+					<span>X (px)</span>
+					<input
+						type="number"
+						min="0"
+						step="0.01"
+						value={selectedShape.x}
+						oninput={(e) => {
+							const v = Number((e.currentTarget as HTMLInputElement).value);
+							if (!Number.isNaN(v)) updateSelectedShape({ x: v });
+						}}
+					/>
+				</label>
+				<label>
+					<span>Y (px)</span>
+					<input
+						type="number"
+						min="0"
+						step="0.01"
+						value={selectedShape.y}
+						oninput={(e) => {
+							const v = Number((e.currentTarget as HTMLInputElement).value);
+							if (!Number.isNaN(v)) updateSelectedShape({ y: v });
+						}}
+					/>
+				</label>
 				{#if selectedShape.type === 'rectangle'}
 					<label>
 						<span>Width (px)</span>

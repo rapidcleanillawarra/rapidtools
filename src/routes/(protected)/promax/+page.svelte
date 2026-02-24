@@ -199,6 +199,9 @@
 		const hMm = h * pxToMm;
 		const brMm = br * pxToMm;
 		const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+		// Force white background outside template (full A4)
+		doc.setFillColor(255, 255, 255);
+		doc.rect(0, 0, 210, 297, 'F');
 		// Center template on A4 (210 x 297 mm)
 		const offsetX = (210 - wMm) / 2;
 		const offsetY = (297 - hMm) / 2;
@@ -241,6 +244,7 @@
 		const borderWidthPx = Math.max(minBorderWidth, Math.min(maxBorderWidth, Number(template_config.borderWidth) ?? 2));
 		doc.setDrawColor(156, 163, 175);
 		doc.setLineWidth(borderWidthPx * pxToMm);
+		doc.setLineJoin('round');
 		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'S');
 		doc.save('promax-template.pdf');
 	}

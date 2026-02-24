@@ -467,6 +467,7 @@
 
 	.template {
 		position: relative;
+		overflow: hidden;
 		background: #f9fafb;
 		border: 2px dashed #9ca3af;
 		flex-shrink: 0;

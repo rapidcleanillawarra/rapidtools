@@ -16,7 +16,7 @@
 		borderRadius: 25
 	});
 
-	let shapes = $state<Shape[]>([]);
+	let template_contents = $state<Shape[]>([]);
 
 	// Defaults used when adding new shapes (not part of template_config)
 	let newShapeDefaults = $state({
@@ -51,8 +51,8 @@
 		const h = toPx(newShapeDefaults.rectHeight);
 		const br = toRadiusPx(newShapeDefaults.rectBorderRadius);
 		const [x, y] = nextPosition(w, h);
-		shapes = [
-			...shapes,
+		template_contents = [
+			...template_contents,
 			{
 				id: crypto.randomUUID(),
 				type: 'rectangle',
@@ -68,8 +68,8 @@
 	function addCircle() {
 		const size = toPx(newShapeDefaults.circleSize);
 		const [x, y] = nextPosition(size, size);
-		shapes = [
-			...shapes,
+		template_contents = [
+			...template_contents,
 			{
 				id: crypto.randomUUID(),
 				type: 'circle',
@@ -83,8 +83,8 @@
 	}
 
 	function nextPosition(w: number, h: number): [number, number] {
-		if (shapes.length === 0) return [defaultShapeOffset, defaultShapeOffset];
-		const last = shapes[shapes.length - 1];
+		if (template_contents.length === 0) return [defaultShapeOffset, defaultShapeOffset];
+		const last = template_contents[template_contents.length - 1];
 		const nextX = last.x + last.width + defaultShapeOffset;
 		const templateW = toPx(template_config.width);
 		if (nextX + w <= templateW - defaultShapeOffset) return [nextX, last.y];
@@ -92,7 +92,7 @@
 	}
 
 	function removeShape(id: string) {
-		shapes = shapes.filter((s) => s.id !== id);
+		template_contents = template_contents.filter((s) => s.id !== id);
 	}
 </script>
 
@@ -187,7 +187,7 @@
 			style:height="{toPx(template_config.height)}px"
 			style:border-radius="{toRadiusPx(template_config.borderRadius)}px"
 		>
-			{#each shapes as shape (shape.id)}
+			{#each template_contents as shape (shape.id)}
 				<div
 					class="shape-wrap"
 					style:left="{shape.x}px"

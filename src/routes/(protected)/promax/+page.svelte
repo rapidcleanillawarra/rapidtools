@@ -16,7 +16,8 @@
 	let template_config = $state({
 		width: 340,
 		height: 813.13,
-		borderRadius: 25
+		borderRadius: 25,
+		borderWidth: 2
 	});
 
 	let template_contents = $state<Shape[]>([]);
@@ -44,6 +45,8 @@
 	const maxDim = 800;
 	const minRadius = 0;
 	const maxRadius = 999;
+	const minBorderWidth = 0;
+	const maxBorderWidth = 20;
 	const defaultShapeOffset = 24;
 
 	function toPx(n: number | string): number {
@@ -200,9 +203,10 @@
 		const offsetX = (210 - wMm) / 2;
 		const offsetY = (297 - hMm) / 2;
 		// Template background and border (rounded rect)
+		const borderWidthPx = Math.max(minBorderWidth, Math.min(maxBorderWidth, Number(template_config.borderWidth) ?? 2));
 		doc.setFillColor(249, 250, 251);
 		doc.setDrawColor(156, 163, 175);
-		doc.setLineWidth(2 * pxToMm);
+		doc.setLineWidth(borderWidthPx * pxToMm);
 		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'FD');
 		// Shapes in order (lower order drawn first)
 		const sorted = [...template_contents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -295,6 +299,16 @@
 					max={maxRadius}
 					step="0.01"
 					bind:value={template_config.borderRadius}
+				/>
+			</label>
+			<label>
+				<span>Border thickness (px)</span>
+				<input
+					type="number"
+					min={minBorderWidth}
+					max={maxBorderWidth}
+					step="0.5"
+					bind:value={template_config.borderWidth}
 				/>
 			</label>
 		</div>

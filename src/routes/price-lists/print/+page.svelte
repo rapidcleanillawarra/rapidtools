@@ -21,6 +21,7 @@
 		mode?: 'thumb' | 'list';
 		includeRrp?: boolean;
 		crossRrp?: boolean;
+		includeDescription?: boolean;
 		error?: string;
 	};
 
@@ -103,7 +104,7 @@ onMount(() => {
 							
 							{#if item.kind === 'static' && item.staticType === 'page_break'}
 								<tr class="page-break-row">
-									<td colspan={data.includeRrp ? "6" : "5"} class="page-break-cell">
+									<td colspan={4 + (data.includeDescription !== false ? 1 : 0) + (data.includeRrp ? 1 : 0)} class="page-break-cell">
 										<div class="page-break-header is-break">
 											<div class="page-break-header-inner">
 												<img
@@ -119,13 +120,13 @@ onMount(() => {
 								</tr>
 							{:else if item.kind === 'static' && item.staticType === 'range'}
 								<tr class="range-row">
-									<td colspan={data.includeRrp ? "6" : "5"} class="range-cell">
+									<td colspan={4 + (data.includeDescription !== false ? 1 : 0) + (data.includeRrp ? 1 : 0)} class="range-cell">
 										<span class="range-label">{item.value || 'Range'}</span>
 									</td>
 								</tr>
 							{:else if item.kind === 'static' && item.staticType === 'category'}
 								<tr class="category-row">
-									<td colspan={data.includeRrp ? "6" : "5"} class="category-cell">
+									<td colspan={4 + (data.includeDescription !== false ? 1 : 0) + (data.includeRrp ? 1 : 0)} class="category-cell">
 										<span class="category-label">{item.value || 'Category'}</span>
 									</td>
 								</tr>
@@ -134,7 +135,9 @@ onMount(() => {
 									<th class="col-image table-header-cell">Image</th>
 									<th class="col-sku table-header-cell">SKU</th>
 									<th class="col-model table-header-cell">Model</th>
-									<th class="col-description table-header-cell">Description</th>
+									{#if data.includeDescription !== false}
+										<th class="col-description table-header-cell">Description</th>
+									{/if}
 									<th class="col-price table-header-cell">Price</th>
 									{#if data.includeRrp}
 										<th class="col-rrp table-header-cell">RRP</th>
@@ -147,7 +150,9 @@ onMount(() => {
 										<th class="col-image table-header-cell">Image</th>
 										<th class="col-sku table-header-cell">SKU</th>
 										<th class="col-model table-header-cell">Model</th>
-										<th class="col-description table-header-cell">Description</th>
+										{#if data.includeDescription !== false}
+											<th class="col-description table-header-cell">Description</th>
+										{/if}
 										<th class="col-price table-header-cell">Price</th>
 										{#if data.includeRrp}
 											<th class="col-rrp table-header-cell">RRP</th>
@@ -169,7 +174,9 @@ onMount(() => {
 									</td>
 									<td class="col-sku table-cell">{item.sku}</td>
 									<td class="col-model table-cell">{item.model || '—'}</td>
-									<td class="col-description table-cell">{item.shortDescription || '—'}</td>
+									{#if data.includeDescription !== false}
+										<td class="col-description table-cell">{item.shortDescription || '—'}</td>
+									{/if}
 									<td class="col-price table-cell">${item.price || '—'}</td>
 									{#if data.includeRrp}
 										<td class="col-rrp table-cell {data.crossRrp ? 'crossed' : ''}">{item.rrp || '—'}</td>
@@ -243,7 +250,7 @@ onMount(() => {
 										<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">RRP: ${item.rrp}</span>
 									{/if}
 								</div>
-								{#if item.shortDescription}
+								{#if data.includeDescription !== false && item.shortDescription}
 									<p class="product-description">{item.shortDescription}</p>
 								{/if}
 							</div>

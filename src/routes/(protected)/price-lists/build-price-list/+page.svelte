@@ -41,6 +41,7 @@
   let detailError = '';
   let includeRrpInPrint = false;
   let crossOutRrpInPrint = false;
+  let showDescription = true;
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -690,7 +691,8 @@
     if (typeof window !== 'undefined' && priceListId) {
       const rrpParam = includeRrpInPrint ? '&includeRrp=true' : '';
       const crossParam = crossOutRrpInPrint ? '&crossRrp=true' : '';
-      window.open(`${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}`, '_blank');
+      const descParam = showDescription ? '' : '&includeDescription=false';
+      window.open(`${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}`, '_blank');
     }
   };
 
@@ -1092,6 +1094,15 @@
               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
             <label for="cross-rrp" class="text-sm text-gray-700">Cross out RRP</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show-description"
+              bind:checked={showDescription}
+              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label for="show-description" class="text-sm text-gray-700">Show description</label>
           </div>
         </div>
         {#if saveMessage}

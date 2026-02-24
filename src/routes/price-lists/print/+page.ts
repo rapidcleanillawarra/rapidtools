@@ -22,6 +22,7 @@ type PriceListData = {
 	mode?: 'thumb' | 'list';
 	includeRrp?: boolean;
 	crossRrp?: boolean;
+	includeDescription?: boolean;
 	error?: string;
 };
 
@@ -93,6 +94,7 @@ export const load: PageLoad = async ({ url }) => {
 	const mode = (url.searchParams.get('mode') || 'thumb') as 'thumb' | 'list';
 	const includeRrp = url.searchParams.get('includeRrp') === 'true';
 	const crossRrp = url.searchParams.get('crossRrp') === 'true';
+	const includeDescription = url.searchParams.get('includeDescription') !== 'false';
 
 	if (!id) {
 		return {
@@ -102,6 +104,7 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
+			includeDescription,
 			error: 'No price list ID provided'
 		} satisfies PriceListData;
 	}
@@ -122,6 +125,7 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
+			includeDescription,
 			error: 'Price list not found'
 		} satisfies PriceListData;
 		}
@@ -165,7 +169,8 @@ export const load: PageLoad = async ({ url }) => {
 			items,
 			mode,
 			includeRrp,
-			crossRrp
+			crossRrp,
+			includeDescription
 		} satisfies PriceListData;
 	} catch (err) {
 		console.error('Unexpected error:', err);
@@ -176,6 +181,7 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
+			includeDescription,
 			error: 'Failed to load price list'
 		} satisfies PriceListData;
 	}

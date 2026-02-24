@@ -28,6 +28,9 @@
 	// Check if we're on a print page
 	$: isPrintPage = $page.url.pathname.includes('/print');
 
+	// Promax page: no header/sidebar, standalone content
+	$: isPromaxPage = $page.url.pathname === base + '/promax';
+
 	// Check if we're on a protected route
 	$: isProtectedRoute = $page.url.pathname.startsWith(base + '/product-request') ||
 						 $page.url.pathname.startsWith(base + '/dashboard') ||
@@ -43,8 +46,8 @@
 		goto(base + '/');
 	}
 
-	// Calculate sidebar width - only apply on desktop and not on print pages
-	$: sidebarWidth = isPrintPage ? '0' : (isDesktop ? (sidebarMinimized ? '80px' : '280px') : '0');
+	// Calculate sidebar width - only apply on desktop, not on print or promax pages
+	$: sidebarWidth = (isPrintPage || isPromaxPage) ? '0' : (isDesktop ? (sidebarMinimized ? '80px' : '280px') : '0');
 
 	onMount(() => {
 		mounted = true;
@@ -76,7 +79,7 @@
 </script>
 
 {#if mounted || !browser}
-	{#if !isPrintPage}
+	{#if !isPrintPage && !isPromaxPage}
 		<Header />
 	{/if}
 	<main class="transition-all duration-300" style:margin-left={sidebarWidth}>

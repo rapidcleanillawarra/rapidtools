@@ -1,9 +1,12 @@
 <script lang="ts">
-	let width = $state(200);
-	let height = $state(120);
+	let width = $state(340);
+	let height = $state(813.13);
+	let borderRadius = $state(25);
 
 	const minDim = 20;
 	const maxDim = 800;
+	const minRadius = 0;
+	const maxRadius = 999;
 
 	function toPx(n: number | string): number {
 		const v = Number(n);
@@ -12,8 +15,16 @@
 		return Math.round(c * 100) / 100;
 	}
 
+	function toRadiusPx(n: number | string): number {
+		const v = Number(n);
+		if (Number.isNaN(v)) return minRadius;
+		const c = Math.max(minRadius, Math.min(maxRadius, v));
+		return Math.round(c * 100) / 100;
+	}
+
 	const widthPx = $derived(toPx(width));
 	const heightPx = $derived(toPx(height));
+	const borderRadiusPx = $derived(toRadiusPx(borderRadius));
 </script>
 
 <div class="promax-page">
@@ -38,11 +49,22 @@
 				bind:value={height}
 			/>
 		</label>
+		<label>
+			<span>Border radius (px)</span>
+			<input
+				type="number"
+				min={minRadius}
+				max={maxRadius}
+				step="0.01"
+				bind:value={borderRadius}
+			/>
+		</label>
 	</div>
 	<div
 		class="rectangle"
 		style:width="{widthPx}px"
 		style:height="{heightPx}px"
+		style:border-radius="{borderRadiusPx}px"
 	></div>
 </div>
 

@@ -100,7 +100,6 @@
 	}
 
 	function startDrag(e: MouseEvent | TouchEvent, shape: Shape) {
-		if ((e.target as HTMLElement).closest('.btn-remove')) return;
 		e.preventDefault();
 		const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
 		const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -302,6 +301,12 @@
 						/>
 					</label>
 				{/if}
+				<button
+					type="button"
+					class="btn btn-delete"
+					onclick={() => selectedShapeId && removeShape(selectedShapeId)}
+					title="Delete shape"
+				>Delete shape</button>
 			</div>
 		{/if}
 	</aside>
@@ -334,13 +339,6 @@
 						tabindex="0"
 						title="Drag to move"
 					></div>
-					<button
-						type="button"
-						class="btn-remove"
-						onclick={() => removeShape(shape.id)}
-						title="Remove shape"
-						aria-label="Remove shape"
-					>×</button>
 				</div>
 			{/each}
 		</div>
@@ -400,6 +398,19 @@
 
 	.btn-add {
 		align-self: flex-start;
+	}
+
+	.btn-delete {
+		align-self: flex-start;
+		background: #fef2f2;
+		border-color: #f87171;
+		color: #b91c1c;
+	}
+
+	.btn-delete:hover {
+		background: #fee2e2;
+		border-color: #ef4444;
+		color: #991b1b;
 	}
 
 	.edit-shape {
@@ -483,31 +494,5 @@
 
 	.shape-wrap.dragging .shape {
 		cursor: grabbing;
-	}
-
-	.btn-remove {
-		position: absolute;
-		top: -0.5rem;
-		right: -0.5rem;
-		width: 1.5rem;
-		height: 1.5rem;
-		padding: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 1.25rem;
-		line-height: 1;
-		border-radius: 50%;
-		border: 1px solid #9ca3af;
-		background: #fff;
-		color: #374151;
-		cursor: pointer;
-		box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
-	}
-
-	.btn-remove:hover {
-		background: #fef2f2;
-		color: #b91c1c;
-		border-color: #f87171;
 	}
 </style>

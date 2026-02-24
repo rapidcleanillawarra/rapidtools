@@ -1,7 +1,9 @@
 <script lang="ts">
-	let width = $state(340);
-	let height = $state(813.13);
-	let borderRadius = $state(25);
+	let template_config = $state({
+		width: 340,
+		height: 813.13,
+		borderRadius: 25
+	});
 
 	const minDim = 20;
 	const maxDim = 800;
@@ -22,9 +24,9 @@
 		return Math.round(c * 100) / 100;
 	}
 
-	const widthPx = $derived(toPx(width));
-	const heightPx = $derived(toPx(height));
-	const borderRadiusPx = $derived(toRadiusPx(borderRadius));
+	const widthPx = $derived(toPx(template_config.width));
+	const heightPx = $derived(toPx(template_config.height));
+	const borderRadiusPx = $derived(toRadiusPx(template_config.borderRadius));
 </script>
 
 <div class="promax-page">
@@ -36,7 +38,7 @@
 				min={minDim}
 				max={maxDim}
 				step="0.01"
-				bind:value={width}
+				bind:value={template_config.width}
 			/>
 		</label>
 		<label>
@@ -46,7 +48,7 @@
 				min={minDim}
 				max={maxDim}
 				step="0.01"
-				bind:value={height}
+				bind:value={template_config.height}
 			/>
 		</label>
 		<label>
@@ -56,7 +58,7 @@
 				min={minRadius}
 				max={maxRadius}
 				step="0.01"
-				bind:value={borderRadius}
+				bind:value={template_config.borderRadius}
 			/>
 		</label>
 	</div>

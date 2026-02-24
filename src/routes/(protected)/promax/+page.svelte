@@ -24,13 +24,10 @@
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
-	// Defaults used when adding new shapes (not part of template_config)
-	let newShapeDefaults = $state({
-		rectWidth: 120,
-		rectHeight: 80,
-		rectBorderRadius: 8,
-		circleSize: 60
-	});
+	const defaultRectWidth = 120;
+	const defaultRectHeight = 80;
+	const defaultRectBorderRadius = 8;
+	const defaultCircleSize = 60;
 
 	const minDim = 20;
 	const maxDim = 800;
@@ -53,9 +50,9 @@
 	}
 
 	function addRectangle() {
-		const w = toPx(newShapeDefaults.rectWidth);
-		const h = toPx(newShapeDefaults.rectHeight);
-		const br = toRadiusPx(newShapeDefaults.rectBorderRadius);
+		const w = defaultRectWidth;
+		const h = defaultRectHeight;
+		const br = defaultRectBorderRadius;
 		const [x, y] = nextPosition(w, h);
 		template_contents = [
 			...template_contents,
@@ -72,7 +69,7 @@
 	}
 
 	function addCircle() {
-		const size = toPx(newShapeDefaults.circleSize);
+		const size = defaultCircleSize;
 		const [x, y] = nextPosition(size, size);
 		template_contents = [
 			...template_contents,
@@ -219,51 +216,8 @@
 			</label>
 		</div>
 		<div class="controls">
-			<h3 class="control-heading">Add rectangle</h3>
-			<label>
-				<span>Width (px)</span>
-				<input
-					type="number"
-					min={minDim}
-					max={maxDim}
-					step="0.01"
-					bind:value={newShapeDefaults.rectWidth}
-				/>
-			</label>
-			<label>
-				<span>Height (px)</span>
-				<input
-					type="number"
-					min={minDim}
-					max={maxDim}
-					step="0.01"
-					bind:value={newShapeDefaults.rectHeight}
-				/>
-			</label>
-			<label>
-				<span>Border radius (px)</span>
-				<input
-					type="number"
-					min={minRadius}
-					max={maxRadius}
-					step="0.01"
-					bind:value={newShapeDefaults.rectBorderRadius}
-				/>
-			</label>
+			<h3 class="control-heading">Add shape</h3>
 			<button type="button" class="btn btn-add" onclick={addRectangle}>Add rectangle</button>
-		</div>
-		<div class="controls">
-			<h3 class="control-heading">Add circle</h3>
-			<label>
-				<span>Size (px)</span>
-				<input
-					type="number"
-					min={minDim}
-					max={maxDim}
-					step="0.01"
-					bind:value={newShapeDefaults.circleSize}
-				/>
-			</label>
 			<button type="button" class="btn btn-add" onclick={addCircle}>Add circle</button>
 		</div>
 		{#if selectedShape}

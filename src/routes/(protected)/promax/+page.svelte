@@ -18,6 +18,9 @@
 
 	let template_contents = $state<Shape[]>([]);
 
+	let templateEl = $state<HTMLDivElement | null>(null);
+	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number } | null>(null);
+
 	// Defaults used when adding new shapes (not part of template_config)
 	let newShapeDefaults = $state({
 		rectWidth: 120,
@@ -94,6 +97,60 @@
 	function removeShape(id: string) {
 		template_contents = template_contents.filter((s) => s.id !== id);
 	}
+
+	function startDrag(e: MouseEvent | TouchEvent, shape: Shape) {
+		if ((e.target as HTMLElement).closest('.btn-remove')) return;
+		e.preventDefault();
+		const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+		const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+		if (!templateEl) return;
+		const rect = templateEl.getBoundingClientRect();
+		dragging = {
+			shapeId: shape.id,
+			offsetX: clientX - rect.left - shape.x,
+			offsetY: clientY - rect.top - shape.y
+		};
+	}
+
+	function onDragMove(e: MouseEvent | TouchEvent) {
+		const d = dragging;
+		if (!d || !templateEl) return;
+		if ('touches' in e) e.preventDefault();
+		const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+		const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+		const rect = templateEl.getBoundingClientRect();
+		const templateW = toPx(template_config.width);
+		const templateH = toPx(template_config.height);
+		const shape = template_contents.find((s) => s.id === d.shapeId);
+		if (!shape) return;
+		let newX = clientX - rect.left - d.offsetX;
+		let newY = clientY - rect.top - d.offsetY;
+		newX = Math.max(0, Math.min(templateW - shape.width, newX));
+		newY = Math.max(0, Math.min(templateH - shape.height, newY));
+		template_contents = template_contents.map((s) =>
+			s.id === d.shapeId ? { ...s, x: Math.round(newX * 100) / 100, y: Math.round(newY * 100) / 100 } : s
+		);
+	}
+
+	function endDrag() {
+		dragging = null;
+	}
+
+	$effect(() => {
+		if (!dragging) return;
+		const onMove = (e: MouseEvent | TouchEvent) => onDragMove(e);
+		const onEnd = () => endDrag();
+		window.addEventListener('mousemove', onMove);
+		window.addEventListener('mouseup', onEnd);
+		window.addEventListener('touchmove', onMove, { passive: false });
+		window.addEventListener('touchend', onEnd);
+		return () => {
+			window.removeEventListener('mousemove', onMove);
+			window.removeEventListener('mouseup', onEnd);
+			window.removeEventListener('touchmove', onMove);
+			window.removeEventListener('touchend', onEnd);
+		};
+	});
 </script>
 
 <div class="promax-page">
@@ -182,6 +239,7 @@
 	</aside>
 	<main class="preview">
 		<div
+			bind:this={templateEl}
 			class="template"
 			style:width="{toPx(template_config.width)}px"
 			style:height="{toPx(template_config.height)}px"
@@ -190,6 +248,7 @@
 			{#each template_contents as shape (shape.id)}
 				<div
 					class="shape-wrap"
+					class:dragging={dragging?.shapeId === shape.id}
 					style:left="{shape.x}px"
 					style:top="{shape.y}px"
 				>
@@ -200,6 +259,11 @@
 						style:width="{shape.width}px"
 						style:height="{shape.height}px"
 						style:border-radius={shape.type === 'circle' ? '50%' : `${shape.borderRadius}px`}
+						onmousedown={(e) => startDrag(e, shape)}
+						ontouchstart={(e) => startDrag(e, shape)}
+						role="button"
+						tabindex="0"
+						title="Drag to move"
 					></div>
 					<button
 						type="button"
@@ -311,9 +375,19 @@
 		position: absolute;
 	}
 
+	.shape-wrap.dragging {
+		z-index: 1;
+	}
+
 	.shape {
 		background: #e5e7eb;
 		border: 1px solid #9ca3af;
+		cursor: grab;
+		user-select: none;
+	}
+
+	.shape-wrap.dragging .shape {
+		cursor: grabbing;
 	}
 
 	.btn-remove {

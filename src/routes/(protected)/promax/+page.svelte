@@ -202,12 +202,13 @@
 		// Center template on A4 (210 x 297 mm)
 		const offsetX = (210 - wMm) / 2;
 		const offsetY = (297 - hMm) / 2;
-		// Template background and border (rounded rect)
-		const borderWidthPx = Math.max(minBorderWidth, Math.min(maxBorderWidth, Number(template_config.borderWidth) ?? 2));
+		// Clip to template bounds so only content inside is visible
+		doc.saveGraphicsState();
+		doc.rect(offsetX, offsetY, wMm, hMm, null);
+		doc.clip();
+		// Template background only inside clip (fill, no stroke)
 		doc.setFillColor(249, 250, 251);
-		doc.setDrawColor(156, 163, 175);
-		doc.setLineWidth(borderWidthPx * pxToMm);
-		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'FD');
+		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'F');
 		// Shapes in order (lower order drawn first)
 		const sorted = [...template_contents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 		const shapeFill = [229, 231, 235] as [number, number, number];
@@ -235,6 +236,12 @@
 				}
 			}
 		}
+		doc.restoreGraphicsState();
+		// Single template border (outside clip so it’s not doubled)
+		const borderWidthPx = Math.max(minBorderWidth, Math.min(maxBorderWidth, Number(template_config.borderWidth) ?? 2));
+		doc.setDrawColor(156, 163, 175);
+		doc.setLineWidth(borderWidthPx * pxToMm);
+		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'S');
 		doc.save('promax-template.pdf');
 	}
 

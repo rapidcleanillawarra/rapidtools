@@ -50,48 +50,47 @@
 	}
 
 	function addRectangle() {
+		console.log('[promax] addRectangle called', { countBefore: template_contents.length });
 		const w = defaultRectWidth;
 		const h = defaultRectHeight;
 		const br = defaultRectBorderRadius;
-		const [x, y] = nextPosition(w, h);
-		template_contents = [
-			...template_contents,
-			{
-				id: crypto.randomUUID(),
-				type: 'rectangle',
-				x,
-				y,
-				width: w,
-				height: h,
-				borderRadius: br
-			}
-		];
+		const [x, y] = centerPosition(w, h);
+		const newShape = {
+			id: crypto.randomUUID(),
+			type: 'rectangle' as const,
+			x,
+			y,
+			width: w,
+			height: h,
+			borderRadius: br
+		};
+		template_contents = [...template_contents, newShape];
+		console.log('[promax] rectangle added', { id: newShape.id, x, y, countAfter: template_contents.length });
 	}
 
 	function addCircle() {
+		console.log('[promax] addCircle called', { countBefore: template_contents.length });
 		const size = defaultCircleSize;
-		const [x, y] = nextPosition(size, size);
-		template_contents = [
-			...template_contents,
-			{
-				id: crypto.randomUUID(),
-				type: 'circle',
-				x,
-				y,
-				width: size,
-				height: size,
-				borderRadius: 0
-			}
-		];
+		const [x, y] = centerPosition(size, size);
+		const newShape = {
+			id: crypto.randomUUID(),
+			type: 'circle' as const,
+			x,
+			y,
+			width: size,
+			height: size,
+			borderRadius: 0
+		};
+		template_contents = [...template_contents, newShape];
+		console.log('[promax] circle added', { id: newShape.id, x, y, countAfter: template_contents.length });
 	}
 
-	function nextPosition(w: number, h: number): [number, number] {
-		if (template_contents.length === 0) return [defaultShapeOffset, defaultShapeOffset];
-		const last = template_contents[template_contents.length - 1];
-		const nextX = last.x + last.width + defaultShapeOffset;
+	function centerPosition(w: number, h: number): [number, number] {
 		const templateW = toPx(template_config.width);
-		if (nextX + w <= templateW - defaultShapeOffset) return [nextX, last.y];
-		return [defaultShapeOffset, last.y + last.height + defaultShapeOffset];
+		const templateH = toPx(template_config.height);
+		const x = Math.max(0, Math.round((templateW - w) / 2));
+		const y = Math.max(0, Math.round((templateH - h) / 2));
+		return [x, y];
 	}
 
 	function removeShape(id: string) {
@@ -143,10 +142,11 @@
 	}
 
 	function updateSelectedShape(updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadius' | 'x' | 'y'>>) {
+		console.log('[promax] updateSelectedShape called', { selectedShapeId, updates, count: template_contents.length });
 		if (!selectedShapeId) return;
 		const templateW = toPx(template_config.width);
 		const templateH = toPx(template_config.height);
-		template_contents = template_contents.map((s) => {
+		const nextContents = template_contents.map((s) => {
 			if (s.id !== selectedShapeId) return s;
 			const next = { ...s, ...updates };
 			next.width = toPx(next.width);
@@ -156,6 +156,8 @@
 			next.y = Math.max(0, Math.min(templateH - next.height, next.y));
 			return next;
 		});
+		template_contents = nextContents;
+		console.log('[promax] updateSelectedShape done', { count: template_contents.length });
 	}
 
 	function deselectShape() {

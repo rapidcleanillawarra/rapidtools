@@ -27,6 +27,9 @@
   let transferResult: { migrated: number; skipped: number; errors: string[] } | null = null;
   let transferError: string | null = null;
 
+  let isTestingB2 = false;
+  let b2TestResult: { ok: boolean; error?: string } | null = null;
+
   onMount(async () => {
     await loadStats();
     await loadWorkshops();
@@ -113,6 +116,20 @@
       isTransferring = false;
     }
   }
+
+  async function testB2Connection() {
+    isTestingB2 = true;
+    b2TestResult = null;
+    try {
+      const res = await fetch('/api/storage/test-b2');
+      const data = await res.json();
+      b2TestResult = data.ok ? { ok: true } : { ok: false, error: data.error ?? 'Connection failed.' };
+    } catch (err) {
+      b2TestResult = { ok: false, error: err instanceof Error ? err.message : 'Request failed.' };
+    } finally {
+      isTestingB2 = false;
+    }
+  }
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -124,7 +141,7 @@
 
     <div class="p-6 space-y-8">
       <!-- Quick Actions -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <a
           href="{base}/workshop/form"
           class="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -156,6 +173,21 @@
             Transferring...
           {:else}
             Transfer Files &amp; Photos to Cold Storage
+          {/if}
+        </button>
+        <button
+          on:click={testB2Connection}
+          disabled={isTestingB2}
+          class="flex items-center justify-center px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Test connection to Backblaze B2 storage"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+          </svg>
+          {#if isTestingB2}
+            Testing...
+          {:else}
+            Test Backblaze Connection
           {/if}
         </button>
         <button
@@ -419,6 +451,42 @@
         <div class="flex justify-end">
           <button
             on:click={() => transferError = null}
+            class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- B2 connection test result -->
+{#if b2TestResult}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="p-6">
+        <div class="flex items-center mb-4">
+          {#if b2TestResult.ok}
+            <svg class="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-green-900">Backblaze B2 Connected</h3>
+          {:else}
+            <svg class="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="text-lg font-semibold text-red-900">Backblaze B2 Connection Failed</h3>
+          {/if}
+        </div>
+        {#if b2TestResult.ok}
+          <p class="text-gray-700 mb-6">Connection to Backblaze B2 storage is working. Uploads and cold storage transfers can use B2.</p>
+        {:else}
+          <p class="text-gray-700 mb-6">{b2TestResult.error}</p>
+        {/if}
+        <div class="flex justify-end">
+          <button
+            on:click={() => b2TestResult = null}
             class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
             Close

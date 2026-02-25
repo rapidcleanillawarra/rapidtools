@@ -2,13 +2,17 @@
  * Backblaze B2 storage (S3-compatible API).
  * Used only on the server. Configure via env: B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME, B2_ENDPOINT, B2_PUBLIC_BASE_URL.
  */
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { env } from '$env/dynamic/private';
 
-const B2_KEY_ID = env.B2_KEY_ID;
-const B2_APPLICATION_KEY = env.B2_APPLICATION_KEY;
-const B2_BUCKET_NAME = env.B2_BUCKET_NAME;
-const B2_ENDPOINT = env.B2_ENDPOINT ?? 'https://s3.us-west-004.backblazeb2.com';
+const B2_KEY_ID = env.B2_KEY_ID?.trim() ?? '';
+const B2_APPLICATION_KEY = env.B2_APPLICATION_KEY?.trim() ?? '';
+const B2_BUCKET_NAME = env.B2_BUCKET_NAME?.trim() ?? '';
+/** Endpoint must be a full URL (e.g. https://s3.us-west-004.backblazeb2.com). */
+const B2_ENDPOINT_RAW = env.B2_ENDPOINT ?? 'https://s3.us-west-004.backblazeb2.com';
+const B2_ENDPOINT = B2_ENDPOINT_RAW.startsWith('http://') || B2_ENDPOINT_RAW.startsWith('https://')
+  ? B2_ENDPOINT_RAW
+  : `https://${B2_ENDPOINT_RAW}`;
 const B2_REGION = env.B2_REGION ?? 'us-west-004';
 /** Public base URL for object links (e.g. https://yourbucket.s3.us-west-004.backblazeb2.com). No trailing slash. */
 const B2_PUBLIC_BASE_URL = env.B2_PUBLIC_BASE_URL;
@@ -70,4 +74,29 @@ export async function uploadToB2(
   );
   const url = getB2PublicUrl(key);
   return { key, url };
+}
+
+/**
+ * Test B2 connection by listing the bucket (max 0 keys).
+ * Returns { ok: true } on success or { ok: false, error: string } on failure.
+ */
+export async function testB2Connection(): Promise<
+  { ok: true } | { ok: false; error: string }
+> {
+  if (!isB2Configured()) {
+    return { ok: false, error: 'B2 is not configured. Set B2_KEY_ID, B2_APPLICATION_KEY, B2_BUCKET_NAME.' };
+  }
+  try {
+    const client = getB2Client();
+    await client.send(
+      new ListObjectsV2Command({
+        Bucket: B2_BUCKET_NAME!,
+        MaxKeys: 0
+      })
+    );
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: message };
+  }
 }

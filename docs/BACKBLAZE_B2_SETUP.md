@@ -40,6 +40,11 @@ B2_PUBLIC_BASE_URL=https://yourbucket.s3.us-west-004.backblazeb2.com
 - **B2_REGION** – Region in the endpoint (e.g. `us-west-004`).
 - **B2_PUBLIC_BASE_URL** – Base URL for public file links. For a public bucket this is usually `https://<bucketName>.s3.<region>.backblazeb2.com`.
 
+## Troubleshooting
+
+- **"Malformed Access Key Id"** – Use an **Application Key** created under **App Keys** (with Read/Write access to the bucket). Do **not** use your account’s Master Application Key; the S3-Compatible API does not accept it. Also ensure `.env` has no extra spaces or quotes around the values (e.g. use `B2_KEY_ID=0115f434a6ce` not `B2_KEY_ID = "0115f434a6ce"`).
+- **"Invalid URL"** – Set `B2_ENDPOINT` to a full URL, e.g. `https://s3.us-west-004.backblazeb2.com` (include `https://`).
+
 ## 4. Behaviour
 
 - **Create/update workshop** with photos or files: the app calls `POST /api/storage/upload-workshop`.

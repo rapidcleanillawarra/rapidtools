@@ -41,7 +41,8 @@ export const POST: RequestHandler = async () => {
     .from('workshop')
     .select('id, clients_work_order, photo_urls, file_urls, backup_files')
     .in('status', ['completed', 'to_be_scrapped'])
-    .is('backup_files', null);
+    .is('backup_files', null)
+    .limit(5); // TODO: remove limit after testing
 
   if (fetchError) {
     return json(

@@ -27,6 +27,32 @@
   let transferResult: { migrated: number; skipped: number; errors: string[] } | null = null;
   let transferError: string | null = null;
 
+  /** Progress modal: shown during transfer when server streams NDJSON */
+  let showTransferProgress = false;
+  let transferProgress: {
+    workshopIndex: number;
+    totalWorkshops: number;
+    workOrder: string;
+    currentFile: string;
+    fileKind: 'photo' | 'file' | null;
+    fileIndex: number;
+    fileTotal: number;
+    completedItems: number;
+    totalItems: number;
+    log: Array<{ type: string; text: string }>;
+  } = {
+    workshopIndex: 0,
+    totalWorkshops: 0,
+    workOrder: '',
+    currentFile: '',
+    fileKind: null,
+    fileIndex: 0,
+    fileTotal: 0,
+    completedItems: 0,
+    totalItems: 0,
+    log: []
+  };
+
   let isTestingB2 = false;
   let b2TestResult: { ok: boolean; error?: string } | null = null;
 
@@ -95,23 +121,168 @@
     isTransferring = true;
     transferResult = null;
     transferError = null;
+    showTransferProgress = true;
+    transferProgress = {
+      workshopIndex: 0,
+      totalWorkshops: 0,
+      workOrder: '',
+      currentFile: '',
+      fileKind: null,
+      fileIndex: 0,
+      fileTotal: 0,
+      completedItems: 0,
+      totalItems: 0,
+      log: []
+    };
     try {
-      const res = await fetch('/api/storage/migrate-to-b2', { method: 'POST' });
-      const data = await res.json();
-      if (res.ok) {
-        transferResult = {
-          migrated: data.migrated ?? 0,
-          skipped: data.skipped ?? 0,
-          errors: Array.isArray(data.errors) ? data.errors : []
-        };
-        await loadStats();
-      } else if (res.status === 503) {
-        transferError = data.error ?? 'Cold storage (B2) is not configured.';
+      const res = await fetch(`${base}/api/storage/migrate-to-b2`, {
+        method: 'POST',
+        headers: { Accept: 'application/x-ndjson' }
+      });
+      const contentType = res.headers.get('content-type') ?? '';
+
+      if (contentType.includes('application/x-ndjson')) {
+        const reader = res.body?.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              try {
+                const event = JSON.parse(trimmed) as Record<string, unknown>;
+                const type = event.type as string;
+                if (type === 'workshop_start') {
+                  const totalPhotos = (event.totalPhotos as number) ?? 0;
+                  const totalFiles = (event.totalFiles as number) ?? 0;
+                  transferProgress = {
+                    ...transferProgress,
+                    workshopIndex: (event.workshopIndex as number) ?? 0,
+                    totalWorkshops: (event.totalWorkshops as number) ?? 0,
+                    workOrder: (event.workOrder as string) ?? '',
+                    currentFile: '',
+                    fileKind: null,
+                    fileIndex: 0,
+                    fileTotal: totalPhotos + totalFiles,
+                    completedItems: 0,
+                    totalItems: totalPhotos + totalFiles,
+                    log: [...transferProgress.log, { type: 'workshop', text: `Processing workshop: ${event.workOrder}` }]
+                  };
+                } else if (type === 'workshop_skip') {
+                  transferProgress = {
+                    ...transferProgress,
+                    log: [...transferProgress.log, { type: 'skip', text: `Skipped (no Supabase files): ${event.workOrder}` }]
+                  };
+                } else if (type === 'file') {
+                  const kind = event.kind as 'photo' | 'file';
+                  const name = (event.name as string) ?? 'file';
+                  transferProgress = {
+                    ...transferProgress,
+                    currentFile: name,
+                    fileKind: kind,
+                    fileIndex: (event.index as number) ?? 0,
+                    fileTotal: (event.total as number) ?? 0,
+                    completedItems: transferProgress.completedItems + 1,
+                    log: [...transferProgress.log, { type: kind, text: `${kind === 'photo' ? 'Photo' : 'File'} ${event.index}/${event.total}: ${name}` }]
+                  };
+                } else if (type === 'workshop_done') {
+                  transferProgress = {
+                    ...transferProgress,
+                    log: [
+                      ...transferProgress.log,
+                      { type: 'done', text: `Finished workshop ${event.workOrder}${(event.success ? '' : ' (with errors)')}` }
+                    ]
+                  };
+                } else if (type === 'done') {
+                  transferResult = {
+                    migrated: (event.migrated as number) ?? 0,
+                    skipped: (event.skipped as number) ?? 0,
+                    errors: Array.isArray(event.errors) ? (event.errors as string[]) : []
+                  };
+                  await loadStats();
+                  showTransferProgress = false;
+                } else if (type === 'error') {
+                  transferError = (event.error as string) ?? 'Transfer failed.';
+                  showTransferProgress = false;
+                }
+              } catch (_) {
+                // ignore parse errors for partial chunks
+              }
+            }
+          }
+          if (buffer.trim()) {
+            try {
+              const event = JSON.parse(buffer.trim()) as Record<string, unknown>;
+              if (event.type === 'done') {
+                transferResult = {
+                  migrated: (event.migrated as number) ?? 0,
+                  skipped: (event.skipped as number) ?? 0,
+                  errors: Array.isArray(event.errors) ? (event.errors as string[]) : []
+                };
+                await loadStats();
+              }
+            } catch (_) {}
+          }
+          if (showTransferProgress && !transferResult && !transferError) {
+            transferError = 'Connection ended unexpectedly.';
+          }
+          showTransferProgress = false;
+        } else {
+          const text = await res.text();
+          let data: Record<string, unknown>;
+          try {
+            data = text.length ? JSON.parse(text) : {};
+          } catch {
+            transferError = 'Invalid response from server.';
+            return;
+          }
+          if (res.ok) {
+            transferResult = {
+              migrated: (data.migrated as number) ?? 0,
+              skipped: (data.skipped as number) ?? 0,
+              errors: Array.isArray(data.errors) ? (data.errors as string[]) : []
+            };
+            await loadStats();
+          } else {
+            transferError = (data.error as string) ?? 'Transfer failed.';
+          }
+          showTransferProgress = false;
+        }
       } else {
-        transferError = data.error ?? 'Transfer failed.';
+        const text = await res.text();
+        let data: Record<string, unknown>;
+        try {
+          data = text.length ? JSON.parse(text) : {};
+        } catch {
+          transferError = res.ok
+            ? 'Invalid response from server.'
+            : 'This feature requires the app server. It is not available on static hosting (e.g. GitHub Pages).';
+          showTransferProgress = false;
+          return;
+        }
+        if (res.ok) {
+          transferResult = {
+            migrated: (data.migrated as number) ?? 0,
+            skipped: (data.skipped as number) ?? 0,
+            errors: Array.isArray(data.errors) ? (data.errors as string[]) : []
+          };
+          await loadStats();
+        } else if (res.status === 503) {
+          transferError = (data.error as string) ?? 'Cold storage (B2) is not configured.';
+        } else {
+          transferError = (data.error as string) ?? 'Transfer failed.';
+        }
+        showTransferProgress = false;
       }
     } catch (err) {
       transferError = err instanceof Error ? err.message : 'Transfer failed.';
+      showTransferProgress = false;
     } finally {
       isTransferring = false;
     }
@@ -121,8 +292,17 @@
     isTestingB2 = true;
     b2TestResult = null;
     try {
-      const res = await fetch('/api/storage/test-b2');
-      const data = await res.json();
+      const res = await fetch(`${base}/api/storage/test-b2`);
+      const text = await res.text();
+      let data: { ok?: boolean; error?: string };
+      try {
+        data = text.length ? JSON.parse(text) : {};
+      } catch {
+        b2TestResult = res.ok
+          ? { ok: false, error: 'Invalid response from server.' }
+          : { ok: false, error: 'This feature requires the app server. It is not available on static hosting (e.g. GitHub Pages).' };
+        return;
+      }
       b2TestResult = data.ok ? { ok: true } : { ok: false, error: data.error ?? 'Connection failed.' };
     } catch (err) {
       b2TestResult = { ok: false, error: err instanceof Error ? err.message : 'Request failed.' };
@@ -388,6 +568,78 @@
             Close
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Transfer progress modal (during stream) -->
+{#if showTransferProgress}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
+      <div class="p-6 border-b border-gray-200">
+        <div class="flex items-center gap-3">
+          <svg class="animate-spin h-6 w-6 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Transferring to Cold Storage</h3>
+            <p class="text-sm text-gray-600">
+              Workshop {transferProgress.workshopIndex} of {transferProgress.totalWorkshops || '…'}
+              {#if transferProgress.workOrder}
+                · {transferProgress.workOrder}
+              {/if}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-3 bg-gray-50 border-b border-gray-200">
+        {#if transferProgress.totalItems > 0}
+          <p class="text-sm text-gray-700">
+            {#if transferProgress.fileKind === 'photo'}
+              📷 Photo {transferProgress.fileIndex} of {transferProgress.fileTotal}
+            {:else if transferProgress.fileKind === 'file'}
+              📎 File {transferProgress.fileIndex} of {transferProgress.fileTotal}
+            {:else}
+              Preparing…
+            {/if}
+            {#if transferProgress.currentFile}
+              <span class="text-gray-500 truncate block mt-0.5" title={transferProgress.currentFile}>{transferProgress.currentFile}</span>
+            {/if}
+          </p>
+          <div class="mt-2 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              class="h-full bg-indigo-600 transition-all duration-300"
+              style="width: {transferProgress.totalItems ? Math.round((100 * transferProgress.completedItems) / transferProgress.totalItems) : 0}%"
+            ></div>
+          </div>
+        {:else}
+          <p class="text-sm text-gray-600">Connecting…</p>
+        {/if}
+      </div>
+      <div class="p-6 overflow-y-auto flex-1 min-h-0">
+        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Progress log</p>
+        <ul class="space-y-1 text-sm font-mono text-gray-700">
+          {#each transferProgress.log as entry}
+            <li class="flex items-start gap-2">
+              {#if entry.type === 'workshop'}
+                <span class="text-indigo-600 shrink-0">▶</span>
+              {:else if entry.type === 'skip'}
+                <span class="text-amber-600 shrink-0">⊘</span>
+              {:else if entry.type === 'photo'}
+                <span class="text-blue-600 shrink-0">📷</span>
+              {:else if entry.type === 'file'}
+                <span class="text-green-600 shrink-0">📎</span>
+              {:else if entry.type === 'done'}
+                <span class="text-green-600 shrink-0">✓</span>
+              {:else}
+                <span class="shrink-0">·</span>
+              {/if}
+              <span class="break-all">{entry.text}</span>
+            </li>
+          {/each}
+        </ul>
       </div>
     </div>
   </div>

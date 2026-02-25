@@ -115,6 +115,9 @@ export interface WorkshopRecord {
   // File references
   file_urls: string[] | string;
 
+  // Cold storage backup (B2 migration record)
+  backup_files?: { migratedAt: string; photoUrls: string[]; fileUrls: string[] } | null;
+
   // Quote or Repaired
   quote_or_repaired: 'Quote' | 'Repaired';
 
@@ -335,9 +338,12 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       }
     }
 
-    // Upload photos and files first
-    const photoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
-    const fileUrls = await uploadWorkshopFiles(data.files, data.clientsWorkOrder || 'workshop');
+    // Upload photos and files first (B2 if configured, else Supabase)
+    const { photoUrls, fileUrls } = await uploadWorkshopPhotosAndFiles(
+      data.photos,
+      data.files,
+      data.clientsWorkOrder || 'workshop'
+    );
 
     // Debug optional contacts
     console.log('Optional contacts before formatting:', data.optionalContacts);
@@ -407,6 +413,57 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
   } catch (error) {
     console.error('Error creating workshop:', error);
     throw error;
+  }
+}
+
+/**
+ * Upload workshop photos and files. Uses Backblaze B2 when configured (server env),
+ * otherwise falls back to Supabase storage.
+ */
+export async function uploadWorkshopPhotosAndFiles(
+  photos: File[],
+  files: File[],
+  workOrder: string
+): Promise<{ photoUrls: string[]; fileUrls: string[] }> {
+  const dynamicWorkOrder =
+    workOrder === 'workshop' ? `workshop_${Date.now().toString().slice(-6)}` : workOrder;
+
+  if (!photos?.length && !files?.length) {
+    return { photoUrls: [], fileUrls: [] };
+  }
+
+  try {
+    const formData = new FormData();
+    formData.set('workOrder', dynamicWorkOrder);
+    photos?.forEach((p) => formData.append('photos', p));
+    files?.forEach((f) => formData.append('files', f));
+
+    const res = await fetch('/api/storage/upload-workshop', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      const body = await res.json();
+      return {
+        photoUrls: Array.isArray(body.photoUrls) ? body.photoUrls : [],
+        fileUrls: Array.isArray(body.fileUrls) ? body.fileUrls : []
+      };
+    }
+
+    if (res.status === 503) {
+      const photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
+      const fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
+      return { photoUrls, fileUrls };
+    }
+
+    const errText = await res.text();
+    throw new Error(errText || `Upload failed: ${res.status}`);
+  } catch (err) {
+    console.error('B2 upload failed, falling back to Supabase:', err);
+    const photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
+    const fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
+    return { photoUrls, fileUrls };
   }
 }
 
@@ -709,15 +766,19 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
  */
 export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>): Promise<WorkshopRecord> {
   try {
-    // Handle photo and file uploads if new files are provided
+    // Handle photo and file uploads if new files are provided (B2 if configured, else Supabase)
+    const hasNewPhotos = data.photos && data.photos.length > 0;
+    const hasNewFiles = data.files && data.files.length > 0;
     let newPhotoUrls: string[] = [];
-    if (data.photos && data.photos.length > 0) {
-      newPhotoUrls = await uploadWorkshopPhotos(data.photos, data.clientsWorkOrder || 'workshop');
-    }
-
     let newFileUrls: string[] = [];
-    if (data.files && data.files.length > 0) {
-      newFileUrls = await uploadWorkshopFiles(data.files, data.clientsWorkOrder || 'workshop');
+    if (hasNewPhotos || hasNewFiles) {
+      const result = await uploadWorkshopPhotosAndFiles(
+        data.photos ?? [],
+        data.files ?? [],
+        data.clientsWorkOrder || 'workshop'
+      );
+      newPhotoUrls = result.photoUrls;
+      newFileUrls = result.fileUrls;
     }
 
     // Debug optional contacts
@@ -828,28 +889,28 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
     // Update photo_urls - only update when there are actual changes
     const hasExistingPhotos = data.existingPhotoUrls && data.existingPhotoUrls.length > 0;
-    const hasNewPhotos = newPhotoUrls.length > 0;
+    const hasNewPhotoUrls = newPhotoUrls.length > 0;
 
     // Only update photo_urls if:
     // 1. There are new photos to upload (merge with existing)
     // 2. existingPhotoUrls is explicitly provided (even if empty, to allow clearing photos)
-    if (hasNewPhotos || data.existingPhotoUrls !== undefined) {
+    if (hasNewPhotoUrls || data.existingPhotoUrls !== undefined) {
       let finalPhotoUrls: string[] = [];
 
-      if (hasNewPhotos && hasExistingPhotos) {
+      if (hasNewPhotoUrls && hasExistingPhotos) {
         // Merge new photos with existing photos
         finalPhotoUrls = [...(data.existingPhotoUrls || []), ...newPhotoUrls];
-      } else if (hasNewPhotos && !hasExistingPhotos) {
+      } else if (hasNewPhotoUrls && !hasExistingPhotos) {
         // Only new photos
         finalPhotoUrls = newPhotoUrls;
-      } else if (!hasNewPhotos && data.existingPhotoUrls !== undefined) {
+      } else if (!hasNewPhotoUrls && data.existingPhotoUrls !== undefined) {
         // No new photos, use existing photos as-is (or empty if clearing)
         finalPhotoUrls = data.existingPhotoUrls || [];
       }
 
       updateData.photo_urls = finalPhotoUrls;
       console.log('Updating photo_urls with:', finalPhotoUrls, {
-        hasNewPhotos,
+        hasNewPhotoUrls,
         hasExistingPhotos,
         existingPhotoUrlsLength: data.existingPhotoUrls?.length || 0,
         newPhotoUrlsLength: newPhotoUrls.length
@@ -858,28 +919,28 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
 
     // Update file_urls - only update when there are actual changes
     const hasExistingFiles = data.existingFileUrls && data.existingFileUrls.length > 0;
-    const hasNewFiles = newFileUrls.length > 0;
+    const hasNewFileUrls = newFileUrls.length > 0;
 
     // Only update file_urls if:
     // 1. There are new files to upload (merge with existing)
     // 2. existingFileUrls is explicitly provided (even if empty, to allow clearing files)
-    if (hasNewFiles || data.existingFileUrls !== undefined) {
+    if (hasNewFileUrls || data.existingFileUrls !== undefined) {
       let finalFileUrls: string[] = [];
 
-      if (hasNewFiles && hasExistingFiles) {
+      if (hasNewFileUrls && hasExistingFiles) {
         // Merge new files with existing files
         finalFileUrls = [...(data.existingFileUrls || []), ...newFileUrls];
-      } else if (hasNewFiles && !hasExistingFiles) {
+      } else if (hasNewFileUrls && !hasExistingFiles) {
         // Only new files
         finalFileUrls = newFileUrls;
-      } else if (!hasNewFiles && data.existingFileUrls !== undefined) {
+      } else if (!hasNewFileUrls && data.existingFileUrls !== undefined) {
         // No new files, use existing files as-is (or empty if clearing)
         finalFileUrls = data.existingFileUrls || [];
       }
 
       updateData.file_urls = finalFileUrls;
       console.log('Updating file_urls with:', finalFileUrls, {
-        hasNewFiles,
+        hasNewFileUrls,
         hasExistingFiles,
         existingFileUrlsLength: data.existingFileUrls?.length || 0,
         newFileUrlsLength: newFileUrls.length

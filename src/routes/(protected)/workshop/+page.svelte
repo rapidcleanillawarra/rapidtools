@@ -23,6 +23,10 @@
   let cleanupResult: { found: number; deleted: number; errors: string[] } | null = null;
   let showCleanupConfirm = false;
 
+  let isTransferring = false;
+  let transferResult: { migrated: number; skipped: number; errors: string[] } | null = null;
+  let transferError: string | null = null;
+
   onMount(async () => {
     await loadStats();
     await loadWorkshops();
@@ -83,6 +87,32 @@
       default: return 'bg-gray-100 text-gray-800';
     }
   }
+
+  async function runTransferToColdStorage() {
+    isTransferring = true;
+    transferResult = null;
+    transferError = null;
+    try {
+      const res = await fetch('/api/storage/migrate-to-b2', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        transferResult = {
+          migrated: data.migrated ?? 0,
+          skipped: data.skipped ?? 0,
+          errors: Array.isArray(data.errors) ? data.errors : []
+        };
+        await loadStats();
+      } else if (res.status === 503) {
+        transferError = data.error ?? 'Cold storage (B2) is not configured.';
+      } else {
+        transferError = data.error ?? 'Transfer failed.';
+      }
+    } catch (err) {
+      transferError = err instanceof Error ? err.message : 'Transfer failed.';
+    } finally {
+      isTransferring = false;
+    }
+  }
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -94,7 +124,7 @@
 
     <div class="p-6 space-y-8">
       <!-- Quick Actions -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <a
           href="{base}/workshop/form"
           class="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -114,6 +144,20 @@
           </svg>
           Start with Camera
         </a>
+        <button
+          on:click={runTransferToColdStorage}
+          disabled={isTransferring}
+          class="flex items-center justify-center px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+          </svg>
+          {#if isTransferring}
+            Transferring...
+          {:else}
+            Transfer Files &amp; Photos to Cold Storage
+          {/if}
+        </button>
         <button
           on:click={() => showCleanupConfirm = true}
           class="flex items-center justify-center px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -308,6 +352,74 @@
           <button
             on:click={() => cleanupResult = null}
             class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Transfer to Cold Storage Result Modal -->
+{#if transferResult}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="p-6">
+        <div class="flex items-center mb-4">
+          <svg class="w-6 h-6 text-green-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <h3 class="text-lg font-semibold text-green-900">Transfer Complete</h3>
+        </div>
+
+        <p class="text-gray-700 mb-4">
+          Migrated {transferResult.migrated} workshop(s) to cold storage.
+          {#if transferResult.skipped > 0}
+            Skipped {transferResult.skipped} (no Supabase files or already migrated).
+          {/if}
+        </p>
+
+        {#if transferResult.errors.length > 0}
+          <div class="mt-4 mb-4">
+            <p class="text-amber-800 text-sm font-medium mb-2">Some errors occurred:</p>
+            <ul class="text-amber-700 text-sm space-y-1 max-h-40 overflow-y-auto">
+              {#each transferResult.errors as error}
+                <li>• {error}</li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+
+        <div class="flex justify-end">
+          <button
+            on:click={() => { transferResult = null; transferError = null; }}
+            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
+
+<!-- Transfer Error (e.g. B2 not configured) -->
+{#if transferError && !transferResult}
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+      <div class="p-6">
+        <div class="flex items-center mb-4">
+          <svg class="w-6 h-6 text-amber-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+          <h3 class="text-lg font-semibold text-gray-900">Transfer Failed</h3>
+        </div>
+        <p class="text-gray-700 mb-6">{transferError}</p>
+        <div class="flex justify-end">
+          <button
+            on:click={() => transferError = null}
+            class="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
             Close
           </button>

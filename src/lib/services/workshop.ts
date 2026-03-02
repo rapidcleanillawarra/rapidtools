@@ -720,11 +720,13 @@ export async function getWorkshops(filters?: {
   customer_name?: string;
   limit?: number;
   excludeStatuses?: string[];
+  select?: string[];
 }): Promise<WorkshopRecord[]> {
   try {
+    const selectColumns = filters?.select?.length ? filters.select.join(',') : '*';
     let query = supabase
       .from('workshop')
-      .select('*')
+      .select(selectColumns)
       .neq('status', 'deleted') // Exclude soft-deleted records
       .order('created_at', { ascending: false });
 
@@ -752,7 +754,7 @@ export async function getWorkshops(filters?: {
       throw error;
     }
 
-    return data as WorkshopRecord[];
+    return (data ?? []) as unknown as WorkshopRecord[];
   } catch (error) {
     console.error('Error fetching workshops:', error);
     throw error;

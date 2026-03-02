@@ -33,6 +33,25 @@
   const BOARD_STATUS_KEYS = BOARD_STATUSES.map((status) => status.key) as Array<BoardStatusKey>;
   const BOARD_STATUS_KEY_SET = new Set<WorkshopRecord['status']>(BOARD_STATUS_KEYS);
 
+  /** Minimal columns needed for board cards, search, status updates, and Teams notifications */
+  const BOARD_SELECT: string[] = [
+    'id',
+    'status',
+    'created_at',
+    'customer_name',
+    'order_id',
+    'clients_work_order',
+    'product_name',
+    'make_model',
+    'photo_urls',
+    'customer_data',
+    'site_location',
+    'history',
+    'fault_description',
+    'contact_number',
+    'optional_contacts'
+  ];
+
   const STATUS_VISIBILITY_KEY = 'workshop-status-visibility';
 
   let workshops: WorkshopRecord[] = [];
@@ -140,7 +159,7 @@
     try {
       loading = true;
       error = null;
-      workshops = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'] });
+      workshops = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'], select: BOARD_SELECT });
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to load workshops:', err);
       error = err instanceof Error ? err.message : 'Failed to load workshops';

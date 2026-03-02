@@ -189,6 +189,7 @@ function buildPickupHtmlBody(
   const orderId = workshop.order_id ?? 'N/A';
   const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
   const fault = workshop.fault_description ?? 'N/A';
+  const location = workshop.site_location?.trim() || 'N/A';
 
   const lines: string[] = [
     `<p><strong>${header}</strong></p>`,
@@ -197,8 +198,17 @@ function buildPickupHtmlBody(
     `<p>${escapeHtml(contactLine)}</p>`,
     '<p><br></p>',
     `<p>${escapeHtml(product)}</p>`,
-    `<p>${escapeHtml(fault)}</p>`
+    `<p>${escapeHtml(fault)}</p>`,
+    `<p><strong>Location: ${escapeHtml(location)}</strong></p>`
   ];
+
+  const firstOptional = workshop.optional_contacts?.[0];
+  const whoToContact = firstOptional
+    ? [firstOptional.name, firstOptional.number, firstOptional.email].filter(Boolean).join(' - ') || null
+    : null;
+  if (whoToContact) {
+    lines.push(`<p><strong>Who to Contact: ${escapeHtml(whoToContact)}</strong></p>`);
+  }
 
   if (options?.assignedToName?.trim()) {
     lines.push('<p><br></p>', `<p><strong>Assigned to: ${escapeHtml(options.assignedToName.trim())}</strong></p>`);

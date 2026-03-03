@@ -5,6 +5,28 @@
 
   const STORAGE_KEY = 'rapidtools-workshop-status-visibility';
 
+  /** Display order for statuses in the chart and sidebar. */
+  const WORKSHOP_STATUS_DISPLAY_ORDER: string[] = [
+    'new',
+    'pickup',
+    'to_be_quoted',
+    'docket_ready',
+    'quoted',
+    'waiting_approval_po',
+    'waiting_for_parts',
+    'booked_in_for_repair_service',
+    'repaired',
+    'workshop_pickup',
+    'return',
+    'pending_jobs',
+    'warranty_claim'
+  ];
+
+  function sortByStatusOrder<T extends { status: string }>(items: T[]): T[] {
+    const order = new Map(WORKSHOP_STATUS_DISPLAY_ORDER.map((s, i) => [s, i]));
+    return [...items].sort((a, b) => (order.get(a.status) ?? 999) - (order.get(b.status) ?? 999));
+  }
+
   function loadSavedVisibility(): Record<string, boolean> {
     if (typeof window === 'undefined') return {};
     try {
@@ -21,16 +43,18 @@
   /** Which statuses are visible in the chart; new statuses default to true. */
   let statusVisibility: Record<string, boolean> = loadSavedVisibility();
 
-  $: if (jobStatusCounts) {
+  $: sortedJobStatusCounts = jobStatusCounts ? sortByStatusOrder(jobStatusCounts) : null;
+
+  $: if (sortedJobStatusCounts) {
     const next: Record<string, boolean> = { ...statusVisibility };
-    for (const s of jobStatusCounts) {
+    for (const s of sortedJobStatusCounts) {
       if (!(s.status in next)) next[s.status] = true;
     }
     statusVisibility = next;
   }
 
   $: filteredStatusCounts =
-    jobStatusCounts?.filter((s) => statusVisibility[s.status] ?? true) ?? null;
+    sortedJobStatusCounts?.filter((s) => statusVisibility[s.status] ?? true) ?? null;
 
   /** Persist toggled status visibility to localStorage when it changes. */
   $: if (typeof window !== 'undefined' && Object.keys(statusVisibility).length > 0) {
@@ -80,8 +104,8 @@
         <!-- Left: show/hide status controls -->
         <div class="w-48 shrink-0 border-r border-gray-200 p-4 flex flex-col gap-2 overflow-y-auto">
           <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Show in chart</span>
-          {#if jobStatusCounts}
-            {#each jobStatusCounts as { status, count }}
+          {#if sortedJobStatusCounts}
+            {#each sortedJobStatusCounts as { status, count }}
               <label class="flex items-center gap-2 cursor-pointer group">
                 <input
                   type="checkbox"
@@ -105,7 +129,7 @@
         <div class="flex-1 p-6 min-w-0 min-h-0">
           <WorkshopJobsStatusChart
             stats={filteredStatusCounts}
-            allStatuses={jobStatusCounts?.map((s) => s.status) ?? []}
+            allStatuses={WORKSHOP_STATUS_DISPLAY_ORDER}
             isLoading={isLoadingStatusCounts}
           />
         </div>

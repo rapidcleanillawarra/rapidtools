@@ -1167,6 +1167,35 @@ export async function getPhotoStatistics(): Promise<{
 }
 
 /**
+ * Get job counts grouped by status for the workshop table.
+ * @param options.excludeDeleted - when true, excludes rows with status 'deleted' (default true)
+ */
+export async function getJobStatusCounts(options?: {
+  excludeDeleted?: boolean;
+}): Promise<{ status: string; count: number }[]> {
+  const excludeDeleted = options?.excludeDeleted !== false;
+  try {
+    let query = supabase.from('workshop').select('status');
+    if (excludeDeleted) {
+      query = query.neq('status', 'deleted');
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    const counts: Record<string, number> = {};
+    (data ?? []).forEach((row: { status: string | null }) => {
+      const s = row.status ?? 'unknown';
+      counts[s] = (counts[s] ?? 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([status, count]) => ({ status, count }))
+      .sort((a, b) => b.count - a.count);
+  } catch (error) {
+    console.error('Error getting job status counts:', error);
+    throw error;
+  }
+}
+
+/**
  * Clean up photos for a specific workshop (when workshop is deleted)
  */
 export async function cleanupWorkshopPhotos(workshopId: string): Promise<number> {

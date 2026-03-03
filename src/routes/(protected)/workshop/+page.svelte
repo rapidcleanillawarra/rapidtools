@@ -1,34 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import {
-    getPhotoStatistics,
-  } from '$lib/services/workshop';
-  import WorkshopStorageStats from './components/WorkshopStorageStats.svelte';
+  import { getJobStatusCounts } from '$lib/services/workshop';
+  import WorkshopJobsStatusChart from './components/WorkshopJobsStatusChart.svelte';
 
-  let stats: {
-    totalPhotos: number;
-    usedPhotos: number;
-    orphanedPhotos: number;
-    storageSize: number;
-    workshopsCount: number;
-  } | null = null;
-
-  let isLoadingStats = false;
+  let jobStatusCounts: { status: string; count: number }[] | null = null;
+  let isLoadingStatusCounts = false;
 
   onMount(async () => {
-    await loadStats();
-  });
-
-  async function loadStats() {
-    isLoadingStats = true;
+    isLoadingStatusCounts = true;
     try {
-      stats = await getPhotoStatistics();
+      jobStatusCounts = await getJobStatusCounts({ excludeDeleted: true });
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading job status counts:', error);
     } finally {
-      isLoadingStats = false;
+      isLoadingStatusCounts = false;
     }
-  }
+  });
 </script>
 
 <div class="container mx-auto px-4 py-8">
@@ -39,13 +26,13 @@
       <p class="text-gray-600 text-sm mt-1">Manage workshops and clean up storage</p>
     </div>
 
-    <!-- Row 2: Storage -->
+    <!-- Row 2: Jobs by status -->
     <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col col-span-1">
       <div class="px-6 py-4 border-b border-gray-200">
-        <h2 class="text-lg font-semibold text-gray-800">Storage</h2>
+        <h2 class="text-lg font-semibold text-gray-800">Jobs by status</h2>
       </div>
       <div class="p-6 flex-1">
-        <WorkshopStorageStats stats={stats} isLoading={isLoadingStats} />
+        <WorkshopJobsStatusChart stats={jobStatusCounts} isLoading={isLoadingStatusCounts} />
       </div>
     </div>
   </div>

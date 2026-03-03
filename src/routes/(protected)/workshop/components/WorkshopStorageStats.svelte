@@ -17,20 +17,16 @@
   }
 </script>
 
-<div class="bg-gray-50 rounded-lg p-6">
-  <h2 class="text-lg font-semibold mb-4">Storage Statistics</h2>
-
-  {#if isLoading}
-    <div class="animate-pulse">
-      <div class="h-4 bg-gray-300 rounded w-1/3"></div>
-    </div>
-  {:else if stats}
-    <div class="bg-white p-4 rounded-lg shadow">
-      <div class="text-lg font-semibold text-gray-700">{formatFileSize(stats.storageSize)}</div>
-      <div class="text-sm text-gray-600">Storage Used</div>
-    </div>
-  {/if}
-</div>
+{#if isLoading}
+  <div class="animate-pulse">
+    <div class="h-4 bg-gray-300 rounded w-1/3"></div>
+  </div>
+{:else if stats}
+  <div class="bg-white p-4 rounded-lg shadow">
+    <div class="text-lg font-semibold text-gray-700">{formatFileSize(stats.storageSize)}</div>
+    <div class="text-sm text-gray-600">Storage Used</div>
+  </div>
+{/if}
 
 <style>
   .animate-pulse {

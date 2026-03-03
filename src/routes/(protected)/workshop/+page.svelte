@@ -101,9 +101,13 @@
             <p class="text-sm text-gray-500">No statuses</p>
           {/if}
         </div>
-        <!-- Right: pie chart -->
+        <!-- Right: bar chart -->
         <div class="flex-1 p-6 min-w-0 min-h-0">
-          <WorkshopJobsStatusChart stats={filteredStatusCounts} isLoading={isLoadingStatusCounts} />
+          <WorkshopJobsStatusChart
+            stats={filteredStatusCounts}
+            allStatuses={jobStatusCounts?.map((s) => s.status) ?? []}
+            isLoading={isLoadingStatusCounts}
+          />
         </div>
       </div>
     </div>

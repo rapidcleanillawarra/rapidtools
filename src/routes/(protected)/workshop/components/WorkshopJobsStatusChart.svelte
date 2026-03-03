@@ -5,44 +5,14 @@
   import ChartDataLabels from 'chartjs-plugin-datalabels';
 
   export let stats: { status: string; count: number }[] | null = null;
+  /** Full list of statuses in display order; used so each status keeps the same color when toggling visibility. */
+  export let allStatuses: string[] = [];
   export let isLoading: boolean = false;
 
   let canvas: HTMLCanvasElement;
   let chart: ChartInstance | null = null;
 
-  type ArcLike = { x: number; y: number; outerRadius: number; startAngle: number; endAngle: number };
-
-  /** Draws a line from the outer edge of each pie slice toward the external label. */
-  const pieLabelConnectorPlugin = {
-    id: 'pieLabelConnector',
-    afterDraw(ch: ChartInstance) {
-      const cfg = ch.config as { type?: string };
-      if (cfg.type !== 'pie' || !ch.data.datasets?.[0]) return;
-      const meta = ch.getDatasetMeta(0);
-      if (!meta?.data?.length) return;
-      const ctx = ch.ctx;
-      const connectorLength = 12;
-      const connectorColor = '#9ca3af';
-      meta.data.forEach((el) => {
-        const arc = el as unknown as ArcLike;
-        const midAngle = (arc.startAngle + arc.endAngle) / 2;
-        const outerX = arc.x + arc.outerRadius * Math.cos(midAngle);
-        const outerY = arc.y + arc.outerRadius * Math.sin(midAngle);
-        const endX = arc.x + (arc.outerRadius + connectorLength) * Math.cos(midAngle);
-        const endY = arc.y + (arc.outerRadius + connectorLength) * Math.sin(midAngle);
-        ctx.save();
-        ctx.strokeStyle = connectorColor;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(outerX, outerY);
-        ctx.lineTo(endX, endY);
-        ctx.stroke();
-        ctx.restore();
-      });
-    }
-  };
-
-  const PIE_PALETTE = [
+  const BAR_PALETTE = [
     '#3b82f6',
     '#22c55e',
     '#f59e0b',
@@ -64,15 +34,29 @@
       .join(' ');
   }
 
+  /** Map status -> color based on its index in allStatuses, so colors stay stable when hiding/showing. */
+  $: statusToColor = (() => {
+    const map: Record<string, string> = {};
+    allStatuses.forEach((status, i) => {
+      map[status] = BAR_PALETTE[i % BAR_PALETTE.length];
+    });
+    return map;
+  })();
+
+  function getBackgrounds(): string[] {
+    if (!stats) return [];
+    return stats.map((s) => statusToColor[s.status] ?? BAR_PALETTE[0]);
+  }
+
   function buildChart() {
     if (!canvas || !stats || stats.length === 0) return;
     const labels = stats.map((s) => formatStatusLabel(s.status));
     const data = stats.map((s) => s.count);
     const total = data.reduce((a, b) => a + b, 0);
-    const backgrounds = stats.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
+    const backgrounds = getBackgrounds();
     chart = new Chart(canvas, {
-      type: 'pie',
-      plugins: [pieLabelConnectorPlugin, ChartDataLabels],
+      type: 'bar',
+      plugins: [ChartDataLabels],
       data: {
         labels,
         datasets: [
@@ -80,17 +64,17 @@
             data,
             backgroundColor: backgrounds,
             borderWidth: 1,
-            borderColor: '#fff',
+            borderColor: 'rgba(255,255,255,0.8)',
             datalabels: {
               anchor: 'end',
               align: 'end',
-              offset: 4,
+              offset: 2,
               color: '#374151',
               font: { weight: 'bold' as const, size: 11 },
               formatter: (value: number, ctx) => {
                 const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
                 const pct = total ? ((value / total) * 100).toFixed(1) : '0';
-                return ` ${ctx.chart.data.labels?.[ctx.dataIndex]} ${value} (${pct}%)`;
+                return `${value} (${pct}%)`;
               }
             }
           }
@@ -101,6 +85,12 @@
         maintainAspectRatio: false,
         layout: {
           padding: 24
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
         },
         plugins: {
           legend: { display: false },
@@ -124,8 +114,10 @@
   $: if (chart && stats && stats.length > 0) {
     const labels = stats.map((s) => formatStatusLabel(s.status));
     const data = stats.map((s) => s.count);
+    const backgrounds = getBackgrounds();
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
+    chart.data.datasets[0].backgroundColor = backgrounds;
     chart.update('none');
   }
 
@@ -140,7 +132,7 @@
 
 <div class="chart-container">
   {#if isLoading}
-    <div class="animate-pulse flex items-center justify-center h-48 bg-gray-100 rounded-lg">
+    <div class="animate-pulse flex items-center justify-center chart-placeholder bg-gray-100 rounded-lg">
       <span class="text-gray-500 text-sm">Loading…</span>
     </div>
   {:else if hasData}
@@ -148,7 +140,7 @@
       <canvas bind:this={canvas}></canvas>
     </div>
   {:else if stats}
-    <div class="flex items-center justify-center h-48 bg-gray-50 rounded-lg text-gray-500 text-sm">
+    <div class="flex items-center justify-center chart-placeholder bg-gray-50 rounded-lg text-gray-500 text-sm">
       No job data to display
     </div>
   {/if}
@@ -156,13 +148,16 @@
 
 <style>
   .chart-container {
-    min-height: 12rem;
+    min-height: 24rem;
     width: 100%;
   }
   .chart-wrapper {
     width: 100%;
-    min-height: 12rem;
+    min-height: 24rem;
     position: relative;
+  }
+  .chart-placeholder {
+    min-height: 24rem;
   }
   .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

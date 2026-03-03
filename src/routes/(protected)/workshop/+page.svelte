@@ -12,6 +12,8 @@
   import RecentWorkshopsList from './components/RecentWorkshopsList.svelte';
   import CleanupConfirmModal from './components/CleanupConfirmModal.svelte';
   import CleanupResultModal from './components/CleanupResultModal.svelte';
+  import WorkshopPhotoPieChart from './components/WorkshopPhotoPieChart.svelte';
+  import WorkshopPhotoBarChart from './components/WorkshopPhotoBarChart.svelte';
 
   let stats: {
     totalPhotos: number;
@@ -108,10 +110,29 @@
       </div>
     </div>
 
-    <!-- Row 3: 3 columns (placeholder cells for layout) -->
-    <div class="hidden md:block min-h-[120px]"></div>
-    <div class="hidden md:block min-h-[120px]"></div>
-    <div class="hidden md:block min-h-[120px]"></div>
+    <!-- Row 3: Reports – pie and bar charts -->
+    <div class="col-span-1 md:col-span-3 mb-0 mt-2">
+      <h2 class="text-lg font-semibold text-gray-800">Reports</h2>
+      <p class="text-gray-600 text-sm mt-1">Photo and storage overview</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col col-span-1 md:col-span-2">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-base font-semibold text-gray-800">Photo breakdown</h3>
+        <p class="text-sm text-gray-500">Used vs orphaned photos</p>
+      </div>
+      <div class="p-6 flex-1">
+        <WorkshopPhotoPieChart stats={stats} isLoading={isLoadingStats} />
+      </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-base font-semibold text-gray-800">Photo counts</h3>
+        <p class="text-sm text-gray-500">Total, used, and orphaned</p>
+      </div>
+      <div class="p-6 flex-1">
+        <WorkshopPhotoBarChart stats={stats} isLoading={isLoadingStats} />
+      </div>
+    </div>
   </div>
 </div>
 

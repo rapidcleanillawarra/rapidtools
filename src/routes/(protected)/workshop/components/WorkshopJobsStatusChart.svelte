@@ -10,6 +10,38 @@
   let canvas: HTMLCanvasElement;
   let chart: ChartInstance | null = null;
 
+  type ArcLike = { x: number; y: number; outerRadius: number; startAngle: number; endAngle: number };
+
+  /** Draws a line from the outer edge of each pie slice toward the external label. */
+  const pieLabelConnectorPlugin = {
+    id: 'pieLabelConnector',
+    afterDraw(ch: ChartInstance) {
+      const cfg = ch.config as { type?: string };
+      if (cfg.type !== 'pie' || !ch.data.datasets?.[0]) return;
+      const meta = ch.getDatasetMeta(0);
+      if (!meta?.data?.length) return;
+      const ctx = ch.ctx;
+      const connectorLength = 12;
+      const connectorColor = '#9ca3af';
+      meta.data.forEach((el) => {
+        const arc = el as unknown as ArcLike;
+        const midAngle = (arc.startAngle + arc.endAngle) / 2;
+        const outerX = arc.x + arc.outerRadius * Math.cos(midAngle);
+        const outerY = arc.y + arc.outerRadius * Math.sin(midAngle);
+        const endX = arc.x + (arc.outerRadius + connectorLength) * Math.cos(midAngle);
+        const endY = arc.y + (arc.outerRadius + connectorLength) * Math.sin(midAngle);
+        ctx.save();
+        ctx.strokeStyle = connectorColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(outerX, outerY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+  };
+
   const PIE_PALETTE = [
     '#3b82f6',
     '#22c55e',
@@ -40,7 +72,7 @@
     const backgrounds = stats.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
     chart = new Chart(canvas, {
       type: 'pie',
-      plugins: [ChartDataLabels],
+      plugins: [pieLabelConnectorPlugin, ChartDataLabels],
       data: {
         labels,
         datasets: [
@@ -50,12 +82,15 @@
             borderWidth: 1,
             borderColor: '#fff',
             datalabels: {
-              color: '#fff',
-              font: { weight: 'bold' as const, size: 12 },
+              anchor: 'end',
+              align: 'end',
+              offset: 4,
+              color: '#374151',
+              font: { weight: 'bold' as const, size: 11 },
               formatter: (value: number, ctx) => {
                 const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
                 const pct = total ? ((value / total) * 100).toFixed(1) : '0';
-                return `${value}\n(${pct}%)`;
+                return ` ${ctx.chart.data.labels?.[ctx.dataIndex]} ${value} (${pct}%)`;
               }
             }
           }
@@ -64,29 +99,11 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        layout: {
+          padding: 24
+        },
         plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              generateLabels: (chart) => {
-                const dataset = chart.data.datasets[0];
-                const data = (dataset.data as number[]) ?? [];
-                const total = data.reduce((a, b) => a + b, 0);
-                const labels = chart.data.labels ?? [];
-                const backgrounds = Array.isArray(dataset.backgroundColor)
-                  ? dataset.backgroundColor
-                  : [dataset.backgroundColor];
-                return labels.map((label, i) => ({
-                  text: `${label}: ${data[i]} (${total ? ((data[i] / total) * 100).toFixed(1) : '0'}%)`,
-                  fillStyle: backgrounds[i] ?? backgrounds[0],
-                  strokeStyle: '#fff',
-                  lineWidth: 1,
-                  hidden: false,
-                  index: i
-                }));
-              }
-            }
-          },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => {
@@ -97,9 +114,7 @@
             }
           },
           datalabels: {
-            anchor: 'center',
-            align: 'center',
-            clamp: true
+            clip: false
           }
         }
       }

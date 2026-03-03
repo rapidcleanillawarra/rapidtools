@@ -76,12 +76,14 @@
 </script>
 
 <div class="container mx-auto px-4 py-8">
-  <div class="mb-6">
-    <h1 class="text-xl font-semibold">Workshop Management</h1>
-    <p class="text-gray-600 text-sm mt-1">Manage workshops and clean up storage</p>
-  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 md:grid-rows-[auto_auto_auto] items-start">
+    <!-- Row 1: header spanning 3 columns -->
+    <div class="col-span-1 md:col-span-3 mb-0">
+      <h1 class="text-xl font-semibold">Workshop Management</h1>
+      <p class="text-gray-600 text-sm mt-1">Manage workshops and clean up storage</p>
+    </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Row 2: 3 columns -->
     <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
       <div class="px-6 py-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold text-gray-800">Quick Actions</h2>
@@ -100,11 +102,16 @@
       </div>
     </div>
 
-    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col md:col-span-1">
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
       <div class="flex-1 min-h-0">
         <RecentWorkshopsList workshops={workshops} isLoading={isLoadingWorkshops} {base} />
       </div>
     </div>
+
+    <!-- Row 3: 3 columns (placeholder cells for layout) -->
+    <div class="hidden md:block min-h-[120px]"></div>
+    <div class="hidden md:block min-h-[120px]"></div>
+    <div class="hidden md:block min-h-[120px]"></div>
   </div>
 </div>
 

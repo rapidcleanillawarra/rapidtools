@@ -169,6 +169,62 @@ export interface WorkshopTransportRecord {
   updated_at: string;
 }
 
+/** workshop_status_history table row */
+export interface WorkshopStatusHistoryRow {
+  id: string;
+  workshop_id: string;
+  timestamp: string;
+  user_name: string;
+  user_email: string | null;
+  status: string;
+  is_creation: boolean;
+}
+
+/** UI-shaped history entry (used by form and board) */
+export type WorkshopHistoryEntry = {
+  id: string;
+  timestamp: string;
+  user: string;
+  status: string;
+  isCreation?: boolean;
+};
+
+/**
+ * Fetch history from workshop_status_history for the given workshop ids.
+ * Returns a Map of workshop_id -> array of history entries in UI shape.
+ */
+async function getWorkshopHistoryFromTable(
+  workshopIds: string[]
+): Promise<Map<string, WorkshopHistoryEntry[]>> {
+  const map = new Map<string, WorkshopHistoryEntry[]>();
+  if (!workshopIds.length) return map;
+
+  const { data: rows, error } = await supabase
+    .from('workshop_status_history')
+    .select('id, workshop_id, timestamp, user_name, status, is_creation')
+    .in('workshop_id', workshopIds)
+    .order('timestamp', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching workshop status history:', error);
+    throw error;
+  }
+
+  for (const row of rows ?? []) {
+    const entry: WorkshopHistoryEntry = {
+      id: row.id,
+      timestamp: row.timestamp,
+      user: row.user_name,
+      status: row.status,
+      isCreation: row.is_creation ?? false
+    };
+    const list = map.get(row.workshop_id) ?? [];
+    list.push(entry);
+    map.set(row.workshop_id, list);
+  }
+  return map;
+}
+
 const PICKUP_POWER_AUTOMATE_URL =
   'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
 
@@ -384,7 +440,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
     console.log('Formatted contacts length:', formattedContacts.length);
     console.log('Formatted contacts type:', typeof formattedContacts[0]);
     
-    // Prepare workshop data
+    // Prepare workshop data (history is stored in workshop_status_history, not here)
     const workshopData = {
       location_of_machine: data.locationOfMachine || null,
       action: data.action || null,
@@ -406,8 +462,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       photo_urls: photoUrls,
       file_urls: fileUrls,
       order_id: data.order_id || null,
-      comments: data.comments || [],
-      history: data.history || []
+      comments: data.comments || []
     };
 
     console.log('Inserting workshop data:', JSON.stringify(workshopData, null, 2));
@@ -429,6 +484,29 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
 
     console.log('Workshop created successfully:', workshop);
 
+    // Insert history into workshop_status_history
+    const userEmail = get(currentUser)?.email ?? null;
+    const historyEntries = data.history ?? [];
+    if (historyEntries.length > 0) {
+      const historyRows = historyEntries.map((entry) => ({
+        workshop_id: workshop.id,
+        timestamp: entry.timestamp,
+        user_name: entry.user,
+        user_email: userEmail,
+        status: entry.status,
+        is_creation: entry.isCreation ?? false
+      }));
+      const { error: historyError } = await supabase
+        .from('workshop_status_history')
+        .insert(historyRows);
+      if (historyError) {
+        console.error('Error inserting workshop status history:', historyError);
+        throw historyError;
+      }
+    }
+
+    const historyMap = await getWorkshopHistoryFromTable([workshop.id]);
+    (workshop as WorkshopRecord).history = historyMap.get(workshop.id) ?? [];
     return workshop as WorkshopRecord;
   } catch (error) {
     console.error('Error creating workshop:', error);
@@ -624,7 +702,29 @@ export async function getWorkshop(id: string): Promise<WorkshopRecord | null> {
       throw error;
     }
 
-    return data as WorkshopRecord;
+    if (!data) return null;
+
+    const historyMap = await getWorkshopHistoryFromTable([id]);
+    const fromTable = historyMap.get(id);
+    const workshop = data as WorkshopRecord;
+    if (fromTable?.length) {
+      workshop.history = fromTable;
+    } else if (workshop.history != null) {
+      // Legacy: use workshop.history column if table has no rows
+      if (typeof workshop.history === 'string') {
+        try {
+          workshop.history = JSON.parse(workshop.history) as WorkshopHistoryEntry[];
+        } catch {
+          workshop.history = [];
+        }
+      }
+      if (!Array.isArray(workshop.history)) {
+        workshop.history = [];
+      }
+    } else {
+      workshop.history = [];
+    }
+    return workshop;
   } catch (error) {
     console.error('Error fetching workshop:', error);
     throw error;
@@ -754,7 +854,17 @@ export async function getWorkshops(filters?: {
       throw error;
     }
 
-    return (data ?? []) as unknown as WorkshopRecord[];
+    const list = (data ?? []) as WorkshopRecord[];
+    const needsHistory =
+      !filters?.select?.length || filters.select.includes('history');
+    if (needsHistory && list.length > 0) {
+      const ids = list.map((w) => w.id);
+      const historyMap = await getWorkshopHistoryFromTable(ids);
+      for (const workshop of list) {
+        workshop.history = historyMap.get(workshop.id) ?? [];
+      }
+    }
+    return list as unknown as WorkshopRecord[];
   } catch (error) {
     console.error('Error fetching workshops:', error);
     throw error;
@@ -902,10 +1012,7 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       updateData.docket_info = data.docket_info;
     }
 
-    // Add history if provided
-    if (data.history !== undefined) {
-      updateData.history = data.history;
-    }
+    // Note: History is stored in workshop_status_history, not workshop.history
 
     // Note: We don't update created_by on updates as it should remain the original creator's name
 
@@ -982,6 +1089,48 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
       throw error;
     }
 
+    // Insert new history entries into workshop_status_history (skip ones that already exist)
+    const historyEntries = data.history ?? [];
+    if (historyEntries.length > 0) {
+      const { data: existingRows } = await supabase
+        .from('workshop_status_history')
+        .select('timestamp, user_name, status, is_creation')
+        .eq('workshop_id', id);
+
+      const existingSet = new Set(
+        (existingRows ?? []).map(
+          (r) =>
+            `${r.timestamp}|${r.user_name}|${r.status}|${r.is_creation ?? false}`
+        )
+      );
+
+      const toInsert = historyEntries.filter((entry) => {
+        const key = `${entry.timestamp}|${entry.user}|${entry.status}|${entry.isCreation ?? false}`;
+        return !existingSet.has(key);
+      });
+
+      if (toInsert.length > 0) {
+        const userEmail = get(currentUser)?.email ?? null;
+        const historyRows = toInsert.map((entry) => ({
+          workshop_id: id,
+          timestamp: entry.timestamp,
+          user_name: entry.user,
+          user_email: userEmail,
+          status: entry.status,
+          is_creation: entry.isCreation ?? false
+        }));
+        const { error: historyError } = await supabase
+          .from('workshop_status_history')
+          .insert(historyRows);
+        if (historyError) {
+          console.error('Error inserting workshop status history:', historyError);
+          throw historyError;
+        }
+      }
+    }
+
+    const historyMap = await getWorkshopHistoryFromTable([id]);
+    (workshop as WorkshopRecord).history = historyMap.get(id) ?? [];
     return workshop as WorkshopRecord;
   } catch (error) {
     console.error('Error updating workshop:', error);

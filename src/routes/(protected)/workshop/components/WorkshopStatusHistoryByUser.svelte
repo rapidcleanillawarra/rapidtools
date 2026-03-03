@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { getStatusHistoryCountsByUserThisWeek } from '$lib/services/workshop';
 
-  let rows: { user_email: string; count: number }[] = [];
+  let rows: { user_email: string; full_name: string | null; count: number }[] = [];
   let isLoading = true;
   let error: string | null = null;
 
@@ -33,9 +33,9 @@
       <p class="text-sm text-gray-500">No status changes this week</p>
     {:else}
       <ul class="divide-y divide-gray-200">
-        {#each rows as { user_email, count }}
+        {#each rows as { user_email, full_name, count }}
           <li class="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-            <span class="text-sm text-gray-700 truncate" title={user_email}>{user_email}</span>
+            <span class="text-sm text-gray-700 truncate" title={user_email}>{full_name ?? user_email}</span>
             <span class="text-sm font-medium text-gray-900 tabular-nums shrink-0 ml-4">{count}</span>
           </li>
         {/each}

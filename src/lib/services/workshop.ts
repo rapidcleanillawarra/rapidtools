@@ -1345,19 +1345,48 @@ export async function getJobStatusCounts(options?: {
 }
 
 /**
- * Get status history row counts by user_email for the current week (UTC).
- * Uses RPC get_workshop_status_history_counts_this_week for efficient aggregation.
+ * Get status history row counts by user for the current week (UTC).
+ * Returns full_name from public.users when available; user_email is always present for fallback.
+ * Uses RPC get_workshop_status_history_counts_this_week when it returns full_name; otherwise
+ * looks up full_name from public.users by email so the UI shows names even before the migration is applied.
  */
 export async function getStatusHistoryCountsByUserThisWeek(): Promise<
-  { user_email: string; count: number }[]
+  { user_email: string; full_name: string | null; count: number }[]
 > {
   try {
     const { data, error } = await supabase.rpc('get_workshop_status_history_counts_this_week');
     if (error) throw error;
-    const rows = (data ?? []) as { user_email: string | null; count: number }[];
-    return rows
+    const rows = (data ?? []) as {
+      user_email: string | null;
+      full_name?: string | null;
+      fullName?: string | null;
+      count: number;
+    }[];
+    let result = rows
       .filter((r) => r.user_email != null)
-      .map((r) => ({ user_email: r.user_email!, count: Number(r.count) }));
+      .map((r) => ({
+        user_email: r.user_email!,
+        full_name: r.full_name ?? r.fullName ?? null,
+        count: Number(r.count)
+      }));
+
+    // If RPC didn't return full_name (e.g. old migration), look up from public.users
+    const needsLookup = result.some((r) => r.full_name == null);
+    if (needsLookup && result.length > 0) {
+      const emails = [...new Set(result.map((r) => r.user_email))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('email, full_name')
+        .in('email', emails);
+      const emailToName = new Map(
+        (users ?? []).map((u) => [u.email as string, (u.full_name as string) ?? null])
+      );
+      result = result.map((r) => ({
+        ...r,
+        full_name: r.full_name ?? emailToName.get(r.user_email) ?? null
+      }));
+    }
+    return result;
   } catch (error) {
     console.error('Error getting status history counts by user this week:', error);
     throw error;

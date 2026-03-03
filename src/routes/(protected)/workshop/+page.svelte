@@ -76,18 +76,34 @@
 </script>
 
 <div class="container mx-auto px-4 py-8">
-  <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-200">
-      <h1 class="text-xl font-semibold">Workshop Management</h1>
-      <p class="text-gray-600 text-sm mt-1">Manage workshops and clean up storage</p>
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold">Workshop Management</h1>
+    <p class="text-gray-600 text-sm mt-1">Manage workshops and clean up storage</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800">Quick Actions</h2>
+      </div>
+      <div class="p-6 flex-1">
+        <WorkshopQuickActions {base} on:cleanup={() => (showCleanupConfirm = true)} />
+      </div>
     </div>
 
-    <div class="p-6 space-y-8">
-      <WorkshopQuickActions {base} on:cleanup={() => (showCleanupConfirm = true)} />
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-800">Storage</h2>
+      </div>
+      <div class="p-6 flex-1">
+        <WorkshopStorageStats stats={stats} isLoading={isLoadingStats} />
+      </div>
+    </div>
 
-      <WorkshopStorageStats stats={stats} isLoading={isLoadingStats} />
-
-      <RecentWorkshopsList workshops={workshops} isLoading={isLoadingWorkshops} {base} />
+    <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col md:col-span-1">
+      <div class="flex-1 min-h-0">
+        <RecentWorkshopsList workshops={workshops} isLoading={isLoadingWorkshops} {base} />
+      </div>
     </div>
   </div>
 </div>

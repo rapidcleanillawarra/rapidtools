@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import Chart from 'chart.js/auto';
   import type { Chart as ChartInstance } from 'chart.js';
+  import ChartDataLabels from 'chartjs-plugin-datalabels';
 
   export let stats: { status: string; count: number }[] | null = null;
   export let isLoading: boolean = false;
@@ -39,6 +40,7 @@
     const backgrounds = stats.map((_, i) => PIE_PALETTE[i % PIE_PALETTE.length]);
     chart = new Chart(canvas, {
       type: 'pie',
+      plugins: [ChartDataLabels],
       data: {
         labels,
         datasets: [
@@ -46,16 +48,44 @@
             data,
             backgroundColor: backgrounds,
             borderWidth: 1,
-            borderColor: '#fff'
+            borderColor: '#fff',
+            datalabels: {
+              color: '#fff',
+              font: { weight: 'bold' as const, size: 12 },
+              formatter: (value: number, ctx) => {
+                const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
+                const pct = total ? ((value / total) * 100).toFixed(1) : '0';
+                return `${value}\n(${pct}%)`;
+              }
+            }
           }
         ]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: {
           legend: {
-            position: 'bottom'
+            position: 'bottom',
+            labels: {
+              generateLabels: (chart) => {
+                const dataset = chart.data.datasets[0];
+                const data = (dataset.data as number[]) ?? [];
+                const total = data.reduce((a, b) => a + b, 0);
+                const labels = chart.data.labels ?? [];
+                const backgrounds = Array.isArray(dataset.backgroundColor)
+                  ? dataset.backgroundColor
+                  : [dataset.backgroundColor];
+                return labels.map((label, i) => ({
+                  text: `${label}: ${data[i]} (${total ? ((data[i] / total) * 100).toFixed(1) : '0'}%)`,
+                  fillStyle: backgrounds[i] ?? backgrounds[0],
+                  strokeStyle: '#fff',
+                  lineWidth: 1,
+                  hidden: false,
+                  index: i
+                }));
+              }
+            }
           },
           tooltip: {
             callbacks: {
@@ -65,6 +95,11 @@
                 return `${ctx.label}: ${value} (${pct}%)`;
               }
             }
+          },
+          datalabels: {
+            anchor: 'center',
+            align: 'center',
+            clamp: true
           }
         }
       }
@@ -94,7 +129,7 @@
       <span class="text-gray-500 text-sm">Loading…</span>
     </div>
   {:else if hasData}
-    <div class="h-48 md:h-56">
+    <div class="chart-wrapper">
       <canvas bind:this={canvas}></canvas>
     </div>
   {:else if stats}
@@ -107,6 +142,12 @@
 <style>
   .chart-container {
     min-height: 12rem;
+    width: 100%;
+  }
+  .chart-wrapper {
+    width: 100%;
+    min-height: 12rem;
+    position: relative;
   }
   .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

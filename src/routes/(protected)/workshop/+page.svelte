@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { getJobStatusCounts } from '$lib/services/workshop';
   import WorkshopJobsStatusChart from './components/WorkshopJobsStatusChart.svelte';
+  import WorkshopStatusHistoryByUser from './components/WorkshopStatusHistoryByUser.svelte';
 
   const STORAGE_KEY = 'rapidtools-workshop-status-visibility';
 
@@ -135,5 +136,8 @@
         </div>
       </div>
     </div>
+
+    <!-- Status changes this week by user -->
+    <WorkshopStatusHistoryByUser />
   </div>
 </div>

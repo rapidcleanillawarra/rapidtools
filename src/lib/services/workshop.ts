@@ -1345,6 +1345,26 @@ export async function getJobStatusCounts(options?: {
 }
 
 /**
+ * Get status history row counts by user_email for the current week (UTC).
+ * Uses RPC get_workshop_status_history_counts_this_week for efficient aggregation.
+ */
+export async function getStatusHistoryCountsByUserThisWeek(): Promise<
+  { user_email: string; count: number }[]
+> {
+  try {
+    const { data, error } = await supabase.rpc('get_workshop_status_history_counts_this_week');
+    if (error) throw error;
+    const rows = (data ?? []) as { user_email: string | null; count: number }[];
+    return rows
+      .filter((r) => r.user_email != null)
+      .map((r) => ({ user_email: r.user_email!, count: Number(r.count) }));
+  } catch (error) {
+    console.error('Error getting status history counts by user this week:', error);
+    throw error;
+  }
+}
+
+/**
  * Clean up photos for a specific workshop (when workshop is deleted)
  */
 export async function cleanupWorkshopPhotos(workshopId: string): Promise<number> {

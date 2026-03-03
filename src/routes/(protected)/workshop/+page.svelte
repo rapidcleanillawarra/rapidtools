@@ -3,10 +3,23 @@
   import { getJobStatusCounts } from '$lib/services/workshop';
   import WorkshopJobsStatusChart from './components/WorkshopJobsStatusChart.svelte';
 
+  const STORAGE_KEY = 'rapidtools-workshop-status-visibility';
+
+  function loadSavedVisibility(): Record<string, boolean> {
+    if (typeof window === 'undefined') return {};
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+    return {};
+  }
+
   let jobStatusCounts: { status: string; count: number }[] | null = null;
   let isLoadingStatusCounts = false;
   /** Which statuses are visible in the chart; new statuses default to true. */
-  let statusVisibility: Record<string, boolean> = {};
+  let statusVisibility: Record<string, boolean> = loadSavedVisibility();
 
   $: if (jobStatusCounts) {
     const next: Record<string, boolean> = { ...statusVisibility };
@@ -18,6 +31,13 @@
 
   $: filteredStatusCounts =
     jobStatusCounts?.filter((s) => statusVisibility[s.status] ?? true) ?? null;
+
+  /** Persist toggled status visibility to localStorage when it changes. */
+  $: if (typeof window !== 'undefined' && Object.keys(statusVisibility).length > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(statusVisibility));
+    } catch (_) {}
+  }
 
   function formatStatusLabel(status: string): string {
     return status

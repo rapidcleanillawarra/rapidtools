@@ -21,36 +21,13 @@
   <h2 class="text-lg font-semibold mb-4">Storage Statistics</h2>
 
   {#if isLoading}
-    <div class="animate-pulse space-y-3">
+    <div class="animate-pulse">
       <div class="h-4 bg-gray-300 rounded w-1/3"></div>
-      <div class="h-4 bg-gray-300 rounded w-1/2"></div>
-      <div class="h-4 bg-gray-300 rounded w-2/3"></div>
     </div>
   {:else if stats}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="text-2xl font-bold text-blue-600">{stats.totalPhotos}</div>
-        <div class="text-sm text-gray-600">Total Photos</div>
-      </div>
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="text-2xl font-bold text-green-600">{stats.usedPhotos}</div>
-        <div class="text-sm text-gray-600">Used Photos</div>
-      </div>
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="text-2xl font-bold text-red-600">{stats.orphanedPhotos}</div>
-        <div class="text-sm text-gray-600">Orphaned Photos</div>
-      </div>
-    </div>
-
-    <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="text-lg font-semibold text-gray-700">{formatFileSize(stats.storageSize)}</div>
-        <div class="text-sm text-gray-600">Storage Used</div>
-      </div>
-      <div class="bg-white p-4 rounded-lg shadow">
-        <div class="text-lg font-semibold text-gray-700">{stats.workshopsCount}</div>
-        <div class="text-sm text-gray-600">Total Workshops</div>
-      </div>
+    <div class="bg-white p-4 rounded-lg shadow">
+      <div class="text-lg font-semibold text-gray-700">{formatFileSize(stats.storageSize)}</div>
+      <div class="text-sm text-gray-600">Storage Used</div>
     </div>
   {/if}
 </div>

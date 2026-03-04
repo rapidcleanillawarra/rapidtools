@@ -1345,6 +1345,62 @@ export async function getJobStatusCounts(options?: {
 }
 
 /**
+ * Get status history row counts by user for a custom date range (inclusive).
+ * date_from / date_to are treated as start-of-day and end-of-day UTC respectively.
+ * Returns same shape as getStatusHistoryCountsByUserThisWeek for consistent UI.
+ */
+export async function getStatusHistoryCountsByUserDateRange(
+  dateFrom: Date,
+  dateTo: Date
+): Promise<{ user_email: string; full_name: string | null; count: number }[]> {
+  const startOfDay = new Date(dateFrom);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(dateTo);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+
+  try {
+    const { data, error } = await supabase.rpc('get_workshop_status_history_counts_by_date_range', {
+      p_date_from: startOfDay.toISOString(),
+      p_date_to: endOfDay.toISOString()
+    });
+    if (error) throw error;
+    const rows = (data ?? []) as {
+      user_email: string | null;
+      full_name?: string | null;
+      fullName?: string | null;
+      count: number;
+    }[];
+    let result = rows
+      .filter((r) => r.user_email != null)
+      .map((r) => ({
+        user_email: r.user_email!,
+        full_name: r.full_name ?? r.fullName ?? null,
+        count: Number(r.count)
+      }));
+
+    const needsLookup = result.some((r) => r.full_name == null);
+    if (needsLookup && result.length > 0) {
+      const emails = [...new Set(result.map((r) => r.user_email))];
+      const { data: users } = await supabase
+        .from('users')
+        .select('email, full_name')
+        .in('email', emails);
+      const emailToName = new Map(
+        (users ?? []).map((u) => [u.email as string, (u.full_name as string) ?? null])
+      );
+      result = result.map((r) => ({
+        ...r,
+        full_name: r.full_name ?? emailToName.get(r.user_email) ?? null
+      }));
+    }
+    return result;
+  } catch (error) {
+    console.error('Error getting status history counts by date range:', error);
+    throw error;
+  }
+}
+
+/**
  * Get status history row counts by user for the current week (UTC).
  * Returns full_name from public.users when available; user_email is always present for fallback.
  * Uses RPC get_workshop_status_history_counts_this_week when it returns full_name; otherwise

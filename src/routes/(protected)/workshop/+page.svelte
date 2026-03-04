@@ -23,6 +23,52 @@
     'warranty_claim'
   ];
 
+  type PresetKey = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | '';
+
+  function toDateOnly(d: Date): string {
+    return d.toISOString().slice(0, 10);
+  }
+
+  function getTodayRange(): { from: string; to: string } {
+    const d = new Date();
+    const from = toDateOnly(d);
+    return { from, to: from };
+  }
+
+  function getYesterdayRange(): { from: string; to: string } {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 1);
+    const from = toDateOnly(d);
+    return { from, to: from };
+  }
+
+  function getThisWeekRange(): { from: string; to: string } {
+    const now = new Date();
+    const day = now.getUTCDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(now);
+    mon.setUTCDate(now.getUTCDate() + diff);
+    mon.setUTCHours(0, 0, 0, 0);
+    const sun = new Date(mon);
+    sun.setUTCDate(mon.getUTCDate() + 6);
+    sun.setUTCHours(23, 59, 59, 999);
+    return { from: toDateOnly(mon), to: toDateOnly(sun) };
+  }
+
+  function getThisMonthRange(): { from: string; to: string } {
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+    return { from: toDateOnly(first), to: toDateOnly(last) };
+  }
+
+  function getLastMonthRange(): { from: string; to: string } {
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+    return { from: toDateOnly(first), to: toDateOnly(last) };
+  }
+
   function sortByStatusOrder<T extends { status: string }>(items: T[]): T[] {
     const order = new Map(WORKSHOP_STATUS_DISPLAY_ORDER.map((s, i) => [s, i]));
     return [...items].sort((a, b) => (order.get(a.status) ?? 999) - (order.get(b.status) ?? 999));
@@ -43,6 +89,11 @@
   let isLoadingStatusCounts = false;
   /** Which statuses are visible in the chart; new statuses default to true. */
   let statusVisibility: Record<string, boolean> = loadSavedVisibility();
+
+  let dateFrom = '';
+  let dateTo = '';
+  let dateError: string | null = null;
+  let selectedPreset: PresetKey = 'all';
 
   $: sortedJobStatusCounts = jobStatusCounts ? sortByStatusOrder(jobStatusCounts) : null;
 
@@ -76,15 +127,77 @@
     statusVisibility = { ...statusVisibility };
   }
 
-  onMount(async () => {
+  function validateDates(): boolean {
+    dateError = null;
+    if (!dateFrom && !dateTo) return true;
+    if (!dateFrom || !dateTo) {
+      dateError = 'Set both From and To to filter by date range.';
+      return false;
+    }
+    const from = new Date(dateFrom);
+    const to = new Date(dateTo);
+    if (to < from) {
+      dateError = 'End date cannot be before start date.';
+      return false;
+    }
+    return true;
+  }
+
+  async function loadJobStatusCounts() {
+    if (selectedPreset === 'all' || (!dateFrom && !dateTo)) {
+      dateError = null;
+      isLoadingStatusCounts = true;
+      try {
+        jobStatusCounts = await getJobStatusCounts({ excludeDeleted: true });
+      } catch (error) {
+        console.error('Error loading job status counts:', error);
+      } finally {
+        isLoadingStatusCounts = false;
+      }
+      return;
+    }
+    if (!validateDates()) return;
     isLoadingStatusCounts = true;
     try {
-      jobStatusCounts = await getJobStatusCounts({ excludeDeleted: true });
+      jobStatusCounts = await getJobStatusCounts({
+        excludeDeleted: true,
+        dateFrom: new Date(dateFrom),
+        dateTo: new Date(dateTo)
+      });
     } catch (error) {
       console.error('Error loading job status counts:', error);
     } finally {
       isLoadingStatusCounts = false;
     }
+  }
+
+  function applyPreset(preset: PresetKey) {
+    dateError = null;
+    if (preset === 'all' || preset === '') {
+      dateFrom = '';
+      dateTo = '';
+      selectedPreset = 'all';
+      loadJobStatusCounts();
+      return;
+    }
+    selectedPreset = preset;
+    let range: { from: string; to: string };
+    if (preset === 'today') range = getTodayRange();
+    else if (preset === 'yesterday') range = getYesterdayRange();
+    else if (preset === 'this_week') range = getThisWeekRange();
+    else if (preset === 'this_month') range = getThisMonthRange();
+    else range = getLastMonthRange();
+    dateFrom = range.from;
+    dateTo = range.to;
+    loadJobStatusCounts();
+  }
+
+  function clearDateFilter() {
+    applyPreset('all');
+  }
+
+  onMount(() => {
+    loadJobStatusCounts();
   });
 </script>
 
@@ -100,6 +213,72 @@
     <div class="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden flex flex-col col-span-1 md:col-span-3 md:row-span-2 min-h-0">
       <div class="px-6 py-4 border-b border-gray-200">
         <h2 class="text-lg font-semibold text-gray-800">Jobs by status</h2>
+        <div class="flex flex-wrap items-end gap-2 mt-3">
+          <div>
+            <label for="jobs-preset" class="block text-xs font-medium text-gray-500 mb-1">Quick range</label>
+            <select
+              id="jobs-preset"
+              bind:value={selectedPreset}
+              on:change={(e) => {
+                const v = (e.currentTarget.value || 'all') as PresetKey;
+                if (v === '') {
+                  selectedPreset = '';
+                } else {
+                  applyPreset(v);
+                }
+              }}
+              disabled={isLoadingStatusCounts}
+              class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px] disabled:opacity-50"
+            >
+              <option value="all">All</option>
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="this_week">This week</option>
+              <option value="this_month">This month</option>
+              <option value="last_month">Last month</option>
+              <option value="">Custom range</option>
+            </select>
+          </div>
+          <div>
+            <label for="jobs-date-from" class="block text-xs font-medium text-gray-500 mb-1">From</label>
+            <input
+              id="jobs-date-from"
+              type="date"
+              bind:value={dateFrom}
+              on:input={() => (selectedPreset = '')}
+              class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label for="jobs-date-to" class="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input
+              id="jobs-date-to"
+              type="date"
+              bind:value={dateTo}
+              on:input={() => (selectedPreset = '')}
+              class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <button
+            type="button"
+            on:click={loadJobStatusCounts}
+            disabled={isLoadingStatusCounts}
+            class="px-3 py-1.5 text-sm font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            on:click={clearDateFilter}
+            disabled={isLoadingStatusCounts}
+            class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            Clear dates
+          </button>
+          {#if dateError}
+            <p class="text-sm text-red-600 w-full">{dateError}</p>
+          {/if}
+        </div>
       </div>
       <div class="flex flex-1 min-h-0">
         <!-- Left: show/hide status controls -->

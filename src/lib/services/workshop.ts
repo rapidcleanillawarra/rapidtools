@@ -1318,15 +1318,32 @@ export async function getPhotoStatistics(): Promise<{
 /**
  * Get job counts grouped by status for the workshop table.
  * @param options.excludeDeleted - when true, excludes rows with status 'deleted' (default true)
+ * @param options.dateFrom - optional start of date range (UTC start-of-day used for updated_at filter)
+ * @param options.dateTo - optional end of date range (UTC end-of-day used for updated_at filter)
+ * When both dateFrom and dateTo are set, only rows with updated_at in that range are counted.
  */
 export async function getJobStatusCounts(options?: {
   excludeDeleted?: boolean;
+  dateFrom?: Date;
+  dateTo?: Date;
 }): Promise<{ status: string; count: number }[]> {
   const excludeDeleted = options?.excludeDeleted !== false;
+  const dateFrom = options?.dateFrom;
+  const dateTo = options?.dateTo;
+  const useDateFilter = dateFrom != null && dateTo != null;
   try {
     let query = supabase.from('workshop').select('status');
     if (excludeDeleted) {
       query = query.neq('status', 'deleted');
+    }
+    if (useDateFilter) {
+      const startOfDay = new Date(dateFrom);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+      const endOfDay = new Date(dateTo);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+      query = query
+        .gte('updated_at', startOfDay.toISOString())
+        .lte('updated_at', endOfDay.toISOString());
     }
     const { data, error } = await query;
     if (error) throw error;

@@ -127,6 +127,11 @@
   });
 
   $: hasData = stats && stats.length > 0 && stats.some((s) => s.count > 0);
+  /** When loading or no data, canvas is unmounted; destroy chart so it can be rebuilt when canvas is shown again. */
+  $: if ((isLoading || !hasData) && chart) {
+    chart.destroy();
+    chart = null;
+  }
   $: if (canvas && stats && !chart && !isLoading && hasData) buildChart();
 </script>
 

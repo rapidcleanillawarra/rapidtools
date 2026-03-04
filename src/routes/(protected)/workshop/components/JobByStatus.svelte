@@ -52,7 +52,6 @@
     if (!canvas || !stats || stats.length === 0) return;
     const labels = stats.map((s) => formatStatusLabel(s.status));
     const data = stats.map((s) => s.count);
-    const total = data.reduce((a, b) => a + b, 0);
     const backgrounds = getBackgrounds();
     chart = new Chart(canvas, {
       type: 'bar',
@@ -71,11 +70,7 @@
               offset: 2,
               color: '#374151',
               font: { weight: 'bold' as const, size: 11 },
-              formatter: (value: number, ctx) => {
-                const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
-                const pct = total ? ((value / total) * 100).toFixed(1) : '0';
-                return `${value} (${pct}%)`;
-              }
+              formatter: (value: number) => String(value)
             }
           }
         ]
@@ -96,11 +91,7 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => {
-                const value = ctx.raw as number;
-                const pct = total ? ((value / total) * 100).toFixed(1) : '0';
-                return `${ctx.label}: ${value} (${pct}%)`;
-              }
+              label: (ctx) => `${ctx.label}: ${ctx.raw}`
             }
           },
           datalabels: {

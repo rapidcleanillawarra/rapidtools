@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getJobStatusCounts } from '$lib/services/workshop';
-  import WorkshopJobsStatusChart from './components/WorkshopJobsStatusChart.svelte';
+  import JobByStatus from './components/JobByStatus.svelte';
   import WorkshopStatusByUserChart from './components/WorkshopStatusByUserChart.svelte';
 
   const STORAGE_KEY = 'rapidtools-workshop-status-visibility';
@@ -128,7 +128,7 @@
         </div>
         <!-- Right: bar chart -->
         <div class="flex-1 p-6 min-w-0 min-h-0">
-          <WorkshopJobsStatusChart
+          <JobByStatus
             stats={filteredStatusCounts}
             allStatuses={WORKSHOP_STATUS_DISPLAY_ORDER}
             isLoading={isLoadingStatusCounts}

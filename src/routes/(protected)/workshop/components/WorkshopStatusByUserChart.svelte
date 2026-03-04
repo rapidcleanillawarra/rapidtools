@@ -147,7 +147,11 @@
     } finally {
       isLoadingUsers = false;
     }
-    if (selectedUserEmail) loadChartData();
+    if (!selectedUserEmail && userList.length > 0) {
+      selectedUserEmail = userList[0].user_email;
+    } else if (selectedUserEmail) {
+      loadChartData();
+    }
   }
 
   $: if (selectedUserEmail) {

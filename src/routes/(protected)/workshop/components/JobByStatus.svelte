@@ -12,7 +12,7 @@
   let canvas: HTMLCanvasElement;
   let chart: ChartInstance | null = null;
 
-  const BAR_PALETTE = [
+  const CHART_PALETTE = [
     '#3b82f6',
     '#22c55e',
     '#f59e0b',
@@ -38,14 +38,14 @@
   $: statusToColor = (() => {
     const map: Record<string, string> = {};
     allStatuses.forEach((status, i) => {
-      map[status] = BAR_PALETTE[i % BAR_PALETTE.length];
+      map[status] = CHART_PALETTE[i % CHART_PALETTE.length];
     });
     return map;
   })();
 
   function getBackgrounds(): string[] {
     if (!stats) return [];
-    return stats.map((s) => statusToColor[s.status] ?? BAR_PALETTE[0]);
+    return stats.map((s) => statusToColor[s.status] ?? CHART_PALETTE[0]);
   }
 
   function buildChart() {
@@ -54,7 +54,7 @@
     const data = stats.map((s) => s.count);
     const backgrounds = getBackgrounds();
     chart = new Chart(canvas, {
-      type: 'bar',
+      type: 'pie',
       plugins: [ChartDataLabels],
       data: {
         labels,
@@ -65,9 +65,6 @@
             borderWidth: 1,
             borderColor: 'rgba(255,255,255,0.8)',
             datalabels: {
-              anchor: 'end',
-              align: 'end',
-              offset: 2,
               color: '#374151',
               font: { weight: 'bold' as const, size: 11 },
               formatter: (value: number) => String(value)
@@ -80,12 +77,6 @@
         maintainAspectRatio: false,
         layout: {
           padding: 24
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            ticks: { precision: 0 }
-          }
         },
         plugins: {
           legend: { display: false },

@@ -48,6 +48,40 @@
     return stats.map((s) => statusToColor[s.status] ?? CHART_PALETTE[0]);
   }
 
+  /** Draws a connector line from each pie slice edge to the label area (outside the pie). */
+  const pieConnectorPlugin = {
+    id: 'pieConnector',
+    afterDatasetsDraw(chart: ChartInstance) {
+      if ((chart.config as { type?: string }).type !== 'pie') return;
+      const meta = chart.getDatasetMeta(0);
+      if (!meta?.data?.length) return;
+      const ctx = chart.ctx;
+      const connectorLength = 16;
+      meta.data.forEach((el) => {
+        const arc = el as unknown as {
+          x: number;
+          y: number;
+          startAngle: number;
+          endAngle: number;
+          outerRadius: number;
+        };
+        const angle = (arc.startAngle + arc.endAngle) / 2;
+        const x1 = arc.x + Math.cos(angle) * arc.outerRadius;
+        const y1 = arc.y + Math.sin(angle) * arc.outerRadius;
+        const x2 = x1 + Math.cos(angle) * connectorLength;
+        const y2 = y1 + Math.sin(angle) * connectorLength;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+  };
+
   function buildChart() {
     if (!canvas || !stats || stats.length === 0) return;
     const labels = stats.map((s) => formatStatusLabel(s.status));
@@ -55,7 +89,7 @@
     const backgrounds = getBackgrounds();
     chart = new Chart(canvas, {
       type: 'pie',
-      plugins: [ChartDataLabels],
+      plugins: [pieConnectorPlugin, ChartDataLabels],
       data: {
         labels,
         datasets: [
@@ -65,9 +99,15 @@
             borderWidth: 1,
             borderColor: 'rgba(255,255,255,0.8)',
             datalabels: {
+              anchor: 'end',
+              align: 'end',
+              offset: 8,
               color: '#374151',
               font: { weight: 'bold' as const, size: 11 },
-              formatter: (value: number) => String(value)
+              formatter: (value: number, ctx) => {
+                const label = ctx.chart.data.labels?.[ctx.dataIndex];
+                return label ? `${label}: ${value}` : String(value);
+              }
             }
           }
         ]

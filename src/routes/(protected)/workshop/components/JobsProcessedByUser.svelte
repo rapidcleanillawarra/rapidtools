@@ -49,7 +49,7 @@
   let dateTo = '';
   let dateError: string | null = null;
   type PresetKey = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | '';
-  let selectedPreset: PresetKey = '';
+  let selectedPreset: PresetKey = 'today';
 
   let selectedUserEmail = '';
 
@@ -69,6 +69,10 @@
     const from = toDateOnly(d);
     return { from, to: from };
   }
+
+  const defaultRange = getTodayRange();
+  dateFrom = defaultRange.from;
+  dateTo = defaultRange.to;
 
   function getYesterdayRange(): { from: string; to: string } {
     const d = new Date();
@@ -232,7 +236,6 @@
     chart = null;
     const labels = statusCounts.map((s) => formatStatusLabel(s.status));
     const data = statusCounts.map((s) => s.count);
-    const total = data.reduce((a, b) => a + b, 0);
     const backgrounds = getBackgrounds(statusCounts);
     chart = new Chart(canvas, {
       type: 'bar',
@@ -251,11 +254,7 @@
               offset: 2,
               color: '#374151',
               font: { weight: 'bold' as const, size: 11 },
-              formatter: (value: number, ctx) => {
-                const t = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0);
-                const pct = t ? ((value / t) * 100).toFixed(1) : '0';
-                return `${value} (${pct}%)`;
-              }
+              formatter: (value: number) => String(value)
             }
           }
         ]
@@ -271,12 +270,7 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (ctx) => {
-                const value = ctx.raw as number;
-                const t = data.reduce((a, b) => a + b, 0);
-                const pct = t ? ((value / t) * 100).toFixed(1) : '0';
-                return `${ctx.label}: ${value} (${pct}%)`;
-              }
+              label: (ctx) => `${ctx.label}: ${ctx.raw}`
             }
           },
           datalabels: { clip: false }
@@ -322,6 +316,20 @@
     <h2 class="text-lg font-semibold text-gray-800">Status breakdown by user</h2>
     <p class="text-sm text-gray-500 mt-0.5">Select a user and date range to see status-change counts per status</p>
     <div class="flex flex-wrap items-end gap-3 mt-3">
+      <div>
+        <label for="chart-user" class="block text-xs font-medium text-gray-500 mb-1">User</label>
+        <select
+          id="chart-user"
+          bind:value={selectedUserEmail}
+          disabled={isLoadingUsers}
+          class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px] disabled:opacity-50"
+        >
+          <option value="">Select a user</option>
+          {#each userList as { user_email, full_name }}
+            <option value={user_email}>{full_name ?? user_email}</option>
+          {/each}
+        </select>
+      </div>
       <div class="flex flex-wrap items-end gap-2">
         <div>
           <label for="chart-preset" class="block text-xs font-medium text-gray-500 mb-1">Quick range</label>
@@ -381,20 +389,6 @@
       >
         Clear dates
       </button>
-      <div>
-        <label for="chart-user" class="block text-xs font-medium text-gray-500 mb-1">User</label>
-        <select
-          id="chart-user"
-          bind:value={selectedUserEmail}
-          disabled={isLoadingUsers}
-          class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[180px] disabled:opacity-50"
-        >
-          <option value="">Select a user</option>
-          {#each userList as { user_email, full_name }}
-            <option value={user_email}>{full_name ?? user_email}</option>
-          {/each}
-        </select>
-      </div>
       {#if dateError}
         <p class="text-sm text-red-600 w-full">{dateError}</p>
       {/if}

@@ -18,7 +18,25 @@
     return d.toISOString().slice(0, 10);
   }
 
-  /** Start of current week (Monday) and end (Sunday) in UTC, for "This week" default. */
+  type PresetKey = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | '';
+  let selectedPreset: PresetKey = '';
+
+  /** Today start and end in UTC. */
+  function getTodayRange(): { from: string; to: string } {
+    const d = new Date();
+    const from = toDateOnly(d);
+    return { from, to: from };
+  }
+
+  /** Yesterday in UTC. */
+  function getYesterdayRange(): { from: string; to: string } {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 1);
+    const from = toDateOnly(d);
+    return { from, to: from };
+  }
+
+  /** Start of current week (Monday) and end (Sunday) in UTC. */
   function getThisWeekRange(): { from: string; to: string } {
     const now = new Date();
     const day = now.getUTCDay();
@@ -30,6 +48,43 @@
     sun.setUTCDate(mon.getUTCDate() + 6);
     sun.setUTCHours(23, 59, 59, 999);
     return { from: toDateOnly(mon), to: toDateOnly(sun) };
+  }
+
+  /** First and last day of current month in UTC. */
+  function getThisMonthRange(): { from: string; to: string } {
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+    return { from: toDateOnly(first), to: toDateOnly(last) };
+  }
+
+  /** First and last day of previous month in UTC. */
+  function getLastMonthRange(): { from: string; to: string } {
+    const now = new Date();
+    const first = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const last = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0));
+    return { from: toDateOnly(first), to: toDateOnly(last) };
+  }
+
+  function applyPreset(preset: PresetKey) {
+    dateError = null;
+    if (preset === '') {
+      dateFrom = '';
+      dateTo = '';
+      selectedPreset = '';
+      load();
+      return;
+    }
+    selectedPreset = preset;
+    let range: { from: string; to: string };
+    if (preset === 'today') range = getTodayRange();
+    else if (preset === 'yesterday') range = getYesterdayRange();
+    else if (preset === 'this_week') range = getThisWeekRange();
+    else if (preset === 'this_month') range = getThisMonthRange();
+    else range = getLastMonthRange();
+    dateFrom = range.from;
+    dateTo = range.to;
+    load();
   }
 
   function validateDates(): boolean {
@@ -66,19 +121,8 @@
     }
   }
 
-  function setThisWeek() {
-    const { from, to } = getThisWeekRange();
-    dateFrom = from;
-    dateTo = to;
-    dateError = null;
-    load();
-  }
-
   function clearDateFilter() {
-    dateFrom = '';
-    dateTo = '';
-    dateError = null;
-    load();
+    applyPreset('');
   }
 
   onMount(() => {
@@ -93,11 +137,33 @@
     <div class="flex flex-wrap items-end gap-3 mt-3">
       <div class="flex flex-wrap items-end gap-2">
         <div>
+          <label for="preset" class="block text-xs font-medium text-gray-500 mb-1">Quick range</label>
+          <select
+            id="preset"
+            bind:value={selectedPreset}
+            on:change={(e) => {
+              const v = (e.currentTarget.value || '') as PresetKey;
+              if (v === '') selectedPreset = '';
+              else applyPreset(v);
+            }}
+            disabled={isLoading}
+            class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[140px] disabled:opacity-50"
+          >
+            <option value="">Custom range</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="this_week">This week</option>
+            <option value="this_month">This month</option>
+            <option value="last_month">Last month</option>
+          </select>
+        </div>
+        <div>
           <label for="date-from" class="block text-xs font-medium text-gray-500 mb-1">From</label>
           <input
             id="date-from"
             type="date"
             bind:value={dateFrom}
+            on:input={() => (selectedPreset = '')}
             class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -107,6 +173,7 @@
             id="date-to"
             type="date"
             bind:value={dateTo}
+            on:input={() => (selectedPreset = '')}
             class="rounded border border-gray-300 px-2 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
@@ -119,24 +186,14 @@
           Apply
         </button>
       </div>
-      <div class="flex gap-2">
-        <button
-          type="button"
-          on:click={setThisWeek}
-          disabled={isLoading}
-          class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          This week
-        </button>
-        <button
-          type="button"
-          on:click={clearDateFilter}
-          disabled={isLoading}
-          class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          Clear dates
-        </button>
-      </div>
+      <button
+        type="button"
+        on:click={clearDateFilter}
+        disabled={isLoading}
+        class="px-3 py-1.5 text-sm font-medium rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+      >
+        Clear dates
+      </button>
       {#if dateError}
         <p class="text-sm text-red-600 w-full">{dateError}</p>
       {/if}

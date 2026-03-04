@@ -1450,6 +1450,38 @@ export async function getStatusHistoryCountsByUserThisWeek(): Promise<
 }
 
 /**
+ * Get status history counts by status for a single user in a date range (inclusive).
+ * dateFrom/dateTo are treated as start-of-day and end-of-day UTC.
+ * Used by "Status breakdown by user" bar chart.
+ */
+export async function getStatusHistoryCountsByUserByStatus(
+  userEmail: string,
+  dateFrom: Date,
+  dateTo: Date
+): Promise<{ status: string; count: number }[]> {
+  const startOfDay = new Date(dateFrom);
+  startOfDay.setUTCHours(0, 0, 0, 0);
+  const endOfDay = new Date(dateTo);
+  endOfDay.setUTCHours(23, 59, 59, 999);
+
+  try {
+    const { data, error } = await supabase.rpc('get_workshop_status_history_counts_by_user', {
+      p_user_email: userEmail,
+      p_date_from: startOfDay.toISOString(),
+      p_date_to: endOfDay.toISOString()
+    });
+    if (error) throw error;
+    const rows = (data ?? []) as { status: string | null; count: number }[];
+    return rows
+      .filter((r) => r.status != null)
+      .map((r) => ({ status: r.status!, count: Number(r.count) }));
+  } catch (error) {
+    console.error('Error getting status history counts by user by status:', error);
+    throw error;
+  }
+}
+
+/**
  * Clean up photos for a specific workshop (when workshop is deleted)
  */
 export async function cleanupWorkshopPhotos(workshopId: string): Promise<number> {

@@ -169,6 +169,17 @@ export interface WorkshopTransportRecord {
   updated_at: string;
 }
 
+/** Flat row for transport list table: workshop_transport + workshop fields */
+export interface WorkshopTransportListRow {
+  id: string;
+  order_id: string | null;
+  product_name: string | null;
+  fault_description: string | null;
+  site_location: string | null;
+  transport_status: 'new' | 'confirmed';
+  created_at: string;
+}
+
 /** workshop_status_history table row */
 export interface WorkshopStatusHistoryRow {
   id: string;
@@ -757,6 +768,48 @@ export async function getTransportByWorkshopId(
     return (row as WorkshopTransportRecord) ?? null;
   } catch (error) {
     console.error('Error fetching workshop transport:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get list of workshop_transport rows with workshop fields for the transport table.
+ * Returns flat rows: order_id, product_name, fault_description, site_location, transport_status, created_at (from workshop_transport).
+ */
+export async function getWorkshopTransportList(): Promise<WorkshopTransportListRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('workshop_transport')
+      .select(
+        'id, transport_status, created_at, workshop:workshop_id(order_id, product_name, fault_description, site_location)'
+      )
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const rows = (data ?? []) as {
+      id: string;
+      transport_status: 'new' | 'confirmed';
+      created_at: string;
+      workshop: {
+        order_id: string | null;
+        product_name: string | null;
+        fault_description: string | null;
+        site_location: string | null;
+      } | null;
+    }[];
+
+    return rows.map((r) => ({
+      id: r.id,
+      order_id: r.workshop?.order_id ?? null,
+      product_name: r.workshop?.product_name ?? null,
+      fault_description: r.workshop?.fault_description ?? null,
+      site_location: r.workshop?.site_location ?? null,
+      transport_status: r.transport_status,
+      created_at: r.created_at
+    }));
+  } catch (error) {
+    console.error('Error fetching workshop transport list:', error);
     throw error;
   }
 }

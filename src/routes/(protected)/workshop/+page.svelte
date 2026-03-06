@@ -3,6 +3,7 @@
   import { getJobStatusCounts } from '$lib/services/workshop';
   import JobByStatus from './components/JobByStatus.svelte';
   import JobsProcessedByUser from './components/JobsProcessedByUser.svelte';
+  import WorkshopTransportTable from './components/WorkshopTransportTable.svelte';
 
   const STORAGE_KEY = 'rapidtools-workshop-status-visibility';
 
@@ -315,6 +316,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Transport assignments table -->
+    <WorkshopTransportTable />
 
     <!-- Status breakdown by user (bar chart) - hidden for now -->
     {#if false}

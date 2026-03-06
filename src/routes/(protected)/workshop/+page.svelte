@@ -316,7 +316,9 @@
       </div>
     </div>
 
-    <!-- Status breakdown by user (bar chart) -->
-    <JobsProcessedByUser />
+    <!-- Status breakdown by user (bar chart) - hidden for now -->
+    {#if false}
+      <JobsProcessedByUser />
+    {/if}
   </div>
 </div>

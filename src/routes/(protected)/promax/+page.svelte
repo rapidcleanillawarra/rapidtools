@@ -4,6 +4,7 @@
 		getRectRadii,
 		toPx,
 		toRadiusPx,
+		toBorderWidthPx,
 		centerPosition,
 		nextLayerOrder,
 		defaultRectWidth,
@@ -13,6 +14,7 @@
 		defaultCircleHeight,
 		defaultImageWidth,
 		defaultImageHeight,
+		defaultShapeBorderWidth,
 		minDim
 	} from './utils/shapeUtils';
 	import { exportPdf as doExportPdf } from './utils/pdfUtils';
@@ -44,6 +46,7 @@
 	let editBorderRadiusBR = $state(0);
 	let editBorderRadiusBL = $state(0);
 	let editOrder = $state(0);
+	let editBorderWidth = $state(1);
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -66,6 +69,7 @@
 			borderRadiusTR: br,
 			borderRadiusBR: br,
 			borderRadiusBL: br,
+			borderWidth: defaultShapeBorderWidth,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -86,6 +90,7 @@
 			width: w,
 			height: h,
 			borderRadius: 0,
+			borderWidth: defaultShapeBorderWidth,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -191,6 +196,7 @@
 				| 'borderRadiusTR'
 				| 'borderRadiusBR'
 				| 'borderRadiusBL'
+				| 'borderWidth'
 				| 'x'
 				| 'y'
 				| 'order'
@@ -209,6 +215,7 @@
 			if (next.borderRadiusTR !== undefined) next.borderRadiusTR = toRadiusPx(next.borderRadiusTR);
 			if (next.borderRadiusBR !== undefined) next.borderRadiusBR = toRadiusPx(next.borderRadiusBR);
 			if (next.borderRadiusBL !== undefined) next.borderRadiusBL = toRadiusPx(next.borderRadiusBL);
+			if (next.borderWidth !== undefined) next.borderWidth = toBorderWidthPx(next.borderWidth);
 			next.x = Math.max(0, Math.min(templateW - next.width, next.x));
 			next.y = Math.max(0, Math.min(templateH - next.height, next.y));
 			if (next.order !== undefined) next.order = Math.round(Number(next.order)) || 0;
@@ -238,6 +245,7 @@
 			editBorderRadiusBR = br;
 			editBorderRadiusBL = bl;
 			editOrder = shape.order ?? 0;
+			editBorderWidth = toBorderWidthPx(shape.borderWidth);
 		}
 	});
 
@@ -290,6 +298,7 @@
 				bind:editBorderRadiusTR
 				bind:editBorderRadiusBR
 				bind:editBorderRadiusBL
+				bind:editBorderWidth
 				bind:editOrder
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}

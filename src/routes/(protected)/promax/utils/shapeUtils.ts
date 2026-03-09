@@ -15,6 +15,7 @@ export const minRadius = 0;
 export const maxRadius = 999;
 export const minBorderWidth = 0;
 export const maxBorderWidth = 20;
+export const defaultShapeBorderWidth = 1;
 export const defaultShapeOffset = 24;
 
 export function toPx(n: number | string): number {
@@ -29,6 +30,13 @@ export function toRadiusPx(n: number | string): number {
 	if (Number.isNaN(v)) return minRadius;
 	const c = Math.max(minRadius, Math.min(maxRadius, v));
 	return Math.round(c * 100) / 100;
+}
+
+export function toBorderWidthPx(n: number | string | undefined): number {
+	if (n === undefined || n === null) return defaultShapeBorderWidth;
+	const v = Number(n);
+	if (Number.isNaN(v)) return defaultShapeBorderWidth;
+	return Math.max(minBorderWidth, Math.min(maxBorderWidth, v));
 }
 
 export function getRectRadii(shape: Shape): [number, number, number, number] {

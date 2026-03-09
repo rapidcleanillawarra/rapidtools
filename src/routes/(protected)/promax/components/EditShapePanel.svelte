@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Shape } from '../utils/types';
-	import { toPx, toRadiusPx, minDim, maxDim, minRadius, maxRadius } from '../utils/shapeUtils';
+	import { toPx, toRadiusPx, minDim, maxDim, minRadius, maxRadius, minBorderWidth, maxBorderWidth, toBorderWidthPx } from '../utils/shapeUtils';
 
 	let {
 		selectedShape,
@@ -12,6 +12,7 @@
 		editBorderRadiusTR = $bindable(),
 		editBorderRadiusBR = $bindable(),
 		editBorderRadiusBL = $bindable(),
+		editBorderWidth = $bindable(),
 		editOrder = $bindable(),
 		onUpdateShape,
 		onDeselect,
@@ -27,8 +28,9 @@
 		editBorderRadiusTR: number;
 		editBorderRadiusBR: number;
 		editBorderRadiusBL: number;
+		editBorderWidth: number;
 		editOrder: number;
-		onUpdateShape: (updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadiusTL' | 'borderRadiusTR' | 'borderRadiusBR' | 'borderRadiusBL' | 'x' | 'y' | 'order'>>) => void;
+		onUpdateShape: (updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadiusTL' | 'borderRadiusTR' | 'borderRadiusBR' | 'borderRadiusBL' | 'borderWidth' | 'x' | 'y' | 'order'>>) => void;
 		onDeselect: () => void;
 		onDuplicate: () => void;
 		onDelete: () => void;
@@ -80,6 +82,19 @@
 				}}
 			/>
 		</label>
+		{#if selectedShape.type !== 'image'}
+			<label>
+				<span>Shape border (px)</span>
+				<input
+					type="number"
+					min={minBorderWidth}
+					max={maxBorderWidth}
+					step="0.5"
+					bind:value={editBorderWidth}
+					onblur={() => onUpdateShape({ borderWidth: toBorderWidthPx(editBorderWidth) })}
+				/>
+			</label>
+		{/if}
 		{#if selectedShape.type === 'rectangle'}
 			<label>
 				<span>Width (px)</span>

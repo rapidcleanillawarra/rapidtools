@@ -5,7 +5,8 @@ import {
 	toPx,
 	toRadiusPx,
 	minBorderWidth,
-	maxBorderWidth
+	maxBorderWidth,
+	toBorderWidthPx
 } from './shapeUtils';
 
 /** Build path for a rounded rectangle with per-corner radii in mm (cubic Bezier arcs, k ≈ 0.552). */
@@ -112,8 +113,9 @@ export function exportPdf(
 			const format = shape.src.startsWith('data:image/png') ? 'PNG' : 'JPEG';
 			doc.addImage(shape.src, format, sx, sy, sw, sh);
 		} else {
+			const shapeBorderPx = toBorderWidthPx(shape.borderWidth);
 			doc.setDrawColor(...shapeStroke);
-			doc.setLineWidth(1 * pxToMm);
+			doc.setLineWidth(shapeBorderPx * pxToMm);
 			if (shape.type === 'circle') {
 				const cx = sx + sw / 2;
 				const cy = sy + sh / 2;

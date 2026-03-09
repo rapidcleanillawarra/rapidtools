@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Shape, TemplateConfig } from '../utils/types';
-	import { rectBorderRadiusCss, toPx, toRadiusPx } from '../utils/shapeUtils';
+	import { rectBorderRadiusCss, toPx, toRadiusPx, toBorderWidthPx } from '../utils/shapeUtils';
 
 	let {
 		templateEl = $bindable(),
@@ -25,6 +25,7 @@
 	style:width="{toPx(templateConfig.width)}px"
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
+	style:border-width="{toBorderWidthPx(templateConfig.borderWidth)}px"
 >
 	{#each templateContents as shape (shape.id)}
 		<div
@@ -63,6 +64,7 @@
 					style:width="{shape.width}px"
 					style:height="{shape.height}px"
 					style:border-radius={rectBorderRadiusCss(shape)}
+					style:border-width="{toBorderWidthPx(shape.borderWidth)}px"
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
 					role="button"

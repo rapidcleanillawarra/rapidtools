@@ -15,6 +15,8 @@ export type Shape = {
 	borderRadiusTR?: number;
 	borderRadiusBR?: number;
 	borderRadiusBL?: number;
+	/** Border width in px (rectangle/circle). Default 1. */
+	borderWidth?: number;
 	order: number;
 };
 

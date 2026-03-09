@@ -43,7 +43,7 @@
 			/>
 		</label>
 		<label>
-			<span>Border thick (px)</span>
+			<span>Template border (px)</span>
 			<input
 				type="number"
 				min={minBorderWidth}

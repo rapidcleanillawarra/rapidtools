@@ -1,17 +1,54 @@
 <script lang="ts">
 	let {
 		onAddRectangle,
-		onAddCircle
+		onAddCircle,
+		onAddImage
 	}: {
 		onAddRectangle: () => void;
 		onAddCircle: () => void;
+		onAddImage: (dataUrl: string, width: number, height: number) => void;
 	} = $props();
+
+	let fileInputEl = $state<HTMLInputElement | null>(null);
+
+	function handleImageUpload(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file || !file.type.startsWith('image/')) return;
+		const reader = new FileReader();
+		reader.onload = () => {
+			const dataUrl = reader.result as string;
+			const img = new Image();
+			img.onload = () => {
+				onAddImage(dataUrl, img.naturalWidth, img.naturalHeight);
+			};
+			img.onerror = () => {
+				onAddImage(dataUrl, 200, 200);
+			};
+			img.src = dataUrl;
+		};
+		reader.readAsDataURL(file);
+		input.value = '';
+	}
 </script>
 
 <div class="controls">
 	<h3 class="control-heading">Add shape</h3>
 	<button type="button" class="btn btn-add" onclick={onAddRectangle}>Add rectangle</button>
 	<button type="button" class="btn btn-add" onclick={onAddCircle}>Add circle</button>
+	<input
+		type="file"
+		accept="image/*"
+		class="file-input"
+		bind:this={fileInputEl}
+		onchange={handleImageUpload}
+		aria-label="Upload image"
+	/>
+	<button
+		type="button"
+		class="btn btn-add"
+		onclick={() => fileInputEl?.click()}
+	>Add image</button>
 </div>
 
 <style>
@@ -45,5 +82,14 @@
 
 	.btn-add {
 		align-self: flex-start;
+	}
+
+	.file-input {
+		position: absolute;
+		width: 0.1px;
+		height: 0.1px;
+		opacity: 0;
+		overflow: hidden;
+		z-index: -1;
 	}
 </style>

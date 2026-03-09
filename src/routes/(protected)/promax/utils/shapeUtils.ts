@@ -6,6 +6,8 @@ export const defaultRectBorderRadius = 0;
 export const defaultCircleSize = 60;
 export const defaultCircleWidth = 186.53;
 export const defaultCircleHeight = 191.73;
+export const defaultImageWidth = 200;
+export const defaultImageHeight = 200;
 
 export const minDim = 20;
 export const maxDim = 800;

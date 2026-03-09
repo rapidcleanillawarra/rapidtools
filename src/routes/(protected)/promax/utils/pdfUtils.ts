@@ -83,36 +83,40 @@ export function exportPdf(
 	doc.saveGraphicsState();
 	doc.rect(offsetX, offsetY, wMm, hMm, null);
 	doc.clip();
-	doc.setFillColor(255, 255, 255);
-	doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'F');
+	// No fill — template background is transparent
 	const sorted = [...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 	const shapeFill = [229, 231, 235] as [number, number, number];
 	const shapeStroke = [156, 163, 175] as [number, number, number];
 	for (const shape of sorted) {
-		doc.setFillColor(...shapeFill);
-		doc.setDrawColor(...shapeStroke);
-		doc.setLineWidth(1 * pxToMm);
 		const sx = shape.x * pxToMm + offsetX;
 		const sy = shape.y * pxToMm + offsetY;
 		const sw = shape.width * pxToMm;
 		const sh = shape.height * pxToMm;
-		if (shape.type === 'circle') {
-			const cx = sx + sw / 2;
-			const cy = sy + sh / 2;
-			const rx = sw / 2;
-			const ry = sh / 2;
-			doc.ellipse(cx, cy, rx, ry, 'FD');
+		if (shape.type === 'image' && shape.src) {
+			const format = shape.src.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+			doc.addImage(shape.src, format, sx, sy, sw, sh);
 		} else {
-			const [tl, tr, brR, bl] = getRectRadii(shape);
-			const tlMm = tl * pxToMm;
-			const trMm = tr * pxToMm;
-			const brMmShape = brR * pxToMm;
-			const blMm = bl * pxToMm;
-			const hasAnyRadius = tlMm > 0 || trMm > 0 || brMmShape > 0 || blMm > 0;
-			if (hasAnyRadius) {
-				drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMmShape, blMm, 'FD');
+			doc.setFillColor(...shapeFill);
+			doc.setDrawColor(...shapeStroke);
+			doc.setLineWidth(1 * pxToMm);
+			if (shape.type === 'circle') {
+				const cx = sx + sw / 2;
+				const cy = sy + sh / 2;
+				const rx = sw / 2;
+				const ry = sh / 2;
+				doc.ellipse(cx, cy, rx, ry, 'FD');
 			} else {
-				doc.rect(sx, sy, sw, sh, 'FD');
+				const [tl, tr, brR, bl] = getRectRadii(shape);
+				const tlMm = tl * pxToMm;
+				const trMm = tr * pxToMm;
+				const brMmShape = brR * pxToMm;
+				const blMm = bl * pxToMm;
+				const hasAnyRadius = tlMm > 0 || trMm > 0 || brMmShape > 0 || blMm > 0;
+				if (hasAnyRadius) {
+					drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMmShape, blMm, 'FD');
+				} else {
+					doc.rect(sx, sy, sw, sh, 'FD');
+				}
 			}
 		}
 	}

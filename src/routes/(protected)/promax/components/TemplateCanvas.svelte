@@ -35,19 +35,41 @@
 			style:top="{shape.y}px"
 			style:z-index={dragging?.shapeId === shape.id ? 9999 : (shape.order ?? 0)}
 		>
-			<div
-				class="shape"
-				class:rectangle={shape.type === 'rectangle'}
-				class:circle={shape.type === 'circle'}
-				style:width="{shape.width}px"
-				style:height="{shape.height}px"
-				style:border-radius={rectBorderRadiusCss(shape)}
-				onmousedown={(e) => onStartDrag(e, shape)}
-				ontouchstart={(e) => onStartDrag(e, shape)}
-				role="button"
-				tabindex="0"
-				title="Drag to move"
-			></div>
+			{#if shape.type === 'image' && shape.src}
+				<span
+					class="shape shape-image-wrap"
+					style:width="{shape.width}px"
+					style:height="{shape.height}px"
+					role="button"
+					tabindex="0"
+					title="Drag to move"
+					onmousedown={(e) => onStartDrag(e, shape)}
+					ontouchstart={(e) => onStartDrag(e, shape)}
+				>
+					<img
+						class="shape-image"
+						src={shape.src}
+						alt=""
+						style:width="{shape.width}px"
+						style:height="{shape.height}px"
+						draggable="false"
+					/>
+				</span>
+			{:else}
+				<div
+					class="shape"
+					class:rectangle={shape.type === 'rectangle'}
+					class:circle={shape.type === 'circle'}
+					style:width="{shape.width}px"
+					style:height="{shape.height}px"
+					style:border-radius={rectBorderRadiusCss(shape)}
+					onmousedown={(e) => onStartDrag(e, shape)}
+					ontouchstart={(e) => onStartDrag(e, shape)}
+					role="button"
+					tabindex="0"
+					title="Drag to move"
+				></div>
+			{/if}
 		</div>
 	{/each}
 </div>
@@ -56,7 +78,7 @@
 	.template {
 		position: relative;
 		overflow: hidden;
-		background: #f9fafb;
+		background: transparent;
 		border: 2px dashed #9ca3af;
 		flex-shrink: 0;
 	}
@@ -69,7 +91,8 @@
 		z-index: 1;
 	}
 
-	.shape-wrap.selected .shape {
+	.shape-wrap.selected .shape,
+	.shape-wrap.selected .shape-image-wrap {
 		outline: 2px solid #3b82f6;
 		outline-offset: 2px;
 	}
@@ -81,7 +104,21 @@
 		user-select: none;
 	}
 
-	.shape-wrap.dragging .shape {
+	.shape-image-wrap {
+		display: block;
+		cursor: grab;
+		position: relative;
+		background: transparent;
+		border: none;
+	}
+
+	.shape-wrap.dragging .shape-image-wrap {
 		cursor: grabbing;
+	}
+
+	.shape-image {
+		display: block;
+		object-fit: fill;
+		pointer-events: none;
 	}
 </style>

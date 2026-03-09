@@ -1,4 +1,4 @@
-export type ShapeType = 'rectangle' | 'circle';
+export type ShapeType = 'rectangle' | 'circle' | 'image';
 
 export type Shape = {
 	id: string;
@@ -7,6 +7,8 @@ export type Shape = {
 	y: number;
 	width: number;
 	height: number;
+	/** Image data URL (data:image/...). Only for type === 'image'. */
+	src?: string;
 	/** @deprecated use borderRadiusTL/TR/BR/BL for rectangles */
 	borderRadius?: number;
 	borderRadiusTL?: number;

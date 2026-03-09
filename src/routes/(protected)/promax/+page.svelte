@@ -10,7 +10,10 @@
 		defaultRectHeight,
 		defaultRectBorderRadius,
 		defaultCircleWidth,
-		defaultCircleHeight
+		defaultCircleHeight,
+		defaultImageWidth,
+		defaultImageHeight,
+		minDim
 	} from './utils/shapeUtils';
 	import { exportPdf as doExportPdf } from './utils/pdfUtils';
 	import TemplateControls from './components/TemplateControls.svelte';
@@ -83,6 +86,26 @@
 			width: w,
 			height: h,
 			borderRadius: 0,
+			order: nextOrder
+		};
+		template_contents = [...template_contents, newShape];
+	}
+
+	function addImage(dataUrl: string, naturalWidth: number, naturalHeight: number) {
+		const templateW = toPx(template_config.width);
+		const templateH = toPx(template_config.height);
+		const w = Math.min(defaultImageWidth, naturalWidth, templateW - 40);
+		const h = Math.min(defaultImageHeight, naturalHeight, templateH - 40);
+		const [x, y] = centerPosition(templateW, templateH, w, h);
+		const nextOrder = nextLayerOrder(template_contents);
+		const newShape: Shape = {
+			id: crypto.randomUUID(),
+			type: 'image',
+			x,
+			y,
+			width: Math.max(minDim, w),
+			height: Math.max(minDim, h),
+			src: dataUrl,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -238,7 +261,11 @@
 <div class="promax-page">
 	<aside class="sidebar">
 		<TemplateControls bind:templateConfig={template_config} />
-		<AddShapeControls onAddRectangle={addRectangle} onAddCircle={addCircle} />
+		<AddShapeControls
+			onAddRectangle={addRectangle}
+			onAddCircle={addCircle}
+			onAddImage={addImage}
+		/>
 		{#if selectedShape}
 			<EditShapePanel
 				selectedShape={selectedShape}

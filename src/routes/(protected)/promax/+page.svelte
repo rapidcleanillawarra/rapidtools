@@ -258,15 +258,28 @@
 	});
 </script>
 
-<div class="promax-page">
-	<aside class="sidebar">
+<div class="promax-page" class:with-edit-panel={!!selectedShape}>
+	<aside class="sidebar sidebar-left">
 		<TemplateControls bind:templateConfig={template_config} />
 		<AddShapeControls
 			onAddRectangle={addRectangle}
 			onAddCircle={addCircle}
 			onAddImage={addImage}
 		/>
-		{#if selectedShape}
+	</aside>
+	<main class="preview">
+		<PreviewToolbar onExport={exportPdf} />
+		<TemplateCanvas
+			bind:templateEl
+			templateConfig={template_config}
+			templateContents={template_contents}
+			selectedShapeId={selectedShapeId}
+			dragging={dragging}
+			onStartDrag={startDrag}
+		/>
+	</main>
+	{#if selectedShape}
+		<aside class="sidebar sidebar-right">
 			<EditShapePanel
 				selectedShape={selectedShape}
 				bind:editX
@@ -283,19 +296,8 @@
 				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}
 				onDelete={() => selectedShapeId && removeShape(selectedShapeId)}
 			/>
-		{/if}
-	</aside>
-	<main class="preview">
-		<PreviewToolbar onExport={exportPdf} />
-		<TemplateCanvas
-			bind:templateEl
-			templateConfig={template_config}
-			templateContents={template_contents}
-			selectedShapeId={selectedShapeId}
-			dragging={dragging}
-			onStartDrag={startDrag}
-		/>
-	</main>
+		</aside>
+	{/if}
 </div>
 
 <style>
@@ -310,9 +312,17 @@
 		padding: 1.5rem;
 	}
 
+	.promax-page.with-edit-panel {
+		grid-template-columns: minmax(0, 220px) 1fr minmax(0, 220px);
+	}
+
 	.sidebar {
 		position: sticky;
 		top: 1.5rem;
+	}
+
+	.sidebar-right {
+		grid-column: 3;
 	}
 
 	.sidebar :global(.controls + .controls) {

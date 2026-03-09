@@ -142,9 +142,11 @@ export function exportPdf(
 		minBorderWidth,
 		Math.min(maxBorderWidth, Number(templateConfig.borderWidth) ?? 0)
 	);
-	doc.setDrawColor(156, 163, 175);
-	doc.setLineWidth(borderWidthPx * pxToMm);
-	doc.setLineJoin('round');
-	doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'S');
+	if (borderWidthPx > 0) {
+		doc.setDrawColor(156, 163, 175);
+		doc.setLineWidth(borderWidthPx * pxToMm);
+		doc.setLineJoin('round');
+		doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'S');
+	}
 	doc.save('promax-template.pdf');
 }

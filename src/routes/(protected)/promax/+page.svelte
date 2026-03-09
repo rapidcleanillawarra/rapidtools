@@ -258,7 +258,7 @@
 	});
 </script>
 
-<div class="promax-page" class:with-edit-panel={!!selectedShape}>
+<div class="promax-page">
 	<aside class="sidebar sidebar-left">
 		<TemplateControls bind:templateConfig={template_config} />
 		<AddShapeControls
@@ -278,8 +278,8 @@
 			onStartDrag={startDrag}
 		/>
 	</main>
-	{#if selectedShape}
-		<aside class="sidebar sidebar-right">
+	<aside class="sidebar sidebar-right">
+		{#if selectedShape}
 			<EditShapePanel
 				selectedShape={selectedShape}
 				bind:editX
@@ -296,8 +296,10 @@
 				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}
 				onDelete={() => selectedShapeId && removeShape(selectedShapeId)}
 			/>
-		</aside>
-	{/if}
+		{:else}
+			<div class="edit-panel-placeholder">Select a shape to edit</div>
+		{/if}
+	</aside>
 </div>
 
 <style>
@@ -306,14 +308,10 @@
 		padding: 0;
 		min-height: 100vh;
 		display: grid;
-		grid-template-columns: minmax(0, 220px) 1fr;
+		grid-template-columns: minmax(0, 220px) 1fr minmax(0, 220px);
 		gap: 1.5rem;
 		align-items: start;
 		padding: 1.5rem;
-	}
-
-	.promax-page.with-edit-panel {
-		grid-template-columns: minmax(0, 220px) 1fr minmax(0, 220px);
 	}
 
 	.sidebar {
@@ -323,6 +321,13 @@
 
 	.sidebar-right {
 		grid-column: 3;
+	}
+
+	.edit-panel-placeholder {
+		color: #6b7280;
+		font-size: 0.875rem;
+		padding: 1rem;
+		text-align: center;
 	}
 
 	.sidebar :global(.controls + .controls) {

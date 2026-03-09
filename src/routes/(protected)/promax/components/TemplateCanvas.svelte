@@ -25,7 +25,6 @@
 	style:width="{toPx(templateConfig.width)}px"
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
-	style:border-width="{toBorderWidthPx(templateConfig.borderWidth)}px"
 >
 	{#each templateContents as shape (shape.id)}
 		<div

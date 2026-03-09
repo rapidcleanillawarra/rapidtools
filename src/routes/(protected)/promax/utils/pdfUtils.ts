@@ -76,8 +76,7 @@ export function exportPdf(
 	const hMm = h * pxToMm;
 	const brMm = br * pxToMm;
 	const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-	doc.setFillColor(255, 255, 255);
-	doc.rect(0, 0, 210, 297, 'F');
+	// No page fill — exported PDF has transparent background
 	const offsetX = (210 - wMm) / 2;
 	const offsetY = (297 - hMm) / 2;
 	doc.saveGraphicsState();

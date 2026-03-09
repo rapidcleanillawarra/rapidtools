@@ -83,7 +83,7 @@ export function exportPdf(
 	doc.saveGraphicsState();
 	doc.rect(offsetX, offsetY, wMm, hMm, null);
 	doc.clip();
-	doc.setFillColor(249, 250, 251);
+	doc.setFillColor(255, 255, 255);
 	doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'F');
 	const sorted = [...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 	const shapeFill = [229, 231, 235] as [number, number, number];
@@ -119,7 +119,7 @@ export function exportPdf(
 	doc.restoreGraphicsState();
 	const borderWidthPx = Math.max(
 		minBorderWidth,
-		Math.min(maxBorderWidth, Number(templateConfig.borderWidth) ?? 2)
+		Math.min(maxBorderWidth, Number(templateConfig.borderWidth) ?? 0)
 	);
 	doc.setDrawColor(156, 163, 175);
 	doc.setLineWidth(borderWidthPx * pxToMm);

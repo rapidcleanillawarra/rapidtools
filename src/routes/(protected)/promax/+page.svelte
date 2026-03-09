@@ -22,7 +22,7 @@
 		width: 340,
 		height: 813.13,
 		borderRadius: 25,
-		borderWidth: 2
+		borderWidth: 0
 	});
 
 	let template_contents = $state<Shape[]>([]);

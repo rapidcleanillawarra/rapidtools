@@ -11,52 +11,54 @@
 
 <div class="controls">
 	<h3 class="control-heading">Template</h3>
-	<label>
-		<span>Width (px)</span>
-		<input
-			type="number"
-			min={minDim}
-			max={maxDim}
-			step="0.01"
-			bind:value={templateConfig.width}
-		/>
-	</label>
-	<label>
-		<span>Height (px)</span>
-		<input
-			type="number"
-			min={minDim}
-			max={maxDim}
-			step="0.01"
-			bind:value={templateConfig.height}
-		/>
-	</label>
-	<label>
-		<span>Border radius (px)</span>
-		<input
-			type="number"
-			min={minRadius}
-			max={maxRadius}
-			step="0.01"
-			bind:value={templateConfig.borderRadius}
-		/>
-	</label>
-	<label>
-		<span>Border thickness (px)</span>
-		<input
-			type="number"
-			min={minBorderWidth}
-			max={maxBorderWidth}
-			step="0.5"
-			bind:value={templateConfig.borderWidth}
-		/>
-	</label>
+	<div class="fields-grid">
+		<label>
+			<span>Width (px)</span>
+			<input
+				type="number"
+				min={minDim}
+				max={maxDim}
+				step="0.01"
+				bind:value={templateConfig.width}
+			/>
+		</label>
+		<label>
+			<span>Height (px)</span>
+			<input
+				type="number"
+				min={minDim}
+				max={maxDim}
+				step="0.01"
+				bind:value={templateConfig.height}
+			/>
+		</label>
+		<label>
+			<span>Border radius (px)</span>
+			<input
+				type="number"
+				min={minRadius}
+				max={maxRadius}
+				step="0.01"
+				bind:value={templateConfig.borderRadius}
+			/>
+		</label>
+		<label>
+			<span>Border thick (px)</span>
+			<input
+				type="number"
+				min={minBorderWidth}
+				max={maxBorderWidth}
+				step="0.5"
+				bind:value={templateConfig.borderWidth}
+			/>
+		</label>
+	</div>
 </div>
 
 <style>
 	.control-heading {
 		margin: 0 0 0.25rem 0;
-		font-size: 0.8125rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 		color: #1f2937;
 	}
@@ -64,24 +66,30 @@
 	.controls {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.5rem;
+	}
+
+	.fields-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.5rem 0.375rem;
 	}
 
 	.controls label {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.875rem;
+		gap: 0.125rem;
+		font-size: 0.75rem;
 		color: #374151;
 	}
 
 	.controls input {
 		width: 100%;
-		max-width: 10rem;
-		padding: 0.375rem 0.5rem;
+		max-width: none;
+		padding: 0.25rem 0.375rem;
 		border: 1px solid #9ca3af;
 		border-radius: 0.25rem;
-		font-size: 0.875rem;
+		font-size: 0.75rem;
 	}
 
 	.controls input:focus {

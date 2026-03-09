@@ -40,136 +40,138 @@
 		<h3 class="control-heading">Edit shape</h3>
 		<button type="button" class="btn btn-icon" onclick={onDeselect} title="Deselect" aria-label="Deselect">×</button>
 	</div>
-	<label>
-		<span>X (px)</span>
-		<input
-			type="number"
-			min="0"
-			step="0.01"
-			bind:value={editX}
-			onblur={() => {
-				const v = Number(editX);
-				if (!Number.isNaN(v)) onUpdateShape({ x: v });
-			}}
-		/>
-	</label>
-	<label>
-		<span>Y (px)</span>
-		<input
-			type="number"
-			min="0"
-			step="0.01"
-			bind:value={editY}
-			onblur={() => {
-				const v = Number(editY);
-				if (!Number.isNaN(v)) onUpdateShape({ y: v });
-			}}
-		/>
-	</label>
-	<label>
-		<span>Order (layer)</span>
-		<input
-			type="number"
-			min="0"
-			step="1"
-			bind:value={editOrder}
-			onblur={() => {
-				const v = Math.round(Number(editOrder));
-				if (!Number.isNaN(v) && v >= 0) onUpdateShape({ order: v });
-			}}
-		/>
-	</label>
-	{#if selectedShape.type === 'rectangle'}
+	<div class="fields-grid">
 		<label>
-			<span>Width (px)</span>
+			<span>X (px)</span>
 			<input
 				type="number"
-				min={minDim}
-				max={maxDim}
+				min="0"
 				step="0.01"
-				bind:value={editWidth}
-				onblur={() => onUpdateShape({ width: toPx(editWidth) })}
+				bind:value={editX}
+				onblur={() => {
+					const v = Number(editX);
+					if (!Number.isNaN(v)) onUpdateShape({ x: v });
+				}}
 			/>
 		</label>
 		<label>
-			<span>Height (px)</span>
+			<span>Y (px)</span>
 			<input
 				type="number"
-				min={minDim}
-				max={maxDim}
+				min="0"
 				step="0.01"
-				bind:value={editHeight}
-				onblur={() => onUpdateShape({ height: toPx(editHeight) })}
+				bind:value={editY}
+				onblur={() => {
+					const v = Number(editY);
+					if (!Number.isNaN(v)) onUpdateShape({ y: v });
+				}}
 			/>
 		</label>
 		<label>
-			<span>Border radius — Top-left (px)</span>
+			<span>Order (layer)</span>
 			<input
 				type="number"
-				min={minRadius}
-				max={maxRadius}
-				step="0.01"
-				bind:value={editBorderRadiusTL}
-				onblur={() => onUpdateShape({ borderRadiusTL: toRadiusPx(editBorderRadiusTL) })}
+				min="0"
+				step="1"
+				bind:value={editOrder}
+				onblur={() => {
+					const v = Math.round(Number(editOrder));
+					if (!Number.isNaN(v) && v >= 0) onUpdateShape({ order: v });
+				}}
 			/>
 		</label>
-		<label>
-			<span>Border radius — Top-right (px)</span>
-			<input
-				type="number"
-				min={minRadius}
-				max={maxRadius}
-				step="0.01"
-				bind:value={editBorderRadiusTR}
-				onblur={() => onUpdateShape({ borderRadiusTR: toRadiusPx(editBorderRadiusTR) })}
-			/>
-		</label>
-		<label>
-			<span>Border radius — Bottom-right (px)</span>
-			<input
-				type="number"
-				min={minRadius}
-				max={maxRadius}
-				step="0.01"
-				bind:value={editBorderRadiusBR}
-				onblur={() => onUpdateShape({ borderRadiusBR: toRadiusPx(editBorderRadiusBR) })}
-			/>
-		</label>
-		<label>
-			<span>Border radius — Bottom-left (px)</span>
-			<input
-				type="number"
-				min={minRadius}
-				max={maxRadius}
-				step="0.01"
-				bind:value={editBorderRadiusBL}
-				onblur={() => onUpdateShape({ borderRadiusBL: toRadiusPx(editBorderRadiusBL) })}
-			/>
-		</label>
-	{:else}
-		<label>
-			<span>Width (px)</span>
-			<input
-				type="number"
-				min={minDim}
-				max={maxDim}
-				step="0.01"
-				bind:value={editWidth}
-				onblur={() => onUpdateShape({ width: toPx(editWidth) })}
-			/>
-		</label>
-		<label>
-			<span>Height (px)</span>
-			<input
-				type="number"
-				min={minDim}
-				max={maxDim}
-				step="0.01"
-				bind:value={editHeight}
-				onblur={() => onUpdateShape({ height: toPx(editHeight) })}
-			/>
-		</label>
-	{/if}
+		{#if selectedShape.type === 'rectangle'}
+			<label>
+				<span>Width (px)</span>
+				<input
+					type="number"
+					min={minDim}
+					max={maxDim}
+					step="0.01"
+					bind:value={editWidth}
+					onblur={() => onUpdateShape({ width: toPx(editWidth) })}
+				/>
+			</label>
+			<label>
+				<span>Height (px)</span>
+				<input
+					type="number"
+					min={minDim}
+					max={maxDim}
+					step="0.01"
+					bind:value={editHeight}
+					onblur={() => onUpdateShape({ height: toPx(editHeight) })}
+				/>
+			</label>
+			<label>
+				<span>Radius TL (px)</span>
+				<input
+					type="number"
+					min={minRadius}
+					max={maxRadius}
+					step="0.01"
+					bind:value={editBorderRadiusTL}
+					onblur={() => onUpdateShape({ borderRadiusTL: toRadiusPx(editBorderRadiusTL) })}
+				/>
+			</label>
+			<label>
+				<span>Radius TR (px)</span>
+				<input
+					type="number"
+					min={minRadius}
+					max={maxRadius}
+					step="0.01"
+					bind:value={editBorderRadiusTR}
+					onblur={() => onUpdateShape({ borderRadiusTR: toRadiusPx(editBorderRadiusTR) })}
+				/>
+			</label>
+			<label>
+				<span>Radius BR (px)</span>
+				<input
+					type="number"
+					min={minRadius}
+					max={maxRadius}
+					step="0.01"
+					bind:value={editBorderRadiusBR}
+					onblur={() => onUpdateShape({ borderRadiusBR: toRadiusPx(editBorderRadiusBR) })}
+				/>
+			</label>
+			<label>
+				<span>Radius BL (px)</span>
+				<input
+					type="number"
+					min={minRadius}
+					max={maxRadius}
+					step="0.01"
+					bind:value={editBorderRadiusBL}
+					onblur={() => onUpdateShape({ borderRadiusBL: toRadiusPx(editBorderRadiusBL) })}
+				/>
+			</label>
+		{:else}
+			<label>
+				<span>Width (px)</span>
+				<input
+					type="number"
+					min={minDim}
+					max={maxDim}
+					step="0.01"
+					bind:value={editWidth}
+					onblur={() => onUpdateShape({ width: toPx(editWidth) })}
+				/>
+			</label>
+			<label>
+				<span>Height (px)</span>
+				<input
+					type="number"
+					min={minDim}
+					max={maxDim}
+					step="0.01"
+					bind:value={editHeight}
+					onblur={() => onUpdateShape({ height: toPx(editHeight) })}
+				/>
+			</label>
+		{/if}
+	</div>
 	<button
 		type="button"
 		class="btn btn-secondary"
@@ -187,7 +189,7 @@
 <style>
 	.control-heading {
 		margin: 0 0 0.25rem 0;
-		font-size: 0.8125rem;
+		font-size: 0.75rem;
 		font-weight: 600;
 		color: #1f2937;
 	}
@@ -195,14 +197,20 @@
 	.controls {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.5rem;
+	}
+
+	.fields-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.5rem 0.375rem;
 	}
 
 	.edit-shape {
 		background: #eff6ff;
 		border: 1px solid #93c5fd;
 		border-radius: 0.375rem;
-		padding: 1rem;
+		padding: 0.75rem;
 		margin-top: 0.5rem;
 	}
 
@@ -216,8 +224,8 @@
 
 	.btn {
 		cursor: pointer;
-		font-size: 0.875rem;
-		padding: 0.5rem 0.75rem;
+		font-size: 0.75rem;
+		padding: 0.375rem 0.5rem;
 		border-radius: 0.375rem;
 		border: 1px solid #9ca3af;
 		background: #f9fafb;
@@ -230,8 +238,10 @@
 	}
 
 	.btn-icon {
-		padding: 0.25rem 0.5rem;
-		min-width: 1.75rem;
+		padding: 0.2rem 0.375rem;
+		min-width: 1.5rem;
+		font-size: 1rem;
+		line-height: 1;
 	}
 
 	.btn-delete {
@@ -263,18 +273,18 @@
 	.controls label {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.875rem;
+		gap: 0.125rem;
+		font-size: 0.75rem;
 		color: #374151;
 	}
 
 	.controls input {
 		width: 100%;
-		max-width: 10rem;
-		padding: 0.375rem 0.5rem;
+		max-width: none;
+		padding: 0.25rem 0.375rem;
 		border: 1px solid #9ca3af;
 		border-radius: 0.25rem;
-		font-size: 0.875rem;
+		font-size: 0.75rem;
 	}
 
 	.controls input:focus {

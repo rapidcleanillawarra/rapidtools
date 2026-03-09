@@ -102,7 +102,6 @@ export function exportPdf(
 	doc.clip();
 	// No fill — template background is transparent
 	const sorted = [...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-	const shapeFill = [229, 231, 235] as [number, number, number];
 	const shapeStroke = [156, 163, 175] as [number, number, number];
 	for (const shape of sorted) {
 		const sx = shape.x * pxToMm + offsetX;
@@ -113,7 +112,6 @@ export function exportPdf(
 			const format = shape.src.startsWith('data:image/png') ? 'PNG' : 'JPEG';
 			doc.addImage(shape.src, format, sx, sy, sw, sh);
 		} else {
-			doc.setFillColor(...shapeFill);
 			doc.setDrawColor(...shapeStroke);
 			doc.setLineWidth(1 * pxToMm);
 			if (shape.type === 'circle') {
@@ -121,7 +119,7 @@ export function exportPdf(
 				const cy = sy + sh / 2;
 				const rx = sw / 2;
 				const ry = sh / 2;
-				doc.ellipse(cx, cy, rx, ry, 'FD');
+				doc.ellipse(cx, cy, rx, ry, 'S');
 			} else {
 				const [tl, tr, brR, bl] = getRectRadii(shape);
 				const tlMm = tl * pxToMm;
@@ -130,9 +128,9 @@ export function exportPdf(
 				const blMm = bl * pxToMm;
 				const hasAnyRadius = tlMm > 0 || trMm > 0 || brMmShape > 0 || blMm > 0;
 				if (hasAnyRadius) {
-					drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMmShape, blMm, 'FD');
+					drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMmShape, blMm, 'S');
 				} else {
-					doc.rect(sx, sy, sw, sh, 'FD');
+					doc.rect(sx, sy, sw, sh, 'S');
 				}
 			}
 		}

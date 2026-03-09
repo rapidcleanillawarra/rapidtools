@@ -98,7 +98,7 @@
 	}
 
 	.shape {
-		background: #e5e7eb;
+		background: transparent;
 		border: 1px solid #9ca3af;
 		cursor: grab;
 		user-select: none;

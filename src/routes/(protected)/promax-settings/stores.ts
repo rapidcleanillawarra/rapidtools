@@ -21,6 +21,10 @@ export const sortDirection = writable<'asc' | 'desc'>('asc');
 // Search Stores
 export const searchFilters = writable<Partial<Record<keyof ProMaxProduct, string>>>({});
 
+// Background image (ProMax settings)
+export const backgroundImageUrl = writable<string | null>(null);
+export const isUploadingBackground = writable<boolean>(false);
+
 // Derived Store for Paginated Data
 export const paginatedData = derived(
   [tableData, currentPage, itemsPerPage],

@@ -10,13 +10,16 @@
     sortDirection,
     searchFilters,
     paginatedData,
-    isModalOpen
+    isModalOpen,
+    backgroundImageUrl,
+    isUploadingBackground
   } from './stores';
   import { getSortIcon, sortData } from './utils';
   import type { ProMaxProduct } from './types';
   import Modal from '$lib/components/Modal.svelte';
   import { db } from '$lib/firebase';
-  import { collection, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+  import { collection, addDoc, getDocs, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
+  import { supabase } from '$lib/supabase';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
 
@@ -29,6 +32,10 @@
     brand: 'Rapid Clean'
   };
   let isSaving = false;
+
+  // Background image state
+  let selectedBackgroundFile: File | null = null;
+  let selectedBackgroundPreviewUrl: string | null = null;
 
   // Handler for clicking a table header to sort
   function handleSortClick(field: keyof ProMaxProduct) {
@@ -54,6 +61,11 @@
       color: '#000000',
       brand: 'Rapid Clean'
     };
+    selectedBackgroundFile = null;
+    if (selectedBackgroundPreviewUrl) {
+      URL.revokeObjectURL(selectedBackgroundPreviewUrl);
+      selectedBackgroundPreviewUrl = null;
+    }
     isModalOpen.set(true);
   }
 
@@ -122,6 +134,91 @@
     }
   }
 
+  const PROMAX_SETTINGS_DOC = doc(db, 'promax_settings', 'default');
+  const SUPABASE_BUCKET = 'promax-yaaama';
+
+  async function fetchBackgroundSettings() {
+    try {
+      const snap = await getDoc(PROMAX_SETTINGS_DOC);
+      backgroundImageUrl.set(snap.data()?.backgroundImageUrl ?? null);
+    } catch (err) {
+      console.error('Error fetching background settings:', err);
+      toastError('Failed to load background settings');
+    }
+  }
+
+  function sanitizeFileName(name: string): string {
+    return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  }
+
+  async function saveBackgroundImage() {
+    if (!selectedBackgroundFile) {
+      toastError('Please select an image first');
+      return;
+    }
+    const file = selectedBackgroundFile;
+    if (file.size > 2 * 1024 * 1024) {
+      toastError('Image must be smaller than 2MB');
+      return;
+    }
+    try {
+      isUploadingBackground.set(true);
+      const sanitized = sanitizeFileName(file.name);
+      const path = `backgrounds/background_${Date.now()}_${sanitized}`;
+      const { error: uploadError } = await supabase.storage.from(SUPABASE_BUCKET).upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(path);
+      const publicUrl = urlData.publicUrl;
+      await setDoc(PROMAX_SETTINGS_DOC, { backgroundImageUrl: publicUrl, updatedAt: new Date() }, { merge: true });
+      backgroundImageUrl.set(publicUrl);
+      selectedBackgroundFile = null;
+      if (selectedBackgroundPreviewUrl) {
+        URL.revokeObjectURL(selectedBackgroundPreviewUrl);
+        selectedBackgroundPreviewUrl = null;
+      }
+      toastSuccess('Background image saved');
+    } catch (err) {
+      console.error('Error saving background image:', err);
+      toastError('Failed to save background image');
+    } finally {
+      isUploadingBackground.set(false);
+    }
+  }
+
+  async function clearBackgroundImage() {
+    try {
+      isUploadingBackground.set(true);
+      await setDoc(PROMAX_SETTINGS_DOC, { backgroundImageUrl: null, updatedAt: new Date() }, { merge: true });
+      backgroundImageUrl.set(null);
+      selectedBackgroundFile = null;
+      if (selectedBackgroundPreviewUrl) {
+        URL.revokeObjectURL(selectedBackgroundPreviewUrl);
+        selectedBackgroundPreviewUrl = null;
+      }
+      toastSuccess('Background image cleared');
+    } catch (err) {
+      console.error('Error clearing background image:', err);
+      toastError('Failed to clear background image');
+    } finally {
+      isUploadingBackground.set(false);
+    }
+  }
+
+  function onBackgroundFileChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (selectedBackgroundPreviewUrl) {
+      URL.revokeObjectURL(selectedBackgroundPreviewUrl);
+      selectedBackgroundPreviewUrl = null;
+    }
+    if (file) {
+      selectedBackgroundFile = file;
+      selectedBackgroundPreviewUrl = URL.createObjectURL(file);
+    } else {
+      selectedBackgroundFile = null;
+    }
+  }
+
   // Reactive statement to handle searching
   $: {
     let filtered = $originalData;
@@ -138,6 +235,7 @@
 
   onMount(() => {
     fetchProducts();
+    fetchBackgroundSettings();
   });
 </script>
 
@@ -339,6 +437,52 @@
           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           bind:value={newProduct.imageUrl}
         />
+      </div>
+      <div class="border-t border-gray-200 pt-4 mt-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-2">Background image</h3>
+        <p class="text-xs text-gray-600 mb-3">Upload an image to use as the ProMax background. Saved to Supabase (bucket promax-yaaama) and stored in Firestore.</p>
+        <div class="flex flex-wrap items-end gap-3">
+          <div class="min-w-0 flex-1">
+            <label for="background-image-input" class="block text-sm font-medium text-gray-700 mb-1">Choose image</label>
+            <input
+              id="background-image-input"
+              type="file"
+              accept="image/*"
+              class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              on:change={onBackgroundFileChange}
+              disabled={$isUploadingBackground}
+            />
+          </div>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+              on:click={saveBackgroundImage}
+              disabled={$isUploadingBackground || !selectedBackgroundFile}
+            >
+              {$isUploadingBackground ? 'Saving...' : 'Upload and save'}
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              on:click={clearBackgroundImage}
+              disabled={$isUploadingBackground}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+        <div class="mt-3">
+          {#if selectedBackgroundPreviewUrl}
+            <p class="text-xs text-gray-500 mb-1">New selection (not saved yet):</p>
+            <img src={selectedBackgroundPreviewUrl} alt="Preview" class="h-20 rounded border border-gray-200 object-cover" />
+          {:else if $backgroundImageUrl}
+            <p class="text-xs text-gray-500 mb-1">Current background:</p>
+            <img src={$backgroundImageUrl} alt="Background" class="h-20 rounded border border-gray-200 object-cover" />
+          {:else}
+            <p class="text-sm text-gray-500">No background image set.</p>
+          {/if}
+        </div>
       </div>
       <div class="flex justify-end gap-2 mt-6">
         <button

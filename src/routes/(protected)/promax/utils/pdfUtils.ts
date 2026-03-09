@@ -85,7 +85,7 @@ export function exportPdf(
 	doc.clip();
 	doc.setFillColor(249, 250, 251);
 	doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'F');
-	const sorted = [...template_contents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+	const sorted = [...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 	const shapeFill = [229, 231, 235] as [number, number, number];
 	const shapeStroke = [156, 163, 175] as [number, number, number];
 	for (const shape of sorted) {

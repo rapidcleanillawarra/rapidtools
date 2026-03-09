@@ -91,6 +91,28 @@
 		template_contents = template_contents.filter((s) => s.id !== id);
 	}
 
+	function duplicateShape(id: string) {
+		const source = template_contents.find((s) => s.id === id);
+		if (!source) return;
+		const templateW = toPx(template_config.width);
+		const templateH = toPx(template_config.height);
+		const offset = 20;
+		let newX = source.x + offset;
+		let newY = source.y + offset;
+		newX = Math.max(0, Math.min(templateW - source.width, newX));
+		newY = Math.max(0, Math.min(templateH - source.height, newY));
+		const nextOrder = nextLayerOrder(template_contents);
+		const copy: Shape = {
+			...source,
+			id: crypto.randomUUID(),
+			x: Math.round(newX * 100) / 100,
+			y: Math.round(newY * 100) / 100,
+			order: nextOrder
+		};
+		template_contents = [...template_contents, copy];
+		selectedShapeId = copy.id;
+	}
+
 	function startDrag(e: MouseEvent | TouchEvent, shape: Shape) {
 		e.preventDefault();
 		const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -229,6 +251,7 @@
 				bind:editOrder
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}
+				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}
 				onDelete={() => selectedShapeId && removeShape(selectedShapeId)}
 			/>
 		{/if}

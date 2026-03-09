@@ -15,6 +15,7 @@
 		editOrder = $bindable(),
 		onUpdateShape,
 		onDeselect,
+		onDuplicate,
 		onDelete
 	}: {
 		selectedShape: Shape;
@@ -29,6 +30,7 @@
 		editOrder: number;
 		onUpdateShape: (updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadiusTL' | 'borderRadiusTR' | 'borderRadiusBR' | 'borderRadiusBL' | 'x' | 'y' | 'order'>>) => void;
 		onDeselect: () => void;
+		onDuplicate: () => void;
 		onDelete: () => void;
 	} = $props();
 </script>
@@ -170,6 +172,12 @@
 	{/if}
 	<button
 		type="button"
+		class="btn btn-secondary"
+		onclick={onDuplicate}
+		title="Duplicate shape"
+	>Duplicate shape</button>
+	<button
+		type="button"
 		class="btn btn-delete"
 		onclick={onDelete}
 		title="Delete shape"
@@ -231,6 +239,19 @@
 		background: #fef2f2;
 		border-color: #f87171;
 		color: #b91c1c;
+	}
+
+	.btn-secondary {
+		align-self: flex-start;
+		background: #eff6ff;
+		border-color: #93c5fd;
+		color: #1d4ed8;
+	}
+
+	.btn-secondary:hover {
+		background: #dbeafe;
+		border-color: #3b82f6;
+		color: #1e40af;
 	}
 
 	.btn-delete:hover {

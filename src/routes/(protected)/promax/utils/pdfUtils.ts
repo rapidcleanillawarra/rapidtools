@@ -138,13 +138,16 @@ export function exportPdf(
 		}
 	}
 	doc.restoreGraphicsState();
-	const borderWidthPx = Math.max(
+	// Draw template border with template's own border width (isolate from shape line width)
+	const templateBorderPx = Math.max(
 		minBorderWidth,
 		Math.min(maxBorderWidth, Number(templateConfig.borderWidth) ?? 0)
 	);
+	doc.saveGraphicsState();
 	doc.setDrawColor(156, 163, 175);
-	doc.setLineWidth(borderWidthPx * pxToMm);
+	doc.setLineWidth(templateBorderPx * pxToMm);
 	doc.setLineJoin('round');
 	doc.roundedRect(offsetX, offsetY, wMm, hMm, brMm, brMm, 'S');
+	doc.restoreGraphicsState();
 	doc.save('promax-template.pdf');
 }

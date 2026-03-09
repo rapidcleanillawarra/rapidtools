@@ -17,6 +17,8 @@
 		dragging: { shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null;
 		onStartDrag: (e: MouseEvent | TouchEvent, shape: Shape) => void;
 	} = $props();
+
+	const sortedContents = $derived([...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
 </script>
 
 <div
@@ -26,7 +28,7 @@
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
 >
-	{#each templateContents as shape (shape.id)}
+	{#each sortedContents as shape (shape.id)}
 		<div
 			class="shape-wrap"
 			class:dragging={dragging?.shapeId === shape.id}

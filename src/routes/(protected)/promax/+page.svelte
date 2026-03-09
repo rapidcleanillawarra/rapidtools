@@ -9,7 +9,8 @@
 		defaultRectWidth,
 		defaultRectHeight,
 		defaultRectBorderRadius,
-		defaultCircleSize
+		defaultCircleWidth,
+		defaultCircleHeight
 	} from './utils/shapeUtils';
 	import { exportPdf as doExportPdf } from './utils/pdfUtils';
 	import TemplateControls from './components/TemplateControls.svelte';
@@ -19,8 +20,8 @@
 	import TemplateCanvas from './components/TemplateCanvas.svelte';
 
 	let template_config = $state<TemplateConfig>({
-		width: 340,
-		height: 813.13,
+		width: 358.9,
+		height: 850.93,
 		borderRadius: 25,
 		borderWidth: 0
 	});
@@ -70,16 +71,17 @@
 	function addCircle() {
 		const templateW = toPx(template_config.width);
 		const templateH = toPx(template_config.height);
-		const size = defaultCircleSize;
-		const [x, y] = centerPosition(templateW, templateH, size, size);
+		const w = defaultCircleWidth;
+		const h = defaultCircleHeight;
+		const [x, y] = centerPosition(templateW, templateH, w, h);
 		const nextOrder = nextLayerOrder(template_contents);
 		const newShape: Shape = {
 			id: crypto.randomUUID(),
 			type: 'circle',
 			x,
 			y,
-			width: size,
-			height: size,
+			width: w,
+			height: h,
 			borderRadius: 0,
 			order: nextOrder
 		};

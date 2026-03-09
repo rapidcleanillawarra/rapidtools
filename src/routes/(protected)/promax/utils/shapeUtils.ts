@@ -1,9 +1,11 @@
 import type { Shape } from './types';
 
-export const defaultRectWidth = 120;
-export const defaultRectHeight = 80;
-export const defaultRectBorderRadius = 8;
+export const defaultRectWidth = 170;
+export const defaultRectHeight = 173.33;
+export const defaultRectBorderRadius = 0;
 export const defaultCircleSize = 60;
+export const defaultCircleWidth = 186.53;
+export const defaultCircleHeight = 191.73;
 
 export const minDim = 20;
 export const maxDim = 800;

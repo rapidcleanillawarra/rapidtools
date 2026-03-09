@@ -29,7 +29,7 @@
 	$: isPrintPage = $page.url.pathname.includes('/print');
 
 	// Promax page: no header/sidebar, standalone content
-	$: isPromaxPage = $page.url.pathname === base + '/promax';
+	$: isPromaxPage = $page.url.pathname === base + '/promax' || $page.url.pathname.startsWith(base + '/promax/');
 
 	// Check if we're on a protected route
 	$: isProtectedRoute = $page.url.pathname.startsWith(base + '/product-request') ||

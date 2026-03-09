@@ -1,12 +1,27 @@
 <script lang="ts">
 	let {
-		onExport
+		onExport,
+		onSave,
+		isSaving = false
 	}: {
 		onExport: () => void;
+		onSave?: () => void;
+		isSaving?: boolean;
 	} = $props();
 </script>
 
 <div class="preview-actions">
+	{#if onSave}
+		<button
+			type="button"
+			class="btn btn-save"
+			onclick={onSave}
+			disabled={isSaving}
+			title="Save template to library"
+		>
+			{isSaving ? 'Saving…' : 'Save'}
+		</button>
+	{/if}
 	<button type="button" class="btn btn-export" onclick={onExport} title="Download template as PDF">
 		Export PDF
 	</button>
@@ -43,5 +58,22 @@
 		background: #374151;
 		border-color: #374151;
 		color: #fff;
+	}
+
+	.btn-save {
+		background: #2563eb;
+		border-color: #2563eb;
+		color: #fff;
+	}
+
+	.btn-save:hover:not(:disabled) {
+		background: #1d4ed8;
+		border-color: #1d4ed8;
+		color: #fff;
+	}
+
+	.btn-save:disabled {
+		opacity: 0.7;
+		cursor: not-allowed;
 	}
 </style>

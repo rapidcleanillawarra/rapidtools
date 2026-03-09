@@ -23,6 +23,8 @@
 	import EditShapePanel from './components/EditShapePanel.svelte';
 	import PreviewToolbar from './components/PreviewToolbar.svelte';
 	import TemplateCanvas from './components/TemplateCanvas.svelte';
+	import { supabase } from '$lib/supabase';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
 
 	let template_config = $state<TemplateConfig>({
 		width: 358.9,
@@ -32,6 +34,8 @@
 	});
 
 	let template_contents = $state<Shape[]>([]);
+
+	let templateName = $state('');
 
 	let templateEl = $state<HTMLDivElement | null>(null);
 	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
@@ -232,6 +236,24 @@
 		doExportPdf(template_config, template_contents);
 	}
 
+	let isSaving = $state(false);
+	async function saveTemplate() {
+		const name = templateName.trim() || 'Untitled template';
+		isSaving = true;
+		try {
+			const { error } = await supabase.from('promax_templates').insert({
+				name,
+				template: { config: template_config, contents: template_contents }
+			});
+			if (error) throw error;
+			toastSuccess(`Template "${name}" saved`);
+		} catch (e) {
+			toastError(e instanceof Error ? e.message : 'Failed to save template');
+		} finally {
+			isSaving = false;
+		}
+	}
+
 	$effect(() => {
 		const shape = selectedShape;
 		if (shape) {
@@ -268,6 +290,17 @@
 
 <div class="promax-page">
 	<aside class="sidebar sidebar-left">
+		<div class="controls template-name-section">
+			<label for="template-name">
+				<span class="control-heading">Template name</span>
+				<input
+					id="template-name"
+					type="text"
+					placeholder="e.g. Main label"
+					bind:value={templateName}
+				/>
+			</label>
+		</div>
 		<TemplateControls bind:templateConfig={template_config} />
 		<AddShapeControls
 			onAddRectangle={addRectangle}
@@ -276,7 +309,7 @@
 		/>
 	</aside>
 	<main class="preview">
-		<PreviewToolbar onExport={exportPdf} />
+		<PreviewToolbar onExport={exportPdf} onSave={saveTemplate} isSaving={isSaving} />
 		<TemplateCanvas
 			bind:templateEl
 			templateConfig={template_config}
@@ -353,5 +386,35 @@
 		min-height: 80vh;
 		padding: 1rem;
 		gap: 1rem;
+	}
+
+	.template-name-section .control-heading {
+		display: block;
+		margin: 0 0 0.25rem 0;
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #1f2937;
+	}
+
+	.template-name-section label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+		font-size: 0.75rem;
+		color: #374151;
+	}
+
+	.template-name-section input {
+		width: 100%;
+		padding: 0.25rem 0.375rem;
+		border: 1px solid #9ca3af;
+		border-radius: 0.25rem;
+		font-size: 0.75rem;
+	}
+
+	.template-name-section input:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
 	}
 </style>

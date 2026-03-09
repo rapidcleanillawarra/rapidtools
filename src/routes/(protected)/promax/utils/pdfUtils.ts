@@ -8,9 +8,8 @@ import {
 	maxBorderWidth
 } from './shapeUtils';
 
-/** Draw a rounded rectangle with per-corner radii in mm. Uses cubic Bezier arcs (k ≈ 0.552). */
-export function drawRoundedRectPath(
-	doc: jsPDF,
+/** Build path for a rounded rectangle with per-corner radii in mm (cubic Bezier arcs, k ≈ 0.552). */
+function getRoundedRectPath(
 	x: number,
 	y: number,
 	w: number,
@@ -18,9 +17,8 @@ export function drawRoundedRectPath(
 	tl: number,
 	tr: number,
 	br: number,
-	bl: number,
-	style: 'FD' | 'F' | 'S'
-) {
+	bl: number
+): { op: string; c: number[] }[] {
 	const k = 0.5522847498;
 	const path: { op: string; c: number[] }[] = [];
 	path.push({ op: 'm', c: [x + tl, y] });
@@ -61,6 +59,23 @@ export function drawRoundedRectPath(
 		path.push({ op: 'l', c: [x, y] });
 	}
 	path.push({ op: 'h', c: [] });
+	return path;
+}
+
+/** Draw a rounded rectangle with per-corner radii in mm. Uses cubic Bezier arcs (k ≈ 0.552). */
+export function drawRoundedRectPath(
+	doc: jsPDF,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	tl: number,
+	tr: number,
+	br: number,
+	bl: number,
+	style: 'FD' | 'F' | 'S'
+) {
+	const path = getRoundedRectPath(x, y, w, h, tl, tr, br, bl);
 	doc.path(path, style);
 }
 
@@ -80,7 +95,10 @@ export function exportPdf(
 	const offsetX = (210 - wMm) / 2;
 	const offsetY = (297 - hMm) / 2;
 	doc.saveGraphicsState();
-	doc.rect(offsetX, offsetY, wMm, hMm, null);
+	// Clip to the same rounded rect as the template border so only one border is visible
+	const clipPath = getRoundedRectPath(offsetX, offsetY, wMm, hMm, brMm, brMm, brMm, brMm);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- path with null = add path for clipping only, no stroke/fill
+	doc.path(clipPath, null as any);
 	doc.clip();
 	// No fill — template background is transparent
 	const sorted = [...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));

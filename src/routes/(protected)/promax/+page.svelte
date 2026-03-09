@@ -9,7 +9,12 @@
 		y: number;
 		width: number;
 		height: number;
-		borderRadius: number;
+		/** @deprecated use borderRadiusTL/TR/BR/BL for rectangles */
+		borderRadius?: number;
+		borderRadiusTL?: number;
+		borderRadiusTR?: number;
+		borderRadiusBR?: number;
+		borderRadiusBL?: number;
 		order: number;
 	};
 
@@ -31,8 +36,84 @@
 	let editY = $state(0);
 	let editWidth = $state(0);
 	let editHeight = $state(0);
-	let editBorderRadius = $state(0);
+	let editBorderRadiusTL = $state(0);
+	let editBorderRadiusTR = $state(0);
+	let editBorderRadiusBR = $state(0);
+	let editBorderRadiusBL = $state(0);
 	let editOrder = $state(0);
+
+	function getRectRadii(shape: Shape): [number, number, number, number] {
+		if (shape.type !== 'rectangle') return [0, 0, 0, 0];
+		const fallback = shape.borderRadius ?? 0;
+		return [
+			toRadiusPx(shape.borderRadiusTL ?? fallback),
+			toRadiusPx(shape.borderRadiusTR ?? fallback),
+			toRadiusPx(shape.borderRadiusBR ?? fallback),
+			toRadiusPx(shape.borderRadiusBL ?? fallback)
+		];
+	}
+
+	function rectBorderRadiusCss(shape: Shape): string {
+		if (shape.type === 'circle') return '50%';
+		const [tl, tr, br, bl] = getRectRadii(shape);
+		return `${tl}px ${tr}px ${br}px ${bl}px`;
+	}
+
+	// Draw a rounded rectangle with per-corner radii in mm. Uses cubic Bezier arcs (k ≈ 0.552).
+	function drawRoundedRectPath(
+		doc: jsPDF,
+		x: number,
+		y: number,
+		w: number,
+		h: number,
+		tl: number,
+		tr: number,
+		br: number,
+		bl: number,
+		style: 'FD' | 'F' | 'S'
+	) {
+		const k = 0.5522847498;
+		const path: { op: string; c: number[] }[] = [];
+		path.push({ op: 'm', c: [x + tl, y] });
+		path.push({ op: 'l', c: [x + w - tr, y] });
+		if (tr > 0) {
+			path.push({
+				op: 'c',
+				c: [x + w - tr + tr * k, y, x + w, y + tr - tr * k, x + w, y + tr]
+			});
+		} else {
+			path.push({ op: 'l', c: [x + w, y] });
+		}
+		path.push({ op: 'l', c: [x + w, y + h - br] });
+		if (br > 0) {
+			path.push({
+				op: 'c',
+				c: [x + w, y + h - br + br * k, x + w - br + br * k, y + h, x + w - br, y + h]
+			});
+		} else {
+			path.push({ op: 'l', c: [x + w, y + h] });
+		}
+		path.push({ op: 'l', c: [x + bl, y + h] });
+		if (bl > 0) {
+			path.push({
+				op: 'c',
+				c: [x + bl - bl * k, y + h, x, y + h - bl + bl * k, x, y + h - bl]
+			});
+		} else {
+			path.push({ op: 'l', c: [x, y + h] });
+		}
+		path.push({ op: 'l', c: [x, y + tl] });
+		if (tl > 0) {
+			path.push({
+				op: 'c',
+				c: [x, y + tl - tl * k, x + tl - tl * k, y, x + tl, y]
+			});
+		} else {
+			path.push({ op: 'l', c: [x, y] });
+		}
+		path.push({ op: 'h', c: [] });
+		doc.path(path, style);
+	}
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -77,7 +158,10 @@
 			y,
 			width: w,
 			height: h,
-			borderRadius: br,
+			borderRadiusTL: br,
+			borderRadiusTR: br,
+			borderRadiusBR: br,
+			borderRadiusBL: br,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -165,7 +249,22 @@
 		dragging = null;
 	}
 
-	function updateSelectedShape(updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadius' | 'x' | 'y' | 'order'>>) {
+	function updateSelectedShape(
+		updates: Partial<
+			Pick<
+				Shape,
+				| 'width'
+				| 'height'
+				| 'borderRadiusTL'
+				| 'borderRadiusTR'
+				| 'borderRadiusBR'
+				| 'borderRadiusBL'
+				| 'x'
+				| 'y'
+				| 'order'
+			>
+		>
+	) {
 		console.log('[promax] updateSelectedShape called', { selectedShapeId, updates, count: template_contents.length });
 		if (!selectedShapeId) return;
 		const templateW = toPx(template_config.width);
@@ -175,7 +274,10 @@
 			const next = { ...s, ...updates };
 			next.width = toPx(next.width);
 			next.height = toPx(next.height);
-			if (next.borderRadius !== undefined) next.borderRadius = toRadiusPx(next.borderRadius);
+			if (next.borderRadiusTL !== undefined) next.borderRadiusTL = toRadiusPx(next.borderRadiusTL);
+			if (next.borderRadiusTR !== undefined) next.borderRadiusTR = toRadiusPx(next.borderRadiusTR);
+			if (next.borderRadiusBR !== undefined) next.borderRadiusBR = toRadiusPx(next.borderRadiusBR);
+			if (next.borderRadiusBL !== undefined) next.borderRadiusBL = toRadiusPx(next.borderRadiusBL);
 			next.x = Math.max(0, Math.min(templateW - next.width, next.x));
 			next.y = Math.max(0, Math.min(templateH - next.height, next.y));
 			if (next.order !== undefined) next.order = Math.round(Number(next.order)) || 0;
@@ -231,9 +333,14 @@
 				const ry = sh / 2;
 				doc.ellipse(cx, cy, rx, ry, 'FD');
 			} else {
-				const r = toRadiusPx(shape.borderRadius) * pxToMm;
-				if (r > 0) {
-					doc.roundedRect(sx, sy, sw, sh, r, r, 'FD');
+				const [tl, tr, br, bl] = getRectRadii(shape);
+				const tlMm = tl * pxToMm;
+				const trMm = tr * pxToMm;
+				const brMm = br * pxToMm;
+				const blMm = bl * pxToMm;
+				const hasAnyRadius = tlMm > 0 || trMm > 0 || brMm > 0 || blMm > 0;
+				if (hasAnyRadius) {
+					drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMm, blMm, 'FD');
 				} else {
 					doc.rect(sx, sy, sw, sh, 'FD');
 				}
@@ -256,7 +363,11 @@
 			editY = shape.y;
 			editWidth = shape.width;
 			editHeight = shape.height;
-			editBorderRadius = shape.borderRadius;
+			const [tl, tr, br, bl] = getRectRadii(shape);
+			editBorderRadiusTL = tl;
+			editBorderRadiusTR = tr;
+			editBorderRadiusBR = br;
+			editBorderRadiusBL = bl;
 			editOrder = shape.order ?? 0;
 		}
 	});
@@ -397,14 +508,47 @@
 						/>
 					</label>
 					<label>
-						<span>Border radius (px)</span>
+						<span>Border radius — Top-left (px)</span>
 						<input
 							type="number"
 							min={minRadius}
 							max={maxRadius}
 							step="0.01"
-							bind:value={editBorderRadius}
-							onblur={() => updateSelectedShape({ borderRadius: toRadiusPx(editBorderRadius) })}
+							bind:value={editBorderRadiusTL}
+							onblur={() => updateSelectedShape({ borderRadiusTL: toRadiusPx(editBorderRadiusTL) })}
+						/>
+					</label>
+					<label>
+						<span>Border radius — Top-right (px)</span>
+						<input
+							type="number"
+							min={minRadius}
+							max={maxRadius}
+							step="0.01"
+							bind:value={editBorderRadiusTR}
+							onblur={() => updateSelectedShape({ borderRadiusTR: toRadiusPx(editBorderRadiusTR) })}
+						/>
+					</label>
+					<label>
+						<span>Border radius — Bottom-right (px)</span>
+						<input
+							type="number"
+							min={minRadius}
+							max={maxRadius}
+							step="0.01"
+							bind:value={editBorderRadiusBR}
+							onblur={() => updateSelectedShape({ borderRadiusBR: toRadiusPx(editBorderRadiusBR) })}
+						/>
+					</label>
+					<label>
+						<span>Border radius — Bottom-left (px)</span>
+						<input
+							type="number"
+							min={minRadius}
+							max={maxRadius}
+							step="0.01"
+							bind:value={editBorderRadiusBL}
+							onblur={() => updateSelectedShape({ borderRadiusBL: toRadiusPx(editBorderRadiusBL) })}
 						/>
 					</label>
 				{:else}
@@ -468,7 +612,7 @@
 						class:circle={shape.type === 'circle'}
 						style:width="{shape.width}px"
 						style:height="{shape.height}px"
-						style:border-radius={shape.type === 'circle' ? '50%' : `${shape.borderRadius}px`}
+						style:border-radius={rectBorderRadiusCss(shape)}
 						onmousedown={(e) => startDrag(e, shape)}
 						ontouchstart={(e) => startDrag(e, shape)}
 						role="button"

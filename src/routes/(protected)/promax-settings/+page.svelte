@@ -18,7 +18,7 @@
   import type { ProMaxProduct } from './types';
   import Modal from '$lib/components/Modal.svelte';
   import { db } from '$lib/firebase';
-  import { collection, addDoc, getDocs, query, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
+  import { collection, addDoc, getDocs, query, orderBy, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
   import { supabase } from '$lib/supabase';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError } from '$lib/utils/toast';
@@ -32,6 +32,7 @@
     brand: 'Rapid Clean'
   };
   let isSaving = false;
+  let editingProductId: string | null = null;
 
   // Background image state
   let selectedBackgroundFile: File | null = null;
@@ -54,12 +55,30 @@
 
   function openAddProductModal() {
     // Reset form state
+    editingProductId = null;
     newProduct = {
       imageUrl: '',
       name: '',
       code: '',
       color: '#000000',
       brand: 'Rapid Clean'
+    };
+    selectedBackgroundFile = null;
+    if (selectedBackgroundPreviewUrl) {
+      URL.revokeObjectURL(selectedBackgroundPreviewUrl);
+      selectedBackgroundPreviewUrl = null;
+    }
+    isModalOpen.set(true);
+  }
+
+  function openEditProductModal(product: ProMaxProduct) {
+    editingProductId = product.id;
+    newProduct = {
+      imageUrl: product.image ?? '',
+      name: product.name,
+      code: product.code,
+      color: product.color,
+      brand: product.brand
     };
     selectedBackgroundFile = null;
     if (selectedBackgroundPreviewUrl) {
@@ -77,33 +96,64 @@
       }
 
       isSaving = true;
-      
-      // Add document to Firebase
-      const docRef = await addDoc(collection(db, 'template_products'), {
-        ...newProduct,
-        image: newProduct.imageUrl,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
 
-      // Add new product to local state
-      const newProductWithId: ProMaxProduct = {
-        id: docRef.id,
-        image: newProduct.imageUrl,
-        name: newProduct.name,
-        code: newProduct.code,
-        color: newProduct.color,
-        brand: newProduct.brand
-      };
+      if (editingProductId) {
+        // Update existing document
+        const docRef = doc(db, 'template_products', editingProductId);
+        await updateDoc(docRef, {
+          image: newProduct.imageUrl,
+          name: newProduct.name,
+          code: newProduct.code,
+          color: newProduct.color,
+          brand: newProduct.brand,
+          updatedAt: new Date()
+        });
 
-      originalData.update(data => [...data, newProductWithId]);
-      tableData.update(data => [...data, newProductWithId]);
-      
-      toastSuccess('Product added successfully');
+        const updatedProduct: ProMaxProduct = {
+          id: editingProductId,
+          image: newProduct.imageUrl,
+          name: newProduct.name,
+          code: newProduct.code,
+          color: newProduct.color,
+          brand: newProduct.brand
+        };
+
+        originalData.update(data =>
+          data.map(p => (p.id === editingProductId ? updatedProduct : p))
+        );
+        tableData.update(data =>
+          data.map(p => (p.id === editingProductId ? updatedProduct : p))
+        );
+
+        toastSuccess('Product updated successfully');
+      } else {
+        // Add new document
+        const docRef = await addDoc(collection(db, 'template_products'), {
+          ...newProduct,
+          image: newProduct.imageUrl,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
+
+        const newProductWithId: ProMaxProduct = {
+          id: docRef.id,
+          image: newProduct.imageUrl,
+          name: newProduct.name,
+          code: newProduct.code,
+          color: newProduct.color,
+          brand: newProduct.brand
+        };
+
+        originalData.update(data => [...data, newProductWithId]);
+        tableData.update(data => [...data, newProductWithId]);
+
+        toastSuccess('Product added successfully');
+      }
+
       isModalOpen.set(false);
     } catch (error) {
-      console.error('Error adding product:', error);
-      toastError('Failed to add product');
+      console.error(editingProductId ? 'Error updating product:' : 'Error adding product:', error);
+      toastError(editingProductId ? 'Failed to update product' : 'Failed to add product');
     } finally {
       isSaving = false;
     }
@@ -316,16 +366,19 @@
                 />
               </div>
             </th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           {#if $isLoading}
             <tr>
-              <td colspan="5" class="px-6 py-4 text-center">Loading...</td>
+              <td colspan="6" class="px-6 py-4 text-center">Loading...</td>
             </tr>
           {:else if $paginatedData.length === 0}
             <tr>
-              <td colspan="5" class="px-6 py-4 text-center">No products found.</td>
+              <td colspan="6" class="px-6 py-4 text-center">No products found.</td>
             </tr>
           {:else}
             {#each $paginatedData as product (product.id)}
@@ -347,6 +400,15 @@
                     <div class="h-6 w-6 rounded" style="background-color: {product.color}"></div>
                     {product.color}
                   </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <button
+                    type="button"
+                    class="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    on:click={() => openEditProductModal(product)}
+                  >
+                    Edit
+                  </button>
                 </td>
               </tr>
             {/each}
@@ -392,7 +454,7 @@
 
 {#if $isModalOpen}
   <Modal show={true} on:close={() => isModalOpen.set(false)}>
-    <h2 slot="header" class="text-xl font-semibold">Add New Product</h2>
+    <h2 slot="header" class="text-xl font-semibold">{editingProductId ? 'Edit Product' : 'Add New Product'}</h2>
     <div slot="body" class="space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700">Brand</label>
@@ -438,6 +500,7 @@
           bind:value={newProduct.imageUrl}
         />
       </div>
+      {#if !editingProductId}
       <div class="border-t border-gray-200 pt-4 mt-4">
         <h3 class="text-sm font-semibold text-gray-800 mb-2">Background image</h3>
         <p class="text-xs text-gray-600 mb-3">Upload an image to use as the ProMax background. Saved to Supabase (bucket promax-yaaama) and stored in Firestore.</p>
@@ -484,6 +547,7 @@
           {/if}
         </div>
       </div>
+      {/if}
       <div class="flex justify-end gap-2 mt-6">
         <button
           class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -497,7 +561,7 @@
           on:click={handleSubmit}
           disabled={isSaving}
         >
-          {isSaving ? 'Saving...' : 'Add Product'}
+          {isSaving ? 'Saving...' : (editingProductId ? 'Update Product' : 'Add Product')}
         </button>
       </div>
     </div>

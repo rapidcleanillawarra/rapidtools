@@ -10,6 +10,7 @@
 	import { supabase } from '$lib/supabase';
 	import { toastError, toastSuccess } from '$lib/utils/toast';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 
 	let template_config = $state<TemplateConfig>({
 		width: 358.9,
@@ -24,7 +25,7 @@
 	let templateLoading = $state(false);
 	let templateEl = $state<HTMLDivElement | null>(null);
 
-	const templateId = $derived($page.url.searchParams.get('id') ?? null);
+	const templateId = $derived($page.url.searchParams.get('template_id') ?? null);
 
 	async function doExportPdf() {
 		if (!templateEl) return;
@@ -33,7 +34,33 @@
 
 	$effect(() => {
 		const id = templateId;
-		if (!id) return;
+		if (!id) {
+			// If no template_id, fetch the latest one and redirect
+			(async () => {
+				const { data, error } = await supabase
+					.from('promax_templates')
+					.select('id')
+					.is('deleted_at', null)
+					.order('created_at', { ascending: false })
+					.limit(1)
+					.maybeSingle();
+
+				if (error) {
+					toastError(error.message);
+					return;
+				}
+
+				if (data?.id) {
+					const url = new URL($page.url);
+					url.searchParams.set('template_id', data.id);
+					goto(url.toString(), { replaceState: true });
+				} else {
+					toastError('No templates found');
+				}
+			})();
+			return;
+		}
+		
 		let cancelled = false;
 		templateLoading = true;
 		(async () => {
@@ -73,69 +100,96 @@
 </script>
 
 <div class="promax-viewer">
-	<header class="viewer-header">
-		<div class="header-content">
-			<div class="template-info">
-				<a href="/promax/templates" class="back-link">
-					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-					Back to Editor
-				</a>
-				<h1>{templateName || 'Template Viewer'}</h1>
-			</div>
-			<PreviewToolbar onExport={doExportPdf} />
-		</div>
-	</header>
-
 	<main class="viewer-main">
-		{#if templateLoading}
-			<div class="loading-state">
-				<div class="spinner"></div>
-				<p>Loading template...</p>
-			</div>
-		{:else if !templateId}
-			<div class="error-state">
-				<p>No template ID provided. Please select a template from the <a href="/promax/templates">library</a>.</p>
-			</div>
-		{:else}
-			<div class="canvas-container">
-				<TemplateCanvas
-					bind:templateEl
-					templateConfig={template_config}
-					templateContents={template_contents}
-					selectedShapeId={null}
-					dragging={null}
-					onStartDrag={noop}
-					onStartResize={noop}
-					onBackgroundClick={noop}
-				/>
-			</div>
-		{/if}
+		<div class="split-layout">
+			<!-- Left Column: Template Preview -->
+			<section class="preview-column">
+				<div class="preview-header">
+					<div class="template-info">
+						<a href="/dashboard" class="back-link">
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+							Back to Dashboard
+						</a>
+						<h1>{templateName || 'Template Viewer'}</h1>
+					</div>
+					<PreviewToolbar onExport={doExportPdf} />
+				</div>
+
+				<div class="preview-content">
+					{#if templateLoading}
+						<div class="loading-state">
+							<div class="spinner"></div>
+							<p>Loading template...</p>
+						</div>
+					{:else if !templateId}
+						<div class="error-state">
+							<p>No template ID provided. Please select a template from the <a href="/dashboard">dashboard</a>.</p>
+						</div>
+					{:else}
+						<div class="canvas-container">
+							<TemplateCanvas
+								bind:templateEl
+								templateConfig={template_config}
+								templateContents={template_contents}
+								selectedShapeId={null}
+								dragging={null}
+								onStartDrag={noop}
+								onStartResize={noop}
+								onBackgroundClick={noop}
+							/>
+						</div>
+					{/if}
+				</div>
+			</section>
+
+			<!-- Right Column: Empty for now -->
+			<aside class="side-column">
+				<div class="empty-placeholder">
+					<!-- Future content goes here -->
+				</div>
+			</aside>
+		</div>
 	</main>
 </div>
 
 <style>
 	.promax-viewer {
-		min-height: 100vh;
+		height: 100vh;
 		display: flex;
 		flex-direction: column;
 		background-color: #f3f4f6;
+		overflow: hidden;
 	}
 
-	.viewer-header {
+	.viewer-main {
+		flex: 1;
+		display: flex;
+		overflow: hidden;
+	}
+
+	.split-layout {
+		display: grid;
+		grid-template-columns: 1fr 400px;
+		width: 100%;
+		height: 100%;
+	}
+
+	.preview-column {
+		display: flex;
+		flex-direction: column;
+		background: #f3f4f6;
+		border-right: 1px solid #e5e7eb;
+		overflow: hidden;
+	}
+
+	.preview-header {
 		background: white;
 		border-bottom: 1px solid #e5e7eb;
 		padding: 1rem 1.5rem;
-		position: sticky;
-		top: 0;
-		z-index: 10;
-	}
-
-	.header-content {
-		max-width: 1200px;
-		margin: 0 auto;
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
+		flex-shrink: 0;
 	}
 
 	.template-info {
@@ -165,12 +219,20 @@
 		color: #111827;
 	}
 
-	.viewer-main {
+	.preview-content {
 		flex: 1;
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: center;
 		padding: 2rem;
+		overflow-y: auto;
+	}
+
+	.side-column {
+		background: white;
+		display: flex;
+		flex-direction: column;
+		overflow-y: auto;
 	}
 
 	.canvas-container {
@@ -178,13 +240,14 @@
 		padding: 2rem;
 		border-radius: 0.75rem;
 		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-		display: flex;
+		display: inline-flex;
 		justify-content: center;
 	}
 
 	.loading-state, .error-state {
 		text-align: center;
 		color: #6b7280;
+		margin-top: 4rem;
 	}
 
 	.spinner {
@@ -206,3 +269,4 @@
 		text-decoration: underline;
 	}
 </style>
+

@@ -29,6 +29,8 @@ export type Shape = {
 	functionLink?: string;
 	functionName?: string;
 	order: number;
+	/** Local file object before upload. Not stored in DB. */
+	file?: File;
 };
 
 export type TemplateConfig = {

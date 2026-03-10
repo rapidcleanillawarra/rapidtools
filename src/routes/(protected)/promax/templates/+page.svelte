@@ -176,12 +176,7 @@
 		template_contents = [...template_contents, newShape];
 	}
 
-	async function addImage(file: File, naturalWidth: number, naturalHeight: number) {
-		if (!templateId) {
-			toastError('Please save the template first before adding images.');
-			return;
-		}
-
+	function addImage(file: File, naturalWidth: number, naturalHeight: number) {
 		const templateW = toPx(template_config.width);
 		const templateH = toPx(template_config.height);
 		const w = Math.min(defaultImageWidth, naturalWidth, templateW - 40);
@@ -190,53 +185,25 @@
 		const nextOrder = nextLayerOrder(template_contents);
 		
 		const imageId = crypto.randomUUID();
-		const fileExt = file.name.split('.').pop();
-		const filePath = `template_${templateId}/${imageId}.${fileExt}`;
+		// Create a local preview URL
+		const previewUrl = URL.createObjectURL(file);
 
-		try {
-			// 1. Upload to Storage
-			const { error: uploadError } = await supabase.storage
-				.from('promax')
-				.upload(filePath, file);
-
-			if (uploadError) throw uploadError;
-
-			// 2. Get Public URL
-			const { data: publicUrlData } = supabase.storage
-				.from('promax')
-				.getPublicUrl(filePath);
-
-			// 3. Record in tracking table
-			const { error: trackError } = await supabase
-				.from('promax_template_images')
-				.insert({
-					template_id: templateId,
-					file_path: filePath
-				});
-
-			if (trackError) throw trackError;
-
-			// 4. Add shape
-			const newShape: Shape = {
-				id: imageId,
-				type: 'image',
-				x,
-				y,
-				width: Math.max(minDim, w),
-				height: Math.max(minDim, h),
-				src: publicUrlData.publicUrl,
-				borderRadiusTL: 0,
-				borderRadiusTR: 0,
-				borderRadiusBR: 0,
-				borderRadiusBL: 0,
-				order: nextOrder
-			};
-			template_contents = [...template_contents, newShape];
-			toastSuccess('Image uploaded successfully');
-		} catch (e) {
-			console.error('Error uploading image:', e);
-			toastError('Failed to upload image. Please try again.');
-		}
+		const newShape: Shape = {
+			id: imageId,
+			type: 'image',
+			x,
+			y,
+			width: Math.max(minDim, w),
+			height: Math.max(minDim, h),
+			src: previewUrl,
+			borderRadiusTL: 0,
+			borderRadiusTR: 0,
+			borderRadiusBR: 0,
+			borderRadiusBL: 0,
+			order: nextOrder,
+			file: file // Store the file for upload on save
+		};
+		template_contents = [...template_contents, newShape];
 	}
 
 	function removeShape(id: string) {
@@ -468,69 +435,105 @@
 		const name = templateName.trim() || 'Untitled template';
 		isSaving = true;
 		try {
-			if (templateId) {
-				const { error } = await supabase
+			let currentTemplateId = templateId;
+
+			// 1. If it's a new template, we need to create it first to get an ID for storage folders
+			if (!currentTemplateId) {
+				const { data: newTemplate, error: insertError } = await supabase
 					.from('promax_templates')
-					.update({
+					.insert({
 						name,
-						template: { config: template_config, contents: template_contents }
+						template: { config: template_config, contents: [] } // Temporary empty contents
 					})
-					.eq('id', templateId);
-				if (error) throw error;
-
-				// --- Image Cleanup Logic ---
-				// 1. Get all recorded images for this template
-				const { data: trackedImages, error: trackError } = await supabase
-					.from('promax_template_images')
-					.select('*')
-					.eq('template_id', templateId);
+					.select('id')
+					.single();
 				
-				if (trackError) {
-					console.error('Error fetching tracked images for cleanup:', trackError);
-				} else if (trackedImages && trackedImages.length > 0) {
-					// 2. Find currently used images
-					const usedImageUrls = template_contents
-						.filter(s => s.type === 'image')
-						.map(s => s.src);
+				if (insertError) throw insertError;
+				currentTemplateId = newTemplate.id;
+				// Update URL to include the new ID
+				goto(`/promax/templates?id=${currentTemplateId}`, { replaceState: true });
+			}
 
-					// 3. Identify unused images
-					const unusedImages = trackedImages.filter(img => 
-						!usedImageUrls.includes(img.file_path) && 
-						!usedImageUrls.some(url => url && url.includes(img.file_path))
-					);
+			// 2. Upload any pending images
+			const pendingImages = template_contents.filter(s => s.type === 'image' && s.file);
+			if (pendingImages.length > 0) {
+				const updatedContents = [...template_contents];
+				for (const shape of pendingImages) {
+					if (!shape.file) continue;
+					
+					const fileExt = shape.file.name.split('.').pop();
+					const filePath = `template_${currentTemplateId}/${shape.id}.${fileExt}`;
 
-					if (unusedImages.length > 0) {
-						const filesToDelete = unusedImages.map(img => img.file_path);
-						const idsToDelete = unusedImages.map(img => img.id);
+					// Upload to Storage
+					const { error: uploadError } = await supabase.storage
+						.from('promax')
+						.upload(filePath, shape.file);
 
-						// 4. Delete from Storage
-						const { error: storageError } = await supabase.storage
-							.from('promax')
-							.remove(filesToDelete);
-						
-						if (storageError) console.error('Error deleting unused images from storage:', storageError);
+					if (uploadError && uploadError.message !== 'The resource already exists') throw uploadError;
 
-						// 5. Delete from tracking table
-						const { error: dbDeleteError } = await supabase
-							.from('promax_template_images')
-							.delete()
-							.in('id', idsToDelete);
-						
-						if (dbDeleteError) console.error('Error deleting unused images from tracking table:', dbDeleteError);
+					// Get Public URL
+					const { data: publicUrlData } = supabase.storage
+						.from('promax')
+						.getPublicUrl(filePath);
+
+					// Record in tracking table
+					await supabase
+						.from('promax_template_images')
+						.upsert({
+							template_id: currentTemplateId,
+							file_path: filePath
+						}, { onConflict: 'template_id, file_path' });
+
+					// Update the shape in our local list
+					const index = updatedContents.findIndex(s => s.id === shape.id);
+					if (index !== -1) {
+						const { file, ...rest } = updatedContents[index];
+						updatedContents[index] = { ...rest, src: publicUrlData.publicUrl };
 					}
 				}
-				// -------------------------
+				template_contents = updatedContents;
+			}
 
-				toastSuccess(`Template "${name}" updated`);
-			} else {
-				const { error } = await supabase.from('promax_templates').insert({
+			// 3. Update the template with finalized contents
+			const { error: updateError } = await supabase
+				.from('promax_templates')
+				.update({
 					name,
 					template: { config: template_config, contents: template_contents }
-				});
-				if (error) throw error;
-				toastSuccess(`Template "${name}" saved`);
+				})
+				.eq('id', currentTemplateId);
+			
+			if (updateError) throw updateError;
+
+			// 4. Image Cleanup Logic
+			const { data: trackedImages, error: trackError } = await supabase
+				.from('promax_template_images')
+				.select('*')
+				.eq('template_id', currentTemplateId);
+			
+			if (trackError) {
+				console.error('Error fetching tracked images for cleanup:', trackError);
+			} else if (trackedImages && trackedImages.length > 0) {
+				const usedImageUrls = template_contents
+					.filter(s => s.type === 'image')
+					.map(s => s.src);
+
+				const unusedImages = trackedImages.filter(img => 
+					!usedImageUrls.some(url => url && url.includes(img.file_path))
+				);
+
+				if (unusedImages.length > 0) {
+					const filesToDelete = unusedImages.map(img => img.file_path);
+					const idsToDelete = unusedImages.map(img => img.id);
+
+					await supabase.storage.from('promax').remove(filesToDelete);
+					await supabase.from('promax_template_images').delete().in('id', idsToDelete);
+				}
 			}
+
+			toastSuccess(`Template "${name}" saved`);
 		} catch (e) {
+			console.error('Error saving template:', e);
 			toastError(e instanceof Error ? e.message : 'Failed to save template');
 		} finally {
 			isSaving = false;

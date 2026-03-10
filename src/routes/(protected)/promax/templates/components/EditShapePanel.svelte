@@ -37,9 +37,12 @@
 		editFontStyle = $bindable(),
 		editColor = $bindable(),
 		editPadding = $bindable(),
-		editFunction = $bindable()
+		editFunction = $bindable(),
+		editFunctionLink = $bindable(),
+		allShapes
 	}: {
 		selectedShape: Shape;
+		allShapes: Shape[];
 		editX: number;
 		editY: number;
 		editWidth: number;
@@ -57,6 +60,7 @@
 		editColor: string;
 		editPadding: number;
 		editFunction: 'regular' | 'dial';
+		editFunctionLink: string;
 		onUpdateShape: (
 			updates: Partial<
 				Pick<
@@ -79,6 +83,7 @@
 					| 'color'
 					| 'padding'
 					| 'function'
+					| 'functionLink'
 				>
 			>
 		) => void;
@@ -139,16 +144,34 @@
 				}}
 			/>
 		</label>
-		<label>
-			<span>Function</span>
-			<select
-				bind:value={editFunction}
-				onchange={() => onUpdateShape({ function: editFunction })}
-			>
-				<option value="regular">Regular</option>
-				<option value="dial">Dial</option>
-			</select>
-		</label>
+		{#if selectedShape.type !== 'text' && selectedShape.type !== 'image'}
+			<label>
+				<span>Function</span>
+				<select
+					bind:value={editFunction}
+					onchange={() => onUpdateShape({ function: editFunction })}
+				>
+					<option value="regular">Regular</option>
+					<option value="dial">Dial</option>
+				</select>
+			</label>
+		{/if}
+		{#if selectedShape.type === 'text' || selectedShape.type === 'image'}
+			<label>
+				<span>Function link</span>
+				<select
+					bind:value={editFunctionLink}
+					onchange={() => onUpdateShape({ functionLink: editFunctionLink })}
+				>
+					<option value="">None</option>
+					{#each allShapes.filter((s) => s.function === 'dial' && s.id !== selectedShape.id) as dialShape (dialShape.id)}
+						<option value={dialShape.id}>
+							{dialShape.type.charAt(0).toUpperCase() + dialShape.type.slice(1)} ({dialShape.id.slice(0, 4)})
+						</option>
+					{/each}
+				</select>
+			</label>
+		{/if}
 		{#if selectedShape.type === 'text'}
 			<div class="field-full">
 				<label>
@@ -473,7 +496,7 @@
 		color: #374151;
 	}
 
-	.controls input {
+	.controls input, .controls select {
 		width: 100%;
 		max-width: none;
 		padding: 0.25rem 0.375rem;
@@ -482,7 +505,11 @@
 		font-size: 0.75rem;
 	}
 
-	.controls input:focus {
+	.controls select {
+		background-color: white;
+	}
+
+	.controls input:focus, .controls select:focus {
 		outline: none;
 		border-color: #3b82f6;
 		box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);

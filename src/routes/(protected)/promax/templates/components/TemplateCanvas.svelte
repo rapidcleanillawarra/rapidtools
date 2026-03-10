@@ -25,6 +25,11 @@
 	const sortedContents = $derived(
 		[...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 	);
+
+	const linkedShapeId = $derived(() => {
+		const selected = templateContents.find((s) => s.id === selectedShapeId);
+		return selected?.functionLink || null;
+	});
 </script>
 
 <div
@@ -54,6 +59,7 @@
 			class="shape-wrap"
 			class:dragging={dragging?.shapeId === shape.id}
 			class:selected={selectedShapeId === shape.id}
+			class:linked-target={linkedShapeId() === shape.id}
 			style:left="{shape.x}px"
 			style:top="{shape.y}px"
 			style:z-index={dragging?.shapeId === shape.id ? 9999 : (shape.order ?? 0)}
@@ -278,6 +284,18 @@
 	.shape-wrap.selected .shape-image-wrap {
 		outline: 2px solid #3b82f6;
 		outline-offset: 2px;
+	}
+
+	.shape-wrap.linked-target .shape,
+	.shape-wrap.linked-target .shape-image-wrap {
+		outline: 3px solid #fbbf24;
+		outline-offset: 2px;
+		animation: blink-yellow 1s infinite;
+	}
+
+	@keyframes blink-yellow {
+		0%, 100% { outline-color: #fbbf24; }
+		50% { outline-color: transparent; }
 	}
 
 	.shape {

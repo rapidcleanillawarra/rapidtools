@@ -98,6 +98,7 @@
 	let editColor = $state('#000000');
 	let editPadding = $state(defaultTextPadding);
 	let editFunction = $state<'regular' | 'dial'>('regular');
+	let editFunctionLink = $state('');
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -382,6 +383,7 @@
 				| 'color'
 				| 'padding'
 				| 'function'
+				| 'functionLink'
 			>
 		>
 	) {
@@ -568,6 +570,7 @@
 			editColor = shape.color ?? '#000000';
 			editPadding = shape.padding ?? defaultTextPadding;
 			editFunction = shape.function ?? 'regular';
+			editFunctionLink = shape.functionLink ?? '';
 		}
 	});
 
@@ -658,6 +661,8 @@
 				bind:editColor
 				bind:editPadding
 				bind:editFunction
+				bind:editFunctionLink
+				allShapes={template_contents}
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}
 				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}

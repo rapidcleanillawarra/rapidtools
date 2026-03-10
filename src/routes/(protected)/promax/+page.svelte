@@ -12,6 +12,7 @@
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import Modal from '$lib/components/Modal.svelte';
+	import { userProfile } from '$lib/userProfile';
 
 	let template_config = $state<TemplateConfig>({
 		width: 358.9,
@@ -77,11 +78,14 @@
 
 			if (promaxId) {
 				// Update existing record
+				const profile = $userProfile;
 				const { error } = await supabase
 					.from('promax')
 					.update({
 						data: dataPayload,
-						updated_at: new Date().toISOString()
+						updated_at: new Date().toISOString(),
+						updated_by: profile?.email ?? null,
+						updated_by_name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : null
 					})
 					.eq('id', promaxId);
 
@@ -91,12 +95,15 @@
 				}
 			} else {
 				// Insert new record
+				const profile = $userProfile;
 				const { data, error } = await supabase
 					.from('promax')
 					.insert({
 						name: templateName || 'Promax Record',
 						data: dataPayload,
-						promax_template_id: currentTemplateId ?? null
+						promax_template_id: currentTemplateId ?? null,
+						created_by: profile?.email ?? null,
+						created_by_name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : null
 					})
 					.select('id')
 					.single();
@@ -146,9 +153,6 @@
 		
 		isEditingDescription = false;
 		editingShape = null;
-
-		// Persist to promax table
-		saveToPromax();
 	}
 
 	$effect(() => {
@@ -268,7 +272,7 @@
 						</a>
 						<h1>{templateName || 'Template Viewer'}</h1>
 					</div>
-					<PreviewToolbar onExport={doExportPdf} />
+					<PreviewToolbar onExport={doExportPdf} onSave={saveToPromax} isSaving={isSaving} />
 				</div>
 
 				<div class="preview-content">

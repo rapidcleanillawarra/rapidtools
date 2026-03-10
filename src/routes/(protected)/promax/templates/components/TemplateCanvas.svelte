@@ -9,7 +9,8 @@
 		selectedShapeId,
 		dragging,
 		onStartDrag,
-		onStartResize
+		onStartResize,
+		onBackgroundClick
 	}: {
 		templateEl: HTMLDivElement | null;
 		templateConfig: TemplateConfig;
@@ -18,6 +19,7 @@
 		dragging: { shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null;
 		onStartDrag: (e: MouseEvent | TouchEvent, shape: Shape) => void;
 		onStartResize: (e: MouseEvent | TouchEvent, shape: Shape, handle: string) => void;
+		onBackgroundClick: () => void;
 	} = $props();
 
 	const sortedContents = $derived(
@@ -28,6 +30,9 @@
 <div
 	bind:this={templateEl}
 	class="template"
+	onclick={(e) => {
+		if (e.target === e.currentTarget) onBackgroundClick();
+	}}
 	style:width="{toPx(templateConfig.width)}px"
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
@@ -67,6 +72,7 @@
 					role="button"
 					tabindex="0"
 					title="Drag to move"
+					onclick={(e) => e.stopPropagation()}
 				>
 					{shape.text}
 				</div>
@@ -82,6 +88,7 @@
 					title="Drag to move"
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
+					onclick={(e) => e.stopPropagation()}
 				>
 					<img
 						class="shape-image"
@@ -107,6 +114,7 @@
 					role="button"
 					tabindex="0"
 					title="Drag to move"
+					onclick={(e) => e.stopPropagation()}
 				></div>
 			{/if}
 

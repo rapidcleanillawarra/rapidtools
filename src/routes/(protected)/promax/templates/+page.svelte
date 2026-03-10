@@ -624,6 +624,7 @@
 			{dragging}
 			onStartDrag={startDrag}
 			onStartResize={startResize}
+			onBackgroundClick={deselectShape}
 		/>
 	</main>
 	<aside class="sidebar sidebar-right">

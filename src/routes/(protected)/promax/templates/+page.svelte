@@ -22,6 +22,7 @@
 	import { exportPdf } from './utils/pdfUtils';
 	import TemplateControls from './components/TemplateControls.svelte';
 	import AddShapeControls from './components/AddShapeControls.svelte';
+	import LayerList from './components/LayerList.svelte';
 	import EditShapePanel from './components/EditShapePanel.svelte';
 	import PreviewToolbar from './components/PreviewToolbar.svelte';
 	import TemplateCanvas from './components/TemplateCanvas.svelte';
@@ -263,6 +264,10 @@
 		selectedShapeId = null;
 	}
 
+	function handleLayersReordered(newShapes: Shape[]) {
+		template_contents = [...newShapes];
+	}
+
 	async function doExportPdf() {
 		if (!templateEl) return;
 		await exportPdf(templateEl);
@@ -444,6 +449,12 @@
 		</div>
 		<TemplateControls bind:templateConfig={template_config} />
 		<AddShapeControls onAddRectangle={addRectangle} onAddCircle={addCircle} onAddImage={addImage} />
+		<LayerList
+			shapes={template_contents}
+			{selectedShapeId}
+			onSelect={(id) => selectedShapeId = id}
+			onReorder={handleLayersReordered}
+		/>
 	</aside>
 	<main class="preview">
 		<PreviewToolbar

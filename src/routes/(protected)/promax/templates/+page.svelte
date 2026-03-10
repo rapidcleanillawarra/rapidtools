@@ -44,6 +44,7 @@
 	type TemplateRow = {
 		id: string;
 		name: string;
+		created_at?: string;
 		template: { config: TemplateConfig; contents: Shape[] } | null;
 	};
 	let templatesList = $state<TemplateRow[]>([]);
@@ -286,7 +287,7 @@
 		try {
 			const { data, error } = await supabase
 				.from('promax_templates')
-				.select('id, name, template')
+				.select('id, name, created_at, template')
 				.is('deleted_at', null)
 				.order('created_at', { ascending: false });
 			if (error) throw error;
@@ -310,6 +311,38 @@
 		}
 		openModalOpen = false;
 		goto(`/promax/templates?id=${item.id}`);
+	}
+
+	let deletingId = $state<string | null>(null);
+	async function softDeleteTemplate(e: Event, item: TemplateRow) {
+		e.stopPropagation();
+		if (deletingId) return;
+		deletingId = item.id;
+		try {
+			const { error } = await supabase
+				.from('promax_templates')
+				.update({ deleted_at: new Date().toISOString() })
+				.eq('id', item.id);
+			if (error) throw error;
+			toastSuccess(`Template "${item.name}" deleted`);
+			templatesList = templatesList.filter((t) => t.id !== item.id);
+		} catch (err) {
+			toastError(err instanceof Error ? err.message : 'Failed to delete template');
+		} finally {
+			deletingId = null;
+		}
+	}
+
+	function formatCreatedAt(created_at: string | undefined): string {
+		if (!created_at) return '—';
+		const d = new Date(created_at);
+		return d.toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
 	}
 
 	$effect(() => {
@@ -458,18 +491,37 @@
 			<ul class="open-modal-list">
 				{#each templatesList as item (item.id)}
 					<li>
-						<button
-							type="button"
-							class="open-modal-row"
-							onclick={() => selectTemplate(item)}
-						>
-							<span class="open-modal-name">{item.name}</span>
-							<span class="open-modal-template">
-								{item.template?.config
-									? `${item.template.config.width} × ${item.template.config.height}`
-									: 'No template data'}
-							</span>
-						</button>
+						<div class="open-modal-row">
+							<button
+								type="button"
+								class="open-modal-row-main"
+								onclick={() => selectTemplate(item)}
+							>
+								<span class="open-modal-name">{item.name}</span>
+								<span class="open-modal-template">
+									{item.template?.config
+										? `${item.template.config.width} × ${item.template.config.height}`
+										: 'No template data'}
+								</span>
+								{#if item.created_at}
+									<span class="open-modal-created">Created {formatCreatedAt(item.created_at)}</span>
+								{/if}
+							</button>
+							<button
+								type="button"
+								class="open-modal-delete"
+								title="Delete template"
+								aria-label="Delete template"
+								disabled={deletingId === item.id}
+								onclick={(e) => softDeleteTemplate(e, item)}
+							>
+								{#if deletingId === item.id}
+									<span class="open-modal-delete-spinner" aria-hidden="true"></span>
+								{:else}
+									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+								{/if}
+							</button>
+						</div>
 					</li>
 				{/each}
 			</ul>
@@ -572,18 +624,88 @@
 
 	.open-modal-row {
 		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.125rem;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
 		width: 100%;
-		padding: 0.5rem 0.75rem;
-		text-align: left;
-		font-size: 0.875rem;
+		padding: 0;
 		border: 1px solid #e5e7eb;
 		border-radius: 0.375rem;
 		background: #f9fafb;
+		overflow: hidden;
+	}
+
+	.open-modal-row-main {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.125rem;
+		flex: 1;
+		min-width: 0;
+		padding: 0.5rem 0.75rem;
+		text-align: left;
+		font-size: 0.875rem;
+		border: none;
+		border-radius: 0;
+		background: transparent;
 		color: #374151;
 		cursor: pointer;
+	}
+
+	.open-modal-row-main:hover {
+		background: #f3f4f6;
+	}
+
+	.open-modal-row:hover {
+		border-color: #9ca3af;
+	}
+
+	.open-modal-delete {
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: none;
+		border-radius: 0.25rem;
+		background: transparent;
+		color: #6b7280;
+		cursor: pointer;
+		transition: color 0.15s, background 0.15s;
+	}
+
+	.open-modal-delete:hover:not(:disabled) {
+		color: #dc2626;
+		background: #fef2f2;
+	}
+
+	.open-modal-delete:disabled {
+		cursor: not-allowed;
+		opacity: 0.7;
+	}
+
+	.open-modal-delete-spinner {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid #e5e7eb;
+		border-top-color: #3b82f6;
+		border-radius: 50%;
+		animation: open-modal-spin 0.6s linear infinite;
+	}
+
+	@keyframes open-modal-spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	.open-modal-created {
+		font-size: 0.7rem;
+		color: #9ca3af;
+		margin-top: 0.125rem;
 	}
 
 	.open-modal-row:hover {

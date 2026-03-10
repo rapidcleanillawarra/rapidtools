@@ -6,8 +6,31 @@ import {
 	toRadiusPx,
 	minBorderWidth,
 	maxBorderWidth,
-	toBorderWidthPx
+	toBorderWidthPx,
+	defaultTemplateBackgroundColor
 } from './shapeUtils';
+
+function hexToRgb(hex: string): [number, number, number] | null {
+	if (!hex) return null;
+	// Remove # if present
+	hex = hex.replace(/^#/, '');
+	// Handle 3-digit hex
+	if (hex.length === 3) {
+		hex = hex
+			.split('')
+			.map((char) => char + char)
+			.join('');
+	}
+	// Handle 8-digit hex (RGBA) - ignore alpha for PDF
+	if (hex.length === 8) {
+		hex = hex.substring(0, 6);
+	}
+	if (hex.length !== 6) return null;
+	const r = parseInt(hex.substring(0, 2), 16);
+	const g = parseInt(hex.substring(2, 4), 16);
+	const b = parseInt(hex.substring(4, 6), 16);
+	return [r, g, b];
+}
 
 /** Build path for a rounded rectangle with per-corner radii in mm (cubic Bezier arcs, k ≈ 0.552). */
 function getRoundedRectPath(
@@ -101,7 +124,14 @@ export function exportPdf(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any -- path with null = add path for clipping only, no stroke/fill
 	doc.path(clipPath, null as any);
 	doc.clip();
-	// No fill — template background is transparent
+
+	// Fill template background
+	const templateBg = hexToRgb(templateConfig.backgroundColor || defaultTemplateBackgroundColor);
+	if (templateBg) {
+		doc.setFillColor(...templateBg);
+		drawRoundedRectPath(doc, offsetX, offsetY, wMm, hMm, brMm, brMm, brMm, brMm, 'F');
+	}
+
 	const sorted = [...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 	const shapeStroke = [156, 163, 175] as [number, number, number];
 	for (const shape of sorted) {
@@ -137,7 +167,10 @@ export function exportPdf(
 				const cy = sy + sh / 2;
 				const rx = sw / 2;
 				const ry = sh / 2;
-				doc.ellipse(cx, cy, rx, ry, 'S');
+				const shapeBg = hexToRgb(shape.backgroundColor || '');
+				const style = shapeBg ? 'FD' : 'S';
+				if (shapeBg) doc.setFillColor(...shapeBg);
+				doc.ellipse(cx, cy, rx, ry, style);
 			} else {
 				const [tl, tr, brR, bl] = getRectRadii(shape);
 				const tlMm = tl * pxToMm;
@@ -145,10 +178,15 @@ export function exportPdf(
 				const brMmShape = brR * pxToMm;
 				const blMm = bl * pxToMm;
 				const hasAnyRadius = tlMm > 0 || trMm > 0 || brMmShape > 0 || blMm > 0;
+
+				const shapeBg = hexToRgb(shape.backgroundColor || '');
+				const style = shapeBg ? 'FD' : 'S';
+				if (shapeBg) doc.setFillColor(...shapeBg);
+
 				if (hasAnyRadius) {
-					drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMmShape, blMm, 'S');
+					drawRoundedRectPath(doc, sx, sy, sw, sh, tlMm, trMm, brMmShape, blMm, style);
 				} else {
-					doc.rect(sx, sy, sw, sh, 'S');
+					doc.rect(sx, sy, sw, sh, style);
 				}
 			}
 		}

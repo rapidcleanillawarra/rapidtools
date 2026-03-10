@@ -17,6 +17,7 @@ export type Shape = {
 	borderRadiusBL?: number;
 	/** Border width in px (rectangle/circle). Default 1. */
 	borderWidth?: number;
+	backgroundColor?: string;
 	order: number;
 };
 
@@ -25,4 +26,5 @@ export type TemplateConfig = {
 	height: number;
 	borderRadius: number;
 	borderWidth: number;
+	backgroundColor?: string;
 };

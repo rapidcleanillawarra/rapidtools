@@ -15,6 +15,8 @@
 		defaultImageWidth,
 		defaultImageHeight,
 		defaultShapeBorderWidth,
+		defaultTemplateBackgroundColor,
+		defaultShapeBackgroundColor,
 		minDim
 	} from './utils/shapeUtils';
 	import { exportPdf as doExportPdf } from './utils/pdfUtils';
@@ -33,7 +35,8 @@
 		width: 358.9,
 		height: 850.93,
 		borderRadius: 25,
-		borderWidth: 0
+		borderWidth: 0,
+		backgroundColor: defaultTemplateBackgroundColor
 	});
 
 	let template_contents = $state<Shape[]>([]);
@@ -54,7 +57,12 @@
 	let templateLoadError = $state<string | null>(null);
 
 	let templateEl = $state<HTMLDivElement | null>(null);
-	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
+	let dragging = $state<{
+		shapeId: string;
+		offsetX: number;
+		offsetY: number;
+		hasMoved: boolean;
+	} | null>(null);
 	let selectedShapeId = $state<string | null>(null);
 
 	let editX = $state(0);
@@ -90,6 +98,7 @@
 			borderRadiusBR: br,
 			borderRadiusBL: br,
 			borderWidth: defaultShapeBorderWidth,
+			backgroundColor: defaultShapeBackgroundColor,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -111,6 +120,7 @@
 			height: h,
 			borderRadius: 0,
 			borderWidth: defaultShapeBorderWidth,
+			backgroundColor: defaultShapeBackgroundColor,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -221,6 +231,7 @@
 				| 'borderRadiusBR'
 				| 'borderRadiusBL'
 				| 'borderWidth'
+				| 'backgroundColor'
 				| 'x'
 				| 'y'
 				| 'order'
@@ -431,33 +442,29 @@
 			</label>
 		</div>
 		<TemplateControls bind:templateConfig={template_config} />
-		<AddShapeControls
-			onAddRectangle={addRectangle}
-			onAddCircle={addCircle}
-			onAddImage={addImage}
-		/>
+		<AddShapeControls onAddRectangle={addRectangle} onAddCircle={addCircle} onAddImage={addImage} />
 	</aside>
 	<main class="preview">
 		<PreviewToolbar
 			onExport={exportPdf}
 			onOpen={openTemplatesModal}
 			onSave={saveTemplate}
-			isSaving={isSaving}
+			{isSaving}
 			saveLabel={templateId ? 'Update' : 'Save'}
 		/>
 		<TemplateCanvas
 			bind:templateEl
 			templateConfig={template_config}
 			templateContents={template_contents}
-			selectedShapeId={selectedShapeId}
-			dragging={dragging}
+			{selectedShapeId}
+			{dragging}
 			onStartDrag={startDrag}
 		/>
 	</main>
 	<aside class="sidebar sidebar-right">
 		{#if selectedShape}
 			<EditShapePanel
-				selectedShape={selectedShape}
+				{selectedShape}
 				bind:editX
 				bind:editY
 				bind:editWidth
@@ -479,12 +486,7 @@
 	</aside>
 </div>
 
-<Modal
-	show={openModalOpen}
-	allowClose={true}
-	size="md"
-	on:close={() => (openModalOpen = false)}
->
+<Modal show={openModalOpen} allowClose={true} size="md" on:close={() => (openModalOpen = false)}>
 	<svelte:fragment slot="header">Open template</svelte:fragment>
 	<div slot="body" class="open-modal-body">
 		{#if templatesLoading}
@@ -522,7 +524,25 @@
 								{#if deletingId === item.id}
 									<span class="open-modal-delete-spinner" aria-hidden="true"></span>
 								{:else}
-									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+									<svg
+										xmlns="http://www.w3.org/2000/svg"
+										width="16"
+										height="16"
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="2"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path
+											d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
+										/><line x1="10" x2="10" y1="11" y2="17" /><line
+											x1="14"
+											x2="14"
+											y1="11"
+											y2="17"
+										/></svg
+									>
 								{/if}
 							</button>
 						</div>
@@ -678,7 +698,9 @@
 		background: transparent;
 		color: #6b7280;
 		cursor: pointer;
-		transition: color 0.15s, background 0.15s;
+		transition:
+			color 0.15s,
+			background 0.15s;
 	}
 
 	.open-modal-delete:hover:not(:disabled) {

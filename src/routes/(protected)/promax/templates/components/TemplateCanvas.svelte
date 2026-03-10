@@ -18,7 +18,9 @@
 		onStartDrag: (e: MouseEvent | TouchEvent, shape: Shape) => void;
 	} = $props();
 
-	const sortedContents = $derived([...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+	const sortedContents = $derived(
+		[...templateContents].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+	);
 </script>
 
 <div
@@ -27,6 +29,7 @@
 	style:width="{toPx(templateConfig.width)}px"
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
+	style:background-color={templateConfig.backgroundColor ?? 'white'}
 >
 	{#each sortedContents as shape (shape.id)}
 		<div
@@ -68,6 +71,7 @@
 					style:height="{shape.height}px"
 					style:border-radius={rectBorderRadiusCss(shape)}
 					style:border-width="{toBorderWidthPx(shape.borderWidth)}px"
+					style:background-color={shape.backgroundColor ?? 'transparent'}
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
 					role="button"

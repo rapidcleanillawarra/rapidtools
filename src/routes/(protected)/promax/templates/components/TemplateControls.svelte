@@ -1,6 +1,13 @@
 <script lang="ts">
 	import type { TemplateConfig } from '../utils/types';
-	import { minDim, maxDim, minRadius, maxRadius, minBorderWidth, maxBorderWidth } from '../utils/shapeUtils';
+	import {
+		minDim,
+		maxDim,
+		minRadius,
+		maxRadius,
+		minBorderWidth,
+		maxBorderWidth
+	} from '../utils/shapeUtils';
 
 	let {
 		templateConfig = $bindable()
@@ -51,6 +58,10 @@
 				step="0.5"
 				bind:value={templateConfig.borderWidth}
 			/>
+		</label>
+		<label>
+			<span>Background color</span>
+			<input type="color" bind:value={templateConfig.backgroundColor} />
 		</label>
 	</div>
 </div>

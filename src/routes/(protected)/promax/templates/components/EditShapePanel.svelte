@@ -1,6 +1,16 @@
 <script lang="ts">
 	import type { Shape } from '../utils/types';
-	import { toPx, toRadiusPx, minDim, maxDim, minRadius, maxRadius, minBorderWidth, maxBorderWidth, toBorderWidthPx } from '../utils/shapeUtils';
+	import {
+		toPx,
+		toRadiusPx,
+		minDim,
+		maxDim,
+		minRadius,
+		maxRadius,
+		minBorderWidth,
+		maxBorderWidth,
+		toBorderWidthPx
+	} from '../utils/shapeUtils';
 
 	let {
 		selectedShape,
@@ -30,7 +40,24 @@
 		editBorderRadiusBL: number;
 		editBorderWidth: number;
 		editOrder: number;
-		onUpdateShape: (updates: Partial<Pick<Shape, 'width' | 'height' | 'borderRadiusTL' | 'borderRadiusTR' | 'borderRadiusBR' | 'borderRadiusBL' | 'borderWidth' | 'x' | 'y' | 'order'>>) => void;
+		onUpdateShape: (
+			updates: Partial<
+				Pick<
+					Shape,
+					| 'width'
+					| 'height'
+					| 'borderRadiusTL'
+					| 'borderRadiusTR'
+					| 'borderRadiusBR'
+					| 'borderRadiusBL'
+					| 'borderWidth'
+					| 'backgroundColor'
+					| 'x'
+					| 'y'
+					| 'order'
+				>
+			>
+		) => void;
 		onDeselect: () => void;
 		onDuplicate: () => void;
 		onDelete: () => void;
@@ -40,7 +67,13 @@
 <div class="controls edit-shape">
 	<div class="edit-shape-header">
 		<h3 class="control-heading">Edit shape</h3>
-		<button type="button" class="btn btn-icon" onclick={onDeselect} title="Deselect" aria-label="Deselect">×</button>
+		<button
+			type="button"
+			class="btn btn-icon"
+			onclick={onDeselect}
+			title="Deselect"
+			aria-label="Deselect">×</button
+		>
 	</div>
 	<div class="fields-grid">
 		<label>
@@ -92,6 +125,14 @@
 					step="0.5"
 					bind:value={editBorderWidth}
 					onblur={() => onUpdateShape({ borderWidth: toBorderWidthPx(editBorderWidth) })}
+				/>
+			</label>
+			<label>
+				<span>Background color</span>
+				<input
+					type="color"
+					value={selectedShape.backgroundColor ?? '#000000'}
+					oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
 				/>
 			</label>
 		{/if}
@@ -187,18 +228,12 @@
 			</label>
 		{/if}
 	</div>
-	<button
-		type="button"
-		class="btn btn-secondary"
-		onclick={onDuplicate}
-		title="Duplicate shape"
-	>Duplicate shape</button>
-	<button
-		type="button"
-		class="btn btn-delete"
-		onclick={onDelete}
-		title="Delete shape"
-	>Delete shape</button>
+	<button type="button" class="btn btn-secondary" onclick={onDuplicate} title="Duplicate shape"
+		>Duplicate shape</button
+	>
+	<button type="button" class="btn btn-delete" onclick={onDelete} title="Delete shape"
+		>Delete shape</button
+	>
 </div>
 
 <style>

@@ -18,8 +18,19 @@
 
 	function handleShapeClick(e: MouseEvent, shape: Shape) {
 		e.stopPropagation();
-		if (shape.functionName) {
-			console.log('functionLink:', shape.functionLink);
+		if (shape.functionName && shape.functionLink) {
+			const relatedShapes = templateContents.filter((s) => s.functionLink === shape.functionLink);
+			const group: Record<string, string> = {
+				parent_dial: shape.functionLink
+			};
+
+			relatedShapes.forEach((s) => {
+				if (s.functionName) {
+					group[s.functionName] = s.id;
+				}
+			});
+
+			console.log('Related function items:', group);
 		}
 	}
 </script>

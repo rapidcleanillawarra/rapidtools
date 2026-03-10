@@ -18,7 +18,7 @@ export const maxBorderWidth = 20;
 export const defaultShapeBorderWidth = 1;
 export const defaultShapeOffset = 24;
 export const defaultTemplateBackgroundColor = '#ffffff';
-export const defaultShapeBackgroundColor = '#00000000'; // Transparent by default
+export const defaultShapeBackgroundColor = undefined;
 
 export function toPx(n: number | string): number {
 	const v = Number(n);

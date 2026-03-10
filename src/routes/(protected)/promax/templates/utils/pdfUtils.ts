@@ -10,8 +10,8 @@ import {
 	defaultTemplateBackgroundColor
 } from './shapeUtils';
 
-function hexToRgb(hex: string): [number, number, number] | null {
-	if (!hex) return null;
+function hexToRgb(hex: string | undefined): [number, number, number] | null {
+	if (!hex || hex === 'transparent') return null;
 	// Remove # if present
 	hex = hex.replace(/^#/, '');
 	// Handle 3-digit hex
@@ -23,6 +23,8 @@ function hexToRgb(hex: string): [number, number, number] | null {
 	}
 	// Handle 8-digit hex (RGBA) - ignore alpha for PDF
 	if (hex.length === 8) {
+		const alpha = parseInt(hex.substring(6, 8), 16);
+		if (alpha === 0) return null; // Fully transparent
 		hex = hex.substring(0, 6);
 	}
 	if (hex.length !== 6) return null;

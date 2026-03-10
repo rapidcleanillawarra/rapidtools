@@ -209,9 +209,13 @@
 		border-style: solid;
 	}
 
+	:global(.exporting-pdf) .resize-handles {
+		display: none !important;
+	}
+
 	:global(.exporting-pdf) .shape-wrap.selected .shape,
 	:global(.exporting-pdf) .shape-wrap.selected .shape-image-wrap {
-		outline: none;
+		outline: none !important;
 	}
 
 	.shape-wrap {

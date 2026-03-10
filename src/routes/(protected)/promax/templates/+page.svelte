@@ -67,6 +67,16 @@
 		offsetY: number;
 		hasMoved: boolean;
 	} | null>(null);
+	let resizing = $state<{
+		shapeId: string;
+		handle: string;
+		startWidth: number;
+		startHeight: number;
+		startX: number;
+		startY: number;
+		mouseStartX: number;
+		mouseStartY: number;
+	} | null>(null);
 	let selectedShapeId = $state<string | null>(null);
 
 	let editX = $state(0);
@@ -251,6 +261,98 @@
 		const d = dragging;
 		if (d && !d.hasMoved) selectedShapeId = d.shapeId;
 		dragging = null;
+		resizing = null;
+	}
+
+	function startResize(e: MouseEvent | TouchEvent, shape: Shape, handle: string) {
+		e.preventDefault();
+		e.stopPropagation();
+		const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+		const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+		resizing = {
+			shapeId: shape.id,
+			handle,
+			startWidth: shape.width,
+			startHeight: shape.height,
+			startX: shape.x,
+			startY: shape.y,
+			mouseStartX: clientX,
+			mouseStartY: clientY
+		};
+		selectedShapeId = shape.id;
+	}
+
+	function onResizeMove(e: MouseEvent | TouchEvent) {
+		const r = resizing;
+		if (!r || !templateEl) return;
+		if ('touches' in e) e.preventDefault();
+		const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+		const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+
+		const dx = clientX - r.mouseStartX;
+		const dy = clientY - r.mouseStartY;
+
+		const templateW = toPx(template_config.width);
+		const templateH = toPx(template_config.height);
+
+		template_contents = template_contents.map((s) => {
+			if (s.id !== r.shapeId) return s;
+
+			let nextX = r.startX;
+			let nextY = r.startY;
+			let nextW = r.startWidth;
+			let nextH = r.startHeight;
+
+			// Horizontal resizing
+			if (r.handle.includes('l')) {
+				const availableWidth = r.startX + r.startWidth;
+				nextW = Math.max(minDim, r.startWidth - dx);
+				if (nextW === minDim) {
+					nextX = availableWidth - minDim;
+				} else {
+					nextX = r.startX + dx;
+				}
+			} else if (r.handle.includes('r')) {
+				nextW = Math.max(minDim, r.startWidth + dx);
+			}
+
+			// Vertical resizing
+			if (r.handle.includes('t')) {
+				const availableHeight = r.startY + r.startHeight;
+				nextH = Math.max(minDim, r.startHeight - dy);
+				if (nextH === minDim) {
+					nextY = availableHeight - minDim;
+				} else {
+					nextY = r.startY + dy;
+				}
+			} else if (r.handle.includes('b')) {
+				nextH = Math.max(minDim, r.startHeight + dy);
+			}
+
+			// Constrain to template bounds
+			if (nextX < 0) {
+				nextW += nextX;
+				nextX = 0;
+			}
+			if (nextY < 0) {
+				nextH += nextY;
+				nextY = 0;
+			}
+			if (nextX + nextW > templateW) {
+				nextW = templateW - nextX;
+			}
+			if (nextY + nextH > templateH) {
+				nextH = templateH - nextY;
+			}
+
+			return {
+				...s,
+				x: Math.round(nextX * 100) / 100,
+				y: Math.round(nextY * 100) / 100,
+				width: Math.round(nextW * 100) / 100,
+				height: Math.round(nextH * 100) / 100
+			};
+		});
 	}
 
 	function updateSelectedShape(
@@ -460,8 +562,11 @@
 	});
 
 	$effect(() => {
-		if (!dragging) return;
-		const onMove = (e: MouseEvent | TouchEvent) => onDragMove(e);
+		if (!dragging && !resizing) return;
+		const onMove = (e: MouseEvent | TouchEvent) => {
+			if (dragging) onDragMove(e);
+			if (resizing) onResizeMove(e);
+		};
 		const onEnd = () => endDrag();
 		window.addEventListener('mousemove', onMove);
 		window.addEventListener('mouseup', onEnd);
@@ -518,6 +623,7 @@
 			{selectedShapeId}
 			{dragging}
 			onStartDrag={startDrag}
+			onStartResize={startResize}
 		/>
 	</main>
 	<aside class="sidebar sidebar-right">

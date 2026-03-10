@@ -8,7 +8,8 @@
 		templateContents,
 		selectedShapeId,
 		dragging,
-		onStartDrag
+		onStartDrag,
+		onStartResize
 	}: {
 		templateEl: HTMLDivElement | null;
 		templateConfig: TemplateConfig;
@@ -16,6 +17,7 @@
 		selectedShapeId: string | null;
 		dragging: { shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null;
 		onStartDrag: (e: MouseEvent | TouchEvent, shape: Shape) => void;
+		onStartResize: (e: MouseEvent | TouchEvent, shape: Shape, handle: string) => void;
 	} = $props();
 
 	const sortedContents = $derived(
@@ -107,6 +109,75 @@
 					title="Drag to move"
 				></div>
 			{/if}
+
+			{#if selectedShapeId === shape.id}
+				<div class="resize-handles">
+					<div
+						class="handle tl"
+						onmousedown={(e) => onStartResize(e, shape, 'tl')}
+						ontouchstart={(e) => onStartResize(e, shape, 'tl')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle tr"
+						onmousedown={(e) => onStartResize(e, shape, 'tr')}
+						ontouchstart={(e) => onStartResize(e, shape, 'tr')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle bl"
+						onmousedown={(e) => onStartResize(e, shape, 'bl')}
+						ontouchstart={(e) => onStartResize(e, shape, 'bl')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle br"
+						onmousedown={(e) => onStartResize(e, shape, 'br')}
+						ontouchstart={(e) => onStartResize(e, shape, 'br')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle tc"
+						onmousedown={(e) => onStartResize(e, shape, 'tc')}
+						ontouchstart={(e) => onStartResize(e, shape, 'tc')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle bc"
+						onmousedown={(e) => onStartResize(e, shape, 'bc')}
+						ontouchstart={(e) => onStartResize(e, shape, 'bc')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle ml"
+						onmousedown={(e) => onStartResize(e, shape, 'ml')}
+						ontouchstart={(e) => onStartResize(e, shape, 'ml')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+					<div
+						class="handle mr"
+						onmousedown={(e) => onStartResize(e, shape, 'mr')}
+						ontouchstart={(e) => onStartResize(e, shape, 'mr')}
+						role="button"
+						tabindex="0"
+						title="Resize"
+					></div>
+				</div>
+			{/if}
 		</div>
 	{/each}
 </div>
@@ -171,5 +242,91 @@
 		display: block;
 		object-fit: fill;
 		pointer-events: none;
+	}
+
+	.handle {
+		position: absolute;
+		width: 10px;
+		height: 10px;
+		background: white;
+		border: 1px solid #3b82f6;
+		border-radius: 50%;
+		z-index: 100;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+	}
+
+	/* Corner handles */
+	.handle.tl {
+		top: -5px;
+		left: -5px;
+		cursor: nwse-resize;
+	}
+	.handle.tr {
+		top: -5px;
+		right: -5px;
+		cursor: nesw-resize;
+	}
+	.handle.bl {
+		bottom: -5px;
+		left: -5px;
+		cursor: nesw-resize;
+	}
+	.handle.br {
+		bottom: -5px;
+		right: -5px;
+		cursor: nwse-resize;
+	}
+
+	/* Edge handles */
+	.handle.tc {
+		top: -5px;
+		left: 50%;
+		transform: translateX(-50%);
+		cursor: ns-resize;
+	}
+	.handle.bc {
+		bottom: -5px;
+		left: 50%;
+		transform: translateX(-50%);
+		cursor: ns-resize;
+	}
+	.handle.ml {
+		top: 50%;
+		left: -5px;
+		transform: translateY(-50%);
+		cursor: ew-resize;
+	}
+	.handle.mr {
+		top: 50%;
+		right: -5px;
+		transform: translateY(-50%);
+		cursor: ew-resize;
+	}
+
+	.handle:hover {
+		background: #3b82f6;
+		transform: scale(1.2);
+	}
+
+	.handle.tc {
+		transform: translateX(-50%);
+	}
+	.handle.bc {
+		transform: translateX(-50%);
+	}
+	.handle.ml {
+		transform: translateY(-50%);
+	}
+	.handle.mr {
+		transform: translateY(-50%);
+	}
+
+	.handle.tc:hover,
+	.handle.bc:hover {
+		transform: translateX(-50%) scale(1.2);
+	}
+	.handle.ml:hover,
+	.handle.mr:hover {
+		transform: translateY(-50%) scale(1.2);
 	}
 </style>

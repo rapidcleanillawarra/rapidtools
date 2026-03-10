@@ -68,6 +68,8 @@
 					style:text-align="center"
 					style:white-space="pre-wrap"
 					style:overflow="hidden"
+					style:line-height="1.2"
+					style:box-sizing="border-box"
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
 					role="button"
@@ -75,7 +77,7 @@
 					title="Drag to move"
 					onclick={(e) => e.stopPropagation()}
 				>
-					{shape.text}
+					<span style="display: block; width: 100%; margin-top: -0.1em;">{shape.text}</span>
 				</div>
 			{:else if shape.type === 'image' && shape.src}
 				<span
@@ -110,6 +112,7 @@
 					style:border-radius={rectBorderRadiusCss(shape)}
 					style:border-width="{toBorderWidthPx(shape.borderWidth)}px"
 					style:background-color={shape.backgroundColor ?? 'transparent'}
+					style:box-sizing="border-box"
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
 					role="button"
@@ -201,6 +204,10 @@
 		box-sizing: border-box;
 	}
 
+	:global(.exporting-pdf) img {
+		display: inline-block !important; /* Fixes html2canvas font metrics bug with Tailwind reset */
+	}
+
 	:global(.exporting-pdf).template {
 		border-style: solid !important;
 	}
@@ -237,6 +244,7 @@
 		border: 1px solid #9ca3af;
 		cursor: grab;
 		user-select: none;
+		box-sizing: border-box;
 	}
 
 	.shape-image-wrap {

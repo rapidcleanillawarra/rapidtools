@@ -29,7 +29,11 @@
 	style:width="{toPx(templateConfig.width)}px"
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
+	style:border-width="{toBorderWidthPx(templateConfig.borderWidth)}px"
+	style:border-color="#9ca3af"
+	style:border-style="solid"
 	style:background-color={templateConfig.backgroundColor ?? 'white'}
+	style:box-sizing="border-box"
 >
 	{#each sortedContents as shape (shape.id)}
 		<div
@@ -88,12 +92,17 @@
 		position: relative;
 		overflow: hidden;
 		background: transparent;
-		border: 2px dashed #9ca3af;
+		border: 1px dashed #9ca3af;
 		flex-shrink: 0;
+		box-sizing: border-box;
 	}
 
 	:global(.exporting-pdf).template {
-		border: none;
+		border-style: solid !important;
+	}
+
+	.template:not([style*='border-width: 0px']) {
+		border-style: solid;
 	}
 
 	:global(.exporting-pdf) .shape-wrap.selected .shape,

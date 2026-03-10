@@ -33,6 +33,13 @@
 	onclick={(e) => {
 		if (e.target === e.currentTarget) onBackgroundClick();
 	}}
+	onkeydown={(e) => {
+		if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+			onBackgroundClick();
+		}
+	}}
+	role="button"
+	tabindex="0"
 	style:width="{toPx(templateConfig.width)}px"
 	style:height="{toPx(templateConfig.height)}px"
 	style:border-radius="{toRadiusPx(templateConfig.borderRadius)}px"
@@ -62,13 +69,11 @@
 					style:color={shape.color}
 					style:background-color={shape.backgroundColor ?? 'transparent'}
 					style:padding="{shape.padding ?? 0}px"
-					style:display="flex"
-					style:align-items="center"
-					style:justify-content="center"
+					style:display="table"
 					style:text-align="center"
 					style:white-space="pre-wrap"
 					style:overflow="hidden"
-					style:line-height="1.2"
+					style:line-height="{Math.round((shape.fontSize || 16) * 1.2)}px"
 					style:box-sizing="border-box"
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
@@ -76,8 +81,12 @@
 					tabindex="0"
 					title="Drag to move"
 					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+					}}
 				>
-					<span style="display: block; width: 100%; margin-top: -0.1em;">{shape.text}</span>
+					<span style="display: table-cell; vertical-align: middle; width: 100%;">{shape.text}</span
+					>
 				</div>
 			{:else if shape.type === 'image' && shape.src}
 				<span
@@ -92,6 +101,9 @@
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}
 					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+					}}
 				>
 					<img
 						class="shape-image"
@@ -119,6 +131,9 @@
 					tabindex="0"
 					title="Drag to move"
 					onclick={(e) => e.stopPropagation()}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+					}}
 				></div>
 			{/if}
 
@@ -128,6 +143,9 @@
 						class="handle tl"
 						onmousedown={(e) => onStartResize(e, shape, 'tl')}
 						ontouchstart={(e) => onStartResize(e, shape, 'tl')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -136,6 +154,9 @@
 						class="handle tr"
 						onmousedown={(e) => onStartResize(e, shape, 'tr')}
 						ontouchstart={(e) => onStartResize(e, shape, 'tr')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -144,6 +165,9 @@
 						class="handle bl"
 						onmousedown={(e) => onStartResize(e, shape, 'bl')}
 						ontouchstart={(e) => onStartResize(e, shape, 'bl')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -152,6 +176,9 @@
 						class="handle br"
 						onmousedown={(e) => onStartResize(e, shape, 'br')}
 						ontouchstart={(e) => onStartResize(e, shape, 'br')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -160,6 +187,9 @@
 						class="handle tc"
 						onmousedown={(e) => onStartResize(e, shape, 'tc')}
 						ontouchstart={(e) => onStartResize(e, shape, 'tc')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -168,6 +198,9 @@
 						class="handle bc"
 						onmousedown={(e) => onStartResize(e, shape, 'bc')}
 						ontouchstart={(e) => onStartResize(e, shape, 'bc')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -176,6 +209,9 @@
 						class="handle ml"
 						onmousedown={(e) => onStartResize(e, shape, 'ml')}
 						ontouchstart={(e) => onStartResize(e, shape, 'ml')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -184,6 +220,9 @@
 						class="handle mr"
 						onmousedown={(e) => onStartResize(e, shape, 'mr')}
 						ontouchstart={(e) => onStartResize(e, shape, 'mr')}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
+						}}
 						role="button"
 						tabindex="0"
 						title="Resize"
@@ -202,10 +241,6 @@
 		border: 1px dashed #9ca3af;
 		flex-shrink: 0;
 		box-sizing: border-box;
-	}
-
-	:global(.exporting-pdf) img {
-		display: inline-block !important; /* Fixes html2canvas font metrics bug with Tailwind reset */
 	}
 
 	:global(.exporting-pdf).template {

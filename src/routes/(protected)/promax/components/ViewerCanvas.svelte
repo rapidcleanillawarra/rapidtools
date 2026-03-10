@@ -21,8 +21,9 @@
 	function handleShapeClick(e: MouseEvent, shape: Shape) {
 		e.stopPropagation();
 
-		// Check for product_description specific action
-		if (shape.functionName === 'product_description' && onEditDescription) {
+		// Check for product-related specific actions
+		const triggerFields = ['product_description', 'product_name', 'product_code'];
+		if (shape.functionName && triggerFields.includes(shape.functionName) && onEditDescription) {
 			onEditDescription(shape);
 			return;
 		}

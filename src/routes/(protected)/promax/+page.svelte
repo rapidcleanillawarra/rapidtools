@@ -173,16 +173,16 @@
 </div>
 
 <Modal show={isEditingDescription} on:close={() => (isEditingDescription = false)}>
-	<span slot="header">Edit Product Description</span>
+	<span slot="header">Edit {editingShape?.functionName?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 'Item'}</span>
 	<div slot="body" class="description-editor">
 		<label for="desc-input" class="block text-sm font-medium text-gray-700 mb-2">
-			Description Text
+			{editingShape?.functionName?.split('_').pop()?.charAt(0).toUpperCase()}{editingShape?.functionName?.split('_').pop()?.slice(1)} Text
 		</label>
 		<textarea
 			id="desc-input"
 			bind:value={editedText}
 			class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
-			placeholder="Enter product description..."
+			placeholder="Enter {editingShape?.functionName?.replace('product_', '').replace('_', ' ') || 'text'}..."
 		></textarea>
 	</div>
 	<div slot="footer" class="flex justify-end gap-3">

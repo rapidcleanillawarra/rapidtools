@@ -92,6 +92,15 @@
 		flex-shrink: 0;
 	}
 
+	:global(.exporting-pdf).template {
+		border: none;
+	}
+
+	:global(.exporting-pdf) .shape-wrap.selected .shape,
+	:global(.exporting-pdf) .shape-wrap.selected .shape-image-wrap {
+		outline: none;
+	}
+
 	.shape-wrap {
 		position: absolute;
 	}

@@ -19,7 +19,7 @@
 		defaultShapeBackgroundColor,
 		minDim
 	} from './utils/shapeUtils';
-	import { exportPdf as doExportPdf } from './utils/pdfUtils';
+	import { exportPdf } from './utils/pdfUtils';
 	import TemplateControls from './components/TemplateControls.svelte';
 	import AddShapeControls from './components/AddShapeControls.svelte';
 	import EditShapePanel from './components/EditShapePanel.svelte';
@@ -263,8 +263,9 @@
 		selectedShapeId = null;
 	}
 
-	function exportPdf() {
-		doExportPdf(template_config, template_contents);
+	async function doExportPdf() {
+		if (!templateEl) return;
+		await exportPdf(templateEl);
 	}
 
 	let isSaving = $state(false);
@@ -446,7 +447,7 @@
 	</aside>
 	<main class="preview">
 		<PreviewToolbar
-			onExport={exportPdf}
+			onExport={doExportPdf}
 			onOpen={openTemplatesModal}
 			onSave={saveTemplate}
 			{isSaving}

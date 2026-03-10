@@ -8,6 +8,9 @@ export const defaultCircleWidth = 186.53;
 export const defaultCircleHeight = 191.73;
 export const defaultImageWidth = 200;
 export const defaultImageHeight = 200;
+export const defaultTextWidth = 200;
+export const defaultTextHeight = 50;
+export const defaultFontSize = 16;
 
 export const minDim = 20;
 export const maxDim = 800;

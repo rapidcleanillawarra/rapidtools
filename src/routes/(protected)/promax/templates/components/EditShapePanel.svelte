@@ -27,7 +27,12 @@
 		onUpdateShape,
 		onDeselect,
 		onDuplicate,
-		onDelete
+		onDelete,
+		editText = $bindable(),
+		editFontSize = $bindable(),
+		editFontWeight = $bindable(),
+		editFontStyle = $bindable(),
+		editColor = $bindable()
 	}: {
 		selectedShape: Shape;
 		editX: number;
@@ -40,6 +45,11 @@
 		editBorderRadiusBL: number;
 		editBorderWidth: number;
 		editOrder: number;
+		editText: string;
+		editFontSize: number;
+		editFontWeight: string;
+		editFontStyle: string;
+		editColor: string;
 		onUpdateShape: (
 			updates: Partial<
 				Pick<
@@ -55,6 +65,11 @@
 					| 'x'
 					| 'y'
 					| 'order'
+					| 'text'
+					| 'fontSize'
+					| 'fontWeight'
+					| 'fontStyle'
+					| 'color'
 				>
 			>
 		) => void;
@@ -115,7 +130,62 @@
 				}}
 			/>
 		</label>
-		{#if selectedShape.type !== 'image'}
+		{#if selectedShape.type === 'text'}
+			<div class="field-full">
+				<label>
+					<span>Text content</span>
+					<textarea
+						bind:value={editText}
+						onblur={() => onUpdateShape({ text: editText })}
+						rows="2"
+					></textarea>
+				</label>
+			</div>
+			<label>
+				<span>Font size (px)</span>
+				<input
+					type="number"
+					min="1"
+					max="200"
+					step="1"
+					bind:value={editFontSize}
+					onblur={() => onUpdateShape({ fontSize: Number(editFontSize) })}
+				/>
+			</label>
+			<label>
+				<span>Text color</span>
+				<input
+					type="color"
+					bind:value={editColor}
+					oninput={(e) => onUpdateShape({ color: e.currentTarget.value })}
+				/>
+			</label>
+			<label class="checkbox-label">
+				<input
+					type="checkbox"
+					checked={editFontWeight === 'bold'}
+					onchange={(e) => onUpdateShape({ fontWeight: e.currentTarget.checked ? 'bold' : 'normal' })}
+				/>
+				<span>Bold</span>
+			</label>
+			<label class="checkbox-label">
+				<input
+					type="checkbox"
+					checked={editFontStyle === 'italic'}
+					onchange={(e) => onUpdateShape({ fontStyle: e.currentTarget.checked ? 'italic' : 'normal' })}
+				/>
+				<span>Italic</span>
+			</label>
+			<label>
+				<span>Background color</span>
+				<input
+					type="color"
+					value={selectedShape.backgroundColor ?? '#ffffff'}
+					oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
+				/>
+			</label>
+		{/if}
+		{#if selectedShape.type !== 'image' && selectedShape.type !== 'text'}
 			<label>
 				<span>Shape border (px)</span>
 				<input
@@ -254,6 +324,20 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 0.5rem 0.375rem;
+	}
+
+	.field-full {
+		grid-column: 1 / -1;
+	}
+
+	.checkbox-label {
+		flex-direction: row !important;
+		align-items: center;
+		gap: 0.5rem !important;
+	}
+
+	.checkbox-label input {
+		width: auto !important;
 	}
 
 	.edit-shape {

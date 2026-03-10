@@ -14,6 +14,9 @@
 		defaultCircleHeight,
 		defaultImageWidth,
 		defaultImageHeight,
+		defaultTextWidth,
+		defaultTextHeight,
+		defaultFontSize,
 		defaultShapeBorderWidth,
 		defaultTemplateBackgroundColor,
 		defaultShapeBackgroundColor,
@@ -76,8 +79,37 @@
 	let editBorderRadiusBL = $state(0);
 	let editOrder = $state(0);
 	let editBorderWidth = $state(1);
+	let editText = $state('');
+	let editFontSize = $state(defaultFontSize);
+	let editFontWeight = $state('normal');
+	let editFontStyle = $state('normal');
+	let editColor = $state('#000000');
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
+
+	function addText() {
+		const templateW = toPx(template_config.width);
+		const templateH = toPx(template_config.height);
+		const w = defaultTextWidth;
+		const h = defaultTextHeight;
+		const [x, y] = centerPosition(templateW, templateH, w, h);
+		const nextOrder = nextLayerOrder(template_contents);
+		const newShape: Shape = {
+			id: crypto.randomUUID(),
+			type: 'text',
+			x,
+			y,
+			width: w,
+			height: h,
+			text: 'Double click to edit',
+			fontSize: defaultFontSize,
+			fontWeight: 'normal',
+			fontStyle: 'normal',
+			color: '#000000',
+			order: nextOrder
+		};
+		template_contents = [...template_contents, newShape];
+	}
 
 	function addRectangle() {
 		const templateW = toPx(template_config.width);
@@ -236,6 +268,11 @@
 				| 'x'
 				| 'y'
 				| 'order'
+				| 'text'
+				| 'fontSize'
+				| 'fontWeight'
+				| 'fontStyle'
+				| 'color'
 			>
 		>
 	) {
@@ -414,6 +451,11 @@
 			editBorderRadiusBL = bl;
 			editOrder = shape.order ?? 0;
 			editBorderWidth = toBorderWidthPx(shape.borderWidth);
+			editText = shape.text ?? '';
+			editFontSize = shape.fontSize ?? defaultFontSize;
+			editFontWeight = shape.fontWeight ?? 'normal';
+			editFontStyle = shape.fontStyle ?? 'normal';
+			editColor = shape.color ?? '#000000';
 		}
 	});
 
@@ -448,7 +490,12 @@
 			</label>
 		</div>
 		<TemplateControls bind:templateConfig={template_config} />
-		<AddShapeControls onAddRectangle={addRectangle} onAddCircle={addCircle} onAddImage={addImage} />
+		<AddShapeControls
+			onAddRectangle={addRectangle}
+			onAddCircle={addCircle}
+			onAddImage={addImage}
+			onAddText={addText}
+		/>
 		<LayerList
 			shapes={template_contents}
 			{selectedShapeId}
@@ -487,6 +534,11 @@
 				bind:editBorderRadiusBL
 				bind:editBorderWidth
 				bind:editOrder
+				bind:editText
+				bind:editFontSize
+				bind:editFontWeight
+				bind:editFontStyle
+				bind:editColor
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}
 				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}

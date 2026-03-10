@@ -1,4 +1,4 @@
-export type ShapeType = 'rectangle' | 'circle' | 'image';
+export type ShapeType = 'rectangle' | 'circle' | 'image' | 'text';
 
 export type Shape = {
 	id: string;
@@ -9,6 +9,12 @@ export type Shape = {
 	height: number;
 	/** Image data URL (data:image/...). Only for type === 'image'. */
 	src?: string;
+	/** Text content. Only for type === 'text'. */
+	text?: string;
+	fontSize?: number;
+	fontWeight?: string;
+	fontStyle?: string;
+	color?: string;
 	/** @deprecated use borderRadiusTL/TR/BR/BL for rectangles */
 	borderRadius?: number;
 	borderRadiusTL?: number;

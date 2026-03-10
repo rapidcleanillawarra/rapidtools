@@ -44,7 +44,31 @@
 			style:top="{shape.y}px"
 			style:z-index={dragging?.shapeId === shape.id ? 9999 : (shape.order ?? 0)}
 		>
-			{#if shape.type === 'image' && shape.src}
+			{#if shape.type === 'text'}
+				<div
+					class="shape shape-text"
+					style:width="{shape.width}px"
+					style:height="{shape.height}px"
+					style:font-size="{shape.fontSize}px"
+					style:font-weight={shape.fontWeight}
+					style:font-style={shape.fontStyle}
+					style:color={shape.color}
+					style:background-color={shape.backgroundColor ?? 'transparent'}
+					style:display="flex"
+					style:align-items="center"
+					style:justify-content="center"
+					style:text-align="center"
+					style:white-space="pre-wrap"
+					style:overflow="hidden"
+					onmousedown={(e) => onStartDrag(e, shape)}
+					ontouchstart={(e) => onStartDrag(e, shape)}
+					role="button"
+					tabindex="0"
+					title="Drag to move"
+				>
+					{shape.text}
+				</div>
+			{:else if shape.type === 'image' && shape.src}
 				<span
 					class="shape shape-image-wrap"
 					style:width="{shape.width}px"

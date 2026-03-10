@@ -111,7 +111,23 @@ export function exportPdf(
 		const sh = shape.height * pxToMm;
 		if (shape.type === 'image' && shape.src) {
 			const format = shape.src.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-			doc.addImage(shape.src, format, sx, sy, sw, sh);
+			const [tl, tr, brR, bl] = getRectRadii(shape);
+			const tlMm = tl * pxToMm;
+			const trMm = tr * pxToMm;
+			const brMmImg = brR * pxToMm;
+			const blMm = bl * pxToMm;
+			const hasAnyRadius = tlMm > 0 || trMm > 0 || brMmImg > 0 || blMm > 0;
+			if (hasAnyRadius) {
+				doc.saveGraphicsState();
+				const clipPath = getRoundedRectPath(sx, sy, sw, sh, tlMm, trMm, brMmImg, blMm);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any -- path with null = clip only
+				doc.path(clipPath, null as any);
+				doc.clip();
+				doc.addImage(shape.src, format, sx, sy, sw, sh);
+				doc.restoreGraphicsState();
+			} else {
+				doc.addImage(shape.src, format, sx, sy, sw, sh);
+			}
 		} else {
 			const shapeBorderPx = toBorderWidthPx(shape.borderWidth);
 			doc.setDrawColor(...shapeStroke);

@@ -42,6 +42,8 @@
 					class="shape shape-image-wrap"
 					style:width="{shape.width}px"
 					style:height="{shape.height}px"
+					style:border-radius={rectBorderRadiusCss(shape)}
+					style:overflow="hidden"
 					role="button"
 					tabindex="0"
 					title="Drag to move"

@@ -40,7 +40,7 @@ export function toBorderWidthPx(n: number | string | undefined): number {
 }
 
 export function getRectRadii(shape: Shape): [number, number, number, number] {
-	if (shape.type !== 'rectangle') return [0, 0, 0, 0];
+	if (shape.type === 'circle') return [0, 0, 0, 0];
 	const fallback = shape.borderRadius ?? 0;
 	return [
 		toRadiusPx(shape.borderRadiusTL ?? fallback),

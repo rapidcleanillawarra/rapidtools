@@ -131,6 +131,10 @@
 			width: Math.max(minDim, w),
 			height: Math.max(minDim, h),
 			src: dataUrl,
+			borderRadiusTL: 0,
+			borderRadiusTR: 0,
+			borderRadiusBR: 0,
+			borderRadiusBL: 0,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];

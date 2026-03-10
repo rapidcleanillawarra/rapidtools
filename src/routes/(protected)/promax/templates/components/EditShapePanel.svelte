@@ -95,7 +95,7 @@
 				/>
 			</label>
 		{/if}
-		{#if selectedShape.type === 'rectangle'}
+		{#if selectedShape.type === 'rectangle' || selectedShape.type === 'image'}
 			<label>
 				<span>Width (px)</span>
 				<input

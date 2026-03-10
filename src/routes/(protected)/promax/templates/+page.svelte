@@ -176,28 +176,67 @@
 		template_contents = [...template_contents, newShape];
 	}
 
-	function addImage(dataUrl: string, naturalWidth: number, naturalHeight: number) {
+	async function addImage(file: File, naturalWidth: number, naturalHeight: number) {
+		if (!templateId) {
+			toastError('Please save the template first before adding images.');
+			return;
+		}
+
 		const templateW = toPx(template_config.width);
 		const templateH = toPx(template_config.height);
 		const w = Math.min(defaultImageWidth, naturalWidth, templateW - 40);
 		const h = Math.min(defaultImageHeight, naturalHeight, templateH - 40);
 		const [x, y] = centerPosition(templateW, templateH, w, h);
 		const nextOrder = nextLayerOrder(template_contents);
-		const newShape: Shape = {
-			id: crypto.randomUUID(),
-			type: 'image',
-			x,
-			y,
-			width: Math.max(minDim, w),
-			height: Math.max(minDim, h),
-			src: dataUrl,
-			borderRadiusTL: 0,
-			borderRadiusTR: 0,
-			borderRadiusBR: 0,
-			borderRadiusBL: 0,
-			order: nextOrder
-		};
-		template_contents = [...template_contents, newShape];
+		
+		const imageId = crypto.randomUUID();
+		const fileExt = file.name.split('.').pop();
+		const filePath = `template_${templateId}/${imageId}.${fileExt}`;
+
+		try {
+			// 1. Upload to Storage
+			const { error: uploadError } = await supabase.storage
+				.from('promax')
+				.upload(filePath, file);
+
+			if (uploadError) throw uploadError;
+
+			// 2. Get Public URL
+			const { data: publicUrlData } = supabase.storage
+				.from('promax')
+				.getPublicUrl(filePath);
+
+			// 3. Record in tracking table
+			const { error: trackError } = await supabase
+				.from('promax_template_images')
+				.insert({
+					template_id: templateId,
+					file_path: filePath
+				});
+
+			if (trackError) throw trackError;
+
+			// 4. Add shape
+			const newShape: Shape = {
+				id: imageId,
+				type: 'image',
+				x,
+				y,
+				width: Math.max(minDim, w),
+				height: Math.max(minDim, h),
+				src: publicUrlData.publicUrl,
+				borderRadiusTL: 0,
+				borderRadiusTR: 0,
+				borderRadiusBR: 0,
+				borderRadiusBL: 0,
+				order: nextOrder
+			};
+			template_contents = [...template_contents, newShape];
+			toastSuccess('Image uploaded successfully');
+		} catch (e) {
+			console.error('Error uploading image:', e);
+			toastError('Failed to upload image. Please try again.');
+		}
 	}
 
 	function removeShape(id: string) {
@@ -438,6 +477,50 @@
 					})
 					.eq('id', templateId);
 				if (error) throw error;
+
+				// --- Image Cleanup Logic ---
+				// 1. Get all recorded images for this template
+				const { data: trackedImages, error: trackError } = await supabase
+					.from('promax_template_images')
+					.select('*')
+					.eq('template_id', templateId);
+				
+				if (trackError) {
+					console.error('Error fetching tracked images for cleanup:', trackError);
+				} else if (trackedImages && trackedImages.length > 0) {
+					// 2. Find currently used images
+					const usedImageUrls = template_contents
+						.filter(s => s.type === 'image')
+						.map(s => s.src);
+
+					// 3. Identify unused images
+					const unusedImages = trackedImages.filter(img => 
+						!usedImageUrls.includes(img.file_path) && 
+						!usedImageUrls.some(url => url && url.includes(img.file_path))
+					);
+
+					if (unusedImages.length > 0) {
+						const filesToDelete = unusedImages.map(img => img.file_path);
+						const idsToDelete = unusedImages.map(img => img.id);
+
+						// 4. Delete from Storage
+						const { error: storageError } = await supabase.storage
+							.from('promax')
+							.remove(filesToDelete);
+						
+						if (storageError) console.error('Error deleting unused images from storage:', storageError);
+
+						// 5. Delete from tracking table
+						const { error: dbDeleteError } = await supabase
+							.from('promax_template_images')
+							.delete()
+							.in('id', idsToDelete);
+						
+						if (dbDeleteError) console.error('Error deleting unused images from tracking table:', dbDeleteError);
+					}
+				}
+				// -------------------------
+
 				toastSuccess(`Template "${name}" updated`);
 			} else {
 				const { error } = await supabase.from('promax_templates').insert({

@@ -7,7 +7,7 @@
 	}: {
 		onAddRectangle: () => void;
 		onAddCircle: () => void;
-		onAddImage: (dataUrl: string, width: number, height: number) => void;
+		onAddImage: (file: File, width: number, height: number) => void;
 		onAddText: () => void;
 	} = $props();
 
@@ -22,13 +22,14 @@
 			const dataUrl = reader.result as string;
 			const img = new Image();
 			img.onload = () => {
-				onAddImage(dataUrl, img.naturalWidth, img.naturalHeight);
+				onAddImage(file, img.naturalWidth, img.naturalHeight);
 			};
 			img.onerror = () => {
-				onAddImage(dataUrl, 200, 200);
+				onAddImage(file, 200, 200);
 			};
 			img.src = dataUrl;
 		};
+
 		reader.readAsDataURL(file);
 		input.value = '';
 	}

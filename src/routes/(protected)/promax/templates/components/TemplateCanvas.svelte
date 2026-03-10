@@ -74,6 +74,7 @@
 					style:white-space="pre-wrap"
 					style:overflow="hidden"
 					style:line-height="{Math.round((shape.fontSize || 16) * 1.2)}px"
+					style:border-width="{toBorderWidthPx(shape.borderWidth)}px"
 					style:box-sizing="border-box"
 					onmousedown={(e) => onStartDrag(e, shape)}
 					ontouchstart={(e) => onStartDrag(e, shape)}

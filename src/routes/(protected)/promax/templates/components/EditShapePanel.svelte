@@ -166,6 +166,17 @@
 					oninput={(e) => onUpdateShape({ color: e.currentTarget.value })}
 				/>
 			</label>
+			<label>
+				<span>Border width (px)</span>
+				<input
+					type="number"
+					min={minBorderWidth}
+					max={maxBorderWidth}
+					step="0.5"
+					bind:value={editBorderWidth}
+					onblur={() => onUpdateShape({ borderWidth: toBorderWidthPx(editBorderWidth) })}
+				/>
+			</label>
 			<label class="checkbox-label">
 				<input
 					type="checkbox"
@@ -212,7 +223,7 @@
 				/>
 			</label>
 		{/if}
-		{#if selectedShape.type !== 'image' && selectedShape.type !== 'text'}
+		{#if selectedShape.type === 'rectangle' || selectedShape.type === 'circle'}
 			<label>
 				<span>Shape border (px)</span>
 				<input

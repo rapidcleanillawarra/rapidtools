@@ -37,6 +37,11 @@
 	let promaxId = $state<string | null>(null);
 	let isSaving = $state(false);
 
+	// Template Selection State
+	let showTemplatePicker = $state(false);
+	let availableTemplates = $state<any[]>([]);
+	let templatesLoading = $state(false);
+
 
 
 	async function doExportPdf() {
@@ -195,26 +200,24 @@
 		}
 
 		if (!tmplId) {
-			// No id or template_id: find the latest template and redirect
+			// No id or template_id: show template picker modal
 			(async () => {
+				templatesLoading = true;
+				showTemplatePicker = true;
 				const { data, error } = await supabase
 					.from('promax_templates')
-					.select('id')
+					.select('id, name')
 					.is('deleted_at', null)
-					.order('created_at', { ascending: false })
-					.limit(1)
-					.maybeSingle();
+					.order('created_at', { ascending: false });
 
+				templatesLoading = false;
 				if (error) {
 					toastError(error.message);
 					return;
 				}
 
-				if (data?.id) {
-					const url = new URL($page.url);
-					url.searchParams.set('template_id', data.id);
-					goto(url.toString(), { replaceState: true });
-				} else {
+				availableTemplates = data || [];
+				if (availableTemplates.length === 0) {
 					toastError('No templates found');
 				}
 			})();
@@ -369,6 +372,45 @@
 		>
 			Save Changes
 		</button>
+	</div>
+</Modal>
+
+<Modal show={showTemplatePicker} on:close={() => (showTemplatePicker = false)}>
+	<span slot="header">Select a Template</span>
+	<div slot="body" class="template-picker">
+		{#if templatesLoading}
+			<div class="flex flex-col items-center justify-center py-8">
+				<div class="spinner"></div>
+				<p class="text-gray-500 mt-2">Fetching available templates...</p>
+			</div>
+		{:else if availableTemplates.length === 0}
+			<p class="text-center py-8 text-gray-500">No templates available. Please create one in the dashboard.</p>
+		{:else}
+			<div class="grid grid-cols-1 gap-3">
+				{#each availableTemplates as template (template.id)}
+					<button
+						class="flex items-center justify-between p-4 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all text-left group"
+						onclick={() => {
+							const url = new URL($page.url);
+							url.searchParams.set('template_id', template.id);
+							goto(url.toString());
+							showTemplatePicker = false;
+						}}
+					>
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+								<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4c0-1.1.9-2 2-2h12c1.1 0 2 .9 2 2v18l-8-4-8 4Z"/></svg>
+							</div>
+							<div>
+								<h3 class="font-semibold text-gray-900">{template.name || 'Untitled Template'}</h3>
+								<p class="text-xs text-gray-500">Click to start with this template</p>
+							</div>
+						</div>
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400 group-hover:text-blue-600 transition-colors"><path d="m9 18 6-6-6-6"/></svg>
+					</button>
+				{/each}
+			</div>
+		{/if}
 	</div>
 </Modal>
 

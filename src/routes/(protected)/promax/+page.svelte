@@ -40,7 +40,13 @@
 
 	function handleEditDescription(shape: Shape) {
 		editingShape = shape;
-		editedText = shape.text || '';
+		if (shape.functionName === 'product_icon' && shape.src) {
+			// Extract icon name from URL: .../icons/bottle_fill.png -> bottle
+			const match = shape.src.match(/\/icons\/([^/]+)_fill\.png/);
+			editedText = match ? match[1] : 'bottle';
+		} else {
+			editedText = shape.text || '';
+		}
 		isEditingDescription = true;
 	}
 
@@ -49,8 +55,15 @@
 		
 		const index = template_contents.findIndex(s => s.id === editingShape?.id);
 		if (index !== -1) {
-			template_contents[index].text = editedText;
-			toastSuccess('Description updated');
+			if (editingShape.functionName === 'product_icon') {
+				// Update image src for icon
+				const baseUrl = 'https://coywobndzyvslurwqtdt.supabase.co/storage/v1/object/public/promax/icons';
+				template_contents[index].src = `${baseUrl}/${editedText}_fill.png`;
+			} else {
+				// Update text for name, code, description
+				template_contents[index].text = editedText;
+			}
+			toastSuccess('Item updated');
 		}
 		
 		isEditingDescription = false;
@@ -176,14 +189,28 @@
 	<span slot="header">Edit {editingShape?.functionName?.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || 'Item'}</span>
 	<div slot="body" class="description-editor">
 		<label for="desc-input" class="block text-sm font-medium text-gray-700 mb-2">
-			{editingShape?.functionName?.split('_').pop()?.charAt(0).toUpperCase()}{editingShape?.functionName?.split('_').pop()?.slice(1)} Text
+			{editingShape?.functionName === 'product_icon' ? 'Icon selection' : editingShape?.functionName?.split('_').pop()?.charAt(0).toUpperCase().concat(editingShape?.functionName?.split('_').pop()?.slice(1) || '') + ' Text'}
 		</label>
-		<textarea
-			id="desc-input"
-			bind:value={editedText}
-			class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
-			placeholder="Enter {editingShape?.functionName?.replace('product_', '').replace('_', ' ') || 'text'}..."
-		></textarea>
+		
+		{#if editingShape?.functionName === 'product_icon'}
+			<select
+				id="icon-select"
+				bind:value={editedText}
+				class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+			>
+				<option value="bottle">Bottle</option>
+				<option value="bucket">Bucket</option>
+				<option value="scrubber">Scrubber</option>
+				<option value="sink">Sink</option>
+			</select>
+		{:else}
+			<textarea
+				id="desc-input"
+				bind:value={editedText}
+				class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
+				placeholder="Enter {editingShape?.functionName?.replace('product_', '').replace('_', ' ') || 'text'}..."
+			></textarea>
+		{/if}
 	</div>
 	<div slot="footer" class="flex justify-end gap-3">
 		<button

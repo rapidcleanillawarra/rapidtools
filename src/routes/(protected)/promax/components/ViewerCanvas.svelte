@@ -22,7 +22,7 @@
 		e.stopPropagation();
 
 		// Check for product-related specific actions
-		const triggerFields = ['product_description', 'product_name', 'product_code'];
+		const triggerFields = ['product_description', 'product_name', 'product_code', 'product_icon'];
 		if (shape.functionName && triggerFields.includes(shape.functionName) && onEditDescription) {
 			onEditDescription(shape);
 			return;

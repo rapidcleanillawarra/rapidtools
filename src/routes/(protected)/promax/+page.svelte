@@ -32,7 +32,11 @@
 	let editedText = $state('');
 	let editedColor = $state('#ffffff');
 
-	const templateId = $derived($page.url.searchParams.get('template_id') ?? null);
+	// Promax record state
+	let promaxId = $state<string | null>(null);
+	let isSaving = $state(false);
+
+
 
 	async function doExportPdf() {
 		if (!templateEl) return;
@@ -59,6 +63,64 @@
 		isEditingDescription = true;
 	}
 
+	async function saveToPromax() {
+		if (isSaving) return;
+		isSaving = true;
+
+		const currentTemplateId = $page.url.searchParams.get('template_id');
+
+		try {
+			const dataPayload = {
+				config: template_config,
+				contents: template_contents
+			};
+
+			if (promaxId) {
+				// Update existing record
+				const { error } = await supabase
+					.from('promax')
+					.update({
+						data: dataPayload,
+						updated_at: new Date().toISOString()
+					})
+					.eq('id', promaxId);
+
+				if (error) {
+					toastError(error.message);
+					return;
+				}
+			} else {
+				// Insert new record
+				const { data, error } = await supabase
+					.from('promax')
+					.insert({
+						name: templateName || 'Promax Record',
+						data: dataPayload,
+						promax_template_id: currentTemplateId ?? null
+					})
+					.select('id')
+					.single();
+
+				if (error) {
+					toastError(error.message);
+					return;
+				}
+
+				promaxId = data.id;
+
+				// Replace URL: swap template_id for id
+				const url = new URL($page.url);
+				url.searchParams.delete('template_id');
+				url.searchParams.set('id', promaxId!);
+				goto(url.toString(), { replaceState: true });
+			}
+
+			toastSuccess('Changes saved');
+		} finally {
+			isSaving = false;
+		}
+	}
+
 	function saveDescription() {
 		if (!editingShape) return;
 		
@@ -80,17 +142,56 @@
 					}
 				}
 			}
-			toastSuccess('Item updated');
 		}
 		
 		isEditingDescription = false;
 		editingShape = null;
+
+		// Persist to promax table
+		saveToPromax();
 	}
 
 	$effect(() => {
-		const id = templateId;
-		if (!id) {
-			// If no template_id, fetch the latest one and redirect
+		const id = $page.url.searchParams.get('id');
+		const tmplId = $page.url.searchParams.get('template_id');
+
+		if (id) {
+			// Load from promax table
+			promaxId = id;
+			let cancelled = false;
+			templateLoading = true;
+			(async () => {
+				const { data, error } = await supabase
+					.from('promax')
+					.select('id, name, data, promax_template_id')
+					.eq('id', id)
+					.is('deleted_at', null)
+					.maybeSingle();
+
+				if (cancelled) return;
+				templateLoading = false;
+
+				if (error) {
+					toastError(error.message);
+					return;
+				}
+
+				const row = data as any;
+				if (!row?.data?.config || !row.data.contents) {
+					toastError('Promax record not found or malformed');
+					return;
+				}
+
+				template_config = row.data.config;
+				template_contents = JSON.parse(JSON.stringify(row.data.contents)) as Shape[];
+				templateName = row.name;
+				toastSuccess('Record loaded');
+			})();
+			return () => { cancelled = true; };
+		}
+
+		if (!tmplId) {
+			// No id or template_id: find the latest template and redirect
 			(async () => {
 				const { data, error } = await supabase
 					.from('promax_templates')
@@ -115,14 +216,15 @@
 			})();
 			return;
 		}
-		
+
+		// Load from promax_templates
 		let cancelled = false;
 		templateLoading = true;
 		(async () => {
 			const { data, error } = await supabase
 				.from('promax_templates')
 				.select('id, name, template')
-				.eq('id', id)
+				.eq('id', tmplId)
 				.is('deleted_at', null)
 				.maybeSingle();
 			
@@ -175,7 +277,7 @@
 							<div class="spinner"></div>
 							<p>Loading template...</p>
 						</div>
-					{:else if !templateId}
+					{:else if !$page.url.searchParams.get('id') && !$page.url.searchParams.get('template_id')}
 						<div class="error-state">
 							<p>No template ID provided. Please select a template from the <a href="/dashboard">dashboard</a>.</p>
 						</div>

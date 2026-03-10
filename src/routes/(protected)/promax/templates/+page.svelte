@@ -99,6 +99,7 @@
 	let editPadding = $state(defaultTextPadding);
 	let editFunction = $state<'regular' | 'dial'>('regular');
 	let editFunctionLink = $state('');
+	let editFunctionName = $state('');
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -384,6 +385,7 @@
 				| 'padding'
 				| 'function'
 				| 'functionLink'
+				| 'functionName'
 			>
 		>
 	) {
@@ -571,6 +573,7 @@
 			editPadding = shape.padding ?? defaultTextPadding;
 			editFunction = shape.function ?? 'regular';
 			editFunctionLink = shape.functionLink ?? '';
+			editFunctionName = shape.functionName ?? '';
 		}
 	});
 
@@ -662,6 +665,7 @@
 				bind:editPadding
 				bind:editFunction
 				bind:editFunctionLink
+				bind:editFunctionName
 				allShapes={template_contents}
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}

@@ -39,6 +39,7 @@
 		editPadding = $bindable(),
 		editFunction = $bindable(),
 		editFunctionLink = $bindable(),
+		editFunctionName = $bindable(),
 		allShapes
 	}: {
 		selectedShape: Shape;
@@ -61,6 +62,7 @@
 		editPadding: number;
 		editFunction: 'regular' | 'dial';
 		editFunctionLink: string;
+		editFunctionName: string;
 		onUpdateShape: (
 			updates: Partial<
 				Pick<
@@ -84,6 +86,7 @@
 					| 'padding'
 					| 'function'
 					| 'functionLink'
+					| 'functionName'
 				>
 			>
 		) => void;
@@ -169,6 +172,21 @@
 							{dialShape.type.charAt(0).toUpperCase() + dialShape.type.slice(1)} ({dialShape.id.slice(0, 4)})
 						</option>
 					{/each}
+				</select>
+			</label>
+		{/if}
+		{#if editFunctionLink}
+			<label>
+				<span>Function name</span>
+				<select
+					bind:value={editFunctionName}
+					onchange={() => onUpdateShape({ functionName: editFunctionName })}
+				>
+					<option value="">None</option>
+					<option value="product_name">Product Name</option>
+					<option value="product_code">Product Code</option>
+					<option value="product_icon">Product Icon</option>
+					<option value="product_description">Product Description</option>
 				</select>
 			</label>
 		{/if}

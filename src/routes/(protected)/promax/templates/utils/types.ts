@@ -25,6 +25,7 @@ export type Shape = {
 	borderWidth?: number;
 	padding?: number;
 	backgroundColor?: string;
+	function?: 'regular' | 'dial';
 	order: number;
 };
 

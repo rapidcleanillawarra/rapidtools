@@ -97,6 +97,7 @@
 	let editFontStyle = $state('normal');
 	let editColor = $state('#000000');
 	let editPadding = $state(defaultTextPadding);
+	let editFunction = $state<'regular' | 'dial'>('regular');
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -380,6 +381,7 @@
 				| 'fontStyle'
 				| 'color'
 				| 'padding'
+				| 'function'
 			>
 		>
 	) {
@@ -565,6 +567,7 @@
 			editFontStyle = shape.fontStyle ?? 'normal';
 			editColor = shape.color ?? '#000000';
 			editPadding = shape.padding ?? defaultTextPadding;
+			editFunction = shape.function ?? 'regular';
 		}
 	});
 
@@ -654,6 +657,7 @@
 				bind:editFontStyle
 				bind:editColor
 				bind:editPadding
+				bind:editFunction
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}
 				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}

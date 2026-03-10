@@ -36,7 +36,8 @@
 		editFontWeight = $bindable(),
 		editFontStyle = $bindable(),
 		editColor = $bindable(),
-		editPadding = $bindable()
+		editPadding = $bindable(),
+		editFunction = $bindable()
 	}: {
 		selectedShape: Shape;
 		editX: number;
@@ -55,6 +56,7 @@
 		editFontStyle: string;
 		editColor: string;
 		editPadding: number;
+		editFunction: 'regular' | 'dial';
 		onUpdateShape: (
 			updates: Partial<
 				Pick<
@@ -76,6 +78,7 @@
 					| 'fontStyle'
 					| 'color'
 					| 'padding'
+					| 'function'
 				>
 			>
 		) => void;
@@ -135,6 +138,16 @@
 					if (!Number.isNaN(v) && v >= 0) onUpdateShape({ order: v });
 				}}
 			/>
+		</label>
+		<label>
+			<span>Function</span>
+			<select
+				bind:value={editFunction}
+				onchange={() => onUpdateShape({ function: editFunction })}
+			>
+				<option value="regular">Regular</option>
+				<option value="dial">Dial</option>
+			</select>
 		</label>
 		{#if selectedShape.type === 'text'}
 			<div class="field-full">

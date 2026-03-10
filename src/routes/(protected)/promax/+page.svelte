@@ -11,6 +11,7 @@
 	import { toastError, toastSuccess } from '$lib/utils/toast';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import Modal from '$lib/components/Modal.svelte';
 
 	let template_config = $state<TemplateConfig>({
 		width: 358.9,
@@ -25,11 +26,35 @@
 	let templateLoading = $state(false);
 	let templateEl = $state<HTMLDivElement | null>(null);
 
+	// Description Editing State
+	let isEditingDescription = $state(false);
+	let editingShape = $state<Shape | null>(null);
+	let editedText = $state('');
+
 	const templateId = $derived($page.url.searchParams.get('template_id') ?? null);
 
 	async function doExportPdf() {
 		if (!templateEl) return;
 		await exportPdf(templateEl);
+	}
+
+	function handleEditDescription(shape: Shape) {
+		editingShape = shape;
+		editedText = shape.text || '';
+		isEditingDescription = true;
+	}
+
+	function saveDescription() {
+		if (!editingShape) return;
+		
+		const index = template_contents.findIndex(s => s.id === editingShape?.id);
+		if (index !== -1) {
+			template_contents[index].text = editedText;
+			toastSuccess('Description updated');
+		}
+		
+		isEditingDescription = false;
+		editingShape = null;
 	}
 
 	$effect(() => {
@@ -130,6 +155,7 @@
 								bind:templateEl
 								templateConfig={template_config}
 								templateContents={template_contents}
+								onEditDescription={handleEditDescription}
 							/>
 						</div>
 					{/if}
@@ -145,6 +171,35 @@
 		</div>
 	</main>
 </div>
+
+<Modal show={isEditingDescription} on:close={() => (isEditingDescription = false)}>
+	<span slot="header">Edit Product Description</span>
+	<div slot="body" class="description-editor">
+		<label for="desc-input" class="block text-sm font-medium text-gray-700 mb-2">
+			Description Text
+		</label>
+		<textarea
+			id="desc-input"
+			bind:value={editedText}
+			class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
+			placeholder="Enter product description..."
+		></textarea>
+	</div>
+	<div slot="footer" class="flex justify-end gap-3">
+		<button
+			class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+			onclick={() => (isEditingDescription = false)}
+		>
+			Cancel
+		</button>
+		<button
+			class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+			onclick={saveDescription}
+		>
+			Save Changes
+		</button>
+	</div>
+</Modal>
 
 <style>
 	.promax-viewer {

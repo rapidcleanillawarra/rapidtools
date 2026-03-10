@@ -5,11 +5,13 @@
 	let {
 		templateEl = $bindable(),
 		templateConfig,
-		templateContents
+		templateContents,
+		onEditDescription
 	}: {
 		templateEl: HTMLDivElement | null;
 		templateConfig: TemplateConfig;
 		templateContents: Shape[];
+		onEditDescription?: (shape: Shape) => void;
 	} = $props();
 
 	const sortedContents = $derived(
@@ -18,6 +20,13 @@
 
 	function handleShapeClick(e: MouseEvent, shape: Shape) {
 		e.stopPropagation();
+
+		// Check for product_description specific action
+		if (shape.functionName === 'product_description' && onEditDescription) {
+			onEditDescription(shape);
+			return;
+		}
+
 		if (shape.functionName && shape.functionLink) {
 			const relatedShapes = templateContents.filter((s) => s.functionLink === shape.functionLink);
 			const group: Record<string, string> = {

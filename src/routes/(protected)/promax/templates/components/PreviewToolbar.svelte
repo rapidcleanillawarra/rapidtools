@@ -3,12 +3,14 @@
 		onExport,
 		onSave,
 		onOpen,
-		isSaving = false
+		isSaving = false,
+		saveLabel = 'Save'
 	}: {
 		onExport: () => void;
 		onSave?: () => void;
 		onOpen?: () => void;
 		isSaving?: boolean;
+		saveLabel?: string;
 	} = $props();
 </script>
 
@@ -31,7 +33,7 @@
 			disabled={isSaving}
 			title="Save template to library"
 		>
-			{isSaving ? 'Saving…' : 'Save'}
+			{isSaving ? 'Saving…' : saveLabel}
 		</button>
 	{/if}
 	<button type="button" class="btn btn-export" onclick={onExport} title="Download template as PDF">

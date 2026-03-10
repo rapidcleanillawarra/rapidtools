@@ -26,6 +26,8 @@
 	import Modal from '$lib/components/Modal.svelte';
 	import { supabase } from '$lib/supabase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	let template_config = $state<TemplateConfig>({
 		width: 358.9,
@@ -46,6 +48,9 @@
 	};
 	let templatesList = $state<TemplateRow[]>([]);
 	let templatesLoading = $state(false);
+
+	const templateId = $derived($page.url.searchParams.get('id') ?? null);
+	let templateLoadError = $state<string | null>(null);
 
 	let templateEl = $state<HTMLDivElement | null>(null);
 	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
@@ -251,12 +256,24 @@
 		const name = templateName.trim() || 'Untitled template';
 		isSaving = true;
 		try {
-			const { error } = await supabase.from('promax_templates').insert({
-				name,
-				template: { config: template_config, contents: template_contents }
-			});
-			if (error) throw error;
-			toastSuccess(`Template "${name}" saved`);
+			if (templateId) {
+				const { error } = await supabase
+					.from('promax_templates')
+					.update({
+						name,
+						template: { config: template_config, contents: template_contents }
+					})
+					.eq('id', templateId);
+				if (error) throw error;
+				toastSuccess(`Template "${name}" updated`);
+			} else {
+				const { error } = await supabase.from('promax_templates').insert({
+					name,
+					template: { config: template_config, contents: template_contents }
+				});
+				if (error) throw error;
+				toastSuccess(`Template "${name}" saved`);
+			}
 		} catch (e) {
 			toastError(e instanceof Error ? e.message : 'Failed to save template');
 		} finally {
@@ -291,12 +308,43 @@
 			toastError('No template data');
 			return;
 		}
-		template_config = item.template.config;
-		template_contents = JSON.parse(JSON.stringify(item.template.contents)) as Shape[];
-		templateName = item.name;
 		openModalOpen = false;
-		toastSuccess('Template loaded');
+		goto(`/promax/templates?id=${item.id}`);
 	}
+
+	$effect(() => {
+		const id = templateId;
+		if (!id) return;
+		let cancelled = false;
+		templateLoadError = null;
+		(async () => {
+			const { data, error } = await supabase
+				.from('promax_templates')
+				.select('id, name, template')
+				.eq('id', id)
+				.is('deleted_at', null)
+				.maybeSingle();
+			if (cancelled) return;
+			if (error) {
+				templateLoadError = error.message;
+				toastError(error.message);
+				return;
+			}
+			const row = data as TemplateRow | null;
+			if (!row?.template?.config || !row.template.contents) {
+				templateLoadError = 'Template not found';
+				toastError('Template not found');
+				return;
+			}
+			template_config = row.template.config;
+			template_contents = JSON.parse(JSON.stringify(row.template.contents)) as Shape[];
+			templateName = row.name;
+			toastSuccess('Template loaded');
+		})();
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	$effect(() => {
 		const shape = selectedShape;
@@ -358,6 +406,7 @@
 			onOpen={openTemplatesModal}
 			onSave={saveTemplate}
 			isSaving={isSaving}
+			saveLabel={templateId ? 'Update' : 'Save'}
 		/>
 		<TemplateCanvas
 			bind:templateEl

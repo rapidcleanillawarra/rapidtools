@@ -85,7 +85,7 @@
 						if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
 					}}
 				>
-					<span style="display: table-cell; vertical-align: middle; width: 100%;">{shape.text}</span
+					<span class="text-content" style="display: table-cell; vertical-align: middle; width: 100%;">{shape.text}</span
 					>
 				</div>
 			{:else if shape.type === 'image' && shape.src}
@@ -258,6 +258,11 @@
 	:global(.exporting-pdf) .shape-wrap.selected .shape,
 	:global(.exporting-pdf) .shape-wrap.selected .shape-image-wrap {
 		outline: none !important;
+	}
+
+	:global(.exporting-pdf) .shape-text .text-content {
+		position: relative;
+		top: -10px;
 	}
 
 	.shape-wrap {

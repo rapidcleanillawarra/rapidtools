@@ -6,7 +6,7 @@
 	} from './templates/utils/shapeUtils';
 	import { exportPdf } from './templates/utils/pdfUtils';
 	import PreviewToolbar from './templates/components/PreviewToolbar.svelte';
-	import TemplateCanvas from './templates/components/TemplateCanvas.svelte';
+	import ViewerCanvas from './components/ViewerCanvas.svelte';
 	import { supabase } from '$lib/supabase';
 	import { toastError, toastSuccess } from '$lib/utils/toast';
 	import { page } from '$app/stores';
@@ -95,8 +95,7 @@
 		};
 	});
 
-	// No-op handlers for the canvas to disable editing
-	const noop = () => {};
+
 </script>
 
 <div class="promax-viewer">
@@ -127,15 +126,10 @@
 						</div>
 					{:else}
 						<div class="canvas-container">
-							<TemplateCanvas
+							<ViewerCanvas
 								bind:templateEl
 								templateConfig={template_config}
 								templateContents={template_contents}
-								selectedShapeId={null}
-								dragging={null}
-								onStartDrag={noop}
-								onStartResize={noop}
-								onBackgroundClick={noop}
 							/>
 						</div>
 					{/if}

@@ -9,7 +9,10 @@
 		maxRadius,
 		minBorderWidth,
 		maxBorderWidth,
-		toBorderWidthPx
+		toBorderWidthPx,
+		minPadding,
+		maxPadding,
+		toPaddingPx
 	} from '../utils/shapeUtils';
 
 	let {
@@ -32,7 +35,8 @@
 		editFontSize = $bindable(),
 		editFontWeight = $bindable(),
 		editFontStyle = $bindable(),
-		editColor = $bindable()
+		editColor = $bindable(),
+		editPadding = $bindable()
 	}: {
 		selectedShape: Shape;
 		editX: number;
@@ -50,6 +54,7 @@
 		editFontWeight: string;
 		editFontStyle: string;
 		editColor: string;
+		editPadding: number;
 		onUpdateShape: (
 			updates: Partial<
 				Pick<
@@ -70,6 +75,7 @@
 					| 'fontWeight'
 					| 'fontStyle'
 					| 'color'
+					| 'padding'
 				>
 			>
 		) => void;
@@ -182,6 +188,17 @@
 					type="color"
 					value={selectedShape.backgroundColor ?? '#ffffff'}
 					oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
+				/>
+			</label>
+			<label>
+				<span>Padding (px)</span>
+				<input
+					type="number"
+					min={minPadding}
+					max={maxPadding}
+					step="1"
+					bind:value={editPadding}
+					onblur={() => onUpdateShape({ padding: toPaddingPx(editPadding) })}
 				/>
 			</label>
 		{/if}

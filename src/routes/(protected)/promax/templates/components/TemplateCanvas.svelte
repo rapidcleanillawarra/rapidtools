@@ -61,6 +61,7 @@
 					style:font-style={shape.fontStyle}
 					style:color={shape.color}
 					style:background-color={shape.backgroundColor ?? 'transparent'}
+					style:padding="{shape.padding ?? 0}px"
 					style:display="flex"
 					style:align-items="center"
 					style:justify-content="center"

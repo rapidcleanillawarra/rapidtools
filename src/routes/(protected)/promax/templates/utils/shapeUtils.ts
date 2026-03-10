@@ -19,9 +19,13 @@ export const maxRadius = 999;
 export const minBorderWidth = 0;
 export const maxBorderWidth = 20;
 export const defaultShapeBorderWidth = 1;
+export const defaultTextPadding = 4;
 export const defaultShapeOffset = 24;
 export const defaultTemplateBackgroundColor = '#ffffff';
 export const defaultShapeBackgroundColor = undefined;
+
+export const minPadding = 0;
+export const maxPadding = 100;
 
 export function toPx(n: number | string): number {
 	const v = Number(n);
@@ -42,6 +46,13 @@ export function toBorderWidthPx(n: number | string | undefined): number {
 	const v = Number(n);
 	if (Number.isNaN(v)) return defaultShapeBorderWidth;
 	return Math.max(minBorderWidth, Math.min(maxBorderWidth, v));
+}
+
+export function toPaddingPx(n: number | string | undefined): number {
+	if (n === undefined || n === null) return defaultTextPadding;
+	const v = Number(n);
+	if (Number.isNaN(v)) return defaultTextPadding;
+	return Math.max(minPadding, Math.min(maxPadding, v));
 }
 
 export function getRectRadii(shape: Shape): [number, number, number, number] {

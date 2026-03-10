@@ -16,7 +16,9 @@
 		defaultImageHeight,
 		defaultTextWidth,
 		defaultTextHeight,
+		defaultTextPadding,
 		defaultFontSize,
+		toPaddingPx,
 		defaultShapeBorderWidth,
 		defaultTemplateBackgroundColor,
 		defaultShapeBackgroundColor,
@@ -94,6 +96,7 @@
 	let editFontWeight = $state('normal');
 	let editFontStyle = $state('normal');
 	let editColor = $state('#000000');
+	let editPadding = $state(defaultTextPadding);
 
 	const selectedShape = $derived(template_contents.find((s) => s.id === selectedShapeId) ?? null);
 
@@ -116,6 +119,7 @@
 			fontWeight: 'normal',
 			fontStyle: 'normal',
 			color: '#000000',
+			padding: defaultTextPadding,
 			order: nextOrder
 		};
 		template_contents = [...template_contents, newShape];
@@ -375,6 +379,7 @@
 				| 'fontWeight'
 				| 'fontStyle'
 				| 'color'
+				| 'padding'
 			>
 		>
 	) {
@@ -391,6 +396,7 @@
 			if (next.borderRadiusBR !== undefined) next.borderRadiusBR = toRadiusPx(next.borderRadiusBR);
 			if (next.borderRadiusBL !== undefined) next.borderRadiusBL = toRadiusPx(next.borderRadiusBL);
 			if (next.borderWidth !== undefined) next.borderWidth = toBorderWidthPx(next.borderWidth);
+			if (next.padding !== undefined) next.padding = toPaddingPx(next.padding);
 			next.x = Math.max(0, Math.min(templateW - next.width, next.x));
 			next.y = Math.max(0, Math.min(templateH - next.height, next.y));
 			if (next.order !== undefined) next.order = Math.round(Number(next.order)) || 0;
@@ -558,6 +564,7 @@
 			editFontWeight = shape.fontWeight ?? 'normal';
 			editFontStyle = shape.fontStyle ?? 'normal';
 			editColor = shape.color ?? '#000000';
+			editPadding = shape.padding ?? defaultTextPadding;
 		}
 	});
 
@@ -646,6 +653,7 @@
 				bind:editFontWeight
 				bind:editFontStyle
 				bind:editColor
+				bind:editPadding
 				onUpdateShape={updateSelectedShape}
 				onDeselect={deselectShape}
 				onDuplicate={() => selectedShapeId && duplicateShape(selectedShapeId)}

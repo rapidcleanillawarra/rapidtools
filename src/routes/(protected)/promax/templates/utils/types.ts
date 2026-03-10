@@ -23,6 +23,7 @@ export type Shape = {
 	borderRadiusBL?: number;
 	/** Border width in px (rectangle/circle). Default 1. */
 	borderWidth?: number;
+	padding?: number;
 	backgroundColor?: string;
 	order: number;
 };

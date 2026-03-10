@@ -59,10 +59,22 @@
 				bind:value={templateConfig.borderWidth}
 			/>
 		</label>
-		<label>
-			<span>Background color</span>
-			<input type="color" bind:value={templateConfig.backgroundColor} />
+		<label class="checkbox-label">
+			<input
+				type="checkbox"
+				checked={templateConfig.backgroundColor === 'transparent'}
+				onchange={(e) => {
+					templateConfig.backgroundColor = e.currentTarget.checked ? 'transparent' : '#ffffff';
+				}}
+			/>
+			<span>Transparent background</span>
 		</label>
+		{#if templateConfig.backgroundColor !== 'transparent'}
+			<label>
+				<span>Background color</span>
+				<input type="color" bind:value={templateConfig.backgroundColor} />
+			</label>
+		{/if}
 	</div>
 </div>
 

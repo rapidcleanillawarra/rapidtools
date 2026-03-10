@@ -182,14 +182,24 @@
 				/>
 				<span>Italic</span>
 			</label>
-			<label>
-				<span>Background color</span>
+			<label class="checkbox-label">
 				<input
-					type="color"
-					value={selectedShape.backgroundColor ?? '#ffffff'}
-					oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
+					type="checkbox"
+					checked={selectedShape.backgroundColor === 'transparent'}
+					onchange={(e) => onUpdateShape({ backgroundColor: e.currentTarget.checked ? 'transparent' : '#ffffff' })}
 				/>
+				<span>Transparent background</span>
 			</label>
+			{#if selectedShape.backgroundColor !== 'transparent'}
+				<label>
+					<span>Background color</span>
+					<input
+						type="color"
+						value={selectedShape.backgroundColor ?? '#ffffff'}
+						oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
+					/>
+				</label>
+			{/if}
 			<label>
 				<span>Padding (px)</span>
 				<input
@@ -214,14 +224,24 @@
 					onblur={() => onUpdateShape({ borderWidth: toBorderWidthPx(editBorderWidth) })}
 				/>
 			</label>
-			<label>
-				<span>Background color</span>
+			<label class="checkbox-label">
 				<input
-					type="color"
-					value={selectedShape.backgroundColor ?? '#000000'}
-					oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
+					type="checkbox"
+					checked={selectedShape.backgroundColor === 'transparent'}
+					onchange={(e) => onUpdateShape({ backgroundColor: e.currentTarget.checked ? 'transparent' : '#000000' })}
 				/>
+				<span>Transparent background</span>
 			</label>
+			{#if selectedShape.backgroundColor !== 'transparent'}
+				<label>
+					<span>Background color</span>
+					<input
+						type="color"
+						value={selectedShape.backgroundColor ?? '#000000'}
+						oninput={(e) => onUpdateShape({ backgroundColor: e.currentTarget.value })}
+					/>
+				</label>
+			{/if}
 		{/if}
 		{#if selectedShape.type === 'rectangle' || selectedShape.type === 'image'}
 			<label>

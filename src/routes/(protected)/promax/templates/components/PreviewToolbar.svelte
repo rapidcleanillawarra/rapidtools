@@ -2,15 +2,27 @@
 	let {
 		onExport,
 		onSave,
+		onOpen,
 		isSaving = false
 	}: {
 		onExport: () => void;
 		onSave?: () => void;
+		onOpen?: () => void;
 		isSaving?: boolean;
 	} = $props();
 </script>
 
 <div class="preview-actions">
+	{#if onOpen}
+		<button
+			type="button"
+			class="btn"
+			onclick={onOpen}
+			title="Open saved template"
+		>
+			Open
+		</button>
+	{/if}
 	{#if onSave}
 		<button
 			type="button"

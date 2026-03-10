@@ -23,6 +23,7 @@
 	import EditShapePanel from './components/EditShapePanel.svelte';
 	import PreviewToolbar from './components/PreviewToolbar.svelte';
 	import TemplateCanvas from './components/TemplateCanvas.svelte';
+	import Modal from '$lib/components/Modal.svelte';
 	import { supabase } from '$lib/supabase';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 
@@ -36,6 +37,15 @@
 	let template_contents = $state<Shape[]>([]);
 
 	let templateName = $state('');
+
+	let openModalOpen = $state(false);
+	type TemplateRow = {
+		id: string;
+		name: string;
+		template: { config: TemplateConfig; contents: Shape[] } | null;
+	};
+	let templatesList = $state<TemplateRow[]>([]);
+	let templatesLoading = $state(false);
 
 	let templateEl = $state<HTMLDivElement | null>(null);
 	let dragging = $state<{ shapeId: string; offsetX: number; offsetY: number; hasMoved: boolean } | null>(null);
@@ -254,6 +264,40 @@
 		}
 	}
 
+	async function fetchTemplates() {
+		templatesLoading = true;
+		try {
+			const { data, error } = await supabase
+				.from('promax_templates')
+				.select('id, name, template')
+				.is('deleted_at', null)
+				.order('created_at', { ascending: false });
+			if (error) throw error;
+			templatesList = (data ?? []) as TemplateRow[];
+		} catch (e) {
+			toastError(e instanceof Error ? e.message : 'Failed to load templates');
+		} finally {
+			templatesLoading = false;
+		}
+	}
+
+	async function openTemplatesModal() {
+		await fetchTemplates();
+		openModalOpen = true;
+	}
+
+	function selectTemplate(item: TemplateRow) {
+		if (!item.template?.config || !item.template?.contents) {
+			toastError('No template data');
+			return;
+		}
+		template_config = item.template.config;
+		template_contents = JSON.parse(JSON.stringify(item.template.contents)) as Shape[];
+		templateName = item.name;
+		openModalOpen = false;
+		toastSuccess('Template loaded');
+	}
+
 	$effect(() => {
 		const shape = selectedShape;
 		if (shape) {
@@ -309,7 +353,12 @@
 		/>
 	</aside>
 	<main class="preview">
-		<PreviewToolbar onExport={exportPdf} onSave={saveTemplate} isSaving={isSaving} />
+		<PreviewToolbar
+			onExport={exportPdf}
+			onOpen={openTemplatesModal}
+			onSave={saveTemplate}
+			isSaving={isSaving}
+		/>
 		<TemplateCanvas
 			bind:templateEl
 			templateConfig={template_config}
@@ -343,6 +392,41 @@
 		{/if}
 	</aside>
 </div>
+
+<Modal
+	show={openModalOpen}
+	allowClose={true}
+	size="md"
+	on:close={() => (openModalOpen = false)}
+>
+	<svelte:fragment slot="header">Open template</svelte:fragment>
+	<div slot="body" class="open-modal-body">
+		{#if templatesLoading}
+			<p class="open-modal-message">Loading…</p>
+		{:else if templatesList.length === 0}
+			<p class="open-modal-message">No templates saved yet.</p>
+		{:else}
+			<ul class="open-modal-list">
+				{#each templatesList as item (item.id)}
+					<li>
+						<button
+							type="button"
+							class="open-modal-row"
+							onclick={() => selectTemplate(item)}
+						>
+							<span class="open-modal-name">{item.name}</span>
+							<span class="open-modal-template">
+								{item.template?.config
+									? `${item.template.config.width} × ${item.template.config.height}`
+									: 'No template data'}
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+</Modal>
 
 <style>
 	.promax-page {
@@ -416,5 +500,54 @@
 		outline: none;
 		border-color: #3b82f6;
 		box-shadow: 0 0 0 2px rgb(59 130 246 / 0.2);
+	}
+
+	.open-modal-body {
+		min-height: 2rem;
+	}
+
+	.open-modal-message {
+		color: #6b7280;
+		font-size: 0.875rem;
+		margin: 0;
+	}
+
+	.open-modal-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.open-modal-row {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.125rem;
+		width: 100%;
+		padding: 0.5rem 0.75rem;
+		text-align: left;
+		font-size: 0.875rem;
+		border: 1px solid #e5e7eb;
+		border-radius: 0.375rem;
+		background: #f9fafb;
+		color: #374151;
+		cursor: pointer;
+	}
+
+	.open-modal-row:hover {
+		background: #f3f4f6;
+		border-color: #9ca3af;
+	}
+
+	.open-modal-name {
+		font-weight: 600;
+	}
+
+	.open-modal-template {
+		font-size: 0.75rem;
+		color: #6b7280;
 	}
 </style>

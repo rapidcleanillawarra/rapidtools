@@ -30,6 +30,7 @@
 	let isEditingDescription = $state(false);
 	let editingShape = $state<Shape | null>(null);
 	let editedText = $state('');
+	let editedColor = $state('#ffffff');
 
 	const templateId = $derived($page.url.searchParams.get('template_id') ?? null);
 
@@ -44,8 +45,16 @@
 			// Extract icon name from URL: .../icons/bottle_fill.png -> bottle
 			const match = shape.src.match(/\/icons\/([^/]+)_fill\.png/);
 			editedText = match ? match[1] : 'bottle';
+			editedColor = '#ffffff';
 		} else {
 			editedText = shape.text || '';
+			// Find parent dial color if applicable
+			if (shape.functionLink) {
+				const parentDial = template_contents.find(s => s.id === shape.functionLink);
+				editedColor = parentDial?.backgroundColor || '#ffffff';
+			} else {
+				editedColor = '#ffffff';
+			}
 		}
 		isEditingDescription = true;
 	}
@@ -62,6 +71,14 @@
 			} else {
 				// Update text for name, code, description
 				template_contents[index].text = editedText;
+
+				// Update parent dial background color if it's name or code
+				if (editingShape.functionLink && (editingShape.functionName === 'product_name' || editingShape.functionName === 'product_code')) {
+					const dialIndex = template_contents.findIndex(s => s.id === editingShape?.functionLink);
+					if (dialIndex !== -1) {
+						template_contents[dialIndex].backgroundColor = editedColor;
+					}
+				}
 			}
 			toastSuccess('Item updated');
 		}
@@ -203,13 +220,34 @@
 				<option value="scrubber">Scrubber</option>
 				<option value="sink">Sink</option>
 			</select>
-		{:else}
+		{:else if editingShape?.functionName === 'product_description'}
 			<textarea
 				id="desc-input"
 				bind:value={editedText}
 				class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-h-[150px]"
-				placeholder="Enter {editingShape?.functionName?.replace('product_', '').replace('_', ' ') || 'text'}..."
+				placeholder="Enter description..."
 			></textarea>
+		{:else}
+			<div class="flex flex-col gap-4">
+				<input
+					type="text"
+					bind:value={editedText}
+					class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+					placeholder="Enter {editingShape?.functionName?.replace('product_', '').replace('_', ' ') || 'text'}..."
+				/>
+				
+				<div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+					<div class="flex flex-col gap-1">
+						<span class="text-sm font-semibold text-gray-700">Dial Color</span>
+						<span class="text-xs text-gray-500">Overrides parent dial background</span>
+					</div>
+					<input
+						type="color"
+						bind:value={editedColor}
+						class="w-12 h-12 p-1 rounded cursor-pointer border-none bg-transparent"
+					/>
+				</div>
+			</div>
 		{/if}
 	</div>
 	<div slot="footer" class="flex justify-end gap-3">

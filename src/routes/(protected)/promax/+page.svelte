@@ -347,18 +347,21 @@
 						<p class="empty-msg">No saved records found.</p>
 					{:else}
 						<div class="saved-rows-list">
-							{#each savedPromaxRows as row}
+							{#each savedPromaxRows as row (row.id)}
 								<button 
 									class="saved-row-item {promaxId === row.id ? 'active' : ''}"
 									onclick={() => {
-										const url = new URL($page.url);
+										const url = new URL(window.location.href);
 										url.searchParams.delete('template_id');
 										url.searchParams.set('id', row.id);
 										goto(url.toString());
 									}}
 								>
-									<span class="row-name">{row.name || 'Untitled'}</span>
-									<span class="row-date">{new Date(row.created_at).toLocaleDateString()}</span>
+									<div class="row-info">
+										<span class="row-name">{row.name || 'Untitled Record'}</span>
+										<span class="row-date">{new Date(row.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+									</div>
+									<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="item-arrow"><path d="m9 18 6-6-6-6"/></svg>
 								</button>
 							{/each}
 						</div>
@@ -583,37 +586,61 @@
 
 	.saved-row-item {
 		display: flex;
-		flex-direction: column;
-		padding: 0.875rem 1rem;
+		align-items: center;
+		justify-content: space-between;
+		padding: 1rem;
 		border: 1px solid #f3f4f6;
-		border-radius: 0.5rem;
+		border-radius: 0.75rem;
 		background: #f9fafb;
 		text-align: left;
 		cursor: pointer;
-		transition: all 0.2s;
+		transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+		gap: 1rem;
 	}
 
 	.saved-row-item:hover {
-		background: #f3f4f6;
-		border-color: #e5e7eb;
+		background: white;
+		border-color: #2563eb;
+		box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+		transform: translateY(-1px);
 	}
 
 	.saved-row-item.active {
 		background: #eff6ff;
-		border-color: #bfdbfe;
-		box-shadow: 0 0 0 1px #bfdbfe;
+		border-color: #2563eb;
+		box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+	}
+
+	.row-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		overflow: hidden;
 	}
 
 	.row-name {
-		font-weight: 500;
+		font-weight: 600;
 		color: #111827;
 		font-size: 0.875rem;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.row-date {
 		font-size: 0.75rem;
 		color: #6b7280;
-		margin-top: 0.25rem;
+	}
+
+	.item-arrow {
+		color: #9ca3af;
+		flex-shrink: 0;
+		transition: transform 0.2s;
+	}
+
+	.saved-row-item:hover .item-arrow {
+		color: #2563eb;
+		transform: translateX(2px);
 	}
 
 	.sidebar-loading, .empty-msg {

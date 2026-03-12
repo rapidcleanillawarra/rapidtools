@@ -35,6 +35,7 @@
 	let editedBackgroundImage = $state<string | null>(null);
 	let selectedFile = $state<File | null>(null);
 	let previewUrl = $state<string | null>(null);
+	let isTransparent = $state(false);
 
 	// Promax record state
 	let promaxId = $state<string | null>(null);
@@ -80,6 +81,14 @@
 		selectedFile = null;
 		previewUrl = null;
 		isEditingDescription = true;
+		
+		// Reset transparency based on parent dial
+		if (shape.functionLink) {
+			const parentDial = template_contents.find(s => s.id === shape.functionLink);
+			isTransparent = parentDial?.backgroundColor === 'transparent';
+		} else {
+			isTransparent = false;
+		}
 	}
 
 	function handleFileChange(e: Event) {
@@ -219,7 +228,7 @@
 				if (editingShape.functionLink && (editingShape.functionName === 'product_name' || editingShape.functionName === 'product_code')) {
 					const dialIndex = template_contents.findIndex(s => s.id === editingShape?.functionLink);
 					if (dialIndex !== -1) {
-						template_contents[dialIndex].backgroundColor = editedColor;
+						template_contents[dialIndex].backgroundColor = isTransparent ? 'transparent' : editedColor;
 						
 						// Handle deferred image
 						if (selectedFile) {
@@ -491,8 +500,13 @@
 					<input
 						type="color"
 						bind:value={editedColor}
-						class="w-12 h-12 p-1 rounded cursor-pointer border-none bg-transparent"
+						disabled={isTransparent}
+						class="w-12 h-12 p-1 rounded cursor-pointer border-none bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
 					/>
+					<label class="flex items-center gap-2 cursor-pointer ml-auto">
+						<input type="checkbox" bind:checked={isTransparent} class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
+						<span class="text-sm font-medium text-gray-700">Transparent</span>
+					</label>
 				</div>
 
 				<div class="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">

@@ -79,7 +79,7 @@
 					style:background-color={shape.backgroundColor ?? 'transparent'}
 					style:padding="{shape.padding ?? 0}px"
 					style:display="table"
-					style:text-align="center"
+					style:text-align={shape.textAlign || 'center'}
 					style:white-space="pre-wrap"
 					style:overflow="hidden"
 					style:line-height="{Math.round((shape.fontSize || 16) * 1.2)}px"

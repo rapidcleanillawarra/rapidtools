@@ -15,6 +15,7 @@ export type Shape = {
 	fontWeight?: string;
 	fontStyle?: string;
 	color?: string;
+	textAlign?: 'left' | 'center' | 'right';
 	/** @deprecated use borderRadiusTL/TR/BR/BL for rectangles */
 	borderRadius?: number;
 	borderRadiusTL?: number;

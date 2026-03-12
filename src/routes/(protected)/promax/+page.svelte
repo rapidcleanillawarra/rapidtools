@@ -36,6 +36,9 @@
 	let selectedFile = $state<File | null>(null);
 	let previewUrl = $state<string | null>(null);
 	let isTransparent = $state(false);
+	let editedFontSize = $state(16);
+	let editedTextColor = $state('#000000');
+	let editedTextAlign = $state<'left' | 'center' | 'right'>('center');
 
 	// Promax record state
 	let promaxId = $state<string | null>(null);
@@ -82,7 +85,11 @@
 		previewUrl = null;
 		isEditingDescription = true;
 		
-		// Reset transparency based on parent dial
+		// Initialize font settings
+		editedFontSize = shape.fontSize || 16;
+		editedTextColor = shape.color || '#000000';
+		editedTextAlign = shape.textAlign || 'center';
+
 		if (shape.functionLink) {
 			const parentDial = template_contents.find(s => s.id === shape.functionLink);
 			isTransparent = parentDial?.backgroundColor === 'transparent';
@@ -224,6 +231,11 @@
 			} else {
 				// Update text for name, code, description
 				template_contents[index].text = editedText;
+				
+				// Update font settings
+				template_contents[index].fontSize = editedFontSize;
+				template_contents[index].color = editedTextColor;
+				template_contents[index].textAlign = editedTextAlign;
 
 				// Update parent dial background color if it's name or code
 				if (editingShape.functionLink && (editingShape.functionName === 'product_name' || editingShape.functionName === 'product_code')) {
@@ -558,7 +570,7 @@
 								class="hidden"
 							/>
 							<div class="px-4 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 cursor-pointer text-center transition-colors">
-								{selectedFile ? 'Change Image' : 'Choose Image'}
+						{selectedFile ? 'Change Image' : 'Choose Image'}
 							</div>
 						</label>
 						{#if selectedFile || editedBackgroundImage}
@@ -574,6 +586,72 @@
 								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
 							</button>
 						{/if}
+					</div>
+				</div>
+			</div>
+		{/if}
+
+		{#if editingShape?.type === 'text'}
+			<div class="mt-6 border-t border-gray-100 pt-6">
+				<h4 class="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+					<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+					Font Settings
+				</h4>
+				
+				<div class="grid grid-cols-2 gap-4">
+					<div class="flex flex-col gap-1.5">
+						<span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Font Size</span>
+						<div class="flex items-center gap-2">
+							<div class="relative flex-1">
+								<input
+									type="number"
+									bind:value={editedFontSize}
+									min="8"
+									max="200"
+									class="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+								/>
+								<span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">px</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="flex flex-col gap-1.5">
+						<span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Text Color</span>
+						<div class="flex items-center gap-2 p-1.5 bg-gray-50 border border-gray-200 rounded-lg h-[42px]">
+							<input
+								type="color"
+								bind:value={editedTextColor}
+								class="w-8 h-8 p-0 rounded-md cursor-pointer border-none bg-transparent"
+							/>
+							<span class="text-xs font-mono text-gray-600 flex-1">{editedTextColor.toUpperCase()}</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="flex flex-col gap-1.5 mt-4">
+					<span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Alignment</span>
+					<div class="flex p-1 bg-gray-100 rounded-lg w-fit">
+						<button
+							class="p-2 rounded-md transition-all {editedTextAlign === 'left' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}"
+							onclick={() => editedTextAlign = 'left'}
+							title="Align Left"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" x2="3" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="15" x2="3" y1="18" y2="18"/></svg>
+						</button>
+						<button
+							class="p-2 rounded-md transition-all {editedTextAlign === 'center' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}"
+							onclick={() => editedTextAlign = 'center'}
+							title="Align Center"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="18" x2="6" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg>
+						</button>
+						<button
+							class="p-2 rounded-md transition-all {editedTextAlign === 'right' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}"
+							onclick={() => editedTextAlign = 'right'}
+							title="Align Right"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="7" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="21" x2="9" y1="18" y2="18"/></svg>
+						</button>
 					</div>
 				</div>
 			</div>

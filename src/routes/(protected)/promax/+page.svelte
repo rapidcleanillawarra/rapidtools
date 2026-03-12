@@ -61,9 +61,9 @@
 		editingShape = shape;
 		if (shape.functionName === 'product_icon' && shape.src) {
 			// Extract icon name from URL: .../icons/bottle_fill.png -> bottle
-			const match = shape.src.match(/\/icons\/([^/]+)_fill\.png/);
+			const match = shape.src.match(/\/icons\/([^/]+)_fill\.svg/);
 			editedText = match ? match[1] : 'bottle';
-			editedColor = '#ffffff';
+			editedColor = shape.color || '#000000';
 		} else {
 			editedText = shape.text || '';
 			// Find parent dial color if applicable
@@ -175,12 +175,12 @@
 				// Update URL
 				const url = new URL($page.url);
 				url.searchParams.delete('template_id');
-				url.searchParams.set('id', workingPromaxId);
+				if (workingPromaxId) url.searchParams.set('id', workingPromaxId);
 				goto(url.toString(), { replaceState: true });
 			}
 
 			// 2. Handle Image Uploads (now that we definitely have a promaxId)
-			const uploadSuccess = await uploadShapeImages(workingPromaxId);
+			const uploadSuccess = await uploadShapeImages(workingPromaxId!);
 			if (!uploadSuccess) return;
 
 			// 3. Final Update with permanent URLs
@@ -219,7 +219,8 @@
 			if (editingShape.functionName === 'product_icon') {
 				// Update image src for icon
 				const baseUrl = 'https://coywobndzyvslurwqtdt.supabase.co/storage/v1/object/public/promax/icons';
-				template_contents[index].src = `${baseUrl}/${editedText}_fill.png`;
+				template_contents[index].src = `${baseUrl}/${editedText}_fill.svg`;
+				template_contents[index].color = editedColor;
 			} else {
 				// Update text for name, code, description
 				template_contents[index].text = editedText;
@@ -490,6 +491,18 @@
 				<option value="scrubber">Scrubber</option>
 				<option value="sink">Sink</option>
 			</select>
+
+			<div class="mt-4 flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+				<div class="flex flex-col gap-1">
+					<span class="text-sm font-semibold text-gray-700">Icon Color</span>
+					<span class="text-xs text-gray-500">Pick a color for the icon</span>
+				</div>
+				<input
+					type="color"
+					bind:value={editedColor}
+					class="w-12 h-12 p-1 rounded cursor-pointer border-none bg-transparent ml-auto"
+				/>
+			</div>
 		{:else if editingShape?.functionName === 'product_description'}
 			<textarea
 				id="desc-input"
@@ -551,6 +564,7 @@
 						{#if selectedFile || editedBackgroundImage}
 							<button 
 								class="p-2 text-gray-400 hover:text-red-500 transition-colors"
+								aria-label="Remove image"
 								onclick={() => {
 									selectedFile = null;
 									previewUrl = null;

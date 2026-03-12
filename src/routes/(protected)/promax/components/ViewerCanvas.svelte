@@ -116,14 +116,31 @@
 					role={shape.functionName ? 'button' : 'presentation'}
 					tabindex={shape.functionName ? 0 : -1}
 				>
-					<img
-						class="shape-image"
-						src={shape.src}
-						alt=""
-						style:width="{shape.width}px"
-						style:height="{shape.height}px"
-						draggable="false"
-					/>
+					{#if shape.functionName === 'product_icon'}
+						<div
+							class="shape-image"
+							style:width="{shape.width}px"
+							style:height="{shape.height}px"
+							style:background-color={shape.color || 'black'}
+							style:mask-image="url({shape.src})"
+							style:mask-size="contain"
+							style:mask-repeat="no-repeat"
+							style:mask-position="center"
+							style:webkit-mask-image="url({shape.src})"
+							style:webkit-mask-size="contain"
+							style:webkit-mask-repeat="no-repeat"
+							style:webkit-mask-position="center"
+						></div>
+					{:else}
+						<img
+							class="shape-image"
+							src={shape.src}
+							alt=""
+							style:width="{shape.width}px"
+							style:height="{shape.height}px"
+							draggable="false"
+						/>
+					{/if}
 				</span>
 			{:else}
 				<div

@@ -31,6 +31,7 @@ export type Shape = {
 	order: number;
 	/** Local file object before upload. Not stored in DB. */
 	file?: File;
+	backgroundImage?: string;
 };
 
 export type TemplateConfig = {

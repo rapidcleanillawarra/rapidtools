@@ -135,6 +135,10 @@
 					style:border-radius={rectBorderRadiusCss(shape)}
 					style:border-width="{toBorderWidthPx(shape.borderWidth)}px"
 					style:background-color={shape.backgroundColor ?? 'transparent'}
+					style:background-image={shape.backgroundImage ? `url(${shape.backgroundImage})` : 'none'}
+					style:background-size="cover"
+					style:background-position="center"
+					style:background-repeat="no-repeat"
 					style:box-sizing="border-box"
 				></div>
 			{/if}

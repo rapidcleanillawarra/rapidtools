@@ -32,6 +32,9 @@
 	let editingShape = $state<Shape | null>(null);
 	let editedText = $state('');
 	let editedColor = $state('#ffffff');
+	let editedBackgroundImage = $state<string | null>(null);
+	let selectedFile = $state<File | null>(null);
+	let previewUrl = $state<string | null>(null);
 
 	// Promax record state
 	let promaxId = $state<string | null>(null);
@@ -65,12 +68,68 @@
 			// Find parent dial color if applicable
 			if (shape.functionLink) {
 				const parentDial = template_contents.find(s => s.id === shape.functionLink);
-				editedColor = parentDial?.backgroundColor || '#ffffff';
+				if (parentDial) {
+					editedColor = parentDial.backgroundColor || '#ffffff';
+					editedBackgroundImage = parentDial.backgroundImage || null;
+				}
 			} else {
 				editedColor = '#ffffff';
+				editedBackgroundImage = null;
 			}
 		}
+		selectedFile = null;
+		previewUrl = null;
 		isEditingDescription = true;
+	}
+
+	function handleFileChange(e: Event) {
+		const input = e.target as HTMLInputElement;
+		if (input.files && input.files[0]) {
+			selectedFile = input.files[0];
+			previewUrl = URL.createObjectURL(selectedFile);
+		}
+	}
+
+	async function uploadShapeImages(recordId: string) {
+		const pendingShapes = template_contents.filter(s => s.file);
+		if (pendingShapes.length === 0) return true;
+
+		for (const shape of pendingShapes) {
+			if (!shape.file) continue;
+			
+			const fileExt = shape.file.name.split('.').pop();
+			const fileName = `${crypto.randomUUID()}.${fileExt}`;
+			const folderName = `promax_${recordId}`;
+			const filePath = `${folderName}/${fileName}`;
+
+			const { error: uploadError } = await supabase.storage
+				.from('promax')
+				.upload(filePath, shape.file);
+
+			if (uploadError) {
+				toastError(`Upload failed for ${shape.file.name}: ${uploadError.message}`);
+				return false;
+			}
+
+			const { data: { publicUrl } } = supabase.storage
+				.from('promax')
+				.getPublicUrl(filePath);
+
+			// Log to promax_images
+			const { error: dbError } = await supabase
+				.from('promax_images')
+				.insert({
+					promax_id: recordId,
+					file_path: filePath
+				});
+			
+			if (dbError) console.error('Error logging image to DB:', dbError);
+
+			// Update shape state
+			shape.backgroundImage = publicUrl;
+			shape.file = undefined;
+		}
+		return true;
 	}
 
 	async function saveToPromax() {
@@ -80,36 +139,16 @@
 		const currentTemplateId = $page.url.searchParams.get('template_id');
 
 		try {
-			const dataPayload = {
-				config: template_config,
-				contents: template_contents
-			};
+			let workingPromaxId = promaxId;
 
-			if (promaxId) {
-				// Update existing record
-				const profile = $userProfile;
-				const { error } = await supabase
-					.from('promax')
-					.update({
-						data: dataPayload,
-						updated_at: new Date().toISOString(),
-						updated_by: profile?.email ?? null,
-						updated_by_name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : null
-					})
-					.eq('id', promaxId);
-
-				if (error) {
-					toastError(error.message);
-					return;
-				}
-			} else {
-				// Insert new record
+			// 1. Initial Insert if new to get a stable ID for folder naming
+			if (!workingPromaxId) {
 				const profile = $userProfile;
 				const { data, error } = await supabase
 					.from('promax')
 					.insert({
 						name: templateName || 'Promax Record',
-						data: dataPayload,
+						data: { config: template_config, contents: template_contents },
 						promax_template_id: currentTemplateId ?? null,
 						created_by: profile?.email ?? null,
 						created_by_name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : null
@@ -121,14 +160,40 @@
 					toastError(error.message);
 					return;
 				}
+				workingPromaxId = data.id;
+				promaxId = workingPromaxId;
 
-				promaxId = data.id;
-
-				// Replace URL: swap template_id for id
+				// Update URL
 				const url = new URL($page.url);
 				url.searchParams.delete('template_id');
-				url.searchParams.set('id', promaxId!);
+				url.searchParams.set('id', workingPromaxId);
 				goto(url.toString(), { replaceState: true });
+			}
+
+			// 2. Handle Image Uploads (now that we definitely have a promaxId)
+			const uploadSuccess = await uploadShapeImages(workingPromaxId);
+			if (!uploadSuccess) return;
+
+			// 3. Final Update with permanent URLs
+			const dataPayload = {
+				config: template_config,
+				contents: template_contents
+			};
+
+			const profile = $userProfile;
+			const { error: finalError } = await supabase
+				.from('promax')
+				.update({
+					data: dataPayload,
+					updated_at: new Date().toISOString(),
+					updated_by: profile?.email ?? null,
+					updated_by_name: profile ? `${profile.firstName} ${profile.lastName}`.trim() : null
+				})
+				.eq('id', workingPromaxId);
+
+			if (finalError) {
+				toastError(finalError.message);
+				return;
 			}
 
 			toastSuccess('Changes saved');
@@ -155,6 +220,16 @@
 					const dialIndex = template_contents.findIndex(s => s.id === editingShape?.functionLink);
 					if (dialIndex !== -1) {
 						template_contents[dialIndex].backgroundColor = editedColor;
+						
+						// Handle deferred image
+						if (selectedFile) {
+							template_contents[dialIndex].file = selectedFile;
+							template_contents[dialIndex].backgroundImage = previewUrl || undefined;
+						} else if (previewUrl === null && editedBackgroundImage === null) {
+							// User explicitly removed image
+							template_contents[dialIndex].file = undefined;
+							template_contents[dialIndex].backgroundImage = undefined;
+						}
 					}
 				}
 			}
@@ -162,6 +237,8 @@
 		
 		isEditingDescription = false;
 		editingShape = null;
+		selectedFile = null;
+		previewUrl = null;
 	}
 
 	$effect(() => {
@@ -416,6 +493,46 @@
 						bind:value={editedColor}
 						class="w-12 h-12 p-1 rounded cursor-pointer border-none bg-transparent"
 					/>
+				</div>
+
+				<div class="flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+					<div class="flex items-center justify-between">
+						<div class="flex flex-col gap-1">
+							<span class="text-sm font-semibold text-gray-700">Dial Background Image</span>
+							<span class="text-xs text-gray-500">Upload an image as background</span>
+						</div>
+					</div>
+					
+					<div class="flex items-center gap-4 mt-2">
+						{#if previewUrl || editedBackgroundImage}
+							<div class="w-12 h-12 rounded border border-gray-300 overflow-hidden bg-white flex-shrink-0">
+								<img src={previewUrl || editedBackgroundImage} alt="Preview" class="w-full h-full object-cover" />
+							</div>
+						{/if}
+						<label class="flex-1">
+							<input
+								type="file"
+								accept="image/*"
+								onchange={handleFileChange}
+								class="hidden"
+							/>
+							<div class="px-4 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 cursor-pointer text-center transition-colors">
+								{selectedFile ? 'Change Image' : 'Choose Image'}
+							</div>
+						</label>
+						{#if selectedFile || editedBackgroundImage}
+							<button 
+								class="p-2 text-gray-400 hover:text-red-500 transition-colors"
+								onclick={() => {
+									selectedFile = null;
+									previewUrl = null;
+									editedBackgroundImage = null;
+								}}
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+							</button>
+						{/if}
+					</div>
 				</div>
 			</div>
 		{/if}
@@ -694,4 +811,3 @@
 		text-decoration: underline;
 	}
 </style>
-

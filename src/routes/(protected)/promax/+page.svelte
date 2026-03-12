@@ -250,6 +250,16 @@
 		previewUrl = null;
 	}
 
+	function handleCreateNew() {
+		const url = new URL($page.url);
+		url.searchParams.delete('id');
+		url.searchParams.delete('template_id');
+		goto(url.toString());
+		// Reset local state
+		promaxId = null;
+		templateName = '';
+	}
+
 	$effect(() => {
 		const id = $page.url.searchParams.get('id');
 		const tmplId = $page.url.searchParams.get('template_id');
@@ -422,6 +432,10 @@
 			<aside class="side-column">
 				<div class="sidebar-header">
 					<h2>Saved Records</h2>
+					<button class="create-new-btn" onclick={handleCreateNew}>
+						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+						New
+					</button>
 				</div>
 				<div class="sidebar-content">
 					{#if rowsLoading}
@@ -691,16 +705,48 @@
 	}
 
 	.sidebar-header {
-		padding: 1.25rem 1.5rem;
+		padding: 1rem 1.5rem;
 		border-bottom: 1px solid #e5e7eb;
 		flex-shrink: 0;
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		background: white;
 	}
 
 	.sidebar-header h2 {
 		margin: 0;
-		font-size: 1rem;
+		font-size: 0.875rem;
+		font-weight: 700;
+		color: #111827;
+		text-transform: uppercase;
+		letter-spacing: 0.025em;
+	}
+
+	.create-new-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		padding: 0.5rem 0.875rem;
+		background-color: #2563eb;
+		color: white;
+		border: none;
+		border-radius: 0.5rem;
+		font-size: 0.75rem;
 		font-weight: 600;
-		color: #374151;
+		cursor: pointer;
+		transition: all 0.2s;
+		box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+	}
+
+	.create-new-btn:hover {
+		background-color: #1d4ed8;
+		transform: translateY(-1px);
+		box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+	}
+
+	.create-new-btn:active {
+		transform: translateY(0);
 	}
 
 	.sidebar-content {

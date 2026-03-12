@@ -41,6 +41,10 @@
 	let showTemplatePicker = $state(false);
 	let availableTemplates = $state<any[]>([]);
 	let templatesLoading = $state(false);
+	
+	// Saved ProMax Rows State
+	let savedPromaxRows = $state<any[]>([]);
+	let rowsLoading = $state(false);
 
 
 
@@ -259,6 +263,33 @@
 		};
 	});
 
+	// Fetch saved promax rows
+	$effect(() => {
+		let cancelled = false;
+		rowsLoading = true;
+		(async () => {
+			const { data, error } = await supabase
+				.from('promax')
+				.select('id, name, created_at')
+				.is('deleted_at', null)
+				.order('created_at', { ascending: false });
+
+			if (cancelled) return;
+			rowsLoading = false;
+
+			if (error) {
+				console.error('Error fetching promax rows:', error);
+				return;
+			}
+
+			savedPromaxRows = data || [];
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	});
+
 
 </script>
 
@@ -303,8 +334,35 @@
 
 			<!-- Right Column: Empty for now -->
 			<aside class="side-column">
-				<div class="empty-placeholder">
-					<!-- Future content goes here -->
+				<div class="sidebar-header">
+					<h2>Saved Records</h2>
+				</div>
+				<div class="sidebar-content">
+					{#if rowsLoading}
+						<div class="sidebar-loading">
+							<div class="spinner-small"></div>
+							<p>Loading records...</p>
+						</div>
+					{:else if savedPromaxRows.length === 0}
+						<p class="empty-msg">No saved records found.</p>
+					{:else}
+						<div class="saved-rows-list">
+							{#each savedPromaxRows as row}
+								<button 
+									class="saved-row-item {promaxId === row.id ? 'active' : ''}"
+									onclick={() => {
+										const url = new URL($page.url);
+										url.searchParams.delete('template_id');
+										url.searchParams.set('id', row.id);
+										goto(url.toString());
+									}}
+								>
+									<span class="row-name">{row.name || 'Untitled'}</span>
+									<span class="row-date">{new Date(row.created_at).toLocaleDateString()}</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</aside>
 		</div>
@@ -494,7 +552,85 @@
 		background: white;
 		display: flex;
 		flex-direction: column;
+		overflow: hidden;
+		border-left: 1px solid #e5e7eb;
+	}
+
+	.sidebar-header {
+		padding: 1.25rem 1.5rem;
+		border-bottom: 1px solid #e5e7eb;
+		flex-shrink: 0;
+	}
+
+	.sidebar-header h2 {
+		margin: 0;
+		font-size: 1rem;
+		font-weight: 600;
+		color: #374151;
+	}
+
+	.sidebar-content {
+		flex: 1;
 		overflow-y: auto;
+		padding: 1rem;
+	}
+
+	.saved-rows-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.saved-row-item {
+		display: flex;
+		flex-direction: column;
+		padding: 0.875rem 1rem;
+		border: 1px solid #f3f4f6;
+		border-radius: 0.5rem;
+		background: #f9fafb;
+		text-align: left;
+		cursor: pointer;
+		transition: all 0.2s;
+	}
+
+	.saved-row-item:hover {
+		background: #f3f4f6;
+		border-color: #e5e7eb;
+	}
+
+	.saved-row-item.active {
+		background: #eff6ff;
+		border-color: #bfdbfe;
+		box-shadow: 0 0 0 1px #bfdbfe;
+	}
+
+	.row-name {
+		font-weight: 500;
+		color: #111827;
+		font-size: 0.875rem;
+	}
+
+	.row-date {
+		font-size: 0.75rem;
+		color: #6b7280;
+		margin-top: 0.25rem;
+	}
+
+	.sidebar-loading, .empty-msg {
+		text-align: center;
+		padding: 2rem;
+		color: #6b7280;
+		font-size: 0.875rem;
+	}
+
+	.spinner-small {
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 2px solid #e5e7eb;
+		border-top-color: #2563eb;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+		margin: 0 auto 0.5rem;
 	}
 
 	.canvas-container {

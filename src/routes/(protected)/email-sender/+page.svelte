@@ -1,45 +1,41 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { fade, fly } from 'svelte/transition';
-    import { fetchCustomers, getCustomerDisplayName, type Customer } from '$lib/services/customers';
 
-    let customers = $state<Customer[]>([]);
-    let isLoading = $state(true);
-    let error = $state<string | null>(null);
-    let searchQuery = $state('');
-    
-    onMount(async () => {
-        try {
-            customers = await fetchCustomers(0, 100);
-        } catch (e) {
-            error = 'Failed to load customers. Please try again later.';
-            console.error(e);
-        } finally {
-            isLoading = false;
-        }
-    });
-    
-    let filteredCustomers = $derived(
-        customers.filter(c => {
-            const name = getCustomerDisplayName(c).toLowerCase();
-            const email = (c.EmailAddress || '').toLowerCase();
-            const query = searchQuery.toLowerCase();
-            return name.includes(query) || email.includes(query);
-        })
-    );
-
-    function getStatusColor(balance: number | undefined) {
-        if (balance === undefined) return 'bg-gray-100 text-gray-700 border-gray-200';
-        if (balance > 1000) return 'bg-rose-100 text-rose-700 border-rose-200';
-        if (balance > 0) return 'bg-amber-100 text-amber-700 border-amber-200';
-        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    interface Customer {
+        username: string;
+        email: string;
+        balance: number;
+        manager: string;
+        status: 'active' | 'on-hold' | 'inactive';
     }
 
-    function getStatusLabel(balance: number | undefined) {
-        if (balance === undefined) return 'unknown';
-        if (balance > 1000) return 'overdue';
-        if (balance > 0) return 'active';
-        return 'clear';
+    // Sample data
+    let customers = $state<Customer[]>([
+        { username: 'Global Solutions', email: 'billing@globalsolutions.com', balance: 1250.50, manager: 'John Smith', status: 'active' },
+        { username: 'Lumina Tech', email: 'accounts@lumina.io', balance: 450.00, manager: 'Sarah Johnson', status: 'active' },
+        { username: 'Velocity Logistics', email: 'finance@velocity.com', balance: 0, manager: 'Mark Wilson', status: 'active' },
+        { username: 'Starlight Retail', email: 'payables@starlight.co', balance: 3200.75, manager: 'John Smith', status: 'on-hold' },
+        { username: 'Evergreen Organics', email: 'hello@evergreen.com', balance: 15.20, manager: 'Emma Davis', status: 'active' },
+        { username: 'Nexus Core', email: 'admin@nexus.com', balance: 890.30, manager: 'Sarah Johnson', status: 'inactive' },
+    ]);
+
+    let searchQuery = $state('');
+    
+    let filteredCustomers = $derived(
+        customers.filter(c => 
+            c.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            c.email.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+    );
+
+    function getStatusColor(status: string) {
+        switch (status) {
+            case 'active': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            case 'on-hold': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'inactive': return 'bg-rose-100 text-rose-700 border-rose-200';
+            default: return 'bg-gray-100 text-gray-700 border-gray-200';
+        }
     }
 </script>
 
@@ -83,61 +79,44 @@
                     <tr>
                         <th>Customer</th>
                         <th>Email Address</th>
-                        <th>Phone</th>
+                        <th>Account Manager</th>
                         <th>Balance</th>
                         <th>Status</th>
                         <th class="text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {#if isLoading}
+                    {#each filteredCustomers as customer (customer.email)}
+                        <tr in:fade={{ duration: 300 }}>
+                            <td class="font-bold text-slate-800">{customer.username}</td>
+                            <td class="text-slate-500">{customer.email}</td>
+                            <td>
+                                <div class="manager-chip">
+                                    <div class="avatar">{customer.manager.charAt(0)}</div>
+                                    {customer.manager}
+                                </div>
+                            </td>
+                            <td class="font-mono ${customer.balance > 1000 ? 'text-rose-600 font-bold' : 'text-slate-700'}">
+                                ${customer.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td>
+                                <span class="status-badge {getStatusColor(customer.status)}">
+                                    {customer.status}
+                                </span>
+                            </td>
+                            <td class="text-right">
+                                <button class="action-btn" title="Compose Email">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.5.8 1.2.8 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10.4"/><path d="m16 2 5.2 5.2c.2.2.3.4.3.7 0 .3-.1.5-.3.7L10 20.1l-5 1 1-5L17.5 4.6c.2-.2.4-.3.7-.3.3 0 .5.1.7.3Z"/></svg>
+                                </button>
+                            </td>
+                        </tr>
+                    {/each}
+                    {#if filteredCustomers.length === 0}
                         <tr>
                             <td colspan="6" class="empty-state">
-                                <div class="loading-spinner"></div>
-                                Loading customer data...
+                                No customers found matching your search.
                             </td>
                         </tr>
-                    {:else if error}
-                        <tr>
-                            <td colspan="6" class="empty-state text-rose-500">
-                                {error}
-                            </td>
-                        </tr>
-                    {:else}
-                        {#each filteredCustomers as customer (customer.Username)}
-                            <tr in:fade={{ duration: 300 }}>
-                                <td class="font-bold text-slate-800">{getCustomerDisplayName(customer)}</td>
-                                <td class="text-slate-500">
-                                    {customer.EmailAddress}
-                                    {#if customer.SecondaryEmailAddress}
-                                        <div class="text-xs text-slate-400">{customer.SecondaryEmailAddress}</div>
-                                    {/if}
-                                </td>
-                                <td>
-                                    {customer.BillingAddress?.BillPhone || 'N/A'}
-                                </td>
-                                <td class="font-mono {(customer.AccountBalance ?? 0) > 1000 ? 'text-rose-600 font-bold' : 'text-slate-700'}">
-                                    ${(customer.AccountBalance ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </td>
-                                <td>
-                                    <span class="status-badge {getStatusColor(customer.AccountBalance)}">
-                                        {getStatusLabel(customer.AccountBalance)}
-                                    </span>
-                                </td>
-                                <td class="text-right">
-                                    <button class="action-btn" title="Compose Email">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.5.8 1.2.8 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10.4"/><path d="m16 2 5.2 5.2c.2.2.3.4.3.7 0 .3-.1.5-.3.7L10 20.1l-5 1 1-5L17.5 4.6c.2-.2.4-.3.7-.3.3 0 .5.1.7.3Z"/></svg>
-                                    </button>
-                                </td>
-                            </tr>
-                        {/each}
-                        {#if filteredCustomers.length === 0}
-                            <tr>
-                                <td colspan="6" class="empty-state">
-                                    No customers found matching your search.
-                                </td>
-                            </tr>
-                        {/if}
                     {/if}
                 </tbody>
             </table>
@@ -341,21 +320,6 @@
         padding: 4rem !important;
         color: #94a3b8;
         font-style: italic;
-    }
-
-    .loading-spinner {
-        width: 30px;
-        height: 30px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #3b82f6;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 1rem;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
     }
 
     .text-right { text-align: right; }

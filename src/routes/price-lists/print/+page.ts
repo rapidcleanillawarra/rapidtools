@@ -24,6 +24,8 @@ type PriceListData = {
 	includeRrp?: boolean;
 	crossRrp?: boolean;
 	includeDescription?: boolean;
+	includePrice?: boolean;
+	includeQuantity?: boolean;
 	error?: string;
 };
 
@@ -96,6 +98,8 @@ export const load: PageLoad = async ({ url }) => {
 	const includeRrp = url.searchParams.get('includeRrp') === 'true';
 	const crossRrp = url.searchParams.get('crossRrp') === 'true';
 	const includeDescription = url.searchParams.get('includeDescription') !== 'false';
+	const includePrice = url.searchParams.get('includePrice') !== 'false';
+	const includeQuantity = url.searchParams.get('includeQuantity') === 'true';
 
 	if (!id) {
 		return {
@@ -106,6 +110,8 @@ export const load: PageLoad = async ({ url }) => {
 			includeRrp,
 			crossRrp,
 			includeDescription,
+			includePrice,
+			includeQuantity,
 			error: 'No price list ID provided'
 		} satisfies PriceListData;
 	}
@@ -127,6 +133,8 @@ export const load: PageLoad = async ({ url }) => {
 			includeRrp,
 			crossRrp,
 			includeDescription,
+			includePrice,
+			includeQuantity,
 			error: 'Price list not found'
 		} satisfies PriceListData;
 		}
@@ -171,7 +179,9 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
-			includeDescription
+			includeDescription,
+			includePrice,
+			includeQuantity
 		} satisfies PriceListData;
 	} catch (err) {
 		console.error('Unexpected error:', err);
@@ -183,6 +193,8 @@ export const load: PageLoad = async ({ url }) => {
 			includeRrp,
 			crossRrp,
 			includeDescription,
+			includePrice,
+			includeQuantity,
 			error: 'Failed to load price list'
 		} satisfies PriceListData;
 	}

@@ -23,10 +23,18 @@
 		includeRrp?: boolean;
 		crossRrp?: boolean;
 		includeDescription?: boolean;
+		includePrice?: boolean;
+		includeQuantity?: boolean;
 		error?: string;
 	};
 
 	$: isListMode = data.mode === 'list';
+	$: listColspan =
+		3 +
+		(data.includeDescription !== false ? 1 : 0) +
+		(data.includePrice !== false ? 1 : 0) +
+		(data.includeRrp ? 1 : 0) +
+		(data.includeQuantity ? 1 : 0);
 
 	let printTriggered = false;
 
@@ -105,7 +113,7 @@ onMount(() => {
 							
 							{#if item.kind === 'static' && item.staticType === 'page_break'}
 								<tr class="page-break-row">
-									<td colspan={4 + (data.includeDescription !== false ? 1 : 0) + (data.includeRrp ? 1 : 0)} class="page-break-cell">
+									<td colspan={listColspan} class="page-break-cell">
 										<div class="page-break-header is-break">
 											<div class="page-break-header-inner">
 												<img
@@ -121,13 +129,13 @@ onMount(() => {
 								</tr>
 							{:else if item.kind === 'static' && item.staticType === 'range'}
 								<tr class="range-row">
-									<td colspan={4 + (data.includeDescription !== false ? 1 : 0) + (data.includeRrp ? 1 : 0)} class="range-cell">
+									<td colspan={listColspan} class="range-cell">
 										<span class="range-label">{item.value || 'Range'}</span>
 									</td>
 								</tr>
 							{:else if item.kind === 'static' && item.staticType === 'category'}
 								<tr class="category-row">
-									<td colspan={4 + (data.includeDescription !== false ? 1 : 0) + (data.includeRrp ? 1 : 0)} class="category-cell">
+									<td colspan={listColspan} class="category-cell">
 										<span class="category-label">{item.value || 'Category'}</span>
 									</td>
 								</tr>
@@ -139,9 +147,14 @@ onMount(() => {
 									{#if data.includeDescription !== false}
 										<th class="col-description table-header-cell">Description</th>
 									{/if}
-									<th class="col-price table-header-cell">Price</th>
+									{#if data.includePrice !== false}
+										<th class="col-price table-header-cell">Price</th>
+									{/if}
 									{#if data.includeRrp}
 										<th class="col-rrp table-header-cell">RRP</th>
+									{/if}
+									{#if data.includeQuantity}
+										<th class="col-qty table-header-cell">Qty</th>
 									{/if}
 								</tr>
 							{:else if item.kind === 'sku'}
@@ -154,9 +167,14 @@ onMount(() => {
 										{#if data.includeDescription !== false}
 											<th class="col-description table-header-cell">Description</th>
 										{/if}
-										<th class="col-price table-header-cell">Price</th>
+										{#if data.includePrice !== false}
+											<th class="col-price table-header-cell">Price</th>
+										{/if}
 										{#if data.includeRrp}
 											<th class="col-rrp table-header-cell">RRP</th>
+										{/if}
+										{#if data.includeQuantity}
+											<th class="col-qty table-header-cell">Qty</th>
 										{/if}
 									</tr>
 								{/if}
@@ -178,9 +196,14 @@ onMount(() => {
 									{#if data.includeDescription !== false}
 										<td class="col-description table-cell">{item.shortDescription || '—'}</td>
 									{/if}
-									<td class="col-price table-cell">${item.price || '—'}</td>
+									{#if data.includePrice !== false}
+										<td class="col-price table-cell">${item.price || '—'}</td>
+									{/if}
 									{#if data.includeRrp}
 										<td class="col-rrp table-cell {data.crossRrp ? 'crossed' : ''}">{item.rrp || '—'}</td>
+									{/if}
+									{#if data.includeQuantity}
+										<td class="col-qty table-cell" aria-label="Quantity"></td>
 									{/if}
 								</tr>
 							{/if}
@@ -245,14 +268,21 @@ onMount(() => {
 								{#if item.model || item.note}
 									<p class="product-model">{[item.model, item.note].filter(Boolean).join(' — ')}</p>
 								{/if}
-								<div class="product-pricing">
-									<span class="product-price">${item.price}</span>
-									{#if data.includeRrp && item.rrp}
-										<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">RRP: ${item.rrp}</span>
-									{/if}
-								</div>
+								{#if (data.includePrice !== false) || (data.includeRrp && item.rrp)}
+									<div class="product-pricing">
+										{#if data.includePrice !== false}
+											<span class="product-price">${item.price}</span>
+										{/if}
+										{#if data.includeRrp && item.rrp}
+											<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">RRP: ${item.rrp}</span>
+										{/if}
+									</div>
+								{/if}
 								{#if data.includeDescription !== false && item.shortDescription}
 									<p class="product-description">{item.shortDescription}</p>
+								{/if}
+								{#if data.includeQuantity}
+									<div class="product-qty-blank" role="presentation" aria-hidden="true"></div>
 								{/if}
 							</div>
 						</div>
@@ -504,6 +534,12 @@ onMount(() => {
 
 	.col-rrp.crossed {
 		text-decoration: line-through;
+	}
+
+	.col-qty {
+		width: 56px;
+		min-height: 2.5rem;
+		text-align: center;
 	}
 
 	.list-image {
@@ -764,6 +800,14 @@ onMount(() => {
 		margin-top: 4px;
 	}
 
+	.product-qty-blank {
+		margin-top: 10px;
+		min-height: 32px;
+		border: 1px dashed #d1d5db;
+		border-radius: 4px;
+		background: #fafafa;
+	}
+
 	/* Print styles */
 	@media print {
 		@page {
@@ -863,6 +907,11 @@ onMount(() => {
 			width: 80px;
 		}
 
+		.col-qty {
+			width: 48px;
+			min-height: 2.25rem;
+		}
+
 		.list-image {
 			width: 50px;
 			height: 50px;
@@ -960,6 +1009,12 @@ onMount(() => {
 		.product-description {
 			font-size: 0.7rem;
 			line-height: 1.4;
+		}
+
+		.product-qty-blank {
+			min-height: 28px;
+			border-color: #d1d5db;
+			background: #fff;
 		}
 	}
 

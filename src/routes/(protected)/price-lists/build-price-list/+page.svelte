@@ -24,6 +24,8 @@
   };
   type StaticItem = { id: string; label: string; type: 'page_break' | 'range' | 'category' };
 
+  type CustomColumnDef = { id: string; label: string; visible: boolean };
+
   type ColumnLabels = {
     image: string;
     sku: string;
@@ -33,6 +35,7 @@
     rrp: string;
     qty: string;
     discPrice: string;
+    customColumns: CustomColumnDef[];
   };
 
   const DEFAULT_COLUMN_LABELS: ColumnLabels = {
@@ -43,7 +46,25 @@
     price: 'Price',
     rrp: 'RRP',
     qty: 'Qty',
-    discPrice: 'Disc Price'
+    discPrice: 'Disc Price',
+    customColumns: []
+  };
+
+  const parseCustomColumns = (raw: unknown): CustomColumnDef[] => {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((item, i) => {
+        if (!item || typeof item !== 'object') return null;
+        const c = item as Record<string, unknown>;
+        const id =
+          typeof c.id === 'string' && c.id
+            ? c.id
+            : `col-${i}-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
+        const label = typeof c.label === 'string' ? c.label : 'Column';
+        const visible = typeof c.visible === 'boolean' ? c.visible : true;
+        return { id, label, visible };
+      })
+      .filter((x): x is CustomColumnDef => x !== null);
   };
 
   const mergeColumnLabels = (raw: unknown): ColumnLabels => {
@@ -58,7 +79,21 @@
       price: typeof o.price === 'string' ? o.price : DEFAULT_COLUMN_LABELS.price,
       rrp: typeof o.rrp === 'string' ? o.rrp : DEFAULT_COLUMN_LABELS.rrp,
       qty: typeof o.qty === 'string' ? o.qty : DEFAULT_COLUMN_LABELS.qty,
-      discPrice: typeof o.discPrice === 'string' ? o.discPrice : DEFAULT_COLUMN_LABELS.discPrice
+      discPrice: typeof o.discPrice === 'string' ? o.discPrice : DEFAULT_COLUMN_LABELS.discPrice,
+      customColumns: parseCustomColumns(o.customColumns)
+    };
+  };
+
+  const addCustomColumn = () => {
+    const id = crypto.randomUUID ? crypto.randomUUID() : `col-${Date.now()}`;
+    const next = [...(columnLabels.customColumns ?? []), { id, label: 'Column', visible: true }];
+    columnLabels = { ...columnLabels, customColumns: next };
+  };
+
+  const removeCustomColumn = (id: string) => {
+    columnLabels = {
+      ...columnLabels,
+      customColumns: (columnLabels.customColumns ?? []).filter((c) => c.id !== id)
     };
   };
 
@@ -1175,7 +1210,8 @@
           <div>
             <h2 class="text-sm font-semibold text-gray-900">Column modifier</h2>
             <p class="text-xs text-gray-600 mt-0.5">
-              Rename table headers for the SKU list above and for list-style print output.
+              Rename table headers for the SKU list above and for list-style print output. Extra columns print
+              blank cells for handwriting or notes.
             </p>
           </div>
           <button
@@ -1251,6 +1287,71 @@
               bind:value={columnLabels.qty}
             />
           </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4 mt-2 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs font-semibold text-gray-800">Extra columns (list &amp; thumb print)</p>
+            <button
+              type="button"
+              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+              on:click={addCustomColumn}
+            >
+              Add column
+            </button>
+          </div>
+          {#if (columnLabels.customColumns ?? []).length === 0}
+            <p class="text-xs text-gray-500">No extra columns. Add one to show a labeled blank column on print.</p>
+          {:else}
+            <ul class="space-y-2">
+              {#each columnLabels.customColumns ?? [] as cc (cc.id)}
+                <li
+                  class="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-white px-3 py-2"
+                >
+                  <label class="sr-only" for={`custom-col-label-${cc.id}`}>Column label</label>
+                  <input
+                    id={`custom-col-label-${cc.id}`}
+                    class="min-w-[8rem] flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Header label"
+                    value={cc.label}
+                    on:input={(e) => {
+                      const v = e.currentTarget.value;
+                      columnLabels = {
+                        ...columnLabels,
+                        customColumns: (columnLabels.customColumns ?? []).map((c) =>
+                          c.id === cc.id ? { ...c, label: v } : c
+                        )
+                      };
+                    }}
+                  />
+                  <label class="inline-flex items-center gap-2 text-xs text-gray-700 shrink-0">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={cc.visible}
+                      on:change={(e) => {
+                        const v = e.currentTarget.checked;
+                        columnLabels = {
+                          ...columnLabels,
+                          customColumns: (columnLabels.customColumns ?? []).map((c) =>
+                            c.id === cc.id ? { ...c, visible: v } : c
+                          )
+                        };
+                      }}
+                    />
+                    Show on print
+                  </label>
+                  <button
+                    type="button"
+                    class="text-xs font-semibold text-red-700 hover:text-red-900 shrink-0"
+                    on:click={() => removeCustomColumn(cc.id)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              {/each}
+            </ul>
+          {/if}
         </div>
       </div>
 

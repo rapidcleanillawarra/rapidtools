@@ -16,6 +16,8 @@ type PriceListItem = {
 	value?: string;
 };
 
+type CustomColumnDef = { id: string; label: string; visible: boolean };
+
 type ColumnLabels = {
 	image: string;
 	sku: string;
@@ -25,6 +27,7 @@ type ColumnLabels = {
 	rrp: string;
 	qty: string;
 	discPrice: string;
+	customColumns: CustomColumnDef[];
 };
 
 const DEFAULT_COLUMN_LABELS: ColumnLabels = {
@@ -35,7 +38,25 @@ const DEFAULT_COLUMN_LABELS: ColumnLabels = {
 	price: 'Price',
 	rrp: 'RRP',
 	qty: 'Qty',
-	discPrice: 'Disc Price'
+	discPrice: 'Disc Price',
+	customColumns: []
+};
+
+const parseCustomColumns = (raw: unknown): CustomColumnDef[] => {
+	if (!Array.isArray(raw)) return [];
+	return raw
+		.map((item, i) => {
+			if (!item || typeof item !== 'object') return null;
+			const c = item as Record<string, unknown>;
+			const id =
+				typeof c.id === 'string' && c.id
+					? c.id
+					: `col-${i}-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
+			const label = typeof c.label === 'string' ? c.label : 'Column';
+			const visible = typeof c.visible === 'boolean' ? c.visible : true;
+			return { id, label, visible };
+		})
+		.filter((x): x is CustomColumnDef => x !== null);
 };
 
 const mergeColumnLabels = (...sources: unknown[]): ColumnLabels => {
@@ -52,7 +73,8 @@ const mergeColumnLabels = (...sources: unknown[]): ColumnLabels => {
 			...(typeof o.price === 'string' ? { price: o.price } : {}),
 			...(typeof o.rrp === 'string' ? { rrp: o.rrp } : {}),
 			...(typeof o.qty === 'string' ? { qty: o.qty } : {}),
-			...(typeof o.discPrice === 'string' ? { discPrice: o.discPrice } : {})
+			...(typeof o.discPrice === 'string' ? { discPrice: o.discPrice } : {}),
+			...(Array.isArray(o.customColumns) ? { customColumns: parseCustomColumns(o.customColumns) } : {})
 		};
 	}
 	return out;

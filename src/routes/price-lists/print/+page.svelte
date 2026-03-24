@@ -34,6 +34,7 @@
 			rrp: string;
 			qty: string;
 			discPrice: string;
+			customColumns?: { id: string; label: string; visible: boolean }[];
 		};
 		error?: string;
 	};
@@ -46,8 +47,11 @@
 		price: 'Price',
 		rrp: 'RRP',
 		qty: 'Qty',
-		discPrice: 'Disc Price'
+		discPrice: 'Disc Price',
+		customColumns: []
 	};
+
+	$: visibleCustomCols = (col.customColumns ?? []).filter((c) => c.visible);
 
 	$: isListMode = data.mode === 'list';
 	$: listColspan =
@@ -55,7 +59,8 @@
 		(data.includeDescription !== false ? 1 : 0) +
 		(data.includePrice !== false ? 1 : 0) +
 		(data.includeRrp ? 1 : 0) +
-		(data.includeQuantity ? 1 : 0);
+		(data.includeQuantity ? 1 : 0) +
+		visibleCustomCols.length;
 
 	let printTriggered = false;
 
@@ -177,6 +182,9 @@ onMount(() => {
 									{#if data.includeQuantity}
 										<th class="col-qty table-header-cell">{col.qty}</th>
 									{/if}
+									{#each visibleCustomCols as cc}
+										<th class="col-custom table-header-cell">{cc.label}</th>
+									{/each}
 								</tr>
 							{:else if item.kind === 'sku'}
 								{#if shouldShowHeaderBeforeSku}
@@ -197,6 +205,9 @@ onMount(() => {
 										{#if data.includeQuantity}
 											<th class="col-qty table-header-cell">{col.qty}</th>
 										{/if}
+										{#each visibleCustomCols as cc}
+											<th class="col-custom table-header-cell">{cc.label}</th>
+										{/each}
 									</tr>
 								{/if}
 								<tr class="list-item-row">
@@ -226,6 +237,9 @@ onMount(() => {
 									{#if data.includeQuantity}
 										<td class="col-qty table-cell" aria-label={col.qty}></td>
 									{/if}
+									{#each visibleCustomCols as cc}
+										<td class="col-custom table-cell" aria-label={cc.label}></td>
+									{/each}
 								</tr>
 							{/if}
 						{/each}
@@ -304,6 +318,18 @@ onMount(() => {
 								{/if}
 								{#if data.includeQuantity}
 									<div class="product-qty-blank" role="presentation" aria-hidden="true"></div>
+								{/if}
+								{#if visibleCustomCols.length}
+									<div class="product-custom-blanks" role="group" aria-label="Extra columns">
+										{#each visibleCustomCols as cc}
+											<div
+												class="product-custom-blank"
+												role="presentation"
+												title={cc.label}
+												aria-label={cc.label}
+											></div>
+										{/each}
+									</div>
 								{/if}
 							</div>
 						</div>
@@ -559,6 +585,12 @@ onMount(() => {
 
 	.col-qty {
 		width: 56px;
+		min-height: 2.5rem;
+		text-align: center;
+	}
+
+	.col-custom {
+		width: 72px;
 		min-height: 2.5rem;
 		text-align: center;
 	}
@@ -829,6 +861,22 @@ onMount(() => {
 		background: #fafafa;
 	}
 
+	.product-custom-blanks {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-top: 10px;
+	}
+
+	.product-custom-blank {
+		flex: 1;
+		min-width: 48px;
+		min-height: 32px;
+		border: 1px dashed #d1d5db;
+		border-radius: 4px;
+		background: #fafafa;
+	}
+
 	/* Print styles */
 	@media print {
 		@page {
@@ -930,6 +978,11 @@ onMount(() => {
 
 		.col-qty {
 			width: 48px;
+			min-height: 2.25rem;
+		}
+
+		.col-custom {
+			width: 56px;
 			min-height: 2.25rem;
 		}
 

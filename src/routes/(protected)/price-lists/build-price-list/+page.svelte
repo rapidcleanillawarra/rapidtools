@@ -120,6 +120,9 @@
   let showDescription = true;
   let showPriceInPrint = true;
   let showQuantityColumnInPrint = false;
+  let noteFontSizeInPrint = 12;
+  let noteFontWeightInPrint: 'normal' | 'bold' = 'normal';
+  let noteFontStyleInPrint: 'normal' | 'italic' = 'normal';
   const staticItems: StaticItem[] = [
     { id: 'page-break', label: 'Page Break', type: 'page_break' },
     { id: 'range', label: 'Range', type: 'range' },
@@ -786,9 +789,12 @@
       const descParam = showDescription ? '' : '&includeDescription=false';
       const priceParam = showPriceInPrint ? '' : '&includePrice=false';
       const qtyParam = showQuantityColumnInPrint ? '&includeQuantity=true' : '';
+      const noteFontSizeParam = `&noteFontSize=${noteFontSizeInPrint}`;
+      const noteFontWeightParam = `&noteFontWeight=${encodeURIComponent(noteFontWeightInPrint)}`;
+      const noteFontStyleParam = `&noteFontStyle=${encodeURIComponent(noteFontStyleInPrint)}`;
       const colLabelsParam = `&colLabels=${encodeURIComponent(JSON.stringify(columnLabels))}`;
       window.open(
-        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}${colLabelsParam}`,
+        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}${noteFontSizeParam}${noteFontWeightParam}${noteFontStyleParam}${colLabelsParam}`,
         '_blank'
       );
     }
@@ -1401,6 +1407,41 @@
               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
             <label for="show-qty-column" class="text-sm text-gray-700">Include quantity column (blank)</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="note-font-size" class="text-sm text-gray-700">Note font size</label>
+            <input
+              id="note-font-size"
+              type="number"
+              min="8"
+              max="24"
+              step="1"
+              class="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={noteFontSizeInPrint}
+            />
+            <span class="text-sm text-gray-500">px</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="note-font-weight" class="text-sm text-gray-700">Note weight</label>
+            <select
+              id="note-font-weight"
+              class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={noteFontWeightInPrint}
+            >
+              <option value="normal">Normal</option>
+              <option value="bold">Bold</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="note-font-style" class="text-sm text-gray-700">Note style</label>
+            <select
+              id="note-font-style"
+              class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={noteFontStyleInPrint}
+            >
+              <option value="normal">Normal</option>
+              <option value="italic">Italic</option>
+            </select>
           </div>
         </div>
         {#if saveMessage}

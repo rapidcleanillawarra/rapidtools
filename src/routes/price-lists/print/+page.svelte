@@ -25,6 +25,9 @@
 		includeDescription?: boolean;
 		includePrice?: boolean;
 		includeQuantity?: boolean;
+		noteFontSize?: number;
+		noteFontWeight?: 'normal' | 'bold';
+		noteFontStyle?: 'normal' | 'italic';
 		columnLabels?: {
 			image: string;
 			sku: string;
@@ -54,6 +57,10 @@
 	$: visibleCustomCols = (col.customColumns ?? []).filter((c) => c.visible);
 
 	$: isListMode = data.mode === 'list';
+	$: noteFontSize = Number.isFinite(data.noteFontSize) ? Number(data.noteFontSize) : 12;
+	$: noteFontWeight = data.noteFontWeight === 'bold' ? 'bold' : 'normal';
+	$: noteFontStyle = data.noteFontStyle === 'italic' ? 'italic' : 'normal';
+	$: noteInlineStyle = `font-size: ${noteFontSize}px; font-weight: ${noteFontWeight}; font-style: ${noteFontStyle};`;
 	$: listColspan =
 		3 +
 		(data.includeDescription !== false ? 1 : 0) +
@@ -224,7 +231,17 @@ onMount(() => {
 										{/if}
 									</td>
 									<td class="col-sku table-cell">{item.sku}</td>
-									<td class="col-model table-cell">{[item.model, item.note].filter(Boolean).join(' — ') || '—'}</td>
+									<td class="col-model table-cell">
+										{#if item.model}
+											<span>{item.model}</span>
+										{/if}
+										{#if item.note}
+											<span class="print-note-text" style={noteInlineStyle}>{item.model ? ` - ${item.note}` : item.note}</span>
+										{/if}
+										{#if !item.model && !item.note}
+											<span>—</span>
+										{/if}
+									</td>
 									{#if data.includeDescription !== false}
 										<td class="col-description table-cell">{item.shortDescription || '—'}</td>
 									{/if}
@@ -301,7 +318,14 @@ onMount(() => {
 							<div class="product-details">
 								<p class="product-sku">{item.sku}</p>
 								{#if item.model || item.note}
-									<p class="product-model">{[item.model, item.note].filter(Boolean).join(' — ')}</p>
+									<p class="product-model">
+										{#if item.model}
+											<span>{item.model}</span>
+										{/if}
+										{#if item.note}
+											<span class="print-note-text" style={noteInlineStyle}>{item.model ? ` - ${item.note}` : item.note}</span>
+										{/if}
+									</p>
 								{/if}
 								{#if (data.includePrice !== false) || (data.includeRrp && item.rrp)}
 									<div class="product-pricing">
@@ -816,6 +840,10 @@ onMount(() => {
 		font-weight: 500;
 		color: #1a1a1a;
 		line-height: 1.4;
+	}
+
+	.print-note-text {
+		color: #374151;
 	}
 
 	.product-pricing {

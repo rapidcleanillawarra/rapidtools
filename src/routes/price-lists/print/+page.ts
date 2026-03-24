@@ -90,6 +90,9 @@ type PriceListData = {
 	includeDescription?: boolean;
 	includePrice?: boolean;
 	includeQuantity?: boolean;
+	noteFontSize?: number;
+	noteFontWeight?: 'normal' | 'bold';
+	noteFontStyle?: 'normal' | 'italic';
 	columnLabels: ColumnLabels;
 	error?: string;
 };
@@ -165,6 +168,12 @@ export const load: PageLoad = async ({ url }) => {
 	const includeDescription = url.searchParams.get('includeDescription') !== 'false';
 	const includePrice = url.searchParams.get('includePrice') !== 'false';
 	const includeQuantity = url.searchParams.get('includeQuantity') === 'true';
+	const noteFontSizeRaw = Number(url.searchParams.get('noteFontSize'));
+	const noteFontSize = Number.isFinite(noteFontSizeRaw)
+		? Math.min(24, Math.max(8, Math.round(noteFontSizeRaw)))
+		: 12;
+	const noteFontWeight = url.searchParams.get('noteFontWeight') === 'bold' ? 'bold' : 'normal';
+	const noteFontStyle = url.searchParams.get('noteFontStyle') === 'italic' ? 'italic' : 'normal';
 
 	let columnLabelsFromUrl: unknown;
 	const colLabelsRaw = url.searchParams.get('colLabels');
@@ -187,6 +196,9 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			noteFontSize,
+			noteFontWeight,
+			noteFontStyle,
 			columnLabels: mergeColumnLabels(columnLabelsFromUrl),
 			error: 'No price list ID provided'
 		} satisfies PriceListData;
@@ -214,6 +226,9 @@ export const load: PageLoad = async ({ url }) => {
 					includeDescription,
 					includePrice,
 					includeQuantity,
+					noteFontSize,
+					noteFontWeight,
+					noteFontStyle,
 					columnLabels: mergeColumnLabels(columnLabelsFromUrl),
 					error: 'Price list not found'
 				} satisfies PriceListData;
@@ -232,6 +247,9 @@ export const load: PageLoad = async ({ url }) => {
 				includeDescription,
 				includePrice,
 				includeQuantity,
+				noteFontSize,
+				noteFontWeight,
+				noteFontStyle,
 				columnLabels: mergeColumnLabels(columnLabelsFromUrl),
 				error: 'Price list not found'
 			} satisfies PriceListData;
@@ -282,6 +300,9 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			noteFontSize,
+			noteFontWeight,
+			noteFontStyle,
 			columnLabels
 		} satisfies PriceListData;
 	} catch (err) {
@@ -296,6 +317,9 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			noteFontSize,
+			noteFontWeight,
+			noteFontStyle,
 			columnLabels: mergeColumnLabels(columnLabelsFromUrl),
 			error: 'Failed to load price list'
 		} satisfies PriceListData;

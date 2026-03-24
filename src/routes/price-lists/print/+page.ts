@@ -16,6 +16,48 @@ type PriceListItem = {
 	value?: string;
 };
 
+type ColumnLabels = {
+	image: string;
+	sku: string;
+	name: string;
+	description: string;
+	price: string;
+	rrp: string;
+	qty: string;
+	discPrice: string;
+};
+
+const DEFAULT_COLUMN_LABELS: ColumnLabels = {
+	image: 'Image',
+	sku: 'SKU',
+	name: 'Name',
+	description: 'Description',
+	price: 'Price',
+	rrp: 'RRP',
+	qty: 'Qty',
+	discPrice: 'Disc Price'
+};
+
+const mergeColumnLabels = (...sources: unknown[]): ColumnLabels => {
+	let out: ColumnLabels = { ...DEFAULT_COLUMN_LABELS };
+	for (const raw of sources) {
+		if (!raw || typeof raw !== 'object') continue;
+		const o = raw as Record<string, unknown>;
+		out = {
+			...out,
+			...(typeof o.image === 'string' ? { image: o.image } : {}),
+			...(typeof o.sku === 'string' ? { sku: o.sku } : {}),
+			...(typeof o.name === 'string' ? { name: o.name } : {}),
+			...(typeof o.description === 'string' ? { description: o.description } : {}),
+			...(typeof o.price === 'string' ? { price: o.price } : {}),
+			...(typeof o.rrp === 'string' ? { rrp: o.rrp } : {}),
+			...(typeof o.qty === 'string' ? { qty: o.qty } : {}),
+			...(typeof o.discPrice === 'string' ? { discPrice: o.discPrice } : {})
+		};
+	}
+	return out;
+};
+
 type PriceListData = {
 	id: string | null;
 	filename: string;
@@ -26,6 +68,7 @@ type PriceListData = {
 	includeDescription?: boolean;
 	includePrice?: boolean;
 	includeQuantity?: boolean;
+	columnLabels: ColumnLabels;
 	error?: string;
 };
 
@@ -101,6 +144,16 @@ export const load: PageLoad = async ({ url }) => {
 	const includePrice = url.searchParams.get('includePrice') !== 'false';
 	const includeQuantity = url.searchParams.get('includeQuantity') === 'true';
 
+	let columnLabelsFromUrl: unknown;
+	const colLabelsRaw = url.searchParams.get('colLabels');
+	if (colLabelsRaw) {
+		try {
+			columnLabelsFromUrl = JSON.parse(decodeURIComponent(colLabelsRaw));
+		} catch {
+			columnLabelsFromUrl = undefined;
+		}
+	}
+
 	if (!id) {
 		return {
 			id: null,
@@ -112,31 +165,54 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			columnLabels: mergeColumnLabels(columnLabelsFromUrl),
 			error: 'No price list ID provided'
 		} satisfies PriceListData;
 	}
 
 	try {
-		const { data, error } = await supabase
+		const baseCols = 'id, filename, price_list_data';
+		let { data, error } = await supabase
 			.from('price_lists')
-			.select('id, filename, price_list_data')
+			.select(`${baseCols}, column_labels`)
 			.eq('id', id)
 			.single();
 
 		if (error) {
-			console.error('Supabase error:', error);
-		return {
-			id,
-			filename: '',
-			items: [],
-			mode,
-			includeRrp,
-			crossRrp,
-			includeDescription,
-			includePrice,
-			includeQuantity,
-			error: 'Price list not found'
-		} satisfies PriceListData;
+			const retry = await supabase.from('price_lists').select(baseCols).eq('id', id).single();
+			if (retry.error) {
+				console.error('Supabase error:', retry.error);
+				return {
+					id,
+					filename: '',
+					items: [],
+					mode,
+					includeRrp,
+					crossRrp,
+					includeDescription,
+					includePrice,
+					includeQuantity,
+					columnLabels: mergeColumnLabels(columnLabelsFromUrl),
+					error: 'Price list not found'
+				} satisfies PriceListData;
+			}
+			data = retry.data;
+		}
+
+		if (!data) {
+			return {
+				id,
+				filename: '',
+				items: [],
+				mode,
+				includeRrp,
+				crossRrp,
+				includeDescription,
+				includePrice,
+				includeQuantity,
+				columnLabels: mergeColumnLabels(columnLabelsFromUrl),
+				error: 'Price list not found'
+			} satisfies PriceListData;
 		}
 
 		let items: PriceListItem[] = [];
@@ -172,6 +248,8 @@ export const load: PageLoad = async ({ url }) => {
 			};
 		});
 
+		const columnLabels = mergeColumnLabels(data.column_labels, columnLabelsFromUrl);
+
 		return {
 			id: data.id,
 			filename: data.filename || 'Price List',
@@ -181,7 +259,8 @@ export const load: PageLoad = async ({ url }) => {
 			crossRrp,
 			includeDescription,
 			includePrice,
-			includeQuantity
+			includeQuantity,
+			columnLabels
 		} satisfies PriceListData;
 	} catch (err) {
 		console.error('Unexpected error:', err);
@@ -195,6 +274,7 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			columnLabels: mergeColumnLabels(columnLabelsFromUrl),
 			error: 'Failed to load price list'
 		} satisfies PriceListData;
 	}

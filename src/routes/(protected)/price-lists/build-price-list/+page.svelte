@@ -24,6 +24,46 @@
   };
   type StaticItem = { id: string; label: string; type: 'page_break' | 'range' | 'category' };
 
+  type ColumnLabels = {
+    image: string;
+    sku: string;
+    name: string;
+    description: string;
+    price: string;
+    rrp: string;
+    qty: string;
+    discPrice: string;
+  };
+
+  const DEFAULT_COLUMN_LABELS: ColumnLabels = {
+    image: 'Image',
+    sku: 'SKU',
+    name: 'Name',
+    description: 'Description',
+    price: 'Price',
+    rrp: 'RRP',
+    qty: 'Qty',
+    discPrice: 'Disc Price'
+  };
+
+  const mergeColumnLabels = (raw: unknown): ColumnLabels => {
+    if (!raw || typeof raw !== 'object') return { ...DEFAULT_COLUMN_LABELS };
+    const o = raw as Record<string, unknown>;
+    return {
+      ...DEFAULT_COLUMN_LABELS,
+      image: typeof o.image === 'string' ? o.image : DEFAULT_COLUMN_LABELS.image,
+      sku: typeof o.sku === 'string' ? o.sku : DEFAULT_COLUMN_LABELS.sku,
+      name: typeof o.name === 'string' ? o.name : DEFAULT_COLUMN_LABELS.name,
+      description: typeof o.description === 'string' ? o.description : DEFAULT_COLUMN_LABELS.description,
+      price: typeof o.price === 'string' ? o.price : DEFAULT_COLUMN_LABELS.price,
+      rrp: typeof o.rrp === 'string' ? o.rrp : DEFAULT_COLUMN_LABELS.rrp,
+      qty: typeof o.qty === 'string' ? o.qty : DEFAULT_COLUMN_LABELS.qty,
+      discPrice: typeof o.discPrice === 'string' ? o.discPrice : DEFAULT_COLUMN_LABELS.discPrice
+    };
+  };
+
+  let columnLabels: ColumnLabels = { ...DEFAULT_COLUMN_LABELS };
+
   let filename = '';
   let rows: Row[] = [];
   let builderItems: BuilderItem[] = [];
@@ -102,14 +142,22 @@
     loading = true;
     errorMessage = '';
     try {
-      const { data, error } = await supabase
+      const baseCols = 'id, filename, sku_data, price_list_data';
+      let { data, error } = await supabase
         .from('price_lists')
-        .select('id, filename, sku_data, price_list_data')
+        .select(`${baseCols}, column_labels`)
         .eq('id', id)
         .single();
 
       if (error) {
-        throw error;
+        const retry = await supabase.from('price_lists').select(baseCols).eq('id', id).single();
+        if (retry.error) throw retry.error;
+        data = retry.data as NonNullable<typeof data>;
+        error = null;
+      }
+
+      if (!data) {
+        throw new Error('No data');
       }
 
       latestPriceListId = data?.id ?? null;
@@ -161,6 +209,7 @@
           }))
         : [];
       builderItems = serverBuilder;
+      columnLabels = mergeColumnLabels(data?.column_labels);
       syncRowsWithBuilder();
       const skusToEnrich = getAllSkus();
       if (skusToEnrich.length) {
@@ -179,6 +228,7 @@
       errorMessage = 'Unable to load price list. Please try again.';
       rows = [];
       builderItems = [];
+      columnLabels = { ...DEFAULT_COLUMN_LABELS };
       return false;
     } finally {
       loading = false;
@@ -663,7 +713,7 @@
       return;
     }
     try {
-      const payload = { filename, builderItems };
+      const payload = { filename, builderItems, columnLabels };
       localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(payload));
       saveMessage = 'Builder saved locally.';
       setTimeout(() => (saveMessage = ''), 2500);
@@ -686,6 +736,9 @@
       if (parsed?.filename) {
         filename = parsed.filename;
       }
+      if (parsed?.columnLabels) {
+        columnLabels = mergeColumnLabels(parsed.columnLabels);
+      }
     } catch (err) {
       console.error('Failed to load saved builder', err);
     }
@@ -698,8 +751,19 @@
       const descParam = showDescription ? '' : '&includeDescription=false';
       const priceParam = showPriceInPrint ? '' : '&includePrice=false';
       const qtyParam = showQuantityColumnInPrint ? '&includeQuantity=true' : '';
-      window.open(`${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}`, '_blank');
+      const colLabelsParam = `&colLabels=${encodeURIComponent(JSON.stringify(columnLabels))}`;
+      window.open(
+        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}${colLabelsParam}`,
+        '_blank'
+      );
     }
+  };
+
+  const isMissingColumnLabelsError = (err: unknown) => {
+    if (!err || typeof err !== 'object') return false;
+    const e = err as { code?: string; message?: string };
+    if (e.code !== 'PGRST204') return false;
+    return (e.message ?? '').includes('column_labels');
   };
 
   const saveBuilderRemote = async () => {
@@ -713,27 +777,40 @@
     saving = true;
     saveMessage = '';
 
-    const payload = {
+    const payloadBase = {
       filename,
       price_list_data: builderItems,
       sku_data: rows
     };
+    const payloadWithLabels = { ...payloadBase, column_labels: columnLabels };
 
     try {
+      let usedLabelFallback = false;
+
       if (latestPriceListId) {
-        const { error } = await supabase.from('price_lists').update(payload).eq('id', latestPriceListId);
+        let { error } = await supabase.from('price_lists').update(payloadWithLabels).eq('id', latestPriceListId);
+        if (error && isMissingColumnLabelsError(error)) {
+          usedLabelFallback = true;
+          ({ error } = await supabase.from('price_lists').update(payloadBase).eq('id', latestPriceListId));
+        }
         if (error) throw error;
       } else {
-        const { error, data } = await supabase
+        let { error, data } = await supabase
           .from('price_lists')
-          .insert({ ...payload, sku_data: rows })
+          .insert(payloadWithLabels)
           .select('id')
           .single();
+        if (error && isMissingColumnLabelsError(error)) {
+          usedLabelFallback = true;
+          ({ error, data } = await supabase.from('price_lists').insert(payloadBase).select('id').single());
+        }
         if (error) throw error;
         latestPriceListId = data?.id ?? latestPriceListId;
       }
       saveBuilderLocally();
-      saveMessage = 'Saved to cloud.';
+      saveMessage = usedLabelFallback
+        ? 'Saved to cloud. Custom column headers stay in this browser until price_lists has a column_labels column (run the project Supabase migration).'
+        : 'Saved to cloud.';
     } catch (err) {
       console.error('Failed to save builder to Supabase', err);
       saveMessage = 'Save failed. Please try again.';
@@ -897,9 +974,9 @@
               <thead class="bg-gray-50">
                 <tr>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">Disc Price</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">RRP</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.sku}</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.discPrice}</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.rrp}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 bg-white">
@@ -1089,6 +1166,90 @@
                 {/each}
               </ul>
             {/if}
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-semibold text-gray-900">Column modifier</h2>
+            <p class="text-xs text-gray-600 mt-0.5">
+              Rename table headers for the SKU list above and for list-style print output.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="text-xs font-semibold text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline shrink-0"
+            on:click={() => (columnLabels = { ...DEFAULT_COLUMN_LABELS })}
+          >
+            Reset to defaults
+          </button>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-sku">SKU (list / source)</label>
+            <input
+              id="col-sku"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.sku}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-disc">Discounted price (source table)</label>
+            <input
+              id="col-disc"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.discPrice}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-rrp">RRP</label>
+            <input
+              id="col-rrp"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.rrp}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-image">Image (list print)</label>
+            <input
+              id="col-image"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.image}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-name">Name (list print)</label>
+            <input
+              id="col-name"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.name}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-desc">Description (list print)</label>
+            <input
+              id="col-desc"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.description}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-price">Price (list print)</label>
+            <input
+              id="col-price"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.price}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-qty">Qty (list print)</label>
+            <input
+              id="col-qty"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.qty}
+            />
           </div>
         </div>
       </div>

@@ -25,7 +25,28 @@
 		includeDescription?: boolean;
 		includePrice?: boolean;
 		includeQuantity?: boolean;
+		columnLabels?: {
+			image: string;
+			sku: string;
+			name: string;
+			description: string;
+			price: string;
+			rrp: string;
+			qty: string;
+			discPrice: string;
+		};
 		error?: string;
+	};
+
+	$: col = data.columnLabels ?? {
+		image: 'Image',
+		sku: 'SKU',
+		name: 'Name',
+		description: 'Description',
+		price: 'Price',
+		rrp: 'RRP',
+		qty: 'Qty',
+		discPrice: 'Disc Price'
 	};
 
 	$: isListMode = data.mode === 'list';
@@ -141,40 +162,40 @@ onMount(() => {
 								</tr>
 								<!-- Table header after category -->
 								<tr class="table-header-row">
-									<th class="col-image table-header-cell">Image</th>
-									<th class="col-sku table-header-cell">SKU</th>
-									<th class="col-model table-header-cell">Name</th>
+									<th class="col-image table-header-cell">{col.image}</th>
+									<th class="col-sku table-header-cell">{col.sku}</th>
+									<th class="col-model table-header-cell">{col.name}</th>
 									{#if data.includeDescription !== false}
-										<th class="col-description table-header-cell">Description</th>
+										<th class="col-description table-header-cell">{col.description}</th>
 									{/if}
 									{#if data.includePrice !== false}
-										<th class="col-price table-header-cell">Price</th>
+										<th class="col-price table-header-cell">{col.price}</th>
 									{/if}
 									{#if data.includeRrp}
-										<th class="col-rrp table-header-cell">RRP</th>
+										<th class="col-rrp table-header-cell">{col.rrp}</th>
 									{/if}
 									{#if data.includeQuantity}
-										<th class="col-qty table-header-cell">Qty</th>
+										<th class="col-qty table-header-cell">{col.qty}</th>
 									{/if}
 								</tr>
 							{:else if item.kind === 'sku'}
 								{#if shouldShowHeaderBeforeSku}
 									<!-- Table header before first SKU if no category before -->
 									<tr class="table-header-row">
-										<th class="col-image table-header-cell">Image</th>
-										<th class="col-sku table-header-cell">SKU</th>
-										<th class="col-model table-header-cell">Name</th>
+										<th class="col-image table-header-cell">{col.image}</th>
+										<th class="col-sku table-header-cell">{col.sku}</th>
+										<th class="col-model table-header-cell">{col.name}</th>
 										{#if data.includeDescription !== false}
-											<th class="col-description table-header-cell">Description</th>
+											<th class="col-description table-header-cell">{col.description}</th>
 										{/if}
 										{#if data.includePrice !== false}
-											<th class="col-price table-header-cell">Price</th>
+											<th class="col-price table-header-cell">{col.price}</th>
 										{/if}
 										{#if data.includeRrp}
-											<th class="col-rrp table-header-cell">RRP</th>
+											<th class="col-rrp table-header-cell">{col.rrp}</th>
 										{/if}
 										{#if data.includeQuantity}
-											<th class="col-qty table-header-cell">Qty</th>
+											<th class="col-qty table-header-cell">{col.qty}</th>
 										{/if}
 									</tr>
 								{/if}
@@ -203,7 +224,7 @@ onMount(() => {
 										<td class="col-rrp table-cell {data.crossRrp ? 'crossed' : ''}">{item.rrp || '—'}</td>
 									{/if}
 									{#if data.includeQuantity}
-										<td class="col-qty table-cell" aria-label="Quantity"></td>
+										<td class="col-qty table-cell" aria-label={col.qty}></td>
 									{/if}
 								</tr>
 							{/if}
@@ -274,7 +295,7 @@ onMount(() => {
 											<span class="product-price">${item.price}</span>
 										{/if}
 										{#if data.includeRrp && item.rrp}
-											<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">RRP: ${item.rrp}</span>
+											<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">{col.rrp}: ${item.rrp}</span>
 										{/if}
 									</div>
 								{/if}

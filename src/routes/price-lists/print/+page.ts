@@ -9,6 +9,7 @@ type PriceListItem = {
 	rrp?: string;
 	model?: string;
 	note?: string;
+	moq?: string;
 	imageUrl?: string;
 	hasDescription?: boolean;
 	shortDescription?: string;
@@ -26,6 +27,7 @@ type ColumnLabels = {
 	price: string;
 	rrp: string;
 	qty: string;
+	moq: string;
 	discPrice: string;
 	customColumns: CustomColumnDef[];
 };
@@ -38,6 +40,7 @@ const DEFAULT_COLUMN_LABELS: ColumnLabels = {
 	price: 'Price',
 	rrp: 'RRP',
 	qty: 'Qty',
+	moq: 'MOQ',
 	discPrice: 'Disc Price',
 	customColumns: []
 };
@@ -73,6 +76,7 @@ const mergeColumnLabels = (...sources: unknown[]): ColumnLabels => {
 			...(typeof o.price === 'string' ? { price: o.price } : {}),
 			...(typeof o.rrp === 'string' ? { rrp: o.rrp } : {}),
 			...(typeof o.qty === 'string' ? { qty: o.qty } : {}),
+			...(typeof o.moq === 'string' ? { moq: o.moq } : {}),
 			...(typeof o.discPrice === 'string' ? { discPrice: o.discPrice } : {}),
 			...(Array.isArray(o.customColumns) ? { customColumns: parseCustomColumns(o.customColumns) } : {})
 		};
@@ -90,6 +94,7 @@ type PriceListData = {
 	includeDescription?: boolean;
 	includePrice?: boolean;
 	includeQuantity?: boolean;
+	includeMoq?: boolean;
 	noteFontSize?: number;
 	noteFontWeight?: 'normal' | 'bold';
 	noteFontStyle?: 'normal' | 'italic';
@@ -168,6 +173,7 @@ export const load: PageLoad = async ({ url }) => {
 	const includeDescription = url.searchParams.get('includeDescription') !== 'false';
 	const includePrice = url.searchParams.get('includePrice') !== 'false';
 	const includeQuantity = url.searchParams.get('includeQuantity') === 'true';
+	const includeMoq = url.searchParams.get('includeMoq') !== 'false';
 	const noteFontSizeRaw = Number(url.searchParams.get('noteFontSize'));
 	const noteFontSize = Number.isFinite(noteFontSizeRaw)
 		? Math.min(24, Math.max(8, Math.round(noteFontSizeRaw)))
@@ -196,6 +202,7 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			includeMoq,
 			noteFontSize,
 			noteFontWeight,
 			noteFontStyle,
@@ -226,6 +233,7 @@ export const load: PageLoad = async ({ url }) => {
 					includeDescription,
 					includePrice,
 					includeQuantity,
+					includeMoq,
 					noteFontSize,
 					noteFontWeight,
 					noteFontStyle,
@@ -247,6 +255,7 @@ export const load: PageLoad = async ({ url }) => {
 				includeDescription,
 				includePrice,
 				includeQuantity,
+				includeMoq,
 				noteFontSize,
 				noteFontWeight,
 				noteFontStyle,
@@ -300,6 +309,7 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			includeMoq,
 			noteFontSize,
 			noteFontWeight,
 			noteFontStyle,
@@ -317,6 +327,7 @@ export const load: PageLoad = async ({ url }) => {
 			includeDescription,
 			includePrice,
 			includeQuantity,
+			includeMoq,
 			noteFontSize,
 			noteFontWeight,
 			noteFontStyle,

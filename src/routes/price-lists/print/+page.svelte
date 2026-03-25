@@ -13,6 +13,7 @@
 			rrp?: string;
 			model?: string;
 			note?: string;
+			moq?: string;
 			imageUrl?: string;
 			hasDescription?: boolean;
 			shortDescription?: string;
@@ -25,6 +26,7 @@
 		includeDescription?: boolean;
 		includePrice?: boolean;
 		includeQuantity?: boolean;
+		includeMoq?: boolean;
 		noteFontSize?: number;
 		noteFontWeight?: 'normal' | 'bold';
 		noteFontStyle?: 'normal' | 'italic';
@@ -36,13 +38,14 @@
 			price: string;
 			rrp: string;
 			qty: string;
+			moq: string;
 			discPrice: string;
 			customColumns?: { id: string; label: string; visible: boolean }[];
 		};
 		error?: string;
 	};
 
-	$: col = data.columnLabels ?? {
+	const defaultColLabels = {
 		image: 'Image',
 		sku: 'SKU',
 		name: 'Name',
@@ -50,9 +53,17 @@
 		price: 'Price',
 		rrp: 'RRP',
 		qty: 'Qty',
+		moq: 'MOQ',
 		discPrice: 'Disc Price',
-		customColumns: []
+		customColumns: [] as { id: string; label: string; visible: boolean }[]
 	};
+	$: col = (() => {
+		const merged = { ...defaultColLabels, ...(data.columnLabels ?? {}) };
+		return {
+			...merged,
+			customColumns: Array.isArray(merged.customColumns) ? merged.customColumns : []
+		};
+	})();
 
 	$: visibleCustomCols = (col.customColumns ?? []).filter((c) => c.visible);
 
@@ -66,6 +77,7 @@
 		(data.includeDescription !== false ? 1 : 0) +
 		(data.includePrice !== false ? 1 : 0) +
 		(data.includeRrp ? 1 : 0) +
+		(data.includeMoq !== false ? 1 : 0) +
 		(data.includeQuantity ? 1 : 0) +
 		visibleCustomCols.length;
 
@@ -186,6 +198,9 @@ onMount(() => {
 									{#if data.includeRrp}
 										<th class="col-rrp table-header-cell">{col.rrp}</th>
 									{/if}
+									{#if data.includeMoq !== false}
+										<th class="col-moq table-header-cell">{col.moq}</th>
+									{/if}
 									{#if data.includeQuantity}
 										<th class="col-qty table-header-cell">{col.qty}</th>
 									{/if}
@@ -208,6 +223,9 @@ onMount(() => {
 										{/if}
 										{#if data.includeRrp}
 											<th class="col-rrp table-header-cell">{col.rrp}</th>
+										{/if}
+										{#if data.includeMoq !== false}
+											<th class="col-moq table-header-cell">{col.moq}</th>
 										{/if}
 										{#if data.includeQuantity}
 											<th class="col-qty table-header-cell">{col.qty}</th>
@@ -250,6 +268,9 @@ onMount(() => {
 									{/if}
 									{#if data.includeRrp}
 										<td class="col-rrp table-cell {data.crossRrp ? 'crossed' : ''}">{item.rrp || '—'}</td>
+									{/if}
+									{#if data.includeMoq !== false}
+										<td class="col-moq table-cell">{item.moq || '—'}</td>
 									{/if}
 									{#if data.includeQuantity}
 										<td class="col-qty table-cell" aria-label={col.qty}></td>
@@ -336,6 +357,12 @@ onMount(() => {
 											<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">{col.rrp}: ${item.rrp}</span>
 										{/if}
 									</div>
+								{/if}
+								{#if data.includeMoq !== false}
+									<p class="product-moq-line">
+										<span class="product-moq-label">{col.moq}:</span>
+										<span class="product-moq-value">{item.moq || '—'}</span>
+									</p>
 								{/if}
 								{#if data.includeDescription !== false && item.shortDescription}
 									<p class="product-description">{item.shortDescription}</p>
@@ -613,6 +640,12 @@ onMount(() => {
 		text-align: center;
 	}
 
+	.col-moq {
+		width: 64px;
+		text-align: center;
+		font-variant-numeric: tabular-nums;
+	}
+
 	.col-custom {
 		width: 72px;
 		min-height: 2.5rem;
@@ -846,6 +879,24 @@ onMount(() => {
 		color: #374151;
 	}
 
+	.product-moq-line {
+		font-size: 0.8125rem;
+		color: #374151;
+		margin-top: 4px;
+		display: flex;
+		align-items: baseline;
+		gap: 6px;
+	}
+
+	.product-moq-label {
+		font-weight: 600;
+		color: #6b7280;
+	}
+
+	.product-moq-value {
+		font-variant-numeric: tabular-nums;
+	}
+
 	.product-pricing {
 		display: flex;
 		align-items: baseline;
@@ -1007,6 +1058,10 @@ onMount(() => {
 		.col-qty {
 			width: 48px;
 			min-height: 2.25rem;
+		}
+
+		.col-moq {
+			width: 52px;
 		}
 
 		.col-custom {

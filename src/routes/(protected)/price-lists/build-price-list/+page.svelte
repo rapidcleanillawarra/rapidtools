@@ -13,6 +13,7 @@
     rrp?: string;
     imageUrl?: string;
     hasDescription?: boolean;
+    moq?: string;
   };
   type BuilderItem = Row & {
     id: string;
@@ -34,6 +35,7 @@
     price: string;
     rrp: string;
     qty: string;
+    moq: string;
     discPrice: string;
     customColumns: CustomColumnDef[];
   };
@@ -46,6 +48,7 @@
     price: 'Price',
     rrp: 'RRP',
     qty: 'Qty',
+    moq: 'MOQ',
     discPrice: 'Disc Price',
     customColumns: []
   };
@@ -80,6 +83,7 @@
       rrp: typeof o.rrp === 'string' ? o.rrp : DEFAULT_COLUMN_LABELS.rrp,
       qty: typeof o.qty === 'string' ? o.qty : DEFAULT_COLUMN_LABELS.qty,
       discPrice: typeof o.discPrice === 'string' ? o.discPrice : DEFAULT_COLUMN_LABELS.discPrice,
+      moq: typeof o.moq === 'string' ? o.moq : DEFAULT_COLUMN_LABELS.moq,
       customColumns: parseCustomColumns(o.customColumns)
     };
   };
@@ -120,6 +124,7 @@
   let showDescription = true;
   let showPriceInPrint = true;
   let showQuantityColumnInPrint = false;
+  let showMoqInPrint = true;
   let noteFontSizeInPrint = 12;
   let noteFontWeightInPrint: 'normal' | 'bold' = 'normal';
   let noteFontStyleInPrint: 'normal' | 'italic' = 'normal';
@@ -216,7 +221,8 @@
             model: item?.model,
             rrp: item?.rrp,
             imageUrl: item?.imageUrl,
-            hasDescription: item?.hasDescription
+            hasDescription: item?.hasDescription,
+            moq: item?.moq != null ? String(item.moq) : undefined
           }))
         : [];
 
@@ -243,7 +249,8 @@
             model: item.model,
             imageUrl: item.imageUrl,
             hasDescription: item.hasDescription,
-            note: item.note
+            note: item.note,
+            moq: item.moq != null ? String(item.moq) : undefined
           }))
         : [];
       builderItems = serverBuilder;
@@ -332,6 +339,7 @@
   };
 
   const sanitizePrice = (raw: string) => raw.replace(/[^0-9.]/g, '');
+  const sanitizeMoq = (raw: string) => raw.replace(/\D/g, '');
 
   const updateBuilderItemPrice = (index: number, newPrice: string) => {
     const sanitizedPrice = sanitizePrice(newPrice);
@@ -354,6 +362,20 @@
     }
 
     // Trigger reactivity
+    builderItems = [...builderItems];
+    rows = [...rows];
+  };
+
+  const updateBuilderItemMoq = (index: number, newMoq: string) => {
+    const sanitized = sanitizeMoq(newMoq);
+    builderItems[index].moq = sanitized || undefined;
+    const item = builderItems[index];
+    if (item.kind === 'sku') {
+      const rowIndex = rows.findIndex((row) => row.sku === item.sku);
+      if (rowIndex >= 0) {
+        rows[rowIndex].moq = sanitized || undefined;
+      }
+    }
     builderItems = [...builderItems];
     rows = [...rows];
   };
@@ -739,7 +761,8 @@
         rrp: item.rrp,
         model: item.model,
         imageUrl: item.imageUrl,
-        hasDescription: item.hasDescription
+        hasDescription: item.hasDescription,
+        moq: item.moq
       });
       rows = next;
     }
@@ -789,12 +812,13 @@
       const descParam = showDescription ? '' : '&includeDescription=false';
       const priceParam = showPriceInPrint ? '' : '&includePrice=false';
       const qtyParam = showQuantityColumnInPrint ? '&includeQuantity=true' : '';
+      const moqParam = showMoqInPrint ? '' : '&includeMoq=false';
       const noteFontSizeParam = `&noteFontSize=${noteFontSizeInPrint}`;
       const noteFontWeightParam = `&noteFontWeight=${encodeURIComponent(noteFontWeightInPrint)}`;
       const noteFontStyleParam = `&noteFontStyle=${encodeURIComponent(noteFontStyleInPrint)}`;
       const colLabelsParam = `&colLabels=${encodeURIComponent(JSON.stringify(columnLabels))}`;
       window.open(
-        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}${noteFontSizeParam}${noteFontWeightParam}${noteFontStyleParam}${colLabelsParam}`,
+        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}${moqParam}${noteFontSizeParam}${noteFontWeightParam}${noteFontStyleParam}${colLabelsParam}`,
         '_blank'
       );
     }
@@ -1177,6 +1201,21 @@
                           {#if item.rrp}
                             <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
                           {/if}
+                          <div class="flex items-center gap-2">
+                            <label for={`moq-${item.id}`} class="text-xs text-gray-700 shrink-0">{columnLabels.moq}:</label>
+                            <input
+                              id={`moq-${item.id}`}
+                              class="w-24 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              type="text"
+                              inputmode="numeric"
+                              pattern="[0-9]*"
+                              placeholder="—"
+                              value={item.moq ?? ''}
+                              on:input={(e) => updateBuilderItemMoq(idx, e.currentTarget.value)}
+                              on:mousedown|stopPropagation
+                              on:dragstart|preventDefault
+                            />
+                          </div>
                           <div class="flex flex-col gap-0.5">
                             <label for={`note-${item.id}`} class="text-xs text-gray-600">Note (shows on print)</label>
                             <input
@@ -1293,6 +1332,14 @@
               bind:value={columnLabels.qty}
             />
           </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-moq">MOQ (list &amp; thumb print)</label>
+            <input
+              id="col-moq"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.moq}
+            />
+          </div>
         </div>
 
         <div class="border-t border-gray-200 pt-4 mt-2 space-y-3">
@@ -1407,6 +1454,15 @@
               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
             <label for="show-qty-column" class="text-sm text-gray-700">Include quantity column (blank)</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show-moq"
+              bind:checked={showMoqInPrint}
+              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label for="show-moq" class="text-sm text-gray-700">Show MOQ column</label>
           </div>
           <div class="flex items-center gap-2">
             <label for="note-font-size" class="text-sm text-gray-700">Note font size</label>

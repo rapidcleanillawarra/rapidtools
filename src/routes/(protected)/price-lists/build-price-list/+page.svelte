@@ -339,7 +339,6 @@
   };
 
   const sanitizePrice = (raw: string) => raw.replace(/[^0-9.]/g, '');
-  const sanitizeMoq = (raw: string) => raw.replace(/\D/g, '');
 
   const updateBuilderItemPrice = (index: number, newPrice: string) => {
     const sanitizedPrice = sanitizePrice(newPrice);
@@ -367,13 +366,13 @@
   };
 
   const updateBuilderItemMoq = (index: number, newMoq: string) => {
-    const sanitized = sanitizeMoq(newMoq);
-    builderItems[index].moq = sanitized || undefined;
+    const value = newMoq.trim() === '' ? undefined : newMoq;
+    builderItems[index].moq = value;
     const item = builderItems[index];
     if (item.kind === 'sku') {
       const rowIndex = rows.findIndex((row) => row.sku === item.sku);
       if (rowIndex >= 0) {
-        rows[rowIndex].moq = sanitized || undefined;
+        rows[rowIndex].moq = value;
       }
     }
     builderItems = [...builderItems];
@@ -1201,14 +1200,12 @@
                           {#if item.rrp}
                             <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
                           {/if}
-                          <div class="flex items-center gap-2">
+                          <div class="flex items-center gap-2 min-w-0">
                             <label for={`moq-${item.id}`} class="text-xs text-gray-700 shrink-0">{columnLabels.moq}:</label>
                             <input
                               id={`moq-${item.id}`}
-                              class="w-24 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                               type="text"
-                              inputmode="numeric"
-                              pattern="[0-9]*"
                               placeholder="—"
                               value={item.moq ?? ''}
                               on:input={(e) => updateBuilderItemMoq(idx, e.currentTarget.value)}

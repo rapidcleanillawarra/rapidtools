@@ -66,6 +66,7 @@ export const searchFilters = writable({
   balance: '',
   username: '',
   company: '',
+  approval: '',
   status: ''
 });
 

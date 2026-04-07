@@ -10,6 +10,8 @@ export interface CustomerGroupInvoice {
   customerGroupName: string;
   status: string;
   statusColor: string;
+  /** From API CompleteStatus: typically Approved or Incomplete */
+  approval: string;
   updated?: boolean;
   userGroupMismatch?: boolean;
 }

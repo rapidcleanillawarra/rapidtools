@@ -238,7 +238,8 @@
 						'DatePaymentDue',
 						'OrderPayment',
 						'GrandTotal',
-						'DatePlaced'
+						'DatePlaced',
+						'CompleteStatus'
 					]
 				},
 				action: 'GetOrder'
@@ -309,6 +310,11 @@
 					}
 				}
 
+				const completeStatus =
+					order.CompleteStatus != null && String(order.CompleteStatus).trim() !== ''
+						? String(order.CompleteStatus).trim()
+						: '—';
+
 				const mappedInvoice = {
 					invoiceNumber: order.ID,
 					dateIssued: order.DatePlaced,
@@ -320,6 +326,7 @@
 					company: customerGroupMap.get(order.Username) || order.UserGroup,
 					status,
 					statusColor,
+					approval: completeStatus,
 					customerGroupName: order.UserGroup,
 					userGroupMismatch: false // Will be set during filtering
 				};
@@ -981,6 +988,7 @@
 						balance: '',
 						username: '',
 						company: '',
+						approval: '',
 						status: ''
 					});
 				}}
@@ -1227,6 +1235,24 @@
 								</div>
 							</th>
 							<th
+								class="col-approval px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+							>
+								<div class="flex flex-col">
+									<div
+										class="flex cursor-pointer items-center hover:bg-gray-100"
+										on:click={() => handleSortClick('approval')}
+									>
+										Approval {getSortIcon('approval', $sortField, $sortDirection)}
+									</div>
+									<input
+										type="text"
+										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+										placeholder="Search..."
+										on:input={(e) => handleSearch(e, 'approval')}
+									/>
+								</div>
+							</th>
+							<th
 								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
 							>
 								<div class="flex flex-col">
@@ -1249,7 +1275,7 @@
 					<tbody class="divide-y divide-gray-200 bg-white">
 						{#if !$invoices || $invoices.length === 0}
 							<tr>
-								<td colspan="9" class="px-2 py-4 text-center text-gray-500"> No results found </td>
+								<td colspan="10" class="px-2 py-4 text-center text-gray-500"> No results found </td>
 							</tr>
 						{:else}
 							{#each paginatedInvoices as invoice (invoice.invoiceNumber)}
@@ -1297,6 +1323,19 @@
 									</td>
 									<td class="px-2 py-1 text-sm">{invoice.username}</td>
 									<td class="px-2 py-1 text-sm">{invoice.company}</td>
+									<td class="col-approval px-2 py-1 text-sm">
+										<span
+											class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+												invoice.approval === 'Approved'
+													? 'bg-green-100 text-green-800'
+													: invoice.approval === 'Incomplete'
+														? 'bg-amber-100 text-amber-800'
+														: 'bg-gray-100 text-gray-600'
+											}`}
+										>
+											{invoice.approval}
+										</span>
+									</td>
 									<td class="px-2 py-1 text-sm">
 										<span
 											class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${invoice.statusColor}`}
@@ -1461,6 +1500,11 @@
 		button,
 		.filter-section,
 		.pagination-section {
+			display: none !important;
+		}
+
+		th.col-approval,
+		td.col-approval {
 			display: none !important;
 		}
 

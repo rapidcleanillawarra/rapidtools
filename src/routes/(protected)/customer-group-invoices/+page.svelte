@@ -335,6 +335,10 @@
 			})
 				.filter((invoice: CustomerGroupInvoice | null) => invoice !== null) // Remove null entries (zero invoices)
 				.filter((invoice: CustomerGroupInvoice) => {
+					if (String(invoice.approval).trim().toLowerCase() === 'incomplete') {
+						return false;
+					}
+
 					// Filter by username - show all invoices for users in the extracted usernames list
 					if ($filterType === 'group' && usernames && usernames.length > 0) {
 						const matchesUsername = usernames.includes(invoice.username);

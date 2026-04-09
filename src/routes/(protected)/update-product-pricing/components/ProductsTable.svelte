@@ -64,6 +64,7 @@
     { key: 'purchase_price', label: 'Purchase Price', minWidth: 100, width: 120 },
     { key: 'markup', label: 'Markup', minWidth: 100, width: 120 },
     { key: 'rrp', label: 'List Price', minWidth: 100, width: 120 },
+    { key: 'plus_gst', label: '+GST', minWidth: 90, width: 110 },
     { key: 'difference', label: 'Difference', minWidth: 80, width: 100 },
     { key: 'remove_pricegroups', label: 'Remove PriceGroups', minWidth: 120, width: 140 },
     { key: 'tax_free', label: 'Tax Free', minWidth: 80, width: 100 },
@@ -192,6 +193,13 @@
     return n.toFixed(2).replace(/\.?0+$/, '');
   }
 
+  /** List price (RRP) + 10% GST */
+  function listPricePlusGst(listPrice: unknown): string | null {
+    const n = toNumber(listPrice);
+    if (n === null) return null;
+    return formatMoney(round2(n * 1.1));
+  }
+
   function moneyDelta(current: unknown, original: unknown): { txt: string; cls: string } | null {
     const cur = toNumber(current);
     const orig = toNumber(original);
@@ -304,6 +312,8 @@
                 >
                   {col.label} {getSortIcon('rrp')}
                 </div>
+              {:else if col.key === 'plus_gst'}
+                {col.label}
               {:else if col.key === 'difference'}
                 {col.label}
               {:else if col.key === 'remove_pricegroups'}
@@ -369,7 +379,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#if productsLength === 0}
           <tr>
-            <td colspan="13" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="14" class="px-2 py-8 text-center text-gray-500">
               No products found
             </td>
           </tr>
@@ -380,6 +390,7 @@
             {@const currentDiff = (toNumber(product.rrp) ?? 0) - (toNumber(product.purchase_price) ?? 0)}
             {@const originalDiff = (toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0)}
             {@const diffDelta = currentDiff - originalDiff}
+            {@const gstPlusVal = listPricePlusGst(product.rrp)}
             <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
               {#each columnDefs as col, i}
                 <td
@@ -495,6 +506,12 @@
                     {#if true}
                       {@const rrpDelta = moneyDeltaAlways(product.rrp, original?.rrp)}
                       <div class={`field_number_changes mt-0.5 text-[10px] ${rrpDelta.cls}`}>{rrpDelta.txt || '$0'}</div>
+                    {/if}
+                  {:else if col.key === 'plus_gst'}
+                    {#if gstPlusVal !== null}
+                      <span class="font-medium text-gray-900">${gstPlusVal}</span>
+                    {:else}
+                      <span class="text-gray-400">—</span>
                     {/if}
                   {:else if col.key === 'difference'}
                     <span class={diffDelta !== 0 ? deltaClass(diffDelta) : ''}>

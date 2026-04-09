@@ -67,6 +67,7 @@
     { key: 'difference', label: 'Difference', minWidth: 80, width: 100 },
     { key: 'remove_pricegroups', label: 'Remove PriceGroups', minWidth: 120, width: 140 },
     { key: 'tax_free', label: 'Tax Free', minWidth: 80, width: 100 },
+    { key: 'tax_inclusive', label: 'Tax Inclusive', minWidth: 90, width: 110 },
     { key: 'status', label: 'Status', minWidth: 100, width: 120 }
   ];
 
@@ -309,6 +310,8 @@
                 {col.label}
               {:else if col.key === 'tax_free'}
                 {col.label}
+              {:else if col.key === 'tax_inclusive'}
+                {col.label}
               {:else if col.key === 'status'}
                 <div
                   class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
@@ -366,7 +369,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#if productsLength === 0}
           <tr>
-            <td colspan="12" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="13" class="px-2 py-8 text-center text-gray-500">
               No products found
             </td>
           </tr>
@@ -514,6 +517,16 @@
                       on:change={(e) => {
                         const target = e.target as HTMLInputElement;
                         onUpdateProductBySku(product.sku, { tax_free: target.checked });
+                      }}
+                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  {:else if col.key === 'tax_inclusive'}
+                    <input
+                      type="checkbox"
+                      checked={!!product.tax_inclusive}
+                      on:change={(e) => {
+                        const target = e.target as HTMLInputElement;
+                        onUpdateProductBySku(product.sku, { tax_inclusive: target.checked });
                       }}
                       class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />

@@ -285,6 +285,10 @@ function transformApiItemToProduct(item: any) {
     retail_mup: markup,
     rrp: listPrice,
     tax_free: item?.TaxFreeItem === 'True' || item?.TaxFreeItem === true,
+    tax_inclusive:
+      item?.TaxInclusive === true ||
+      item?.TaxInclusive === 'True' ||
+      item?.TaxInclusive === 'true',
     remove_pricegroups: false
   };
 }
@@ -311,6 +315,7 @@ export async function fetchAllProducts() {
           "Misc09",
           "InventoryID",
           "TaxFreeItem",
+          "TaxInclusive",
           "Images"
         ]
       },
@@ -582,7 +587,8 @@ export async function handleSubmitChecked() {
           "RRP": prod.rrp.toString(),
           "Misc02": markupValue.toString(),  // client MUP (markup)
           "Misc09": markupValue.toString(),  // retail MUP (markup)
-          "TaxFreeItem": prod.tax_free || false
+          "TaxFreeItem": prod.tax_free || false,
+          "TaxInclusive": !!prod.tax_inclusive
         };
 
         // Handle price groups, optionally deleting all except 1 and 2 when flagged
@@ -775,6 +781,7 @@ export async function handleFilterSubmit(filters: {
           "Misc09",
           "InventoryID",
           "TaxFreeItem",
+          "TaxInclusive",
           "Images"
         ]
       },

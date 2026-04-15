@@ -25,7 +25,7 @@
 	} from './utils';
 	import { columns, PRODUCTS_PER_API_PAGE } from './config';
 	import type { ProductInfo } from './types';
-	import { fetchProducts } from '$lib/services/products';
+	import { fetchProducts, fetchCategories } from '$lib/services/products';
 	import { transformProductsData } from './productTransformer';
 	import { safeAsync } from './errorHandler';
 	import type { CategoryFlat } from './utils';
@@ -55,13 +55,7 @@
 	async function loadCategories() {
 		await safeAsync(
 			async () => {
-				const response = await fetch('/api/categories');
-				if (response.ok) {
-					const data = await response.json();
-					if (data.success && data.data) {
-						categories = data.data;
-					}
-				}
+				categories = await fetchCategories();
 			},
 			{
 				errorMessage: 'Failed to load categories'

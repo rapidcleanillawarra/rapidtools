@@ -1,5 +1,8 @@
 import type { ProductInfo, CategoryTreeNode } from './types';
 import type { ColumnConfig } from './config';
+import type { CategoryFlat } from '$lib/services/products';
+
+export type { CategoryFlat };
 
 export type HighlightStatus = 'gpt' | 'saved';
 
@@ -184,16 +187,6 @@ export function filterProducts(
   }
 
   return filtered;
-}
-
-export interface CategoryFlat {
-  id: string;
-  name: string;
-  parentId: string;
-  value: string;
-  label: string;
-  categoryId: string;
-  parentCategoryId: string;
 }
 
 export function buildCategoryHierarchy(categories: CategoryFlat[]): CategoryTreeNode[] {

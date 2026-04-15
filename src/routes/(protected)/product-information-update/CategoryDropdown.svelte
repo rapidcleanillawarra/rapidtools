@@ -4,6 +4,7 @@
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import type { CategoryTreeNode } from './types';
   import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
+  import { fetchCategories } from '$lib/services/products';
 
   const dispatch = createEventDispatcher();
 
@@ -53,26 +54,17 @@
     error = null;
 
     try {
-      const response = await fetch('/api/categories');
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const flat = await fetchCategories();
+      // Build hierarchical structure
+      categories = buildCategoryHierarchy(flat);
+      flattenedCategories = flattenCategoryTree(categories);
+
+      // Find selected category if value is set
+      if (value) {
+        selectedCategory = flattenedCategories.find(cat => cat.id === value) || null;
       }
 
-      const data = await response.json();
-      if (data.success && data.data) {
-        // Build hierarchical structure
-        categories = buildCategoryHierarchy(data.data);
-        flattenedCategories = flattenCategoryTree(categories);
-
-        // Find selected category if value is set
-        if (value) {
-          selectedCategory = flattenedCategories.find(cat => cat.id === value) || null;
-        }
-
-        filterCategories();
-      } else {
-        throw new Error('Failed to load categories');
-      }
+      filterCategories();
     } catch (err) {
       console.error('Error loading categories:', err);
       error = err instanceof Error ? err.message : 'Failed to load categories';

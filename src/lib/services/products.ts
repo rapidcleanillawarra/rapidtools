@@ -60,6 +60,70 @@ export function extractCategories(categories?: Array<{ Category: any }>): string
 
 const PRODUCTS_API_URL = 'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
+/** Flat category row from GetCategory — used client-side for static hosting (e.g. GitHub Pages). */
+export interface CategoryFlat {
+	id: string;
+	name: string;
+	parentId: string;
+	value: string;
+	label: string;
+	categoryId: string;
+	parentCategoryId: string;
+}
+
+interface PowerAutomateCategoryRow {
+	CategoryID: string;
+	CategoryName: string;
+	ParentCategoryID: string;
+}
+
+interface PowerAutomateCategoryResponse {
+	Category?: PowerAutomateCategoryRow[];
+	[key: string]: unknown;
+}
+
+/**
+ * Fetches active categories from Power Automate (same workflow URL as products).
+ * Call this from the browser so it works on static hosts without SvelteKit API routes.
+ */
+export async function fetchCategories(): Promise<CategoryFlat[]> {
+	const payload = {
+		Filter: {
+			Active: true,
+			OutputSelector: ['ParentCategoryID', 'CategoryName', 'CategoryID']
+		},
+		action: 'GetCategory'
+	};
+
+	const response = await fetch(PRODUCTS_API_URL, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify(payload)
+	});
+
+	if (!response.ok) {
+		throw new Error(`GetCategory failed: ${response.status} ${response.statusText}`);
+	}
+
+	const powerAutomateData: PowerAutomateCategoryResponse = await response.json();
+
+	if (!powerAutomateData.Category || !Array.isArray(powerAutomateData.Category)) {
+		throw new Error('Invalid response structure from GetCategory');
+	}
+
+	return powerAutomateData.Category.map((cat) => ({
+		id: cat.CategoryID,
+		name: cat.CategoryName,
+		parentId: cat.ParentCategoryID || '0',
+		value: cat.CategoryID,
+		label: cat.CategoryName,
+		categoryId: cat.CategoryID,
+		parentCategoryId: cat.ParentCategoryID || '0'
+	}));
+}
+
 export async function fetchProducts(brand?: string | null, page: number = 0, skus?: string[]): Promise<ProductApiData> {
   try {
     const payload: any = {

@@ -2,7 +2,7 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import Modal from '$lib/components/Modal.svelte';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
-	import { updateProduct } from '$lib/services/products';
+	import { updateProduct, fetchCategories } from '$lib/services/products';
 	import { saveProductBackup } from '$lib/services/productBackup';
 	import type { ProductInfo, CategoryTreeNode, CategoryOperation, ImageOperation } from './types';
 	import { buildCategoryHierarchy, flattenCategoryTree } from './utils';
@@ -208,23 +208,16 @@
 
 	async function loadCategories() {
 		try {
-			const response = await fetch('/api/categories');
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
-			}
+			const flat = await fetchCategories();
+			// Build hierarchical structure
+			categories = buildCategoryHierarchy(flat);
+			flattenedCategories = flattenCategoryTree(categories);
 
-			const data = await response.json();
-			if (data.success && data.data) {
-				// Build hierarchical structure
-				categories = buildCategoryHierarchy(data.data);
-				flattenedCategories = flattenCategoryTree(categories);
-
-				// Create a map for quick lookup
-				categoryMap.clear();
-				flattenedCategories.forEach((cat) => {
-					categoryMap.set(cat.id, cat);
-				});
-			}
+			// Create a map for quick lookup
+			categoryMap.clear();
+			flattenedCategories.forEach((cat) => {
+				categoryMap.set(cat.id, cat);
+			});
 		} catch (error) {
 			console.error('Error loading categories:', error);
 			// Don't show error to user as this is background loading

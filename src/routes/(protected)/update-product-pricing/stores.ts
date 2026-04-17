@@ -32,6 +32,11 @@ export const selectedRows = writable(new Set<string>());
 export const selectAll = writable(false);
 export const submitLoading = writable(false);
 
+/** Rows from `product_price_adjustment`, keyed by normalized SKU (for Last Price column). */
+export const lastPriceAdjustmentBySku = writable<
+  Map<string, { purchase_price: number; list_price: number }>
+>(new Map());
+
 // Filter state
 export const skuFilter = writable('');
 export const productNameFilter = writable('');
@@ -67,6 +72,51 @@ function toNumber(value: unknown, fallback = 0): number {
 
 function round2(n: number): number {
   return Number.isFinite(n) ? parseFloat(n.toFixed(2)) : 0;
+}
+
+/** Match API / UI SKU strings even when casing differs (e.g. response SKU vs stored sku). */
+export function normalizeSkuKey(s: unknown): string {
+  return String(s ?? '').trim().toLowerCase();
+}
+
+const LAST_PRICE_BATCH = 500;
+
+/**
+ * Loads `product_price_adjustment` rows for the current `products` list (after filters or full load).
+ */
+export async function fetchLastPriceAdjustmentsForCurrentProducts(): Promise<void> {
+  const skus = get(products)
+    .map((p) => String(p?.sku ?? '').trim())
+    .filter((s) => s.length > 0);
+  if (skus.length === 0) {
+    lastPriceAdjustmentBySku.set(new Map());
+    return;
+  }
+
+  const next = new Map<string, { purchase_price: number; list_price: number }>();
+
+  for (let i = 0; i < skus.length; i += LAST_PRICE_BATCH) {
+    const chunk = skus.slice(i, i + LAST_PRICE_BATCH);
+    const { data, error } = await supabase
+      .from('product_price_adjustment')
+      .select('sku, purchase_price, list_price')
+      .in('sku', chunk);
+
+    if (error) {
+      console.error('[product_price_adjustment] fetch failed', error);
+      continue;
+    }
+
+    for (const row of data ?? []) {
+      const sku = String((row as { sku?: string }).sku ?? '').trim();
+      if (!sku) continue;
+      const pp = round2(toNumber((row as { purchase_price?: unknown }).purchase_price));
+      const lp = round2(toNumber((row as { list_price?: unknown }).list_price));
+      next.set(normalizeSkuKey(sku), { purchase_price: pp, list_price: lp });
+    }
+  }
+
+  lastPriceAdjustmentBySku.set(next);
 }
 
 function computePricing(product: any, source: 'markup' | 'price' = 'markup') {
@@ -357,6 +407,8 @@ export async function fetchAllProducts() {
     filteredProducts.set(prods);
     currentPage.set(1);
 
+    await fetchLastPriceAdjustmentsForCurrentProducts();
+
     return { success: true, message: 'Products loaded' };
   } catch (err: unknown) {
     const error = err as Error;
@@ -491,11 +543,6 @@ export function handleSelectAll(checked: boolean) {
   } else {
     selectedRows.set(new Set<string>());
   }
-}
-
-/** Match API / UI SKU strings even when casing differs (e.g. response SKU vs stored sku). */
-function normalizeSkuKey(s: unknown): string {
-  return String(s ?? '').trim().toLowerCase();
 }
 
 function findOriginalProductBySku(snapshot: any[], sku: string): any | null {
@@ -829,6 +876,8 @@ export async function handleSubmitChecked() {
 
       syncOriginalProductsForSkus(updatedSkus);
 
+      await fetchLastPriceAdjustmentsForCurrentProducts();
+
       // Reset loading state
       submitLoading.set(false);
       // Don't clear the selectedRows after successful submission so users can see what was updated
@@ -889,6 +938,7 @@ export async function handleFilterSubmit(filters: {
       products.set([...original]);
       filteredProducts.set([...original]);
       loading.set(false);
+      await fetchLastPriceAdjustmentsForCurrentProducts();
       return { success: true, message: 'All products loaded' };
     }
 
@@ -944,6 +994,7 @@ export async function handleFilterSubmit(filters: {
       mergeProductsIntoOriginalProducts(filteredProds);
       currentPage.set(1);
       loading.set(false);
+      await fetchLastPriceAdjustmentsForCurrentProducts();
       return { success: true, message: 'Products filtered successfully' };
     }
 

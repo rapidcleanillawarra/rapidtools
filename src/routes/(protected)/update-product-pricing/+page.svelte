@@ -43,7 +43,8 @@
 		toggleRowSelected,
 		updateProductBySku,
 		updateProductPricingBySku,
-		clearSelection
+		clearSelection,
+		lastPriceAdjustmentBySku
 	} from './stores';
 
 	function resetControlSection() {
@@ -391,6 +392,7 @@
 					loading={$loading}
 					productsLength={visibleProducts.length}
 					{paginatedProducts}
+					lastPriceBySku={$lastPriceAdjustmentBySku}
 					{originalMap}
 					selectedRows={$selectedRows}
 					selectAll={$selectAll}

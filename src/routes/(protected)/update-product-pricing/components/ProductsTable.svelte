@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { normalizeSkuKey } from '../stores';
+
   export let loading: boolean;
   export let productsLength: number;
   export let paginatedProducts: any[];
@@ -27,6 +29,8 @@
   export let getPriceComparisonStatus: (product: any) => string[];
   export let onNumberInput: (e: Event) => number;
   export let onOpenPhotoViewer: (product: any) => void;
+  /** Snapshot from `product_price_adjustment` (purchase + list before last save), keyed by normalized SKU. */
+  export let lastPriceBySku: Map<string, { purchase_price: number; list_price: number }> = new Map();
 
   let baselineBySku = new Map<string, { purchase_price: unknown; markup: unknown; rrp: unknown }>();
   $: {
@@ -35,8 +39,8 @@
       const sku = product?.sku;
       if (!sku || baselineBySku.has(sku)) continue;
       const baseline = originalMap.get(sku) ?? product;
-      const baselinePurchasePrice = toNumber(baseline?.purchase_price, 0);
-      const baselineRrp = toNumber(baseline?.rrp, 0);
+      const baselinePurchasePrice = toNumber(baseline?.purchase_price) ?? 0;
+      const baselineRrp = toNumber(baseline?.rrp) ?? 0;
       const baselineMarkup = baselinePurchasePrice > 0 ? round2(baselineRrp / baselinePurchasePrice) : 0;
       baselineBySku.set(sku, {
         purchase_price: baseline?.purchase_price,
@@ -60,6 +64,7 @@
     { key: 'img', label: 'IMG', minWidth: 60, width: 60 },
     { key: 'sku', label: 'SKU', minWidth: 100, width: 120 },
     { key: 'product_name', label: 'Product Name', minWidth: 150, width: 200 },
+    { key: 'last_price', label: 'Last Price', minWidth: 80, width: 100 },
     { key: 'price_info', label: 'Price Info', minWidth: 80, width: 100 },
     { key: 'purchase_price', label: 'Purchase Price', minWidth: 100, width: 120 },
     { key: 'markup', label: 'Markup', minWidth: 100, width: 120 },
@@ -303,6 +308,8 @@
                 >
                   {col.label} {getSortIcon('product_name')}
                 </div>
+              {:else if col.key === 'last_price'}
+                {col.label}
               {:else if col.key === 'price_info'}
                 {col.label}
               {:else if col.key === 'purchase_price'}
@@ -395,7 +402,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#if productsLength === 0}
           <tr>
-            <td colspan="15" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="16" class="px-2 py-8 text-center text-gray-500">
               No products found
             </td>
           </tr>
@@ -451,6 +458,38 @@
                     </a>
                   {:else if col.key === 'product_name'}
                     {product.product_name}
+                  {:else if col.key === 'last_price'}
+                    {@const lastAdj = lastPriceBySku.get(normalizeSkuKey(product.sku))}
+                    {#if lastAdj}
+                      {@const lastMarkup =
+                        lastAdj.purchase_price > 0 ? round2(lastAdj.list_price / lastAdj.purchase_price) : 0}
+                      {@const lastDiff = (toNumber(lastAdj.list_price) ?? 0) - (toNumber(lastAdj.purchase_price) ?? 0)}
+                      <table class="w-full text-[11px] text-left">
+                        <tbody>
+                          <tr>
+                            <td class="pr-2 text-gray-600 font-medium">Purchase</td>
+                            <td class="font-semibold">${lastAdj.purchase_price}</td>
+                          </tr>
+                          <tr>
+                            <td class="pr-2 text-gray-600 font-medium">Markup</td>
+                            <td
+                              class="font-semibold {lastMarkup >= 0 ? 'text-green-700' : 'text-red-700'}"
+                              >{formatMarkupDisplay(lastMarkup)}</td
+                            >
+                          </tr>
+                          <tr>
+                            <td class="pr-2 text-gray-600 font-medium">List</td>
+                            <td class="font-semibold">${lastAdj.list_price}</td>
+                          </tr>
+                          <tr>
+                            <td class="pr-2 text-gray-600 font-medium">Difference</td>
+                            <td class="font-semibold {deltaClass(lastDiff)}">${formatMoney(lastDiff)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    {:else}
+                      <span class="text-[10px] text-gray-400">—</span>
+                    {/if}
                   {:else if col.key === 'price_info'}
                     <table class="w-full text-[11px] text-left">
                       <tbody>
@@ -460,7 +499,7 @@
                         </tr>
                         <tr>
                           <td class="pr-2 text-gray-600 font-medium">Markup</td>
-                          <td class="font-semibold {toNumber(original?.markup) >= 0 ? 'text-green-700' : 'text-red-700'}">{formatMarkupDisplay(original?.markup)}</td>
+                          <td class="font-semibold {(toNumber(original?.markup) ?? 0) >= 0 ? 'text-green-700' : 'text-red-700'}">{formatMarkupDisplay(original?.markup)}</td>
                         </tr>
                         <tr>
                           <td class="pr-2 text-gray-600 font-medium">List</td>

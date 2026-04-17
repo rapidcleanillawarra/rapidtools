@@ -4,6 +4,7 @@
 	import { base } from '$app/paths';
 
 	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import Modal from '$lib/components/Modal.svelte';
 	import FiltersPanel from './components/FiltersPanel.svelte';
 	import PaginationControls from './components/PaginationControls.svelte';
 	import ProductsTable from './components/ProductsTable.svelte';
@@ -207,6 +208,7 @@
 		total: 0
 	};
 	let showConfirmSave = false;
+	let showMassPriceChangeModal = false;
 	let originalMap: Map<string, any> = new Map();
 	let photoViewerOpen = false;
 	let photoViewerImages: string[] = [];
@@ -365,86 +367,16 @@
 
 			<!-- Middle column: table -->
 			<section class="middle-col">
-				<div class="control-section mb-3 rounded-md bg-white p-3 shadow-sm ring-1 ring-gray-200">
-					<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-						<div>
-							<label
-								class="mb-1 block text-xs font-medium text-gray-700"
-								for="purchase_price_increase"
-							>
-								Purchase Price Adjustment
-							</label>
-							<div class="flex items-center gap-2">
-								<input
-									id="purchase_price_increase"
-									type="number"
-									bind:value={purchasePriceIncrease}
-									class="no-spinner block h-8 w-full rounded-md border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
-									step="0.01"
-									on:change={applyPurchasePricePercentChange}
-								/>
-							</div>
-							<div class={`mt-1 text-[10px] ${purchasePriceIncreaseHint.cls}`}>
-								{purchasePriceIncreaseHint.text}
-							</div>
-						</div>
-						<div>
-							<label class="mb-1 block text-xs font-medium text-gray-700" for="markup_increase">
-								Markup
-							</label>
-							<div class="flex items-center gap-2">
-								<input
-									id="markup_increase"
-									type="number"
-									bind:value={markupIncrease}
-									class="no-spinner block h-8 w-full rounded-md border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
-									step="0.01"
-									on:change={applyMarkupAddition}
-								/>
-							</div>
-							<div class={`mt-1 text-[10px] ${markupIncreaseHint.cls}`}>
-								{markupIncreaseHint.text}
-							</div>
-						</div>
-						<div>
-							<label class="mb-1 block text-xs font-medium text-gray-700" for="list_price_increase">
-								List Price Adjustment
-							</label>
-							<div class="flex items-center gap-2">
-								<input
-									id="list_price_increase"
-									type="number"
-									bind:value={listPriceIncrease}
-									class="no-spinner block h-8 w-full rounded-md border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
-									step="0.01"
-									on:change={applyListPricePercentChange}
-								/>
-							</div>
-							<div class={`mt-1 text-[10px] ${listPriceIncreaseHint.cls}`}>
-								{listPriceIncreaseHint.text}
-							</div>
-						</div>
-					</div>
-					<div class="mt-2 flex items-center justify-between gap-2">
-						<div class="flex gap-2">
-							<button
-								type="button"
-								class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-								disabled={$selectedRows.size === 0}
-								on:click={applyAdjustments}
-							>
-								Apply adjustments
-							</button>
-							<button
-								type="button"
-								class="inline-flex items-center rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-								disabled={$selectedRows.size === 0}
-								on:click={handlePrintBarcode}
-							>
-								Print Barcode
-							</button>
-						</div>
-					</div>
+				<div
+					class="mass-price-change-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-md bg-white p-3 shadow-sm ring-1 ring-gray-200"
+				>
+					<button
+						type="button"
+						class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700"
+						on:click={() => (showMassPriceChangeModal = true)}
+					>
+						Mass Price Change
+					</button>
 				</div>
 
 				<PaginationControls
@@ -494,6 +426,92 @@
 		</div>
 	</div>
 </div>
+<Modal
+	show={showMassPriceChangeModal}
+	size="md"
+	allowClose={true}
+	on:close={() => (showMassPriceChangeModal = false)}
+>
+	<svelte:fragment slot="header">Mass Price Change</svelte:fragment>
+	<div slot="body" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+		<div>
+			<label
+				class="mb-1 block text-xs font-medium text-gray-700"
+				for="purchase_price_increase_modal"
+			>
+				Purchase Price Adjustment
+			</label>
+			<div class="flex items-center gap-2">
+				<input
+					id="purchase_price_increase_modal"
+					type="number"
+					bind:value={purchasePriceIncrease}
+					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					step="0.01"
+					on:change={applyPurchasePricePercentChange}
+				/>
+			</div>
+			<div class={`mt-1 text-[10px] ${purchasePriceIncreaseHint.cls}`}>
+				{purchasePriceIncreaseHint.text}
+			</div>
+		</div>
+		<div>
+			<label class="mb-1 block text-xs font-medium text-gray-700" for="markup_increase_modal">
+				Markup
+			</label>
+			<div class="flex items-center gap-2">
+				<input
+					id="markup_increase_modal"
+					type="number"
+					bind:value={markupIncrease}
+					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					step="0.01"
+					on:change={applyMarkupAddition}
+				/>
+			</div>
+			<div class={`mt-1 text-[10px] ${markupIncreaseHint.cls}`}>
+				{markupIncreaseHint.text}
+			</div>
+		</div>
+		<div>
+			<label class="mb-1 block text-xs font-medium text-gray-700" for="list_price_increase_modal">
+				List Price Adjustment
+			</label>
+			<div class="flex items-center gap-2">
+				<input
+					id="list_price_increase_modal"
+					type="number"
+					bind:value={listPriceIncrease}
+					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					step="0.01"
+					on:change={applyListPricePercentChange}
+				/>
+			</div>
+			<div class={`mt-1 text-[10px] ${listPriceIncreaseHint.cls}`}>
+				{listPriceIncreaseHint.text}
+			</div>
+		</div>
+	</div>
+	<div slot="footer" class="flex flex-wrap items-center justify-end gap-2">
+		<button
+			type="button"
+			class="inline-flex items-center rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+			disabled={$selectedRows.size === 0}
+			on:click={handlePrintBarcode}
+		>
+			Print Barcode
+		</button>
+		<button
+			type="button"
+			class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+			disabled={$selectedRows.size === 0}
+			on:click={applyAdjustments}
+		>
+			Apply adjustments
+		</button>
+	</div>
+</Modal>
+
 <ConfirmSaveModal
 	open={showConfirmSave}
 	loading={$submitLoading}

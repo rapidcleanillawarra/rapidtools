@@ -65,6 +65,7 @@
     { key: 'markup', label: 'Markup', minWidth: 100, width: 120 },
     { key: 'rrp', label: 'List Price', minWidth: 100, width: 120 },
     { key: 'plus_gst', label: '+GST', minWidth: 90, width: 110 },
+    { key: 'gpp', label: 'GPP', minWidth: 72, width: 88 },
     { key: 'difference', label: 'Difference', minWidth: 80, width: 100 },
     { key: 'remove_pricegroups', label: 'Remove PriceGroups', minWidth: 120, width: 140 },
     { key: 'tax_free', label: 'Tax Free', minWidth: 80, width: 100 },
@@ -220,6 +221,14 @@
     return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
   }
 
+  /** Gross profit % on list price: (list − purchase) / list × 100 */
+  function grossProfitPercent(purchase: unknown, list: unknown): number | null {
+    const rrp = toNumber(list);
+    const pp = toNumber(purchase);
+    if (rrp === null || pp === null || rrp <= 0) return null;
+    return round2(((rrp - pp) / rrp) * 100);
+  }
+
   function computeMarkupDisplayValue(markup: unknown, percentMode: boolean): number | null {
     const n = toNumber(markup);
     if (n === null) return null;
@@ -314,6 +323,13 @@
                 </div>
               {:else if col.key === 'plus_gst'}
                 {col.label}
+              {:else if col.key === 'gpp'}
+                <div
+                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
+                  on:click={() => onSortClick('gpp')}
+                >
+                  {col.label} {getSortIcon('gpp')}
+                </div>
               {:else if col.key === 'difference'}
                 {col.label}
               {:else if col.key === 'remove_pricegroups'}
@@ -379,7 +395,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#if productsLength === 0}
           <tr>
-            <td colspan="14" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="15" class="px-2 py-8 text-center text-gray-500">
               No products found
             </td>
           </tr>
@@ -510,6 +526,13 @@
                   {:else if col.key === 'plus_gst'}
                     {#if gstPlusVal !== null}
                       <span class="font-medium text-gray-900">${gstPlusVal}</span>
+                    {:else}
+                      <span class="text-gray-400">—</span>
+                    {/if}
+                  {:else if col.key === 'gpp'}
+                    {@const gppVal = grossProfitPercent(product.purchase_price, product.rrp)}
+                    {#if gppVal !== null}
+                      <span class={`font-medium ${deltaClass(gppVal)}`}>{formatNumberCompact(gppVal)}%</span>
                     {:else}
                       <span class="text-gray-400">—</span>
                     {/if}

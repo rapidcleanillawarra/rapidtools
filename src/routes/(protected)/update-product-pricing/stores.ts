@@ -823,6 +823,18 @@ export async function handleFilterSubmit(filters: {
   }
 }
 
+/** Gross profit % on list: (list − purchase) / list × 100. Null when list ≤ 0 or values invalid. */
+function grossProfitPercentFromProduct(p: any): number | null {
+  const rrp =
+    typeof p?.rrp === 'number' ? p.rrp : parseFloat(String(p?.rrp ?? ''));
+  const pp =
+    typeof p?.purchase_price === 'number'
+      ? p.purchase_price
+      : parseFloat(String(p?.purchase_price ?? ''));
+  if (!Number.isFinite(rrp) || !Number.isFinite(pp) || rrp <= 0) return null;
+  return ((rrp - pp) / rrp) * 100;
+}
+
 // Get paginated and sorted products
 export function getPaginatedProducts(
   allProducts: any[],
@@ -837,7 +849,16 @@ export function getPaginatedProducts(
   const currentSortField = sortFieldOverride ?? get(sortField);
   const currentSortDirection = sortDirectionOverride ?? get(sortDirection);
   
-  if (currentSortField) {
+  if (currentSortField === 'gpp') {
+    sorted.sort((a, b) => {
+      const aG = grossProfitPercentFromProduct(a);
+      const bG = grossProfitPercentFromProduct(b);
+      if (aG === null && bG === null) return 0;
+      if (aG === null) return 1;
+      if (bG === null) return -1;
+      return currentSortDirection === 'asc' ? aG - bG : bG - aG;
+    });
+  } else if (currentSortField) {
     sorted.sort((a, b) => {
       let aValue = a[currentSortField];
       let bValue = b[currentSortField];

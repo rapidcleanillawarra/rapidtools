@@ -567,6 +567,47 @@ function mergeProductsIntoOriginalProducts(incoming: any[]) {
   });
 }
 
+/** `created_by` / `created_by_name` from `public.users` (email + full_name), with Firebase fallbacks. */
+async function fetchCreatedByForPriceAdjustment(): Promise<{
+  created_by: string | null;
+  created_by_name: string | null;
+}> {
+  const user = get(currentUser);
+  const fbEmail = user?.email?.trim() || null;
+  const fbDisplay = user?.displayName?.trim() || null;
+
+  if (!fbEmail) {
+    return { created_by: null, created_by_name: fbDisplay };
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('email, full_name')
+    .eq('email', fbEmail)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[product_price_adjustment] users lookup failed', error);
+    return { created_by: fbEmail, created_by_name: fbDisplay };
+  }
+
+  const row = data as { email?: string | null; full_name?: string | null } | null;
+  if (!row) {
+    return { created_by: fbEmail, created_by_name: fbDisplay };
+  }
+
+  const email =
+    row.email != null && String(row.email).trim() !== ''
+      ? String(row.email).trim()
+      : fbEmail;
+  const name =
+    row.full_name != null && String(row.full_name).trim() !== ''
+      ? String(row.full_name).trim()
+      : fbDisplay;
+
+  return { created_by: email, created_by_name: name };
+}
+
 /** Persists previous purchase + list prices (from the snapshot before this save) to Supabase. */
 async function savePreviousPriceSnapshotsToSupabase(
   updatedSkus: Set<string>,
@@ -578,9 +619,8 @@ async function savePreviousPriceSnapshotsToSupabase(
     originalSnapshotLength: originalSnapshot.length,
   });
 
-  const user = get(currentUser);
-  const email = user?.email ?? null;
-  const name = user?.displayName ?? null;
+  const { created_by: email, created_by_name: name } =
+    await fetchCreatedByForPriceAdjustment();
 
   const rows = Array.from(updatedSkus)
     .map((sku) => {

@@ -65,7 +65,7 @@
     { key: 'sku', label: 'SKU', minWidth: 100, width: 120 },
     { key: 'product_name', label: 'Product Name', minWidth: 150, width: 200 },
     { key: 'last_price', label: 'Last Price', minWidth: 80, width: 100 },
-    { key: 'price_info', label: 'Price Info', minWidth: 80, width: 100 },
+    { key: 'price_info', label: 'Current Price', minWidth: 80, width: 100 },
     { key: 'purchase_price', label: 'Purchase Price', minWidth: 100, width: 120 },
     { key: 'markup', label: 'Markup', minWidth: 100, width: 120 },
     { key: 'rrp', label: 'List Price', minWidth: 100, width: 120 },

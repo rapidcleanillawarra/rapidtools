@@ -29,7 +29,7 @@
   export let getPriceComparisonStatus: (product: any) => string[];
   export let onNumberInput: (e: Event) => number;
   export let onOpenPhotoViewer: (product: any) => void;
-  /** Snapshot from `product_price_adjustment` (purchase + list before last save), keyed by normalized SKU. */
+  /** Latest snapshot per SKU from `product_price_adjustment` history, keyed by normalized SKU. */
   export let lastPriceBySku: Map<string, { purchase_price: number; list_price: number }> = new Map();
 
   let baselineBySku = new Map<string, { purchase_price: unknown; markup: unknown; rrp: unknown }>();

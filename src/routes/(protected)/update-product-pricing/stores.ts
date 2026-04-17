@@ -32,7 +32,7 @@ export const selectedRows = writable(new Set<string>());
 export const selectAll = writable(false);
 export const submitLoading = writable(false);
 
-/** Rows from `product_price_adjustment`, keyed by normalized SKU (for Last Price column). */
+/** Latest row per SKU from `latest_product_price_adjustment` view (for Last Price column). */
 export const lastPriceAdjustmentBySku = writable<
   Map<string, { purchase_price: number; list_price: number }>
 >(new Map());
@@ -82,7 +82,7 @@ export function normalizeSkuKey(s: unknown): string {
 const LAST_PRICE_BATCH = 500;
 
 /**
- * Loads `product_price_adjustment` rows for the current `products` list (after filters or full load).
+ * Loads latest `product_price_adjustment` snapshot per SKU (via view) for the current `products` list.
  */
 export async function fetchLastPriceAdjustmentsForCurrentProducts(): Promise<void> {
   const skus = get(products)
@@ -98,7 +98,7 @@ export async function fetchLastPriceAdjustmentsForCurrentProducts(): Promise<voi
   for (let i = 0; i < skus.length; i += LAST_PRICE_BATCH) {
     const chunk = skus.slice(i, i + LAST_PRICE_BATCH);
     const { data, error } = await supabase
-      .from('product_price_adjustment')
+      .from('latest_product_price_adjustment')
       .select('sku, purchase_price, list_price')
       .in('sku', chunk);
 
@@ -614,21 +614,18 @@ async function savePreviousPriceSnapshotsToSupabase(
 
   if (rows.length === 0) {
     console.warn(
-      '[product_price_adjustment] No rows to upsert — check originalSnapshot vs updated SKUs.'
+      '[product_price_adjustment] No rows to insert — check originalSnapshot vs updated SKUs.'
     );
     return;
   }
 
-  console.log('[product_price_adjustment] upsert payload', { rowCount: rows.length, rows });
+  console.log('[product_price_adjustment] insert payload', { rowCount: rows.length, rows });
 
   try {
-    const { data, error } = await supabase
-      .from('product_price_adjustment')
-      .upsert(rows, { onConflict: 'sku' })
-      .select();
+    const { data, error } = await supabase.from('product_price_adjustment').insert(rows).select();
 
     if (error) {
-      console.error('[product_price_adjustment] upsert failed', {
+      console.error('[product_price_adjustment] insert failed', {
         message: error.message,
         details: error.details,
         hint: error.hint,
@@ -638,12 +635,12 @@ async function savePreviousPriceSnapshotsToSupabase(
       return;
     }
 
-    console.log('[product_price_adjustment] upsert OK', {
+    console.log('[product_price_adjustment] insert OK', {
       returnedRows: data?.length ?? 0,
       data,
     });
   } catch (e) {
-    console.error('[product_price_adjustment] upsert threw', e);
+    console.error('[product_price_adjustment] insert threw', e);
   }
 }
 

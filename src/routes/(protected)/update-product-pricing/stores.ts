@@ -1,4 +1,6 @@
 import { writable, get } from 'svelte/store';
+import { supabase } from '$lib/supabase';
+import { currentUser } from '$lib/firebase';
 import type { SelectOption, MultiSelectOption } from './types';
 
 // API Endpoints
@@ -491,9 +493,134 @@ export function handleSelectAll(checked: boolean) {
   }
 }
 
+/** Match API / UI SKU strings even when casing differs (e.g. response SKU vs stored sku). */
+function normalizeSkuKey(s: unknown): string {
+  return String(s ?? '').trim().toLowerCase();
+}
+
+function findOriginalProductBySku(snapshot: any[], sku: string): any | null {
+  const exact = snapshot.find((p) => p?.sku === sku);
+  if (exact) return exact;
+  const key = normalizeSkuKey(sku);
+  return snapshot.find((p) => normalizeSkuKey(p?.sku) === key) ?? null;
+}
+
+/**
+ * When filters load products that were not in the initial page (e.g. SKU not in first 100 rows),
+ * merge them into originalProducts so "previous price" snapshots exist on save.
+ */
+function mergeProductsIntoOriginalProducts(incoming: any[]) {
+  if (incoming.length === 0) return;
+  originalProducts.update((orig) => {
+    const byKey = new Map(orig.map((p) => [normalizeSkuKey(p.sku), p]));
+    for (const p of incoming) {
+      byKey.set(normalizeSkuKey(p.sku), { ...p });
+    }
+    return Array.from(byKey.values());
+  });
+}
+
+/** Persists previous purchase + list prices (from the snapshot before this save) to Supabase. */
+async function savePreviousPriceSnapshotsToSupabase(
+  updatedSkus: Set<string>,
+  originalSnapshot: any[]
+): Promise<void> {
+  console.log('[product_price_adjustment] savePreviousPriceSnapshotsToSupabase called', {
+    updatedSkuCount: updatedSkus.size,
+    updatedSkus: Array.from(updatedSkus),
+    originalSnapshotLength: originalSnapshot.length,
+  });
+
+  const user = get(currentUser);
+  const email = user?.email ?? null;
+  const name = user?.displayName ?? null;
+
+  const rows = Array.from(updatedSkus)
+    .map((sku) => {
+      const orig = findOriginalProductBySku(originalSnapshot, sku);
+      if (!orig) return null;
+      const inv = orig.inventory_id;
+      // Use canonical sku from snapshot so DB matches app rows
+      const canonicalSku = String(orig.sku ?? sku);
+      return {
+        sku: canonicalSku,
+        inventory_id:
+          inv != null && String(inv).trim() !== '' ? String(inv) : null,
+        purchase_price: round2(toNumber(orig.purchase_price)),
+        list_price: round2(toNumber(orig.rrp)),
+        notes: null as string | null,
+        created_by: email,
+        created_by_name: name,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r != null);
+
+  const missingOriginals = Array.from(updatedSkus).filter(
+    (sku) => !findOriginalProductBySku(originalSnapshot, sku)
+  );
+  if (missingOriginals.length > 0) {
+    console.warn(
+      '[product_price_adjustment] SKUs in API response but not in originalSnapshot (rows skipped):',
+      missingOriginals
+    );
+  }
+
+  if (rows.length === 0) {
+    console.warn(
+      '[product_price_adjustment] No rows to upsert — check originalSnapshot vs updated SKUs.'
+    );
+    return;
+  }
+
+  console.log('[product_price_adjustment] upsert payload', { rowCount: rows.length, rows });
+
+  try {
+    const { data, error } = await supabase
+      .from('product_price_adjustment')
+      .upsert(rows, { onConflict: 'sku' })
+      .select();
+
+    if (error) {
+      console.error('[product_price_adjustment] upsert failed', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        error,
+      });
+      return;
+    }
+
+    console.log('[product_price_adjustment] upsert OK', {
+      returnedRows: data?.length ?? 0,
+      data,
+    });
+  } catch (e) {
+    console.error('[product_price_adjustment] upsert threw', e);
+  }
+}
+
+/** After a successful save, align originals with current rows so the next save records the correct baseline. */
+function syncOriginalProductsForSkus(updatedSkus: Set<string>) {
+  const currentByNorm = new Map(
+    get(products).map((p) => [normalizeSkuKey(p.sku), p])
+  );
+  const updatedNorm = new Set(Array.from(updatedSkus).map(normalizeSkuKey));
+  originalProducts.update((origList) =>
+    origList.map((p) => {
+      const key = normalizeSkuKey(p.sku);
+      if (updatedNorm.has(key) && currentByNorm.has(key)) {
+        return { ...currentByNorm.get(key)! };
+      }
+      return p;
+    })
+  );
+}
+
 // Function to handle submit checked rows
 export async function handleSubmitChecked() {
   submitLoading.set(true);
+  const originalSnapshotAtSubmit = get(originalProducts);
   try {
     const currentSelectedRows = get(selectedRows);
     const currentProducts = get(products);
@@ -684,19 +811,24 @@ export async function handleSubmitChecked() {
     // Check if data.Item exists and has SKUs
     if (data.Item && data.Ack === "Success") {
       // Get array of successfully updated SKUs
-      const updatedSkus = new Set(
+      const updatedSkus = new Set<string>(
         (Array.isArray(data.Item) ? data.Item : [data.Item])
-          .map((item: any) => item.SKU)
-          .filter(Boolean)
+          .map((item: any) => item.SKU as string | undefined)
+          .filter((sku: string | undefined): sku is string => typeof sku === 'string' && sku.length > 0)
       );
-      
+
+      await savePreviousPriceSnapshotsToSupabase(updatedSkus, originalSnapshotAtSubmit);
+
+      const updatedNorm = new Set(Array.from(updatedSkus).map(normalizeSkuKey));
       // Simply mark products as updated if their SKU is in the response
-      products.update(prods => 
-        prods.map(prod => 
-          updatedSkus.has(prod.sku) ? { ...prod, updated: true } : prod
+      products.update((prods) =>
+        prods.map((prod) =>
+          updatedNorm.has(normalizeSkuKey(prod.sku)) ? { ...prod, updated: true } : prod
         )
       );
-      
+
+      syncOriginalProductsForSkus(updatedSkus);
+
       // Reset loading state
       submitLoading.set(false);
       // Don't clear the selectedRows after successful submission so users can see what was updated
@@ -809,6 +941,7 @@ export async function handleFilterSubmit(filters: {
 
       products.set(filteredProds);
       filteredProducts.set(filteredProds);
+      mergeProductsIntoOriginalProducts(filteredProds);
       currentPage.set(1);
       loading.set(false);
       return { success: true, message: 'Products filtered successfully' };

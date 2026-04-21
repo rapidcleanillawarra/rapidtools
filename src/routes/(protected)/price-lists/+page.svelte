@@ -6,7 +6,7 @@
   import { currentUser } from '$lib/firebase';
   import { supabase } from '$lib/supabase';
 
-  type Row = { sku: string; price: string };
+  type Row = { sku: string; percentDiscount: string; productDiscount: string; price: string };
   type RowError = { sku?: string; price?: string };
   type PriceListRecord = {
     id: string;
@@ -17,7 +17,7 @@
     price_list_data?: any[];
   };
 
-  const createEmptyRow = (): Row => ({ sku: '', price: '' });
+  const createEmptyRow = (): Row => ({ sku: '', percentDiscount: '', productDiscount: '', price: '' });
   const createEmptyRows = (count = 5): Row[] => Array.from({ length: count }, createEmptyRow);
 
   const STORAGE_KEY = 'price-lists-rows';
@@ -104,6 +104,8 @@
       if (!Array.isArray(parsed)) return;
       const normalized = parsed.map((row: Partial<Row>) => ({
         sku: (row?.sku ?? '').toString(),
+        percentDiscount: sanitizePrice((row?.percentDiscount ?? '').toString()),
+        productDiscount: sanitizePrice((row?.productDiscount ?? '').toString()),
         price: sanitizePrice((row?.price ?? '').toString())
       }));
       rows = normalized.length ? normalized : createEmptyRows();
@@ -190,7 +192,14 @@
     }
   };
 
-  type OrderLineResponse = { SKU?: string; UnitPrice?: string; Quantity?: string; OrderLineID?: string };
+  type OrderLineResponse = {
+    SKU?: string;
+    UnitPrice?: string;
+    Quantity?: string;
+    OrderLineID?: string;
+    ProductDiscount?: string;
+    PercentDiscount?: string;
+  };
   const loadFromOrder = async () => {
     const id = orderId.trim();
     if (!id) {
@@ -203,7 +212,13 @@
       const payload = {
         Filter: {
           OrderID: [id],
-          OutputSelector: ['OrderLine', 'OrderLine.SKU', 'OrderLine.UnitPrice']
+          OutputSelector: [
+            'OrderLine',
+            'OrderLine.SKU',
+            'OrderLine.UnitPrice',
+            'OrderLine.ProductDiscount',
+            'OrderLine.PercentDiscount'
+          ]
         },
         action: 'GetOrder'
       };
@@ -213,6 +228,7 @@
         body: JSON.stringify(payload)
       });
       const data = await response.json();
+      console.log('Load from order response', data);
       if (data?.Ack !== 'Success' || !Array.isArray(data?.Order) || data.Order.length === 0) {
         orderError = data?.Ack === 'Success' ? 'Order not found' : 'Failed to load order. Please try again.';
         return;
@@ -224,6 +240,8 @@
       }
       rows = orderLines.map((line) => ({
         sku: (line.SKU ?? '').toString().trim(),
+        percentDiscount: sanitizePrice((line.PercentDiscount ?? '').toString()),
+        productDiscount: sanitizePrice((line.ProductDiscount ?? '').toString()),
         price: sanitizePrice((line.UnitPrice ?? '').toString())
       }));
     } catch (error) {
@@ -466,6 +484,8 @@
             <tr>
               <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
               <th class="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-700">Discount %</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-700">Total Discounted</th>
               <th class="px-4 py-3 text-left font-semibold text-gray-700">Discounted Price</th>
               <th class="px-4 py-3 text-left font-semibold text-gray-700">
                 <span class="sr-only">Actions</span>
@@ -499,6 +519,12 @@
                   {:else if isMissing}
                     <p class="mt-1 text-xs text-amber-700">SKU not found in system</p>
                   {/if}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-gray-700 tabular-nums">
+                  {row.percentDiscount.trim() ? `${row.percentDiscount}%` : '—'}
+                </td>
+                <td class="whitespace-nowrap px-4 py-3 text-gray-700 tabular-nums">
+                  {row.productDiscount.trim() ? row.productDiscount : '—'}
                 </td>
                 <td class="px-4 py-3">
                   <input

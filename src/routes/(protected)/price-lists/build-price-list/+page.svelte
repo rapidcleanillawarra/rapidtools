@@ -9,6 +9,8 @@
   type Row = {
     sku: string;
     price: string;
+    percentDiscount?: string;
+    productDiscount?: string;
     model?: string;
     rrp?: string;
     imageUrl?: string;
@@ -218,6 +220,8 @@
         ? skuData.map((item: any) => ({
             sku: item?.sku?.toString() ?? '',
             price: item?.price?.toString() ?? '',
+            percentDiscount: item?.percentDiscount != null ? String(item.percentDiscount) : undefined,
+            productDiscount: item?.productDiscount != null ? String(item.productDiscount) : undefined,
             model: item?.model,
             rrp: item?.rrp,
             imageUrl: item?.imageUrl,

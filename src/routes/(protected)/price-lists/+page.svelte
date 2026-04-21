@@ -51,6 +51,20 @@
     return trimmedDecimal ? `${safeInt}.${trimmedDecimal}` : safeInt;
   };
 
+  /** Discounted price = unit price minus total product discount (2 dp). */
+  const discountedPriceAfterProductDiscount = (unitPriceRaw: string, productDiscountRaw: string): string => {
+    const parseAmount = (raw: string): number => {
+      const n = Number(String(raw).replace(/[^0-9.]/g, ''));
+      return Number.isFinite(n) ? n : NaN;
+    };
+    const unit = parseAmount(unitPriceRaw);
+    if (!Number.isFinite(unit)) return '';
+    const discParsed = parseAmount(String(productDiscountRaw));
+    const disc = Number.isFinite(discParsed) ? discParsed : 0;
+    const cents = Math.round((unit - disc) * 100);
+    return sanitizePrice((cents / 100).toFixed(2));
+  };
+
   const validateRow = (row: Row): RowError => {
     const errors: RowError = {};
 
@@ -242,7 +256,10 @@
         sku: (line.SKU ?? '').toString().trim(),
         percentDiscount: sanitizePrice((line.PercentDiscount ?? '').toString()),
         productDiscount: sanitizePrice((line.ProductDiscount ?? '').toString()),
-        price: sanitizePrice((line.UnitPrice ?? '').toString())
+        price: discountedPriceAfterProductDiscount(
+          (line.UnitPrice ?? '').toString(),
+          (line.ProductDiscount ?? '').toString()
+        )
       }));
     } catch (error) {
       console.error('Failed to load order', error);

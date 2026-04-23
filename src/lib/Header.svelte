@@ -368,6 +368,11 @@
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Overview</a
 							>
+							<a
+								href="{base}/assets/create"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Create</a
+							>
 						</div>
 					{/if}
 				</div>

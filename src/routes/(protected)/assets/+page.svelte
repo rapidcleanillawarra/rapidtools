@@ -16,6 +16,7 @@
 		test_date: string | null;
 		test_due_date: string | null;
 		purchase_date: string | null;
+		file_count: number;
 	};
 
 	const COLUMNS = [
@@ -25,7 +26,8 @@
 		{ key: 'serial_number' as const, label: 'Serial number' },
 		{ key: 'test_date' as const, label: 'Test date' },
 		{ key: 'test_due_date' as const, label: 'Test due date' },
-		{ key: 'purchase_date' as const, label: 'Purchase date' }
+		{ key: 'purchase_date' as const, label: 'Purchase date' },
+		{ key: 'file_count' as const, label: 'Files' }
 	];
 
 	type ColumnKey = (typeof COLUMNS)[number]['key'];
@@ -41,7 +43,8 @@
 		serial_number: '',
 		test_date: '',
 		test_due_date: '',
-		purchase_date: ''
+		purchase_date: '',
+		file_count: ''
 	});
 
 	let sortKey = $state<ColumnKey>('asset_number');
@@ -71,7 +74,9 @@
 		for (const k of COLUMNS.map((c) => c.key)) {
 			const q = columnFilters[k].trim().toLowerCase();
 			if (!q) continue;
-			if (k === 'test_date' || k === 'test_due_date' || k === 'purchase_date') {
+			if (k === 'file_count') {
+				if (!String(row.file_count).includes(q)) return false;
+			} else if (k === 'test_date' || k === 'test_due_date' || k === 'purchase_date') {
 				if (!dateSearchHaystack(row, k).includes(q)) return false;
 			} else {
 				const text = (row[k] as string | null)?.toLowerCase() ?? '';
@@ -97,6 +102,9 @@
 
 	function compareRows(a: AssetRow, b: AssetRow): number {
 		const dir = sortDir === 'asc' ? 1 : -1;
+		if (sortKey === 'file_count') {
+			return (a.file_count - b.file_count) * dir;
+		}
 		if (
 			sortKey === 'test_date' ||
 			sortKey === 'test_due_date' ||
@@ -164,7 +172,7 @@
 			const { data, error: qError } = await supabase
 				.from('assets')
 				.select(
-					'id, asset_number, asset_name, model, serial_number, test_date, test_due_date, purchase_date'
+					'id, asset_number, asset_name, model, serial_number, test_date, test_due_date, purchase_date, asset_files(count)'
 				)
 				.is('deleted_at', null)
 				.order('asset_number', { ascending: true });
@@ -173,7 +181,12 @@
 				error = qError.message;
 				return;
 			}
-			rows = (data as AssetRow[]) ?? [];
+			type RowWithCount = { asset_files?: { count: number }[] } & Record<string, unknown>;
+			rows = ((data ?? []) as RowWithCount[]).map((r) => {
+				const { asset_files, ...rest } = r;
+				const n = asset_files?.[0]?.count;
+				return { ...(rest as Omit<AssetRow, 'file_count'>), file_count: Number(n ?? 0) };
+			});
 		})();
 	});
 </script>
@@ -234,7 +247,7 @@
 							<tr>
 								<td
 									class="px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-300"
-									colspan={8}
+									colspan={9}
 								>
 									No assets match the current filters.
 								</td>
@@ -264,6 +277,11 @@
 									</td>
 									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
 										{fmtDate(row.purchase_date)}
+									</td>
+									<td
+										class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100"
+									>
+										{row.file_count}
 									</td>
 									<td class="whitespace-nowrap px-3 py-3 text-right text-sm">
 										<div class="inline-flex flex-wrap items-center justify-end gap-1.5">

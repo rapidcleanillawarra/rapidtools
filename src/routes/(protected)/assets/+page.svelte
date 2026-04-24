@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { base } from '$app/paths';
 	import { supabase } from '$lib/supabase';
+	import { currentUser } from '$lib/firebase';
+	import { userProfile } from '$lib/userProfile';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
 
 	type AssetRow = {
 		id: string;
@@ -41,6 +46,7 @@
 
 	let sortKey = $state<ColumnKey>('asset_number');
 	let sortDir = $state<'asc' | 'desc'>('asc');
+	let deletingId = $state<string | null>(null);
 
 	function fmtDate(s: string | null) {
 		if (!s) return '—';
@@ -113,6 +119,44 @@
 		return [...filtered].sort(compareRows);
 	});
 
+	function buildDeletePayload() {
+		const u = get(currentUser);
+		if (!u) {
+			return { deleted_at: new Date().toISOString() };
+		}
+		const p = get(userProfile);
+		const fullName =
+			p && (p.firstName || p.lastName)
+				? `${p.firstName} ${p.lastName}`.trim()
+				: (u.displayName || '').trim() || null;
+		return {
+			deleted_at: new Date().toISOString(),
+			deleted_by: fullName || u.email || u.uid,
+			deleted_by_email: u.email ?? null,
+			deleted_by_name: fullName
+		};
+	}
+
+	async function deleteAsset(row: AssetRow) {
+		const label = row.asset_number?.trim() || row.asset_name?.trim() || 'this asset';
+		if (!confirm(`Delete ${label}? This can’t be undone from the list (record is archived).`)) {
+			return;
+		}
+		deletingId = row.id;
+		const { error: upError } = await supabase
+			.from('assets')
+			.update(buildDeletePayload())
+			.eq('id', row.id)
+			.is('deleted_at', null);
+		deletingId = null;
+		if (upError) {
+			toastError(upError.message);
+			return;
+		}
+		rows = rows.filter((r) => r.id !== row.id);
+		toastSuccess('Asset deleted.');
+	}
+
 	onMount(() => {
 		(async () => {
 			loading = true;
@@ -177,6 +221,12 @@
 									/>
 								</th>
 							{/each}
+							<th
+								scope="col"
+								class="w-[1%] min-w-[9.5rem] px-3 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+							>
+								<span class="block">Actions</span>
+							</th>
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
@@ -184,7 +234,7 @@
 							<tr>
 								<td
 									class="px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-300"
-									colspan={7}
+									colspan={8}
 								>
 									No assets match the current filters.
 								</td>
@@ -214,6 +264,24 @@
 									</td>
 									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
 										{fmtDate(row.purchase_date)}
+									</td>
+									<td class="whitespace-nowrap px-3 py-3 text-right text-sm">
+										<div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+											<a
+												href="{base}/assets/{row.id}"
+												class="rounded border border-gray-200 bg-white px-2.5 py-1 text-gray-800 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700/80"
+											>
+												Edit
+											</a>
+											<button
+												type="button"
+												class="rounded border border-red-200 bg-white px-2.5 py-1 text-red-700 transition enabled:hover:bg-red-50 dark:border-red-800 dark:bg-gray-800 dark:text-red-400 dark:enabled:hover:bg-red-950/50"
+												disabled={deletingId === row.id}
+												onclick={() => deleteAsset(row)}
+											>
+												{deletingId === row.id ? '…' : 'Delete'}
+											</button>
+										</div>
 									</td>
 								</tr>
 							{/each}

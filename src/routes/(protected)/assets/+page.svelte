@@ -51,6 +51,37 @@
 	let sortDir = $state<'asc' | 'desc'>('asc');
 	let deletingId = $state<string | null>(null);
 
+	type TestDueFilter = '' | 'lt6mo' | 'lt3mo' | 'overdue';
+	let testDueFilter = $state<TestDueFilter>('');
+
+	function todayYmd() {
+		const d = new Date();
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
+	function addMonthsYmd(months: number) {
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+		d.setMonth(d.getMonth() + months);
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
+	function matchesTestDueFilter(row: AssetRow): boolean {
+		if (!testDueFilter) return true;
+		const due = row.test_due_date?.trim();
+		if (!due) return false;
+		const today = todayYmd();
+		if (testDueFilter === 'overdue') return due < today;
+		const end = testDueFilter === 'lt3mo' ? addMonthsYmd(3) : addMonthsYmd(6);
+		return due >= today && due <= end;
+	}
+
 	function fmtDate(s: string | null) {
 		if (!s) return '—';
 		try {
@@ -123,7 +154,7 @@
 	}
 
 	const displayedRows = $derived.by(() => {
-		const filtered = rows.filter((r) => rowMatchesFilters(r));
+		const filtered = rows.filter((r) => rowMatchesFilters(r) && matchesTestDueFilter(r));
 		return [...filtered].sort(compareRows);
 	});
 
@@ -209,6 +240,25 @@
 			{:else if rows.length === 0}
 				<p class="px-6 py-10 text-center text-gray-600 dark:text-gray-300">No assets yet.</p>
 			{:else}
+				<div
+					class="flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-700/40"
+				>
+					<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+						<span
+							class="whitespace-nowrap font-medium text-gray-800 dark:text-gray-100"
+						>Test due date</span>
+						<select
+							bind:value={testDueFilter}
+							class="min-w-[12rem] rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							aria-label="Filter by test due date"
+						>
+							<option value="">All</option>
+							<option value="lt6mo">Less than 6 months</option>
+							<option value="lt3mo">Less than 3 months</option>
+							<option value="overdue">Overdue</option>
+						</select>
+					</label>
+				</div>
 				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
 					<thead class="bg-gray-50 dark:bg-gray-700">
 						<tr>

@@ -234,13 +234,14 @@
 			const url = editPageUrl(r.id);
 			return {
 				label: r.asset_number?.trim() || r.asset_name?.trim() || r.id,
+				area: displayText(r.area),
 				qrUrl: qrCodeImageUrl(url)
 			};
 		});
 		const cells = tags
 			.map(
 				(t) =>
-					`<div class="tag"><img src="${escapeHtmlAttr(t.qrUrl)}" alt="" width="200" height="200" /><div class="label">${escapeHtml(t.label)}</div></div>`
+					`<div class="tag"><img src="${escapeHtmlAttr(t.qrUrl)}" alt="" width="200" height="200" /><div class="label">${escapeHtml(t.label)}</div><div class="area">${escapeHtml(t.area)}</div></div>`
 			)
 			.join('');
 		const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>Asset tags</title>
@@ -251,6 +252,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
   .tag { text-align: center; break-inside: avoid; page-break-inside: avoid; }
   .label { margin-top: 10px; font-size: 13px; word-break: break-word; }
+  .area { margin-top: 4px; font-size: 11px; color: #444; word-break: break-word; }
   img { display: block; margin: 0 auto; }
 </style></head><body>
 <h1>Asset tags</h1>

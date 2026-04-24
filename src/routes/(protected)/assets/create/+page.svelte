@@ -13,10 +13,12 @@
 	let currentProfile: UserProfile | null = null;
 	let isLoadingProfile = false;
 	let isSubmitting = false;
+	let isResolvingAssetNumber = false;
 	let formError: string | null = null;
+	let assetNumberLoadError: string | null = null;
 	let formSuccess = false;
 
-	// Editable asset fields
+	// Editable asset fields (asset_number is set from next sequence; see loadNextAssetNumber)
 	let asset_number = '';
 	let asset_name = '';
 	let model = '';
@@ -71,6 +73,10 @@
 		}
 		if (value) {
 			void loadUserProfile(value.uid);
+			void loadNextAssetNumber();
+		} else {
+			asset_number = '';
+			assetNumberLoadError = null;
 		}
 	});
 
@@ -101,6 +107,36 @@
 		return t ? t : null;
 	}
 
+	const ASSET_NUMBER_PREFIX = 'RCI-';
+	/** e.g. RCI-0001 — widens after 9999. */
+	const ASSET_NUMBER_NUMERIC_PAD = 4;
+
+	function formatAssetNumberFromIndex(oneBasedIndex: number) {
+		return `${ASSET_NUMBER_PREFIX}${String(oneBasedIndex).padStart(ASSET_NUMBER_NUMERIC_PAD, '0')}`;
+	}
+
+	/** Next asset number: RCI-0001, RCI-0002, … from (row count) + 1. */
+	async function loadNextAssetNumber() {
+		isResolvingAssetNumber = true;
+		assetNumberLoadError = null;
+		try {
+			const { count, error } = await supabase
+				.from('assets')
+				.select('*', { count: 'exact', head: true });
+			if (error) {
+				throw error;
+			}
+			asset_number = formatAssetNumberFromIndex((count ?? 0) + 1);
+		} catch (e) {
+			console.error(e);
+			asset_number = '';
+			assetNumberLoadError =
+				e instanceof Error ? e.message : 'Could not load the next asset number.';
+		} finally {
+			isResolvingAssetNumber = false;
+		}
+	}
+
 	async function handleSubmit() {
 		formError = null;
 		formSuccess = false;
@@ -108,8 +144,12 @@
 			formError = 'You must be signed in to create an asset.';
 			return;
 		}
+		if (assetNumberLoadError) {
+			formError = 'Fix the asset number error before saving.';
+			return;
+		}
 		if (!asset_number.trim() || !asset_name.trim()) {
-			formError = 'Asset number and asset name are required.';
+			formError = 'Asset name is required, and a valid asset number must be loaded.';
 			return;
 		}
 		const audit = getAuditFromSession();
@@ -141,6 +181,7 @@
 				throw error;
 			}
 			formSuccess = true;
+			await loadNextAssetNumber();
 		} catch (e) {
 			console.error(e);
 			formError = e instanceof Error ? e.message : 'Failed to save asset.';
@@ -174,7 +215,7 @@
 
 	<h1 class="mb-6 text-2xl font-bold text-gray-900">Create asset</h1>
 
-	{#if currentIsLoadingAuth || isLoadingProfile}
+	{#if currentIsLoadingAuth || isLoadingProfile || (currentAuthUser && isResolvingAssetNumber)}
 		<p class="text-gray-600">Loading…</p>
 	{:else if !currentAuthUser}
 		<p class="text-gray-600">Sign in to continue.</p>
@@ -185,14 +226,22 @@
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<div>
 						<label for="asset_number" class="mb-1 block text-sm font-medium text-gray-700"
-							>Asset number *</label
+							>Asset number</label
 						>
+						<p class="mb-1 text-xs text-gray-500">
+							Assigned automatically in order (e.g. RCI-0001, RCI-0002), based on how many assets
+							already exist.
+						</p>
+						{#if assetNumberLoadError}
+							<p class="mb-1 text-sm text-red-600" role="alert">{assetNumberLoadError}</p>
+						{/if}
 						<input
 							id="asset_number"
 							bind:value={asset_number}
 							type="text"
+							readonly
 							required
-							class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+							class="w-full cursor-not-allowed rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-gray-800"
 						/>
 					</div>
 					<div>
@@ -278,7 +327,7 @@
 			<div class="flex flex-wrap gap-3">
 				<button
 					type="submit"
-					disabled={isSubmitting}
+					disabled={isSubmitting || !!assetNumberLoadError || !asset_number.trim()}
 					class="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
 				>
 					{isSubmitting ? 'Saving…' : 'Create asset'}

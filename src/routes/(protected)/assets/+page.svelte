@@ -54,6 +54,9 @@
 	type TestDueFilter = '' | 'lt6mo' | 'lt3mo' | 'overdue';
 	let testDueFilter = $state<TestDueFilter>('');
 
+	let selectedRowIds = $state(new Set<string>());
+	let selectAllCheckboxEl = $state<HTMLInputElement | null>(null);
+
 	function todayYmd() {
 		const d = new Date();
 		const y = d.getFullYear();
@@ -158,6 +161,42 @@
 		return [...filtered].sort(compareRows);
 	});
 
+	const allDisplayedSelected = $derived.by(() => {
+		if (displayedRows.length === 0) return false;
+		return displayedRows.every((r) => selectedRowIds.has(r.id));
+	});
+
+	const someDisplayedSelected = $derived.by(() => {
+		if (displayedRows.length === 0) return false;
+		const n = displayedRows.filter((r) => selectedRowIds.has(r.id)).length;
+		return n > 0 && n < displayedRows.length;
+	});
+
+	$effect(() => {
+		void displayedRows;
+		void selectedRowIds;
+		const el = selectAllCheckboxEl;
+		if (!el) return;
+		el.indeterminate = displayedRows.length > 0 && someDisplayedSelected;
+	});
+
+	function toggleRowSelected(id: string, checked: boolean) {
+		const next = new Set(selectedRowIds);
+		if (checked) next.add(id);
+		else next.delete(id);
+		selectedRowIds = next;
+	}
+
+	function toggleSelectAllDisplayed() {
+		const next = new Set(selectedRowIds);
+		if (allDisplayedSelected) {
+			for (const r of displayedRows) next.delete(r.id);
+		} else {
+			for (const r of displayedRows) next.add(r.id);
+		}
+		selectedRowIds = next;
+	}
+
 	function buildDeletePayload() {
 		const u = get(currentUser);
 		if (!u) {
@@ -193,6 +232,9 @@
 			return;
 		}
 		rows = rows.filter((r) => r.id !== row.id);
+		const sel = new Set(selectedRowIds);
+		sel.delete(row.id);
+		selectedRowIds = sel;
 		toastSuccess('Asset deleted.');
 	}
 
@@ -258,10 +300,31 @@
 							<option value="overdue">Overdue</option>
 						</select>
 					</label>
+					<button
+						type="button"
+						class="ml-auto rounded border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 transition enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:enabled:hover:bg-gray-700/80"
+						disabled={selectedRowIds.size === 0}
+					>
+						Print Tag
+					</button>
 				</div>
 				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
 					<thead class="bg-gray-50 dark:bg-gray-700">
 						<tr>
+							<th
+								scope="col"
+								class="w-10 min-w-[2.5rem] px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+							>
+								<input
+									bind:this={selectAllCheckboxEl}
+									type="checkbox"
+									class="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-800 dark:focus:ring-offset-gray-800"
+									checked={allDisplayedSelected}
+									disabled={displayedRows.length === 0}
+									aria-label="Select all visible rows"
+									onchange={() => toggleSelectAllDisplayed()}
+								/>
+							</th>
 							{#each COLUMNS as col (col.key)}
 								<th
 									scope="col"
@@ -297,7 +360,7 @@
 							<tr>
 								<td
 									class="px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-300"
-									colspan={9}
+									colspan={10}
 								>
 									No assets match the current filters.
 								</td>
@@ -305,6 +368,18 @@
 						{:else}
 							{#each displayedRows as row (row.id)}
 								<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+									<td class="whitespace-nowrap px-2 py-3 align-middle">
+										<input
+											type="checkbox"
+											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-800 dark:focus:ring-offset-gray-800"
+											checked={selectedRowIds.has(row.id)}
+											aria-label="Select {row.asset_number?.trim() ||
+												row.asset_name?.trim() ||
+												`asset ${row.id}`}"
+											onchange={(e) =>
+												toggleRowSelected(row.id, e.currentTarget.checked)}
+										/>
+									</td>
 									<td
 										class="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100"
 									>

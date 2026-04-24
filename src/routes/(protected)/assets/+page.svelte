@@ -246,17 +246,13 @@
 			.join('');
 		const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>Asset tags</title>
 <style>
-  body { font-family: system-ui, sans-serif; margin: 20px; color: #111; }
-  h1 { font-size: 1.25rem; margin: 0 0 8px; }
-  .sub { margin: 0 0 16px; font-size: 0.875rem; color: #444; }
+  body { font-family: system-ui, sans-serif; margin: 8px; color: #111; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
   .tag { text-align: center; break-inside: avoid; page-break-inside: avoid; }
   .label { margin-top: 10px; font-size: 13px; word-break: break-word; }
   .area { margin-top: 4px; font-size: 11px; color: #444; word-break: break-word; }
   img { display: block; margin: 0 auto; }
 </style></head><body>
-<h1>Asset tags</h1>
-<p class="sub">Scan to open the asset edit page.</p>
 <div class="grid">${cells}</div>
 <script>
 (function(){

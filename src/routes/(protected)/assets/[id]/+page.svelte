@@ -11,11 +11,11 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import type { User } from 'firebase/auth';
 
-	let currentAuthUser: User | null = null;
-	let currentIsLoadingAuth = true;
-	let currentProfile: UserProfile | null = null;
+	let currentAuthUser = $state<User | null>(null);
+	let currentIsLoadingAuth = $state(true);
+	let currentProfile = $state<UserProfile | null>(null);
 	let isLoadingProfile = false;
-	let isSubmitting = false;
+	let isSubmitting = $state(false);
 	let isLoadingRow = $state(true);
 	let loadError = $state<string | null>(null);
 	let formError = $state<string | null>(null);
@@ -117,18 +117,14 @@
 		}
 	}
 
-	$effect(() => {
-		if (!browser) return;
-		const id = $page.params.id;
-		if (!id) {
-			isLoadingRow = false;
-			loadError = 'Missing asset id';
-			return;
-		}
-		let cancelled = false;
+	/** Bumps when a new load starts so a stale in-flight request won’t clobber state. */
+	let loadSeq = 0;
+
+	async function loadRowForId(id: string) {
+		const seq = ++loadSeq;
 		isLoadingRow = true;
 		loadError = null;
-		void (async () => {
+		try {
 			const { data, error: qe } = await supabase
 				.from('assets')
 				.select(
@@ -138,8 +134,9 @@
 				.is('deleted_at', null)
 				.maybeSingle();
 
-			if (cancelled) return;
-			isLoadingRow = false;
+			if (seq !== loadSeq) {
+				return;
+			}
 			if (qe) {
 				loadError = qe.message;
 				return;
@@ -164,12 +161,17 @@
 			test_date = toDateInputValue(row.test_date);
 			test_due_date = toDateInputValue(row.test_due_date);
 			purchase_date = toDateInputValue(row.purchase_date);
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	});
+		} catch (e) {
+			if (seq !== loadSeq) {
+				return;
+			}
+			loadError = e instanceof Error ? e.message : 'Failed to load asset.';
+		} finally {
+			if (seq === loadSeq) {
+				isLoadingRow = false;
+			}
+		}
+	}
 
 	async function handleSubmit() {
 		formError = null;
@@ -225,7 +227,24 @@
 		if (browser && !get(isLoadingAuth) && !get(currentUser)) {
 			goto(base + '/', { replaceState: true });
 		}
+
+		let unsubPage: (() => void) | undefined;
+		if (browser) {
+			const run = (id: string | undefined) => {
+				if (!id) {
+					isLoadingRow = false;
+					loadError = 'Missing asset id';
+					return;
+				}
+				void loadRowForId(id);
+			};
+			unsubPage = page.subscribe((p) => {
+				run(p.params.id);
+			});
+		}
+
 		return () => {
+			unsubPage?.();
 			unsubCurrentUser();
 			unsubIsLoadingAuth();
 			unsubUserProfile();
@@ -246,10 +265,12 @@
 
 	<h1 class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">Edit asset</h1>
 
-	{#if currentIsLoadingAuth || (currentAuthUser && isLoadingProfile) || (currentAuthUser && isLoadingRow)}
+	{#if currentIsLoadingAuth}
 		<p class="text-gray-600 dark:text-gray-300">Loading…</p>
 	{:else if !currentAuthUser}
 		<p class="text-gray-600 dark:text-gray-300">Sign in to continue.</p>
+	{:else if isLoadingRow}
+		<p class="text-gray-600 dark:text-gray-300">Loading…</p>
 	{:else if loadError}
 		<p class="text-red-600" role="alert">{loadError}</p>
 		<a

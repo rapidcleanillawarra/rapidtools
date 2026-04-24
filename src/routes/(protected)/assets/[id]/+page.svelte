@@ -10,6 +10,14 @@
 	import { userProfile, type UserProfile, fetchUserProfile } from '$lib/userProfile';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import type { User } from 'firebase/auth';
+	import AssetFilesSection from '$lib/assets/AssetFilesSection.svelte';
+	import {
+		listAssetFileRows,
+		uploadFilesForAsset,
+		deleteAssetFile,
+		revokeStagedPreviews,
+		type AssetFileRow
+	} from '$lib/assets/assetStorage';
 
 	let currentAuthUser = $state<User | null>(null);
 	let currentIsLoadingAuth = $state(true);
@@ -27,6 +35,9 @@
 	let test_date = $state('');
 	let test_due_date = $state('');
 	let purchase_date = $state('');
+
+	let existingFiles = $state<AssetFileRow[]>([]);
+	let stagedFiles = $state<{ key: string; file: File; preview: string }[]>([]);
 
 	function resolveActingIdentity(): {
 		display: string;
@@ -122,6 +133,8 @@
 
 	async function loadRowForId(id: string) {
 		const seq = ++loadSeq;
+		revokeStagedPreviews(stagedFiles);
+		stagedFiles = [];
 		isLoadingRow = true;
 		loadError = null;
 		try {
@@ -139,10 +152,12 @@
 			}
 			if (qe) {
 				loadError = qe.message;
+				existingFiles = [];
 				return;
 			}
 			if (!data) {
 				loadError = 'Asset not found.';
+				existingFiles = [];
 				return;
 			}
 			const row = data as {
@@ -161,16 +176,38 @@
 			test_date = toDateInputValue(row.test_date);
 			test_due_date = toDateInputValue(row.test_due_date);
 			purchase_date = toDateInputValue(row.purchase_date);
+
+			const { data: fileRows, error: fe } = await listAssetFileRows(supabase, id);
+			if (seq !== loadSeq) {
+				return;
+			}
+			if (fe) {
+				console.error('asset_files load:', fe);
+				existingFiles = [];
+			} else {
+				existingFiles = fileRows;
+			}
 		} catch (e) {
 			if (seq !== loadSeq) {
 				return;
 			}
 			loadError = e instanceof Error ? e.message : 'Failed to load asset.';
+			existingFiles = [];
 		} finally {
 			if (seq === loadSeq) {
 				isLoadingRow = false;
 			}
 		}
+	}
+
+	async function handleDeleteAssetFile(row: AssetFileRow) {
+		const { error } = await deleteAssetFile(row);
+		if (error) {
+			toastError(error);
+			return;
+		}
+		existingFiles = existingFiles.filter((r) => r.id !== row.id);
+		toastSuccess('File removed.');
 	}
 
 	async function handleSubmit() {
@@ -212,6 +249,23 @@
 			if (upError) {
 				throw upError;
 			}
+
+			if (stagedFiles.length) {
+				const { error: uploadErr } = await uploadFilesForAsset(
+					id,
+					stagedFiles.map((s) => s.file)
+				);
+				if (uploadErr) {
+					throw new Error(uploadErr);
+				}
+				revokeStagedPreviews(stagedFiles);
+				stagedFiles = [];
+				const { data: refreshed, error: refErr } = await listAssetFileRows(supabase, id);
+				if (!refErr) {
+					existingFiles = refreshed;
+				}
+			}
+
 			toastSuccess('Asset updated.');
 		} catch (e) {
 			console.error(e);
@@ -365,6 +419,14 @@
 					</div>
 				</div>
 			</section>
+
+			<AssetFilesSection
+				staged={stagedFiles}
+				existing={existingFiles}
+				disabled={isSubmitting}
+				onDeleteExisting={handleDeleteAssetFile}
+				on:change={(e) => (stagedFiles = e.detail.staged)}
+			/>
 
 			<p class="text-sm text-gray-600 dark:text-gray-300">
 				<span class="font-medium text-gray-700 dark:text-gray-200">Updated by</span> is set from your

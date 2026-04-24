@@ -7,6 +7,8 @@
 	import { supabase } from '$lib/supabase';
 	import { userProfile, type UserProfile, fetchUserProfile } from '$lib/userProfile';
 	import type { User } from 'firebase/auth';
+	import AssetFilesSection from '$lib/assets/AssetFilesSection.svelte';
+	import { uploadFilesForAsset, revokeStagedPreviews } from '$lib/assets/assetStorage';
 
 	let currentAuthUser: User | null = null;
 	let currentIsLoadingAuth = true;
@@ -26,6 +28,9 @@
 	let test_date = '';
 	let test_due_date = '';
 	let purchase_date = '';
+
+	/** @type {{ key: string; file: File; preview: string }[]} */
+	let stagedFiles = [];
 
 	/** Name and email for audit columns — same source for UI hint and insert. */
 	function resolveActingIdentity(): {
@@ -181,7 +186,7 @@
 		}
 		isSubmitting = true;
 		try {
-			const { error } = await supabase
+			const { data: created, error } = await supabase
 				.from('assets')
 				.insert({
 					asset_number: asset_number.trim(),
@@ -202,7 +207,24 @@
 			if (error) {
 				throw error;
 			}
+			if (!created?.id) {
+				throw new Error('No asset id returned from create.');
+			}
 			formSuccess = true;
+			if (stagedFiles.length) {
+				const { error: uploadError } = await uploadFilesForAsset(
+					created.id,
+					stagedFiles.map((s) => s.file)
+				);
+				if (uploadError) {
+					formError =
+						'Asset was created, but one or more file uploads failed: ' +
+						uploadError +
+						' You can add them from the edit page.';
+				}
+			}
+			revokeStagedPreviews(stagedFiles);
+			stagedFiles = [];
 			await loadNextAssetNumber();
 			applyDefaultDates();
 		} catch (e) {
@@ -334,6 +356,13 @@
 					</div>
 				</div>
 			</section>
+
+			<AssetFilesSection
+				staged={stagedFiles}
+				existing={[]}
+				disabled={isSubmitting}
+				on:change={(e) => (stagedFiles = e.detail.staged)}
+			/>
 
 			<p class="text-sm text-gray-600">
 				<span class="font-medium text-gray-700">Created / updated by</span> is set automatically from

@@ -18,7 +18,6 @@
 	let isResolvingAssetNumber = false;
 	let formError: string | null = null;
 	let assetNumberLoadError: string | null = null;
-	let formSuccess = false;
 
 	// Editable asset fields (asset_number is set from next sequence; see loadNextAssetNumber)
 	let asset_number = '';
@@ -167,7 +166,6 @@
 
 	async function handleSubmit() {
 		formError = null;
-		formSuccess = false;
 		if (!currentAuthUser) {
 			formError = 'You must be signed in to create an asset.';
 			return;
@@ -212,23 +210,21 @@
 			if (!created?.id) {
 				throw new Error('No asset id returned from create.');
 			}
-			formSuccess = true;
 			if (stagedFiles.length) {
 				const { error: uploadError } = await uploadFilesForAsset(
 					created.id,
 					stagedFiles.map((s) => s.file)
 				);
 				if (uploadError) {
-					formError =
-						'Asset was created, but one or more file uploads failed: ' +
-						uploadError +
-						' You can add them from the edit page.';
+					console.error(
+						'Asset was created, but one or more file uploads failed:',
+						uploadError
+					);
 				}
 			}
 			revokeStagedPreviews(stagedFiles);
 			stagedFiles = [];
-			await loadNextAssetNumber();
-			applyDefaultDates();
+			await goto(base + '/assets', { replaceState: true });
 		} catch (e) {
 			console.error(e);
 			formError = e instanceof Error ? e.message : 'Failed to save asset.';
@@ -382,9 +378,6 @@
 
 			{#if formError}
 				<p class="text-sm text-red-600" role="alert">{formError}</p>
-			{/if}
-			{#if formSuccess}
-				<p class="text-sm text-green-700" role="status">Asset saved.</p>
 			{/if}
 
 			<div class="flex flex-wrap gap-3">

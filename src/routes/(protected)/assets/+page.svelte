@@ -364,7 +364,15 @@
 </svelte:head>
 
 <div class="w-full min-w-0 max-w-none px-3 py-6 sm:px-4 lg:px-6">
-	<h1 class="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">Assets</h1>
+	<div class="mb-4 flex min-w-0 items-center justify-between gap-3">
+		<h1 class="min-w-0 text-2xl font-bold text-gray-900 dark:text-gray-100">Assets</h1>
+		<a
+			href="{base}/assets/create"
+			class="inline-flex shrink-0 items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:hover:bg-blue-500 dark:focus:ring-offset-gray-900"
+		>
+			Create
+		</a>
+	</div>
 
 	<div
 		class="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"

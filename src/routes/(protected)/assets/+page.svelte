@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
+	import { assetPrintTagStorageKey } from '$lib/assetPrintTagStorage';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile } from '$lib/userProfile';
@@ -201,91 +201,34 @@
 		selectedRowIds = next;
 	}
 
-	function escapeHtml(s: string) {
-		return s
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;');
-	}
-
-	/** Escape for double-quoted HTML attributes (e.g. img src with & in query string). */
-	function escapeHtmlAttr(s: string) {
-		return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-	}
-
-	function editPageUrl(assetId: string) {
-		const path = `${base}/assets/${assetId}`;
-		return new URL(path.startsWith('/') ? path : `/${path}`, window.location.origin).href;
-	}
-
-	function qrCodeImageUrl(editUrl: string) {
-		return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(editUrl)}`;
-	}
-
 	function printTags() {
-		if (!browser || selectedRowIds.size === 0) return;
+		if (selectedRowIds.size === 0) return;
 		const selected = rows.filter((r) => selectedRowIds.has(r.id));
 		if (selected.length === 0) {
 			toastError('Selected assets are no longer in the list.');
 			return;
 		}
-		const tags = selected.map((r) => {
-			const url = editPageUrl(r.id);
-			return {
-				label: r.asset_number?.trim() || r.asset_name?.trim() || r.id,
-				area: displayText(r.area),
-				qrUrl: qrCodeImageUrl(url)
-			};
-		});
-		const cells = tags
-			.map(
-				(t) =>
-					`<div class="tag"><img src="${escapeHtmlAttr(t.qrUrl)}" alt="" width="200" height="200" /><div class="label">${escapeHtml(t.label)}</div><div class="area">${escapeHtml(t.area)}</div></div>`
-			)
-			.join('');
-		const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>Asset tags</title>
-<style>
-  body { font-family: system-ui, sans-serif; margin: 8px; color: #111; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
-  .tag { text-align: center; break-inside: avoid; page-break-inside: avoid; }
-  .label { margin-top: 10px; font-size: 13px; word-break: break-word; }
-  .area { margin-top: 4px; font-size: 11px; color: #444; word-break: break-word; }
-  img { display: block; margin: 0 auto; }
-</style></head><body>
-<div class="grid">${cells}</div>
-<script>
-(function(){
-  var imgs = [].slice.call(document.querySelectorAll('img'));
-  var left = imgs.length;
-  function done() {
-    left--;
-    if (left <= 0) setTimeout(function() { window.print(); }, 200);
-  }
-  if (left === 0) setTimeout(function() { window.print(); }, 200);
-  else imgs.forEach(function(img) {
-    if (img.complete) done();
-    else { img.onload = done; img.onerror = done; }
-  });
-})();
-<\/script>
-</body></html>`;
-		const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
-		const blobUrl = URL.createObjectURL(blob);
-		const w = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-		if (!w) {
-			URL.revokeObjectURL(blobUrl);
+		const slot = crypto.randomUUID();
+		try {
+			localStorage.setItem(
+				assetPrintTagStorageKey(slot),
+				JSON.stringify(selected.map((r) => r.id))
+			);
+		} catch {
+			toastError('Could not store selection for printing.');
+			return;
+		}
+		const rel = `${base || ''}/assets/print-tags`.replace(/\/\/+/g, '/');
+		const printUrl = new URL(
+			rel.startsWith('/') ? rel : `/${rel}`,
+			window.location.origin
+		);
+		printUrl.searchParams.set('slot', slot);
+		const printWin = window.open(printUrl.href, '_blank', 'noopener,noreferrer');
+		if (!printWin) {
 			toastError('Allow pop-ups to print asset tags.');
 			return;
 		}
-		const revokeSoon = () => {
-			try {
-				URL.revokeObjectURL(blobUrl);
-			} catch {
-				/* ignore */
-			}
-		};
-		w.addEventListener('load', () => setTimeout(revokeSoon, 60_000));
 	}
 
 	function buildDeletePayload() {

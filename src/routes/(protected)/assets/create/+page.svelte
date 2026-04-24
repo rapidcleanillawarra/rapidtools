@@ -74,9 +74,13 @@
 		if (value) {
 			void loadUserProfile(value.uid);
 			void loadNextAssetNumber();
+			applyDefaultDates();
 		} else {
 			asset_number = '';
 			assetNumberLoadError = null;
+			test_date = '';
+			test_due_date = '';
+			purchase_date = '';
 		}
 	});
 
@@ -105,6 +109,24 @@
 	function toNullDate(v: string): string | null {
 		const t = v?.trim();
 		return t ? t : null;
+	}
+
+	/** `YYYY-MM-DD` in local time, for `<input type="date">` */
+	function toDateInputValue(d: Date) {
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
+	/** Test & purchase: today; test due: one calendar year from today. */
+	function applyDefaultDates() {
+		const today = new Date();
+		const due = new Date(today);
+		due.setFullYear(today.getFullYear() + 1);
+		test_date = toDateInputValue(today);
+		purchase_date = toDateInputValue(today);
+		test_due_date = toDateInputValue(due);
 	}
 
 	const ASSET_NUMBER_PREFIX = 'RCI-';
@@ -182,6 +204,7 @@
 			}
 			formSuccess = true;
 			await loadNextAssetNumber();
+			applyDefaultDates();
 		} catch (e) {
 			console.error(e);
 			formError = e instanceof Error ? e.message : 'Failed to save asset.';

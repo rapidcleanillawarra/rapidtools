@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
+	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
@@ -197,6 +198,79 @@
 		selectedRowIds = next;
 	}
 
+	function escapeHtml(s: string) {
+		return s
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	}
+
+	function editPageUrl(assetId: string) {
+		return `${window.location.origin}${base}/assets/${assetId}`;
+	}
+
+	function qrCodeImageUrl(editUrl: string) {
+		return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(editUrl)}`;
+	}
+
+	function printTags() {
+		if (!browser || selectedRowIds.size === 0) return;
+		const selected = rows.filter((r) => selectedRowIds.has(r.id));
+		if (selected.length === 0) {
+			toastError('Selected assets are no longer in the list.');
+			return;
+		}
+		const tags = selected.map((r) => {
+			const url = editPageUrl(r.id);
+			return {
+				label: r.asset_number?.trim() || r.asset_name?.trim() || r.id,
+				qrUrl: qrCodeImageUrl(url)
+			};
+		});
+		const cells = tags
+			.map(
+				(t) => `<div class="tag"><img src="${t.qrUrl}" alt="" width="200" height="200" /><div class="label">${escapeHtml(t.label)}</div></div>`
+			)
+			.join('');
+		const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>Asset tags</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 20px; color: #111; }
+  h1 { font-size: 1.25rem; margin: 0 0 8px; }
+  .sub { margin: 0 0 16px; font-size: 0.875rem; color: #444; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px; }
+  .tag { text-align: center; break-inside: avoid; page-break-inside: avoid; }
+  .label { margin-top: 10px; font-size: 13px; word-break: break-word; }
+  img { display: block; margin: 0 auto; }
+</style></head><body>
+<h1>Asset tags</h1>
+<p class="sub">Scan to open the asset edit page.</p>
+<div class="grid">${cells}</div>
+<script>
+(function(){
+  var imgs = [].slice.call(document.querySelectorAll('img'));
+  var left = imgs.length;
+  function done() {
+    left--;
+    if (left <= 0) setTimeout(function() { window.print(); }, 200);
+  }
+  if (left === 0) setTimeout(function() { window.print(); }, 200);
+  else imgs.forEach(function(img) {
+    if (img.complete) done();
+    else { img.onload = done; img.onerror = done; }
+  });
+})();
+<\/script>
+</body></html>`;
+		const w = window.open('', '_blank', 'noopener,noreferrer');
+		if (!w) {
+			toastError('Allow pop-ups to print asset tags.');
+			return;
+		}
+		w.document.write(doc);
+		w.document.close();
+	}
+
 	function buildDeletePayload() {
 		const u = get(currentUser);
 		if (!u) {
@@ -304,6 +378,7 @@
 						type="button"
 						class="ml-auto rounded border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 transition enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:enabled:hover:bg-gray-700/80"
 						disabled={selectedRowIds.size === 0}
+						onclick={() => printTags()}
 					>
 						Print Tag
 					</button>

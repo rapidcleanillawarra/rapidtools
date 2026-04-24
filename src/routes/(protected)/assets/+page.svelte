@@ -22,15 +22,15 @@
 	};
 
 	const COLUMNS = [
-		{ key: 'asset_number' as const, label: 'Asset number' },
-		{ key: 'asset_name' as const, label: 'Asset name' },
-		{ key: 'model' as const, label: 'Model' },
-		{ key: 'serial_number' as const, label: 'Serial number' },
-		{ key: 'area' as const, label: 'Area' },
-		{ key: 'test_date' as const, label: 'Test date' },
-		{ key: 'test_due_date' as const, label: 'Test due date' },
-		{ key: 'purchase_date' as const, label: 'Purchase date' },
-		{ key: 'file_count' as const, label: 'Files' }
+		{ key: 'asset_number' as const, label: 'Asset number', thClass: 'w-[9%] min-w-0' },
+		{ key: 'asset_name' as const, label: 'Asset name', thClass: 'w-[18%] min-w-0' },
+		{ key: 'model' as const, label: 'Model', thClass: 'w-[10%] min-w-0' },
+		{ key: 'serial_number' as const, label: 'Serial number', thClass: 'w-[10%] min-w-0' },
+		{ key: 'area' as const, label: 'Area', thClass: 'w-[8%] min-w-0' },
+		{ key: 'test_date' as const, label: 'Test date', thClass: 'w-[9%] min-w-0' },
+		{ key: 'test_due_date' as const, label: 'Test due date', thClass: 'w-[9%] min-w-0' },
+		{ key: 'purchase_date' as const, label: 'Purchase date', thClass: 'w-[9%] min-w-0' },
+		{ key: 'file_count' as const, label: 'Files', thClass: 'w-[5%] min-w-0' }
 	];
 
 	type ColumnKey = (typeof COLUMNS)[number]['key'];
@@ -361,13 +361,13 @@
 	<title>Assets - RapidTools</title>
 </svelte:head>
 
-<div class="mx-auto max-w-7xl px-4 py-8">
-	<h1 class="mb-6 text-2xl font-bold text-gray-900 dark:text-gray-100">Assets</h1>
+<div class="w-full min-w-0 max-w-none px-3 py-6 sm:px-4 lg:px-6">
+	<h1 class="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">Assets</h1>
 
 	<div
-		class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+		class="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
 	>
-		<div class="overflow-x-auto">
+		<div class="min-w-0 max-w-full overflow-x-auto">
 			{#if loading}
 				<p class="px-6 py-10 text-center text-gray-600 dark:text-gray-300">Loading…</p>
 			{:else if error}
@@ -376,7 +376,7 @@
 				<p class="px-6 py-10 text-center text-gray-600 dark:text-gray-300">No assets yet.</p>
 			{:else}
 				<div
-					class="flex flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-700/40"
+					class="flex min-w-0 flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-700/40 sm:px-4"
 				>
 					<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
 						<span
@@ -402,12 +402,12 @@
 						Print Tag
 					</button>
 				</div>
-				<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+				<table class="w-full min-w-0 table-fixed divide-y divide-gray-200 dark:divide-gray-700">
 					<thead class="bg-gray-50 dark:bg-gray-700">
 						<tr>
 							<th
 								scope="col"
-								class="w-10 min-w-[2.5rem] px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+								class="w-10 min-w-0 px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
 							>
 								<input
 									bind:this={selectAllCheckboxEl}
@@ -422,7 +422,7 @@
 							{#each COLUMNS as col (col.key)}
 								<th
 									scope="col"
-									class="min-w-[8rem] px-3 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+									class="{col.thClass} px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 sm:px-3"
 								>
 									<button
 										type="button"
@@ -443,7 +443,7 @@
 							{/each}
 							<th
 								scope="col"
-								class="w-[1%] min-w-[9.5rem] px-3 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+								class="w-[10rem] min-w-0 shrink-0 px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 sm:w-[10.5rem] sm:px-3"
 							>
 								<span class="block">Actions</span>
 							</th>
@@ -462,7 +462,7 @@
 						{:else}
 							{#each displayedRows as row (row.id)}
 								<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-									<td class="whitespace-nowrap px-2 py-3 align-middle">
+									<td class="min-w-0 whitespace-nowrap px-2 py-3 align-middle">
 										<input
 											type="checkbox"
 											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-800 dark:focus:ring-offset-gray-800"
@@ -475,37 +475,56 @@
 										/>
 									</td>
 									<td
-										class="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-100"
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-900 dark:text-gray-100 sm:px-3"
+										title={displayText(row.asset_number)}
 									>
 										{displayText(row.asset_number)}
 									</td>
-									<td class="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-900 dark:text-gray-100 sm:px-3"
+										title={displayText(row.asset_name)}
+									>
 										{displayText(row.asset_name)}
 									</td>
-									<td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+										title={displayText(row.model)}
+									>
 										{displayText(row.model)}
 									</td>
-									<td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+										title={displayText(row.serial_number)}
+									>
 										{displayText(row.serial_number)}
 									</td>
-									<td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+										title={displayText(row.area)}
+									>
 										{displayText(row.area)}
 									</td>
-									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+									>
 										{fmtDate(row.test_date)}
 									</td>
-									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+									>
 										{fmtDate(row.test_due_date)}
 									</td>
-									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+									>
 										{fmtDate(row.purchase_date)}
 									</td>
 									<td
-										class="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100"
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100 sm:px-3"
 									>
 										{row.file_count}
 									</td>
-									<td class="whitespace-nowrap px-3 py-3 text-right text-sm">
+									<td class="min-w-0 whitespace-nowrap px-2 py-3 text-right text-sm sm:px-3">
 										<div class="inline-flex flex-wrap items-center justify-end gap-1.5">
 											<a
 												href="{base}/assets/{row.id}"

@@ -32,6 +32,7 @@
 	let asset_name = $state('');
 	let model = $state('');
 	let serial_number = $state('');
+	let area = $state('');
 	let test_date = $state('');
 	let test_due_date = $state('');
 	let purchase_date = $state('');
@@ -141,7 +142,7 @@
 			const { data, error: qe } = await supabase
 				.from('assets')
 				.select(
-					'asset_number, asset_name, model, serial_number, test_date, test_due_date, purchase_date'
+					'asset_number, asset_name, model, serial_number, area, test_date, test_due_date, purchase_date'
 				)
 				.eq('id', id)
 				.is('deleted_at', null)
@@ -165,6 +166,7 @@
 				asset_name: string | null;
 				model: string | null;
 				serial_number: string | null;
+				area: string | null;
 				test_date: string | null;
 				test_due_date: string | null;
 				purchase_date: string | null;
@@ -173,6 +175,7 @@
 			asset_name = row.asset_name ?? '';
 			model = row.model ?? '';
 			serial_number = row.serial_number ?? '';
+			area = row.area ?? '';
 			test_date = toDateInputValue(row.test_date);
 			test_due_date = toDateInputValue(row.test_due_date);
 			purchase_date = toDateInputValue(row.purchase_date);
@@ -238,6 +241,7 @@
 					asset_name: asset_name.trim(),
 					model: model.trim() || null,
 					serial_number: serial_number.trim() || null,
+					area: area.trim() || null,
 					test_date: toNullDate(test_date),
 					test_due_date: toNullDate(test_due_date),
 					purchase_date: toNullDate(purchase_date),
@@ -380,6 +384,17 @@
 						<input
 							id="serial_number"
 							bind:value={serial_number}
+							type="text"
+							class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+						/>
+					</div>
+					<div>
+						<label for="area" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300"
+							>Area</label
+						>
+						<input
+							id="area"
+							bind:value={area}
 							type="text"
 							class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
 						/>

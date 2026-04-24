@@ -14,6 +14,7 @@
 		asset_name: string | null;
 		model: string | null;
 		serial_number: string | null;
+		area: string | null;
 		test_date: string | null;
 		test_due_date: string | null;
 		purchase_date: string | null;
@@ -25,6 +26,7 @@
 		{ key: 'asset_name' as const, label: 'Asset name' },
 		{ key: 'model' as const, label: 'Model' },
 		{ key: 'serial_number' as const, label: 'Serial number' },
+		{ key: 'area' as const, label: 'Area' },
 		{ key: 'test_date' as const, label: 'Test date' },
 		{ key: 'test_due_date' as const, label: 'Test due date' },
 		{ key: 'purchase_date' as const, label: 'Purchase date' },
@@ -42,6 +44,7 @@
 		asset_name: '',
 		model: '',
 		serial_number: '',
+		area: '',
 		test_date: '',
 		test_due_date: '',
 		purchase_date: '',
@@ -335,7 +338,7 @@
 			const { data, error: qError } = await supabase
 				.from('assets')
 				.select(
-					'id, asset_number, asset_name, model, serial_number, test_date, test_due_date, purchase_date, asset_files(count)'
+					'id, asset_number, asset_name, model, serial_number, area, test_date, test_due_date, purchase_date, asset_files(count)'
 				)
 				.is('deleted_at', null)
 				.order('asset_number', { ascending: true });
@@ -451,7 +454,7 @@
 							<tr>
 								<td
 									class="px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-300"
-									colspan={10}
+									colspan={11}
 								>
 									No assets match the current filters.
 								</td>
@@ -484,6 +487,9 @@
 									</td>
 									<td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
 										{displayText(row.serial_number)}
+									</td>
+									<td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
+										{displayText(row.area)}
 									</td>
 									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-700 dark:text-gray-200">
 										{fmtDate(row.test_date)}

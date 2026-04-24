@@ -25,6 +25,7 @@
 	let asset_name = '';
 	let model = '';
 	let serial_number = '';
+	let area = '';
 	let test_date = '';
 	let test_due_date = '';
 	let purchase_date = '';
@@ -193,6 +194,7 @@
 					asset_name: asset_name.trim(),
 					model: model.trim() || null,
 					serial_number: serial_number.trim() || null,
+					area: area.trim() || null,
 					test_date: toNullDate(test_date),
 					test_due_date: toNullDate(test_due_date),
 					purchase_date: toNullDate(purchase_date),
@@ -317,6 +319,15 @@
 						<input
 							id="serial_number"
 							bind:value={serial_number}
+							type="text"
+							class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+						/>
+					</div>
+					<div>
+						<label for="area" class="mb-1 block text-sm font-medium text-gray-700">Area</label>
+						<input
+							id="area"
+							bind:value={area}
 							type="text"
 							class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 						/>

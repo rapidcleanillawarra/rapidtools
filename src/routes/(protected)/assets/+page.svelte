@@ -206,8 +206,14 @@
 			.replace(/"/g, '&quot;');
 	}
 
+	/** Escape for double-quoted HTML attributes (e.g. img src with & in query string). */
+	function escapeHtmlAttr(s: string) {
+		return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+	}
+
 	function editPageUrl(assetId: string) {
-		return `${window.location.origin}${base}/assets/${assetId}`;
+		const path = `${base}/assets/${assetId}`;
+		return new URL(path.startsWith('/') ? path : `/${path}`, window.location.origin).href;
 	}
 
 	function qrCodeImageUrl(editUrl: string) {
@@ -230,7 +236,8 @@
 		});
 		const cells = tags
 			.map(
-				(t) => `<div class="tag"><img src="${t.qrUrl}" alt="" width="200" height="200" /><div class="label">${escapeHtml(t.label)}</div></div>`
+				(t) =>
+					`<div class="tag"><img src="${escapeHtmlAttr(t.qrUrl)}" alt="" width="200" height="200" /><div class="label">${escapeHtml(t.label)}</div></div>`
 			)
 			.join('');
 		const doc = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><title>Asset tags</title>
@@ -262,13 +269,22 @@
 })();
 <\/script>
 </body></html>`;
-		const w = window.open('', '_blank', 'noopener,noreferrer');
+		const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+		const blobUrl = URL.createObjectURL(blob);
+		const w = window.open(blobUrl, '_blank', 'noopener,noreferrer');
 		if (!w) {
+			URL.revokeObjectURL(blobUrl);
 			toastError('Allow pop-ups to print asset tags.');
 			return;
 		}
-		w.document.write(doc);
-		w.document.close();
+		const revokeSoon = () => {
+			try {
+				URL.revokeObjectURL(blobUrl);
+			} catch {
+				/* ignore */
+			}
+		};
+		w.addEventListener('load', () => setTimeout(revokeSoon, 60_000));
 	}
 
 	function buildDeletePayload() {

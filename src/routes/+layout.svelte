@@ -25,8 +25,9 @@
 		loading = value;
 	});
 
-	// Check if we're on a print page
-	$: isPrintPage = $page.url.pathname.includes('/print');
+	// Print flows: paths containing `/print`, or asset tag sheet (no app chrome)
+	$: isPrintPage =
+		$page.url.pathname.includes('/print') || $page.url.pathname.includes('/assets/print-tags');
 
 	// Promax page: no header/sidebar, standalone content
 	$: isPromaxPage = $page.url.pathname === base + '/promax' || $page.url.pathname.startsWith(base + '/promax/');

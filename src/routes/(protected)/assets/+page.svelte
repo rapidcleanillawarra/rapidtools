@@ -1,0 +1,502 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { base } from '$app/paths';
+	import { assetPrintTagStorageKey } from '$lib/assetPrintTagStorage';
+	import { supabase } from '$lib/supabase';
+	import { currentUser } from '$lib/firebase';
+	import { userProfile } from '$lib/userProfile';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
+
+	type AssetRow = {
+		id: string;
+		asset_number: string | null;
+		asset_name: string | null;
+		model: string | null;
+		serial_number: string | null;
+		area: string | null;
+		test_date: string | null;
+		test_due_date: string | null;
+		purchase_date: string | null;
+		file_count: number;
+	};
+
+	const COLUMNS = [
+		{ key: 'asset_number' as const, label: 'Asset number', thClass: 'w-[9%] min-w-0' },
+		{ key: 'asset_name' as const, label: 'Asset name', thClass: 'w-[18%] min-w-0' },
+		{ key: 'model' as const, label: 'Model', thClass: 'w-[10%] min-w-0' },
+		{ key: 'serial_number' as const, label: 'Serial number', thClass: 'w-[10%] min-w-0' },
+		{ key: 'area' as const, label: 'Area', thClass: 'w-[8%] min-w-0' },
+		{ key: 'test_date' as const, label: 'Test date', thClass: 'w-[9%] min-w-0' },
+		{ key: 'test_due_date' as const, label: 'Test due date', thClass: 'w-[9%] min-w-0' },
+		{ key: 'purchase_date' as const, label: 'Purchase date', thClass: 'w-[9%] min-w-0' },
+		{ key: 'file_count' as const, label: 'Files', thClass: 'w-[5%] min-w-0' }
+	];
+
+	type ColumnKey = (typeof COLUMNS)[number]['key'];
+
+	let rows = $state<AssetRow[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+
+	let columnFilters = $state<Record<ColumnKey, string>>({
+		asset_number: '',
+		asset_name: '',
+		model: '',
+		serial_number: '',
+		area: '',
+		test_date: '',
+		test_due_date: '',
+		purchase_date: '',
+		file_count: ''
+	});
+
+	let sortKey = $state<ColumnKey>('asset_number');
+	let sortDir = $state<'asc' | 'desc'>('asc');
+	let deletingId = $state<string | null>(null);
+
+	type TestDueFilter = '' | 'lt6mo' | 'lt3mo' | 'overdue';
+	let testDueFilter = $state<TestDueFilter>('');
+
+	let selectedRowIds = $state(new Set<string>());
+	let selectAllCheckboxEl = $state<HTMLInputElement | null>(null);
+
+	function todayYmd() {
+		const d = new Date();
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
+	function addMonthsYmd(months: number) {
+		const d = new Date();
+		d.setHours(0, 0, 0, 0);
+		d.setMonth(d.getMonth() + months);
+		const y = d.getFullYear();
+		const m = String(d.getMonth() + 1).padStart(2, '0');
+		const day = String(d.getDate()).padStart(2, '0');
+		return `${y}-${m}-${day}`;
+	}
+
+	function matchesTestDueFilter(row: AssetRow): boolean {
+		if (!testDueFilter) return true;
+		const due = row.test_due_date?.trim();
+		if (!due) return false;
+		const today = todayYmd();
+		if (testDueFilter === 'overdue') return due < today;
+		const end = testDueFilter === 'lt3mo' ? addMonthsYmd(3) : addMonthsYmd(6);
+		return due >= today && due <= end;
+	}
+
+	function fmtDate(s: string | null) {
+		if (!s) return '—';
+		try {
+			return new Date(`${s}T12:00:00`).toLocaleDateString();
+		} catch {
+			return s;
+		}
+	}
+
+	function displayText(s: string | null) {
+		return s?.trim() ? s : '—';
+	}
+
+	function dateSearchHaystack(row: AssetRow, k: 'test_date' | 'test_due_date' | 'purchase_date') {
+		const raw = row[k]?.toLowerCase() ?? '';
+		const formatted = row[k] ? fmtDate(row[k]).toLowerCase() : '';
+		return `${raw} ${formatted}`;
+	}
+
+	function rowMatchesFilters(row: AssetRow): boolean {
+		for (const k of COLUMNS.map((c) => c.key)) {
+			const q = columnFilters[k].trim().toLowerCase();
+			if (!q) continue;
+			if (k === 'file_count') {
+				if (!String(row.file_count).includes(q)) return false;
+			} else if (k === 'test_date' || k === 'test_due_date' || k === 'purchase_date') {
+				if (!dateSearchHaystack(row, k).includes(q)) return false;
+			} else {
+				const text = (row[k] as string | null)?.toLowerCase() ?? '';
+				if (!text.includes(q)) return false;
+			}
+		}
+		return true;
+	}
+
+	function sortIndicator(key: ColumnKey) {
+		if (sortKey !== key) return '';
+		return sortDir === 'asc' ? ' ↑' : ' ↓';
+	}
+
+	function toggleSort(key: ColumnKey) {
+		if (sortKey === key) {
+			sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortKey = key;
+			sortDir = 'asc';
+		}
+	}
+
+	function compareRows(a: AssetRow, b: AssetRow): number {
+		const dir = sortDir === 'asc' ? 1 : -1;
+		if (sortKey === 'file_count') {
+			return (a.file_count - b.file_count) * dir;
+		}
+		if (
+			sortKey === 'test_date' ||
+			sortKey === 'test_due_date' ||
+			sortKey === 'purchase_date'
+		) {
+			const ta = a[sortKey] ? new Date(`${a[sortKey]}T12:00:00`).getTime() : null;
+			const tb = b[sortKey] ? new Date(`${b[sortKey]}T12:00:00`).getTime() : null;
+			if (ta === null && tb === null) return 0;
+			if (ta === null) return 1;
+			if (tb === null) return -1;
+			return (ta - tb) * dir;
+		}
+		const sa = (a[sortKey] ?? '').toString();
+		const sb = (b[sortKey] ?? '').toString();
+		return sa.localeCompare(sb, undefined, { numeric: true, sensitivity: 'base' }) * dir;
+	}
+
+	const displayedRows = $derived.by(() => {
+		const filtered = rows.filter((r) => rowMatchesFilters(r) && matchesTestDueFilter(r));
+		return [...filtered].sort(compareRows);
+	});
+
+	const allDisplayedSelected = $derived.by(() => {
+		if (displayedRows.length === 0) return false;
+		return displayedRows.every((r) => selectedRowIds.has(r.id));
+	});
+
+	const someDisplayedSelected = $derived.by(() => {
+		if (displayedRows.length === 0) return false;
+		const n = displayedRows.filter((r) => selectedRowIds.has(r.id)).length;
+		return n > 0 && n < displayedRows.length;
+	});
+
+	$effect(() => {
+		void displayedRows;
+		void selectedRowIds;
+		const el = selectAllCheckboxEl;
+		if (!el) return;
+		el.indeterminate = displayedRows.length > 0 && someDisplayedSelected;
+	});
+
+	function toggleRowSelected(id: string, checked: boolean) {
+		const next = new Set(selectedRowIds);
+		if (checked) next.add(id);
+		else next.delete(id);
+		selectedRowIds = next;
+	}
+
+	function toggleSelectAllDisplayed() {
+		const next = new Set(selectedRowIds);
+		if (allDisplayedSelected) {
+			for (const r of displayedRows) next.delete(r.id);
+		} else {
+			for (const r of displayedRows) next.add(r.id);
+		}
+		selectedRowIds = next;
+	}
+
+	function printTags() {
+		if (selectedRowIds.size === 0) return;
+		const selected = rows.filter((r) => selectedRowIds.has(r.id));
+		if (selected.length === 0) {
+			toastError('Selected assets are no longer in the list.');
+			return;
+		}
+		const slot = crypto.randomUUID();
+		try {
+			localStorage.setItem(
+				assetPrintTagStorageKey(slot),
+				JSON.stringify(selected.map((r) => r.id))
+			);
+		} catch {
+			toastError('Could not store selection for printing.');
+			return;
+		}
+		const rel = `${base || ''}/assets/print-tags`.replace(/\/\/+/g, '/');
+		const printUrl = new URL(
+			rel.startsWith('/') ? rel : `/${rel}`,
+			window.location.origin
+		);
+		printUrl.searchParams.set('slot', slot);
+		const printWin = window.open(printUrl.href, '_blank', 'noopener,noreferrer');
+		if (!printWin) {
+			toastError('Allow pop-ups to print asset tags.');
+			return;
+		}
+	}
+
+	function buildDeletePayload() {
+		const u = get(currentUser);
+		if (!u) {
+			return { deleted_at: new Date().toISOString() };
+		}
+		const p = get(userProfile);
+		const fullName =
+			p && (p.firstName || p.lastName)
+				? `${p.firstName} ${p.lastName}`.trim()
+				: (u.displayName || '').trim() || null;
+		return {
+			deleted_at: new Date().toISOString(),
+			deleted_by: fullName || u.email || u.uid,
+			deleted_by_email: u.email ?? null,
+			deleted_by_name: fullName
+		};
+	}
+
+	async function deleteAsset(row: AssetRow) {
+		const label = row.asset_number?.trim() || row.asset_name?.trim() || 'this asset';
+		if (!confirm(`Delete ${label}? This can’t be undone from the list (record is archived).`)) {
+			return;
+		}
+		deletingId = row.id;
+		const { error: upError } = await supabase
+			.from('assets')
+			.update(buildDeletePayload())
+			.eq('id', row.id)
+			.is('deleted_at', null);
+		deletingId = null;
+		if (upError) {
+			toastError(upError.message);
+			return;
+		}
+		rows = rows.filter((r) => r.id !== row.id);
+		const sel = new Set(selectedRowIds);
+		sel.delete(row.id);
+		selectedRowIds = sel;
+		toastSuccess('Asset deleted.');
+	}
+
+	onMount(() => {
+		(async () => {
+			loading = true;
+			error = null;
+			const { data, error: qError } = await supabase
+				.from('assets')
+				.select(
+					'id, asset_number, asset_name, model, serial_number, area, test_date, test_due_date, purchase_date, asset_files(count)'
+				)
+				.is('deleted_at', null)
+				.order('asset_number', { ascending: true });
+			loading = false;
+			if (qError) {
+				error = qError.message;
+				return;
+			}
+			type RowWithCount = { asset_files?: { count: number }[] } & Record<string, unknown>;
+			rows = ((data ?? []) as RowWithCount[]).map((r) => {
+				const { asset_files, ...rest } = r;
+				const n = asset_files?.[0]?.count;
+				return { ...(rest as Omit<AssetRow, 'file_count'>), file_count: Number(n ?? 0) };
+			});
+		})();
+	});
+</script>
+
+<svelte:head>
+	<title>Assets - RapidTools</title>
+</svelte:head>
+
+<div class="w-full min-w-0 max-w-none px-3 py-6 sm:px-4 lg:px-6">
+	<div class="mb-4 flex min-w-0 items-center justify-between gap-3">
+		<h1 class="min-w-0 text-2xl font-bold text-gray-900 dark:text-gray-100">Assets</h1>
+		<a
+			href="{base}/assets/create"
+			class="inline-flex shrink-0 items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:hover:bg-blue-500 dark:focus:ring-offset-gray-900"
+		>
+			Create
+		</a>
+	</div>
+
+	<div
+		class="min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800"
+	>
+		<div class="min-w-0 max-w-full overflow-x-auto">
+			{#if loading}
+				<p class="px-6 py-10 text-center text-gray-600 dark:text-gray-300">Loading…</p>
+			{:else if error}
+				<p class="px-6 py-10 text-center text-red-600" role="alert">{error}</p>
+			{:else if rows.length === 0}
+				<p class="px-6 py-10 text-center text-gray-600 dark:text-gray-300">No assets yet.</p>
+			{:else}
+				<div
+					class="flex min-w-0 flex-wrap items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-700/40 sm:px-4"
+				>
+					<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+						<span
+							class="whitespace-nowrap font-medium text-gray-800 dark:text-gray-100"
+						>Test due date</span>
+						<select
+							bind:value={testDueFilter}
+							class="min-w-[12rem] rounded border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+							aria-label="Filter by test due date"
+						>
+							<option value="">All</option>
+							<option value="lt6mo">Less than 6 months</option>
+							<option value="lt3mo">Less than 3 months</option>
+							<option value="overdue">Overdue</option>
+						</select>
+					</label>
+					<button
+						type="button"
+						class="ml-auto rounded border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-800 transition enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:enabled:hover:bg-gray-700/80"
+						disabled={selectedRowIds.size === 0}
+						onclick={() => printTags()}
+					>
+						Print Tag
+					</button>
+				</div>
+				<table class="w-full min-w-0 table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+					<thead class="bg-gray-50 dark:bg-gray-700">
+						<tr>
+							<th
+								scope="col"
+								class="w-10 min-w-0 px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300"
+							>
+								<input
+									bind:this={selectAllCheckboxEl}
+									type="checkbox"
+									class="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-800 dark:focus:ring-offset-gray-800"
+									checked={allDisplayedSelected}
+									disabled={displayedRows.length === 0}
+									aria-label="Select all visible rows"
+									onchange={() => toggleSelectAllDisplayed()}
+								/>
+							</th>
+							{#each COLUMNS as col (col.key)}
+								<th
+									scope="col"
+									class="{col.thClass} px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 sm:px-3"
+								>
+									<button
+										type="button"
+										class="w-full text-left text-xs font-medium uppercase tracking-wider text-gray-600 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white"
+										onclick={() => toggleSort(col.key)}
+									>
+										{col.label}{sortIndicator(col.key)}
+									</button>
+									<input
+										type="search"
+										bind:value={columnFilters[col.key]}
+										placeholder="Search…"
+										aria-label="Filter {col.label}"
+										class="mt-1.5 w-full min-w-0 rounded border border-gray-200 bg-white px-2 py-1 text-xs font-normal normal-case text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+										onclick={(e) => e.stopPropagation()}
+									/>
+								</th>
+							{/each}
+							<th
+								scope="col"
+								class="w-[10rem] min-w-0 shrink-0 px-2 py-2 text-left align-top text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300 sm:w-[10.5rem] sm:px-3"
+							>
+								<span class="block">Actions</span>
+							</th>
+						</tr>
+					</thead>
+					<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+						{#if displayedRows.length === 0}
+							<tr>
+								<td
+									class="px-4 py-8 text-center text-sm text-gray-600 dark:text-gray-300"
+									colspan={11}
+								>
+									No assets match the current filters.
+								</td>
+							</tr>
+						{:else}
+							{#each displayedRows as row (row.id)}
+								<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+									<td class="min-w-0 whitespace-nowrap px-2 py-3 align-middle">
+										<input
+											type="checkbox"
+											class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-800 dark:focus:ring-offset-gray-800"
+											checked={selectedRowIds.has(row.id)}
+											aria-label="Select {row.asset_number?.trim() ||
+												row.asset_name?.trim() ||
+												`asset ${row.id}`}"
+											onchange={(e) =>
+												toggleRowSelected(row.id, e.currentTarget.checked)}
+										/>
+									</td>
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-900 dark:text-gray-100 sm:px-3"
+										title={displayText(row.asset_number)}
+									>
+										{displayText(row.asset_number)}
+									</td>
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-900 dark:text-gray-100 sm:px-3"
+										title={displayText(row.asset_name)}
+									>
+										{displayText(row.asset_name)}
+									</td>
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+										title={displayText(row.model)}
+									>
+										{displayText(row.model)}
+									</td>
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+										title={displayText(row.serial_number)}
+									>
+										{displayText(row.serial_number)}
+									</td>
+									<td
+										class="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+										title={displayText(row.area)}
+									>
+										{displayText(row.area)}
+									</td>
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+									>
+										{fmtDate(row.test_date)}
+									</td>
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+									>
+										{fmtDate(row.test_due_date)}
+									</td>
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-sm text-gray-700 dark:text-gray-200 sm:px-3"
+									>
+										{fmtDate(row.purchase_date)}
+									</td>
+									<td
+										class="min-w-0 whitespace-nowrap px-2 py-3 text-right text-sm tabular-nums text-gray-900 dark:text-gray-100 sm:px-3"
+									>
+										{row.file_count}
+									</td>
+									<td class="min-w-0 whitespace-nowrap px-2 py-3 text-right text-sm sm:px-3">
+										<div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+											<a
+												href="{base}/assets/{row.id}"
+												class="rounded border border-gray-200 bg-white px-2.5 py-1 text-gray-800 transition hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700/80"
+											>
+												Edit
+											</a>
+											<button
+												type="button"
+												class="rounded border border-red-200 bg-white px-2.5 py-1 text-red-700 transition enabled:hover:bg-red-50 dark:border-red-800 dark:bg-gray-800 dark:text-red-400 dark:enabled:hover:bg-red-950/50"
+												disabled={deletingId === row.id}
+												onclick={() => deleteAsset(row)}
+											>
+												{deletingId === row.id ? '…' : 'Delete'}
+											</button>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						{/if}
+					</tbody>
+				</table>
+			{/if}
+		</div>
+	</div>
+</div>

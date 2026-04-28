@@ -13,6 +13,7 @@
 	let ordersOpen = false;
 	let shippingOpen = false;
 	let proMaxOpen = false;
+	let assetsOpen = false;
 	let workshopOpen = false;
 	let sttOpen = false;
 	let userDropdownOpen = false;
@@ -38,6 +39,7 @@
 			ordersOpen = false;
 			shippingOpen = false;
 			proMaxOpen = false;
+			assetsOpen = false;
 			workshopOpen = false;
 			sttOpen = false;
 			userDropdownOpen = false;
@@ -86,6 +88,7 @@
 		ordersOpen = false;
 		shippingOpen = false;
 		proMaxOpen = false;
+		assetsOpen = false;
 		workshopOpen = false;
 		sttOpen = false;
 		userDropdownOpen = false;
@@ -140,6 +143,7 @@
 			ordersOpen = false;
 			shippingOpen = false;
 			proMaxOpen = false;
+			assetsOpen = false;
 			workshopOpen = false;
 			sttOpen = false;
 			userDropdownOpen = false;
@@ -314,6 +318,64 @@
 						<span>Price Lists</span>
 					{/if}
 				</a>
+
+				<!-- Assets Dropdown -->
+				<div class="assets-dropdown">
+					<button
+						type="button"
+						class="flex w-full items-center gap-3 rounded-lg py-2.5 text-base font-medium text-white transition hover:bg-gray-800 hover:text-yellow-400 focus:outline-none"
+						class:px-4={!sidebarMinimized}
+						class:px-3={sidebarMinimized}
+						class:justify-center={sidebarMinimized}
+						on:click={() => !sidebarMinimized && (assetsOpen = !assetsOpen)}
+						title="Assets"
+					>
+						<svg
+							class="h-5 w-5 flex-shrink-0"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M3 7h5l2-2h5l2 2h5v11a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+							/>
+						</svg>
+						{#if !sidebarMinimized}
+							<span class="flex-1 text-left">Assets</span>
+							<svg
+								class="h-4 w-4 transform transition-transform duration-200"
+								class:rotate-180={assetsOpen}
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 9l-7 7-7-7"
+								/>
+							</svg>
+						{/if}
+					</button>
+					{#if assetsOpen && !sidebarMinimized}
+						<div class="mt-1 space-y-1 pl-4" transition:slide={{ duration: 200 }}>
+							<a
+								href="{base}/assets"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Overview</a
+							>
+							<a
+								href="{base}/assets/create"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Create</a
+							>
+						</div>
+					{/if}
+				</div>
 
 				<!-- Products Dropdown -->
 				<div class="products-dropdown">

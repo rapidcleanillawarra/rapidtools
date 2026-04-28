@@ -77,7 +77,7 @@
                 }
             }
         }
-        if (emails.length) bcc = emails.join(', ');
+        if (emails.length) bcc = emails.join('; ');
     });
 
     /** Turning off multiple selection keeps at most one checked row. */
@@ -148,7 +148,7 @@
 
     function parseRecipients(raw: string): string[] {
         return raw
-            .split(/[,;\n]/)
+            .split(/[;\n]/)
             .map((s) => s.trim())
             .filter(Boolean);
     }
@@ -207,7 +207,7 @@
         }
         const invalid = [...toRecipients, ...ccRecipients, ...bccRecipients].filter((r) => !isValidEmail(r));
         if (invalid.length > 0) {
-            formError = `Invalid email(s): ${invalid.join(', ')}`;
+            formError = `Invalid email(s): ${invalid.join('; ')}`;
             return;
         }
         if (!subject.trim()) {
@@ -236,9 +236,9 @@
                 body: JSON.stringify({
                     sender: sender.trim(),
                     email: {
-                        to: toRecipients.join(','),
-                        cc: ccRecipients.join(','),
-                        bcc: bccRecipients.join(','),
+                        to: toRecipients.join(';'),
+                        cc: ccRecipients.join(';'),
+                        bcc: bccRecipients.join(';'),
                         subject: subject.trim(),
                         body: body.trim(),
                         attachments
@@ -318,14 +318,14 @@
                     id="to"
                     type="text"
                     class="input"
-                    placeholder="email@example.com or several, separated by commas"
+                    placeholder="email@example.com or several, separated by semicolons"
                     bind:value={to}
                     autocomplete="email"
                     disabled={sending}
                 />
                 <span class="hint"
-                    >Defaults to marketing. Enter addresses manually and separate multiples with commas, semicolons,
-                    or new lines.</span
+                    >Defaults to marketing. Enter addresses manually and separate multiples with semicolons or new
+                    lines.</span
                 >
             </div>
 

@@ -1,8 +1,19 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
     import { base } from '$app/paths';
     import { page } from '$app/stores';
     import { fade, fly } from 'svelte/transition';
+    import type { Customer, ApiResponse } from '../../customers/types';
+    import {
+        getCompanyName,
+        getPersonName,
+        getCustomerName,
+        getAccountManagerName
+    } from '../../customers/utils';
+
+    const API_ENDPOINT =
+        'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 
     const toFromQuery = $derived($page.url.searchParams.get('to') ?? '');
 
@@ -13,9 +24,101 @@
     let formError = $state('');
     let successMessage = $state('');
 
+    let customers = $state<Customer[]>([]);
+    let customersLoading = $state(true);
+    let customersError = $state('');
+    let customerFilter = $state('');
+    let selectedCustomerUsername = $state('');
+
+    const filteredCustomers = $derived.by(() => {
+        const q = customerFilter.trim().toLowerCase();
+        if (!q) return customers;
+        return customers.filter(
+            (c) =>
+                c.Username.toLowerCase().includes(q) ||
+                (c.displayName ?? '').toLowerCase().includes(q) ||
+                (c.company ?? '').toLowerCase().includes(q) ||
+                (c.customerName ?? '').toLowerCase().includes(q) ||
+                (c.EmailAddress ?? '').toLowerCase().includes(q)
+        );
+    });
+
     $effect(() => {
         const q = toFromQuery;
         if (q) to = q;
+    });
+
+    $effect(() => {
+        if (!selectedCustomerUsername) return;
+        const c = customers.find((x) => x.Username === selectedCustomerUsername);
+        if (c?.EmailAddress?.trim()) {
+            to = c.EmailAddress.trim();
+        }
+    });
+
+    /** When `to` matches a customer email (e.g. ?to= from URL), keep the dropdown in sync. */
+    $effect(() => {
+        if (customersLoading || customers.length === 0) return;
+        const t = to.trim().toLowerCase();
+        if (!t) return;
+        const match = customers.find(
+            (c) => c.EmailAddress?.trim().toLowerCase() === t
+        );
+        if (match) selectedCustomerUsername = match.Username;
+    });
+
+    async function fetchCustomers() {
+        customersLoading = true;
+        customersError = '';
+        try {
+            const response = await fetch(API_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    Filter: {
+                        Active: true,
+                        OutputSelector: [
+                            'EmailAddress',
+                            'BillingAddress',
+                            'AccountManager',
+                            'OnCreditHold',
+                            'DefaultInvoiceTerms',
+                            'AccountBalance'
+                        ]
+                    },
+                    action: 'GetCustomer'
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data: ApiResponse = await response.json();
+
+            if (data.Ack === 'Success') {
+                customers = data.Customer.map((customer) => ({
+                    ...customer,
+                    company: getCompanyName(customer),
+                    customerName: getPersonName(customer),
+                    displayName: getCustomerName(customer),
+                    managerName: getAccountManagerName(customer.AccountManager)
+                }));
+            } else {
+                throw new Error('API returned unsuccessful acknowledgment');
+            }
+        } catch (err) {
+            customersError = err instanceof Error ? err.message : 'Failed to fetch customers';
+            console.error('Error fetching customers:', err);
+        } finally {
+            customersLoading = false;
+        }
+    }
+
+    onMount(() => {
+        fetchCustomers();
     });
 
     function isValidEmail(s: string): boolean {
@@ -95,6 +198,48 @@
         {/if}
 
         <div class="field">
+            <label for="customer-filter">Send to customer</label>
+            {#if customersLoading}
+                <p class="customer-status">Loading customers…</p>
+            {:else if customersError}
+                <div class="customer-error">
+                    <p>Could not load customers: {customersError}</p>
+                    <button type="button" class="btn-retry" onclick={() => fetchCustomers()}>
+                        Try again
+                    </button>
+                </div>
+            {:else}
+                <input
+                    id="customer-filter"
+                    type="search"
+                    class="input"
+                    placeholder="Filter by name, company, username, or email…"
+                    bind:value={customerFilter}
+                    disabled={sending}
+                    autocomplete="off"
+                />
+                <select
+                    class="input select-customer"
+                    id="customer-select"
+                    bind:value={selectedCustomerUsername}
+                    disabled={sending}
+                    aria-label="Select customer to fill recipient email"
+                >
+                    <option value="">— Select a customer (optional) —</option>
+                    {#each filteredCustomers as c (c.Username)}
+                        <option value={c.Username}>
+                            {c.displayName ?? c.Username} · {c.company ?? '—'}
+                            {c.EmailAddress ? ` · ${c.EmailAddress}` : ' · (no email)'}
+                        </option>
+                    {/each}
+                </select>
+                {#if filteredCustomers.length === 0 && !customersLoading}
+                    <span class="hint">No customers match this filter.</span>
+                {/if}
+            {/if}
+        </div>
+
+        <div class="field">
             <label for="to">To</label>
             <input
                 id="to"
@@ -105,7 +250,7 @@
                 autocomplete="email"
                 disabled={sending}
             />
-            <span class="hint">Separate multiple addresses with commas, semicolons, or new lines.</span>
+            <span class="hint">Choose a customer above to fill this field, or enter addresses manually. Separate multiple with commas, semicolons, or new lines.</span>
         </div>
 
         <div class="field">
@@ -271,6 +416,47 @@
         margin-top: 0.4rem;
         font-size: 0.8rem;
         color: #94a3b8;
+    }
+
+    .select-customer {
+        margin-top: 0.6rem;
+        cursor: pointer;
+        max-height: 12rem;
+    }
+
+    .customer-status {
+        margin: 0;
+        padding: 0.75rem 1rem;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+
+    .customer-error {
+        border-radius: 0.75rem;
+        background: #fff1f2;
+        border: 1px solid #fecdd3;
+        padding: 0.75rem 1rem;
+    }
+
+    .customer-error p {
+        margin: 0 0 0.5rem;
+        color: #be123c;
+        font-size: 0.9rem;
+    }
+
+    .btn-retry {
+        background: #be123c;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .btn-retry:hover {
+        background: #9f1239;
     }
 
     .form-actions {

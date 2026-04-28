@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { goto } from '$app/navigation';
+    import { base } from '$app/paths';
     import { fade, fly } from 'svelte/transition';
 
     interface Customer {
@@ -50,7 +51,11 @@
             <p class="subtitle">Broadcast updates and invoices to your customers with style.</p>
         </div>
         <div class="header-actions">
-            <button class="btn-primary">
+            <button
+                type="button"
+                class="btn-primary"
+                onclick={() => goto(`${base}/email-sender/create`)}
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
                 Send Batch Email
             </button>
@@ -105,7 +110,15 @@
                                 </span>
                             </td>
                             <td class="text-right">
-                                <button class="action-btn" title="Compose Email">
+                                <button
+                                    type="button"
+                                    class="action-btn"
+                                    title="Compose email"
+                                    onclick={() =>
+                                        goto(
+                                            `${base}/email-sender/create?to=${encodeURIComponent(customer.email)}`
+                                        )}
+                                >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 8.4c.5.5.8 1.2.8 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10.4"/><path d="m16 2 5.2 5.2c.2.2.3.4.3.7 0 .3-.1.5-.3.7L10 20.1l-5 1 1-5L17.5 4.6c.2-.2.4-.3.7-.3.3 0 .5.1.7.3Z"/></svg>
                                 </button>
                             </td>

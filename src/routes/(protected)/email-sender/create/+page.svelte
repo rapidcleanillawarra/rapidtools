@@ -18,8 +18,35 @@
     const EMAIL_SEND_ENDPOINT =
         'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4';
     const DEFAULT_TO_ADDRESS = 'marketing@rapidcleanillawarra.com.au';
+    /** Max usernames per GetCustomer request (avoids huge payloads). */
+    const USERNAME_CHUNK = 100;
+    /** Require this many dispatched orders in the last-12-months (DatePlaced) window to list a customer. */
+    const MIN_DISPATCHED_ORDERS = 2;
 
     const toFromQuery = $derived($page.url.searchParams.get('to') ?? '');
+
+    /** `YYYY-MM-DD HH:mm:ss` for the Logic App, same format as rebates GetOrder. */
+    function toApiDateTimeString(d: Date, endOfDay: boolean): string {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return endOfDay ? `${y}-${m}-${day} 23:59:59` : `${y}-${m}-${day} 00:00:00`;
+    }
+
+    /** Last 12 months by calendar (same day/time-of-month, 12 months back) through end of today (local). */
+    function getLast12MonthsOrderDateRange(): { dateFrom: string; dateTo: string } {
+        const to = new Date();
+        to.setHours(23, 59, 59, 999);
+        const from = new Date(to);
+        from.setMonth(from.getMonth() - 12);
+        from.setHours(0, 0, 0, 0);
+        return { dateFrom: toApiDateTimeString(from, false), dateTo: toApiDateTimeString(to, true) };
+    }
+
+    interface GetOrderListResponse {
+        Ack?: string;
+        Order?: { Username?: string }[];
+    }
 
     let sender = $state(DEFAULT_TO_ADDRESS);
     let to = $state(DEFAULT_TO_ADDRESS);
@@ -91,48 +118,115 @@
         }
     });
 
+    /**
+     * Usernames with at least MIN_DISPATCHED_ORDERS orders in the range (by DatePlaced).
+     * Each GetOrder row is one order; we count per Username.
+     */
+    async function fetchUsernamesWithRecentOrders(
+        dateFrom: string,
+        dateTo: string
+    ): Promise<string[]> {
+        const orderPayload = {
+            Filter: {
+                OrderStatus: ['Dispatched'],
+                DatePlacedFrom: dateFrom,
+                DatePlacedTo: dateTo,
+                OutputSelector: ['Username']
+            },
+            action: 'GetOrder'
+        };
+
+        const response = await fetch(CUSTOMER_API_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderPayload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`GetOrder failed: HTTP ${response.status}`);
+        }
+
+        const data: GetOrderListResponse = await response.json();
+        if (data.Ack && data.Ack !== 'Success') {
+            throw new Error('GetOrder did not return success');
+        }
+        const rows = Array.isArray(data.Order) ? data.Order : [];
+        const countByUser = new Map<string, number>();
+        for (const o of rows) {
+            const u = o.Username?.trim();
+            if (!u) continue;
+            countByUser.set(u, (countByUser.get(u) ?? 0) + 1);
+        }
+        return [...countByUser.entries()]
+            .filter(([, n]) => n >= MIN_DISPATCHED_ORDERS)
+            .map(([u]) => u);
+    }
+
+    function mapCustomerRows(data: ApiResponse['Customer']): Customer[] {
+        return data.map((customer) => ({
+            ...customer,
+            company: getCompanyName(customer),
+            customerName: getPersonName(customer),
+            displayName: getCustomerName(customer),
+            managerName: getAccountManagerName(customer.AccountManager)
+        }));
+    }
+
     async function fetchCustomers() {
         customersLoading = true;
         customersError = '';
         try {
-            const response = await fetch(CUSTOMER_API_ENDPOINT, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    Filter: {
-                        Active: true,
-                        OutputSelector: [
-                            'EmailAddress',
-                            'BillingAddress',
-                            'AccountManager',
-                            'OnCreditHold',
-                            'DefaultInvoiceTerms',
-                            'AccountBalance'
-                        ]
+            const { dateFrom, dateTo } = getLast12MonthsOrderDateRange();
+            const usernames = await fetchUsernamesWithRecentOrders(dateFrom, dateTo);
+
+            if (usernames.length === 0) {
+                customers = [];
+                return;
+            }
+
+            const out: Customer[] = [];
+            for (let i = 0; i < usernames.length; i += USERNAME_CHUNK) {
+                const chunk = usernames.slice(i, i + USERNAME_CHUNK);
+                const response = await fetch(CUSTOMER_API_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
                     },
-                    action: 'GetCustomer'
+                    body: JSON.stringify({
+                        Filter: {
+                            Active: true,
+                            Username: chunk,
+                            OutputSelector: [
+                                'Username',
+                                'EmailAddress',
+                                'BillingAddress',
+                                'AccountManager',
+                                'OnCreditHold',
+                                'DefaultInvoiceTerms',
+                                'AccountBalance'
+                            ]
+                        },
+                        action: 'GetCustomer'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data: ApiResponse = await response.json();
+                if (data.Ack !== 'Success' || !Array.isArray(data.Customer)) {
+                    throw new Error('API returned unsuccessful acknowledgment');
+                }
+                out.push(...mapCustomerRows(data.Customer));
+            }
+
+            out.sort((a, b) =>
+                (a.displayName ?? a.Username).localeCompare(b.displayName ?? b.Username, undefined, {
+                    sensitivity: 'base'
                 })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data: ApiResponse = await response.json();
-
-            if (data.Ack === 'Success') {
-                customers = data.Customer.map((customer) => ({
-                    ...customer,
-                    company: getCompanyName(customer),
-                    customerName: getPersonName(customer),
-                    displayName: getCustomerName(customer),
-                    managerName: getAccountManagerName(customer.AccountManager)
-                }));
-            } else {
-                throw new Error('API returned unsuccessful acknowledgment');
-            }
+            );
+            customers = out;
         } catch (err) {
             customersError = err instanceof Error ? err.message : 'Failed to fetch customers';
             console.error('Error fetching customers:', err);
@@ -428,6 +522,7 @@
                 {allowMultipleRecipients
                     ? 'Check one or more customers. Their addresses are added to Bcc.'
                     : 'Check one customer; choosing another replaces the current one.'}
+                Only active customers with at least 2 dispatched orders placed in the last 12 months are listed.
             </p>
             {#if customersLoading}
                 <p class="customer-status">Loading customers…</p>
@@ -450,7 +545,13 @@
                 />
                 <div class="recipient-list" role="group" aria-label="Customers">
                     {#if filteredCustomers.length === 0}
-                        <p class="recipient-list-empty">No customers match this filter.</p>
+                        <p class="recipient-list-empty">
+                            {#if customers.length === 0}
+                                No customers with 2+ orders in the last 12 months.
+                            {:else}
+                                No customers match this filter.
+                            {/if}
+                        </p>
                     {:else}
                         {#each filteredCustomers as c (c.Username)}
                             {@const hasEmail = Boolean(c.EmailAddress?.trim())}

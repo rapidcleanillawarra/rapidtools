@@ -16,7 +16,7 @@
     const CUSTOMER_API_ENDPOINT =
         'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
     const EMAIL_SEND_ENDPOINT =
-        'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4';
+        'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/627029398596438db6ca31f6c22f3989/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=FX2y5mXjKmyNB_Yna7ug8cvZdRg1BLt3GMluiB45ozI';
     const DEFAULT_TO_ADDRESS = 'marketing@rapidcleanillawarra.com.au';
     /** Max usernames per GetCustomer request (avoids huge payloads). */
     const USERNAME_CHUNK = 100;

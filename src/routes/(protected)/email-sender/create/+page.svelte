@@ -97,6 +97,15 @@
         selectableCustomerUsernames.length > 0 &&
             selectableCustomerUsernames.every((username) => selectedUsernames.includes(username))
     );
+    const selectedSelectableCount = $derived(
+        selectedUsernames.filter((username) => selectableCustomerUsernames.includes(username)).length
+    );
+    const someCustomersSelected = $derived(
+        selectedSelectableCount > 0 && !allCustomersSelected
+    );
+    const selectAllChecked = $derived(allCustomersSelected);
+
+    let selectAllInputEl = $state<HTMLInputElement | null>(null);
 
     $effect(() => {
         const q = toFromQuery;
@@ -303,10 +312,24 @@
         selectedUsernames = [...selectableCustomerUsernames];
     }
 
+    function toggleAllCustomers(checked: boolean) {
+        if (!allowMultipleRecipients) return;
+        if (checked) {
+            selectAllCustomers();
+            return;
+        }
+        deselectAllCustomers();
+    }
+
     function deselectAllCustomers() {
         if (selectedUsernames.length === 0) return;
         selectedUsernames = [];
     }
+
+    $effect(() => {
+        if (!selectAllInputEl) return;
+        selectAllInputEl.indeterminate = someCustomersSelected;
+    });
 
     async function handleSend(e: Event) {
         e.preventDefault();
@@ -571,14 +594,17 @@
                     autocomplete="off"
                 />
                 <div class="recipient-actions">
-                    <button
-                        type="button"
-                        class="recipient-action-btn"
-                        onclick={selectAllCustomers}
-                        disabled={sending || !canSelectAllCustomers || allCustomersSelected}
-                    >
-                        Select all customers
-                    </button>
+                    <label class="recipient-action-toggle">
+                        <input
+                            bind:this={selectAllInputEl}
+                            type="checkbox"
+                            checked={selectAllChecked}
+                            onchange={(e) =>
+                                toggleAllCustomers((e.currentTarget as HTMLInputElement).checked)}
+                            disabled={sending || !canSelectAllCustomers}
+                        />
+                        <span>Select all available customers</span>
+                    </label>
                     <button
                         type="button"
                         class="recipient-action-btn"
@@ -633,6 +659,9 @@
                 </p>
                 <p class="recipients-footer">
                     {validEmailCustomerCount} customers with valid email
+                </p>
+                <p class="recipients-footer">
+                    Select all applies to all available customers, not just filtered results.
                 </p>
             {/if}
         </aside>
@@ -771,8 +800,31 @@
 
     .recipient-actions {
         display: flex;
-        gap: 0.5rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.65rem;
         margin-top: 0.5rem;
+    }
+
+    .recipient-action-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.8rem;
+        color: #334155;
+        user-select: none;
+        cursor: pointer;
+    }
+
+    .recipient-action-toggle input {
+        width: 1rem;
+        height: 1rem;
+        accent-color: #3b82f6;
+    }
+
+    .recipient-action-toggle:has(input:disabled) {
+        opacity: 0.65;
+        cursor: not-allowed;
     }
 
     .recipient-action-btn {

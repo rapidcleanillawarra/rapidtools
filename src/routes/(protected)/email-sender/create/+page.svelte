@@ -3,6 +3,7 @@
     import { goto } from '$app/navigation';
     import { base } from '$app/paths';
     import { page } from '$app/stores';
+    import { SvelteSet } from 'svelte/reactivity';
     import { fade, fly } from 'svelte/transition';
     import type { Customer, ApiResponse } from '../../customers/types';
     import {
@@ -12,14 +13,21 @@
         getAccountManagerName
     } from '../../customers/utils';
 
-    const API_ENDPOINT =
+    const CUSTOMER_API_ENDPOINT =
         'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+    const EMAIL_SEND_ENDPOINT =
+        'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7a1c480fddea4e1caeba5b84ea04d19d/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=sOuoBDGjTVPm3CGEZyLsLgBc1WFzapeZkzi8xl-IBI4';
+    const DEFAULT_TO_ADDRESS = 'marketing@rapidcleanillawarra.com.au';
 
     const toFromQuery = $derived($page.url.searchParams.get('to') ?? '');
 
-    let to = $state('');
+    let sender = $state(DEFAULT_TO_ADDRESS);
+    let to = $state(DEFAULT_TO_ADDRESS);
+    let cc = $state('');
+    let bcc = $state('');
     let subject = $state('');
     let body = $state('');
+    let attachmentFiles = $state<File[]>([]);
     let sending = $state(false);
     let formError = $state('');
     let successMessage = $state('');
@@ -53,11 +61,11 @@
         if (q) to = q;
     });
 
-    /** Fill the To field from selected customers' emails (deduplicated). */
+    /** Fill the Bcc field from selected customers' emails (deduplicated). */
     $effect(() => {
         if (!selectedUsernames.length) return;
         const emails: string[] = [];
-        const seen = new Set<string>();
+        const seen = new SvelteSet<string>();
         for (const u of selectedUsernames) {
             const c = customers.find((x) => x.Username === u);
             const e = c?.EmailAddress?.trim();
@@ -69,7 +77,7 @@
                 }
             }
         }
-        if (emails.length) to = emails.join(', ');
+        if (emails.length) bcc = emails.join(', ');
     });
 
     /** Turning off multiple selection keeps at most one checked row. */
@@ -84,7 +92,7 @@
         customersLoading = true;
         customersError = '';
         try {
-            const response = await fetch(API_ENDPOINT, {
+            const response = await fetch(CUSTOMER_API_ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -145,6 +153,23 @@
             .filter(Boolean);
     }
 
+    async function toBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const result = reader.result;
+                if (typeof result !== 'string') {
+                    reject(new Error(`Unable to encode attachment "${file.name}"`));
+                    return;
+                }
+                const payload = result.split(',', 2)[1] ?? '';
+                resolve(payload);
+            };
+            reader.onerror = () => reject(new Error(`Unable to read attachment "${file.name}"`));
+            reader.readAsDataURL(file);
+        });
+    }
+
     function toggleCustomerSelection(username: string, checked: boolean) {
         const c = customers.find((x) => x.Username === username);
         if (!c?.EmailAddress?.trim()) return;
@@ -153,7 +178,7 @@
             selectedUsernames = checked ? [username] : [];
             return;
         }
-        const next = new Set(selectedUsernames);
+        const next = new SvelteSet(selectedUsernames);
         if (checked) next.add(username);
         else next.delete(username);
         selectedUsernames = [...next];
@@ -161,15 +186,26 @@
 
     async function handleSend(e: Event) {
         e.preventDefault();
+        console.log('Send button clicked, preparing email payload...');
         formError = '';
         successMessage = '';
 
-        const recipients = parseRecipients(to);
-        if (recipients.length === 0) {
-            formError = 'Enter at least one recipient email.';
+        const toRecipients = parseRecipients(to);
+        const ccRecipients = parseRecipients(cc);
+        const bccRecipients = parseRecipients(bcc);
+        if (toRecipients.length + ccRecipients.length + bccRecipients.length === 0) {
+            formError = 'Enter at least one recipient in To, Cc, or Bcc.';
             return;
         }
-        const invalid = recipients.filter((r) => !isValidEmail(r));
+        if (!sender.trim()) {
+            formError = 'Sender is required.';
+            return;
+        }
+        if (!isValidEmail(sender)) {
+            formError = 'Sender must be a valid email address.';
+            return;
+        }
+        const invalid = [...toRecipients, ...ccRecipients, ...bccRecipients].filter((r) => !isValidEmail(r));
         if (invalid.length > 0) {
             formError = `Invalid email(s): ${invalid.join(', ')}`;
             return;
@@ -185,13 +221,47 @@
 
         sending = true;
         try {
-            await new Promise((r) => setTimeout(r, 600));
-            successMessage =
-                'Draft validated. Wire up your send endpoint (e.g. Logic App or API) in this page to deliver mail.';
+            const attachments = await Promise.all(
+                attachmentFiles.map(async (file) => ({
+                    name: file.name,
+                    contentBytes: await toBase64(file)
+                }))
+            );
+
+            const response = await fetch(EMAIL_SEND_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sender: sender.trim(),
+                    email: {
+                        to: toRecipients.join(','),
+                        cc: ccRecipients.join(','),
+                        bcc: bccRecipients.join(','),
+                        subject: subject.trim(),
+                        body: body.trim(),
+                        attachments
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(errText || `Email send failed with status ${response.status}`);
+            }
+
+            successMessage = 'Email sent successfully.';
             body = '';
             subject = '';
-            to = '';
+            to = DEFAULT_TO_ADDRESS;
+            cc = '';
+            bcc = '';
+            attachmentFiles = [];
             selectedUsernames = [];
+            customerFilter = '';
+        } catch (err) {
+            formError = err instanceof Error ? err.message : 'Failed to send email.';
         } finally {
             sending = false;
         }
@@ -230,6 +300,19 @@
 
         <div class="form-col form-col-main">
             <div class="field">
+                <label for="sender">Sender</label>
+                <input
+                    id="sender"
+                    type="email"
+                    class="input"
+                    placeholder="sender@example.com"
+                    bind:value={sender}
+                    autocomplete="email"
+                    disabled={sending}
+                />
+            </div>
+
+            <div class="field">
                 <label for="to">To</label>
                 <input
                     id="to"
@@ -241,9 +324,34 @@
                     disabled={sending}
                 />
                 <span class="hint"
-                    >Tick customers on the right to fill this field, or type addresses manually. Separate multiple
-                    with commas, semicolons, or new lines.</span
+                    >Defaults to marketing. Enter addresses manually and separate multiples with commas, semicolons,
+                    or new lines.</span
                 >
+            </div>
+
+            <div class="field">
+                <label for="cc">Cc</label>
+                <input
+                    id="cc"
+                    type="text"
+                    class="input"
+                    placeholder="Optional CC recipients"
+                    bind:value={cc}
+                    disabled={sending}
+                />
+            </div>
+
+            <div class="field">
+                <label for="bcc">Bcc</label>
+                <input
+                    id="bcc"
+                    type="text"
+                    class="input"
+                    placeholder="Optional BCC recipients"
+                    bind:value={bcc}
+                    disabled={sending}
+                />
+                <span class="hint">Customers selected on the right are added here by default.</span>
             </div>
 
             <div class="field">
@@ -268,6 +376,24 @@
                     bind:value={body}
                     disabled={sending}
                 ></textarea>
+            </div>
+
+            <div class="field">
+                <label for="attachments">Attachments</label>
+                <input
+                    id="attachments"
+                    type="file"
+                    class="input"
+                    multiple
+                    disabled={sending}
+                    onchange={(e) =>
+                        (attachmentFiles = Array.from((e.currentTarget as HTMLInputElement).files ?? []))}
+                />
+                <span class="hint">
+                    {attachmentFiles.length > 0
+                        ? `${attachmentFiles.length} attachment(s) selected`
+                        : 'Optional. Selected files are sent as base64 attachments.'}
+                </span>
             </div>
 
             <div class="form-actions">
@@ -297,7 +423,7 @@
             </div>
             <p class="recipients-hint">
                 {allowMultipleRecipients
-                    ? 'Check one or more customers. Their addresses are added to To.'
+                    ? 'Check one or more customers. Their addresses are added to Bcc.'
                     : 'Check one customer; choosing another replaces the current one.'}
             </p>
             {#if customersLoading}

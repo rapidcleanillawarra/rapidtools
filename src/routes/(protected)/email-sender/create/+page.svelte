@@ -28,7 +28,10 @@
     let customersLoading = $state(true);
     let customersError = $state('');
     let customerFilter = $state('');
-    let selectedCustomerUsername = $state('');
+    /** Customer usernames selected in the recipients list (checkboxes). */
+    let selectedUsernames = $state<string[]>([]);
+    /** When true, multiple rows can be checked; when false, only one recipient at a time. */
+    let allowMultipleRecipients = $state(true);
 
     const filteredCustomers = $derived.by(() => {
         const q = customerFilter.trim().toLowerCase();
@@ -43,28 +46,38 @@
         );
     });
 
+    const selectedCount = $derived(selectedUsernames.length);
+
     $effect(() => {
         const q = toFromQuery;
         if (q) to = q;
     });
 
+    /** Fill the To field from selected customers' emails (deduplicated). */
     $effect(() => {
-        if (!selectedCustomerUsername) return;
-        const c = customers.find((x) => x.Username === selectedCustomerUsername);
-        if (c?.EmailAddress?.trim()) {
-            to = c.EmailAddress.trim();
+        if (!selectedUsernames.length) return;
+        const emails: string[] = [];
+        const seen = new Set<string>();
+        for (const u of selectedUsernames) {
+            const c = customers.find((x) => x.Username === u);
+            const e = c?.EmailAddress?.trim();
+            if (e) {
+                const key = e.toLowerCase();
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    emails.push(e);
+                }
+            }
         }
+        if (emails.length) to = emails.join(', ');
     });
 
-    /** When `to` matches a customer email (e.g. ?to= from URL), keep the dropdown in sync. */
+    /** Turning off multiple selection keeps at most one checked row. */
     $effect(() => {
-        if (customersLoading || customers.length === 0) return;
-        const t = to.trim().toLowerCase();
-        if (!t) return;
-        const match = customers.find(
-            (c) => c.EmailAddress?.trim().toLowerCase() === t
-        );
-        if (match) selectedCustomerUsername = match.Username;
+        if (allowMultipleRecipients) return;
+        if (selectedUsernames.length > 1) {
+            selectedUsernames = [selectedUsernames[0]];
+        }
     });
 
     async function fetchCustomers() {
@@ -132,6 +145,20 @@
             .filter(Boolean);
     }
 
+    function toggleCustomerSelection(username: string, checked: boolean) {
+        const c = customers.find((x) => x.Username === username);
+        if (!c?.EmailAddress?.trim()) return;
+
+        if (!allowMultipleRecipients) {
+            selectedUsernames = checked ? [username] : [];
+            return;
+        }
+        const next = new Set(selectedUsernames);
+        if (checked) next.add(username);
+        else next.delete(username);
+        selectedUsernames = [...next];
+    }
+
     async function handleSend(e: Event) {
         e.preventDefault();
         formError = '';
@@ -163,6 +190,8 @@
                 'Draft validated. Wire up your send endpoint (e.g. Logic App or API) in this page to deliver mail.';
             body = '';
             subject = '';
+            to = '';
+            selectedUsernames = [];
         } finally {
             sending = false;
         }
@@ -189,16 +218,88 @@
         </div>
     </header>
 
-    <form class="content-card" in:fade={{ duration: 800, delay: 200 }} onsubmit={handleSend}>
-        {#if formError}
-            <p class="banner banner-error" role="alert">{formError}</p>
-        {/if}
-        {#if successMessage}
-            <p class="banner banner-success" role="status">{successMessage}</p>
-        {/if}
+    <form class="content-card form-layout" in:fade={{ duration: 800, delay: 200 }} onsubmit={handleSend}>
+        <div class="form-banners">
+            {#if formError}
+                <p class="banner banner-error" role="alert">{formError}</p>
+            {/if}
+            {#if successMessage}
+                <p class="banner banner-success" role="status">{successMessage}</p>
+            {/if}
+        </div>
 
-        <div class="field">
-            <label for="customer-filter">Send to customer</label>
+        <div class="form-col form-col-main">
+            <div class="field">
+                <label for="to">To</label>
+                <input
+                    id="to"
+                    type="text"
+                    class="input"
+                    placeholder="email@example.com or several, separated by commas"
+                    bind:value={to}
+                    autocomplete="email"
+                    disabled={sending}
+                />
+                <span class="hint"
+                    >Tick customers on the right to fill this field, or type addresses manually. Separate multiple
+                    with commas, semicolons, or new lines.</span
+                >
+            </div>
+
+            <div class="field">
+                <label for="subject">Subject</label>
+                <input
+                    id="subject"
+                    type="text"
+                    class="input"
+                    placeholder="What is this about?"
+                    bind:value={subject}
+                    disabled={sending}
+                />
+            </div>
+
+            <div class="field field-grow">
+                <label for="body">Message</label>
+                <textarea
+                    id="body"
+                    class="textarea"
+                    rows="14"
+                    placeholder="Write your message…"
+                    bind:value={body}
+                    disabled={sending}
+                ></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick={goBack} disabled={sending}>Cancel</button>
+                <button type="submit" class="btn-primary" disabled={sending}>
+                    {#if sending}
+                        Sending…
+                    {:else}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                        Send
+                    {/if}
+                </button>
+            </div>
+        </div>
+
+        <aside class="form-col form-col-recipients" aria-label="Choose customers as recipients">
+            <div class="recipients-header">
+                <h2 class="recipients-title">Recipients</h2>
+                <label class="option-multiple">
+                    <input
+                        type="checkbox"
+                        bind:checked={allowMultipleRecipients}
+                        disabled={sending}
+                    />
+                    <span>Allow multiple selection</span>
+                </label>
+            </div>
+            <p class="recipients-hint">
+                {allowMultipleRecipients
+                    ? 'Check one or more customers. Their addresses are added to To.'
+                    : 'Check one customer; choosing another replaces the current one.'}
+            </p>
             {#if customersLoading}
                 <p class="customer-status">Loading customers…</p>
             {:else if customersError}
@@ -218,76 +319,45 @@
                     disabled={sending}
                     autocomplete="off"
                 />
-                <select
-                    class="input select-customer"
-                    id="customer-select"
-                    bind:value={selectedCustomerUsername}
-                    disabled={sending}
-                    aria-label="Select customer to fill recipient email"
-                >
-                    <option value="">— Select a customer (optional) —</option>
-                    {#each filteredCustomers as c (c.Username)}
-                        <option value={c.Username}>
-                            {c.displayName ?? c.Username} · {c.company ?? '—'}
-                            {c.EmailAddress ? ` · ${c.EmailAddress}` : ' · (no email)'}
-                        </option>
-                    {/each}
-                </select>
-                {#if filteredCustomers.length === 0 && !customersLoading}
-                    <span class="hint">No customers match this filter.</span>
-                {/if}
+                <div class="recipient-list" role="group" aria-label="Customers">
+                    {#if filteredCustomers.length === 0}
+                        <p class="recipient-list-empty">No customers match this filter.</p>
+                    {:else}
+                        {#each filteredCustomers as c (c.Username)}
+                            {@const hasEmail = Boolean(c.EmailAddress?.trim())}
+                            {@const checked = selectedUsernames.includes(c.Username)}
+                            {@const inputId = `recipient-${c.Username.replace(/[^a-zA-Z0-9_-]/g, '_')}`}
+                            <div
+                                class="recipient-row"
+                                class:recipient-row-disabled={!hasEmail}
+                            >
+                                <input
+                                    id={inputId}
+                                    type="checkbox"
+                                    class="recipient-checkbox"
+                                    {checked}
+                                    disabled={!hasEmail || sending}
+                                    onchange={(e) =>
+                                        toggleCustomerSelection(
+                                            c.Username,
+                                            (e.currentTarget as HTMLInputElement).checked
+                                        )}
+                                />
+                                <label class="recipient-label" for={inputId}>
+                                    <span class="recipient-name">{c.displayName ?? c.Username}</span>
+                                    <span class="recipient-meta"
+                                        >{c.company ?? '—'}{hasEmail ? ` · ${c.EmailAddress}` : ' · (no email)'}</span
+                                    >
+                                </label>
+                            </div>
+                        {/each}
+                    {/if}
+                </div>
+                <p class="recipients-footer">
+                    {selectedCount} selected
+                </p>
             {/if}
-        </div>
-
-        <div class="field">
-            <label for="to">To</label>
-            <input
-                id="to"
-                type="text"
-                class="input"
-                placeholder="email@example.com or several, separated by commas"
-                bind:value={to}
-                autocomplete="email"
-                disabled={sending}
-            />
-            <span class="hint">Choose a customer above to fill this field, or enter addresses manually. Separate multiple with commas, semicolons, or new lines.</span>
-        </div>
-
-        <div class="field">
-            <label for="subject">Subject</label>
-            <input
-                id="subject"
-                type="text"
-                class="input"
-                placeholder="What is this about?"
-                bind:value={subject}
-                disabled={sending}
-            />
-        </div>
-
-        <div class="field">
-            <label for="body">Message</label>
-            <textarea
-                id="body"
-                class="textarea"
-                rows="14"
-                placeholder="Write your message…"
-                bind:value={body}
-                disabled={sending}
-            ></textarea>
-        </div>
-
-        <div class="form-actions">
-            <button type="button" class="btn-secondary" onclick={goBack} disabled={sending}>Cancel</button>
-            <button type="submit" class="btn-primary" disabled={sending}>
-                {#if sending}
-                    Sending…
-                {:else}
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-                    Send
-                {/if}
-            </button>
-        </div>
+        </aside>
     </form>
 </div>
 
@@ -299,7 +369,7 @@
 
     .page-container {
         padding: 2.5rem;
-        max-width: 900px;
+        max-width: 1200px;
         margin: 0 auto;
     }
 
@@ -348,6 +418,171 @@
         border-radius: 1.5rem;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
         padding: 2rem;
+    }
+
+    .form-layout {
+        display: grid;
+        grid-template-columns: 1fr minmax(300px, 400px);
+        gap: 1.75rem 2rem;
+        align-items: start;
+    }
+
+    .form-banners {
+        grid-column: 1 / -1;
+    }
+
+    .form-col-main {
+        min-width: 0;
+    }
+
+    .form-col-recipients {
+        position: sticky;
+        top: 1rem;
+        align-self: start;
+        padding: 1.25rem;
+        background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 1rem;
+        max-height: calc(100vh - 8rem);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .recipients-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .recipients-title {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .option-multiple {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        color: #475569;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .option-multiple input {
+        width: 1rem;
+        height: 1rem;
+        accent-color: #3b82f6;
+        cursor: pointer;
+    }
+
+    .option-multiple:has(input:disabled) {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+
+    .recipients-hint {
+        margin: 0 0 0.75rem;
+        font-size: 0.78rem;
+        color: #94a3b8;
+        line-height: 1.35;
+    }
+
+    .recipient-list {
+        flex: 1;
+        min-height: 10rem;
+        max-height: min(52vh, 420px);
+        overflow-y: auto;
+        margin-top: 0.75rem;
+        padding-right: 0.35rem;
+        border-radius: 0.75rem;
+    }
+
+    .recipient-list-empty {
+        margin: 1rem 0;
+        font-size: 0.9rem;
+        color: #94a3b8;
+    }
+
+    .recipient-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        padding: 0.55rem 0.45rem;
+        border-radius: 0.5rem;
+        transition: background 0.15s;
+    }
+
+    .recipient-row:not(.recipient-row-disabled):hover {
+        background: #f1f5f9;
+    }
+
+    .recipient-row-disabled {
+        opacity: 0.45;
+    }
+
+    .recipient-checkbox {
+        margin-top: 0.2rem;
+        flex-shrink: 0;
+        accent-color: #3b82f6;
+        cursor: pointer;
+    }
+
+    .recipient-row-disabled .recipient-checkbox {
+        cursor: not-allowed;
+    }
+
+    .recipient-label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        cursor: pointer;
+        font-size: 0.88rem;
+        line-height: 1.3;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .recipient-name {
+        font-weight: 600;
+        color: #334155;
+        word-break: break-word;
+    }
+
+    .recipient-meta {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        word-break: break-word;
+    }
+
+    .recipients-footer {
+        margin: 0.75rem 0 0;
+        padding-top: 0.6rem;
+        border-top: 1px solid #e2e8f0;
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    .field-grow .textarea {
+        min-height: 14rem;
+    }
+
+    @media (max-width: 960px) {
+        .form-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .form-col-recipients {
+            position: static;
+            max-height: none;
+        }
+
+        .recipient-list {
+            max-height: 360px;
+        }
     }
 
     .banner {
@@ -416,12 +651,6 @@
         margin-top: 0.4rem;
         font-size: 0.8rem;
         color: #94a3b8;
-    }
-
-    .select-customer {
-        margin-top: 0.6rem;
-        cursor: pointer;
-        max-height: 12rem;
     }
 
     .customer-status {

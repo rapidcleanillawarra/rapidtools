@@ -91,7 +91,7 @@
         if (q) to = q;
     });
 
-    /** Fill the Bcc field from selected customers' emails (deduplicated). */
+    /** Fill the To field from selected customers' emails (deduplicated). */
     $effect(() => {
         if (!selectedUsernames.length) return;
         const emails: string[] = [];
@@ -107,7 +107,7 @@
                 }
             }
         }
-        if (emails.length) bcc = emails.join('; ');
+        if (emails.length) to = emails.join('; ');
     });
 
     /** Turning off multiple selection keeps at most one checked row. */
@@ -448,7 +448,7 @@
                     bind:value={bcc}
                     disabled={sending}
                 />
-                <span class="hint">Customers selected on the right are added here by default.</span>
+                <span class="hint">Optional field. Selected customers are added to To by default.</span>
             </div>
 
             <div class="field">
@@ -520,7 +520,7 @@
             </div>
             <p class="recipients-hint">
                 {allowMultipleRecipients
-                    ? 'Check one or more customers. Their addresses are added to Bcc.'
+                    ? 'Check one or more customers. Their addresses are added to To.'
                     : 'Check one customer; choosing another replaces the current one.'}
                 Only active customers with at least 2 dispatched orders placed in the last 12 months are listed.
             </p>

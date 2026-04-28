@@ -85,6 +85,18 @@
     const validEmailCustomerCount = $derived(
         customers.filter((c) => isValidEmail(c.EmailAddress ?? '')).length
     );
+    const selectableCustomerUsernames = $derived(
+        customers
+            .filter((c) => isValidEmail(c.EmailAddress ?? ''))
+            .map((c) => c.Username)
+    );
+    const canSelectAllCustomers = $derived(
+        allowMultipleRecipients && selectableCustomerUsernames.length > 0
+    );
+    const allCustomersSelected = $derived(
+        selectableCustomerUsernames.length > 0 &&
+            selectableCustomerUsernames.every((username) => selectedUsernames.includes(username))
+    );
 
     $effect(() => {
         const q = toFromQuery;
@@ -112,9 +124,14 @@
 
     /** Turning off multiple selection keeps at most one checked row. */
     $effect(() => {
-        if (allowMultipleRecipients) return;
-        if (selectedUsernames.length > 1) {
-            selectedUsernames = [selectedUsernames[0]];
+        const selectableUsernames = new SvelteSet(selectableCustomerUsernames);
+        const next = selectedUsernames.filter((username) => selectableUsernames.has(username));
+        if (!allowMultipleRecipients && next.length > 1) {
+            selectedUsernames = [next[0]];
+            return;
+        }
+        if (next.length !== selectedUsernames.length) {
+            selectedUsernames = next;
         }
     });
 
@@ -279,6 +296,16 @@
         if (checked) next.add(username);
         else next.delete(username);
         selectedUsernames = [...next];
+    }
+
+    function selectAllCustomers() {
+        if (!allowMultipleRecipients || selectableCustomerUsernames.length === 0) return;
+        selectedUsernames = [...selectableCustomerUsernames];
+    }
+
+    function deselectAllCustomers() {
+        if (selectedUsernames.length === 0) return;
+        selectedUsernames = [];
     }
 
     async function handleSend(e: Event) {
@@ -543,6 +570,24 @@
                     disabled={sending}
                     autocomplete="off"
                 />
+                <div class="recipient-actions">
+                    <button
+                        type="button"
+                        class="recipient-action-btn"
+                        onclick={selectAllCustomers}
+                        disabled={sending || !canSelectAllCustomers || allCustomersSelected}
+                    >
+                        Select all customers
+                    </button>
+                    <button
+                        type="button"
+                        class="recipient-action-btn"
+                        onclick={deselectAllCustomers}
+                        disabled={sending || selectedCount === 0}
+                    >
+                        Deselect all
+                    </button>
+                </div>
                 <div class="recipient-list" role="group" aria-label="Customers">
                     {#if filteredCustomers.length === 0}
                         <p class="recipient-list-empty">
@@ -722,6 +767,34 @@
         font-size: 0.78rem;
         color: #94a3b8;
         line-height: 1.35;
+    }
+
+    .recipient-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .recipient-action-btn {
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        border-radius: 0.5rem;
+        padding: 0.35rem 0.65rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+    }
+
+    .recipient-action-btn:hover:not(:disabled) {
+        background: #f8fafc;
+        border-color: #94a3b8;
+    }
+
+    .recipient-action-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
 
     .recipient-list {

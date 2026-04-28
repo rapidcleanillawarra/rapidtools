@@ -55,6 +55,9 @@
     });
 
     const selectedCount = $derived(selectedUsernames.length);
+    const validEmailCustomerCount = $derived(
+        customers.filter((c) => isValidEmail(c.EmailAddress ?? '')).length
+    );
 
     $effect(() => {
         const q = toFromQuery;
@@ -481,6 +484,9 @@
                 </div>
                 <p class="recipients-footer">
                     {selectedCount} selected
+                </p>
+                <p class="recipients-footer">
+                    {validEmailCustomerCount} customers with valid email
                 </p>
             {/if}
         </aside>

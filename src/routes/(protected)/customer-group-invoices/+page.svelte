@@ -644,7 +644,8 @@
 			'Product Name',
 			'SKU',
 			'Quantity',
-			'Unit Price'
+			'Unit Price',
+			'Product Total'
 		];
 		const rows: string[][] = [];
 
@@ -654,10 +655,17 @@
 
 			if (order.OrderLine && Array.isArray(order.OrderLine)) {
 				order.OrderLine.forEach((line: any) => {
-					const quantity = String(line.Quantity ?? line.Qty ?? '');
+					const quantityRaw = parseFloat(line.Quantity ?? line.Qty);
+					const quantity = !isNaN(quantityRaw)
+						? String(quantityRaw)
+						: String(line.Quantity ?? line.Qty ?? '');
 					const unitPriceRaw = parseFloat(line.UnitPrice);
 					const unitPrice =
 						!isNaN(unitPriceRaw) ? unitPriceRaw.toFixed(2) : String(line.UnitPrice ?? '');
+					const productTotal =
+						!isNaN(unitPriceRaw) && !isNaN(quantityRaw)
+							? (unitPriceRaw * quantityRaw).toFixed(2)
+							: '';
 
 					rows.push([
 						invoiceDate,
@@ -666,7 +674,8 @@
 						String(line.ProductName ?? ''),
 						String(line.SKU ?? '').trim(),
 						quantity,
-						unitPrice
+						unitPrice,
+						productTotal
 					]);
 				});
 			}

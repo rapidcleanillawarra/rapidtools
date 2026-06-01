@@ -571,6 +571,94 @@
 		defaultAmount = invoice.balance;
 	}
 
+	// Function to handle Extract Order Lines (invoice date, order number, SKU per line)
+	async function handleExtractOrderLines() {
+		try {
+			const orderIds = $originalInvoices.map((invoice) => invoice.invoiceNumber);
+
+			if (orderIds.length === 0) {
+				toastError('No orders found to extract line items');
+				return;
+			}
+
+			filterLoading.set(true);
+			currentLoadingStep.set('Extracting order line items...');
+
+			const orderLinesPayload = {
+				Filter: {
+					OrderID: orderIds,
+					OutputSelector: [
+						'ID',
+						'DateInvoiced',
+						'OrderLine',
+						'OrderLine.OrderLineID',
+						'OrderLine.ProductName',
+						'OrderLine.UnitPrice',
+						'OrderLine.Quantity',
+						'OrderLine.Qty',
+						'OrderLine.SKU'
+					]
+				},
+				action: 'GetOrder'
+			};
+
+			console.log('Extract Order Lines API Payload:', orderLinesPayload);
+
+			const response = await fetch(
+				'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs',
+				{
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(orderLinesPayload)
+				}
+			);
+
+			const orderLinesData = await response.json();
+			console.log('Extract Order Lines API Response:', orderLinesData);
+
+			if (!orderLinesData.Order || orderLinesData.Order.length === 0) {
+				toastError('No order line data found');
+				return;
+			}
+
+			const csvData = generateExtractOrderLinesCSV(orderLinesData.Order);
+			downloadCSV(csvData, 'extract_order_lines.csv');
+
+			toastSuccess(`Successfully exported ${csvData.length - 1} order line items to CSV`);
+		} catch (error) {
+			console.error('Error extracting order lines:', error);
+			toastError('Failed to extract order line items');
+		} finally {
+			filterLoading.set(false);
+			currentLoadingStep.set('');
+		}
+	}
+
+	function generateExtractOrderLinesCSV(orders: any[]): string[][] {
+		const header = ['Invoice date', 'Order Number', 'SKU'];
+		const rows: string[][] = [];
+
+		orders.forEach((order) => {
+			const orderNumber = String(order.ID ?? order.OrderID ?? '');
+			const invoiceDate = String(order.DateInvoiced ?? '');
+
+			if (order.OrderLine && Array.isArray(order.OrderLine)) {
+				order.OrderLine.forEach((line: any) => {
+					const sku = (line.SKU || '').toString().trim();
+					if (sku) {
+						rows.push([invoiceDate, orderNumber, sku]);
+					}
+				});
+			}
+		});
+
+		rows.sort((a, b) => a[1].localeCompare(b[1]) || a[2].localeCompare(b[2]));
+
+		return [header, ...rows];
+	}
+
 	// Function to handle Get Order Lines
 	async function handleGetOrderLines() {
 		try {
@@ -1027,6 +1115,14 @@
 					on:click={handleGetOrderLines}
 				>
 					Get Order Lines
+				</button>
+			{/if}
+			{#if $invoices && $invoices.length > 0}
+				<button
+					class="flex min-w-[160px] items-center justify-center rounded bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+					on:click={handleExtractOrderLines}
+				>
+					Extract Order Lines
 				</button>
 			{/if}
 			{#if $invoices && $invoices.length > 0}

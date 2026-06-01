@@ -571,7 +571,7 @@
 		defaultAmount = invoice.balance;
 	}
 
-	// Function to handle Extract Order Lines (invoice date, order number, SKU per line)
+	// Function to handle Extract Order Lines (full line detail per order)
 	async function handleExtractOrderLines() {
 		try {
 			const orderIds = $originalInvoices.map((invoice) => invoice.invoiceNumber);
@@ -637,7 +637,15 @@
 	}
 
 	function generateExtractOrderLinesCSV(orders: any[]): string[][] {
-		const header = ['Invoice date', 'Order Number', 'SKU'];
+		const header = [
+			'Invoice date',
+			'Order Number',
+			'Order Line ID',
+			'Product Name',
+			'SKU',
+			'Quantity',
+			'Unit Price'
+		];
 		const rows: string[][] = [];
 
 		orders.forEach((order) => {
@@ -646,15 +654,27 @@
 
 			if (order.OrderLine && Array.isArray(order.OrderLine)) {
 				order.OrderLine.forEach((line: any) => {
-					const sku = (line.SKU || '').toString().trim();
-					if (sku) {
-						rows.push([invoiceDate, orderNumber, sku]);
-					}
+					const quantity = String(line.Quantity ?? line.Qty ?? '');
+					const unitPriceRaw = parseFloat(line.UnitPrice);
+					const unitPrice =
+						!isNaN(unitPriceRaw) ? unitPriceRaw.toFixed(2) : String(line.UnitPrice ?? '');
+
+					rows.push([
+						invoiceDate,
+						orderNumber,
+						String(line.OrderLineID ?? ''),
+						String(line.ProductName ?? ''),
+						String(line.SKU ?? '').trim(),
+						quantity,
+						unitPrice
+					]);
 				});
 			}
 		});
 
-		rows.sort((a, b) => a[1].localeCompare(b[1]) || a[2].localeCompare(b[2]));
+		rows.sort(
+			(a, b) => a[1].localeCompare(b[1]) || a[2].localeCompare(b[2]) || a[4].localeCompare(b[4])
+		);
 
 		return [header, ...rows];
 	}

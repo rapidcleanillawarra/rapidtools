@@ -13,6 +13,7 @@
     productDiscount?: string;
     model?: string;
     rrp?: string;
+    purchasePrice?: string;
     imageUrl?: string;
     hasDescription?: boolean;
     moq?: string;
@@ -36,6 +37,7 @@
     description: string;
     price: string;
     rrp: string;
+    purchasePrice: string;
     qty: string;
     moq: string;
     discPrice: string;
@@ -49,6 +51,7 @@
     description: 'Description',
     price: 'Price',
     rrp: 'RRP',
+    purchasePrice: 'Purchase Price',
     qty: 'Qty',
     moq: 'MOQ',
     discPrice: 'Disc Price',
@@ -83,6 +86,8 @@
       description: typeof o.description === 'string' ? o.description : DEFAULT_COLUMN_LABELS.description,
       price: typeof o.price === 'string' ? o.price : DEFAULT_COLUMN_LABELS.price,
       rrp: typeof o.rrp === 'string' ? o.rrp : DEFAULT_COLUMN_LABELS.rrp,
+      purchasePrice:
+        typeof o.purchasePrice === 'string' ? o.purchasePrice : DEFAULT_COLUMN_LABELS.purchasePrice,
       qty: typeof o.qty === 'string' ? o.qty : DEFAULT_COLUMN_LABELS.qty,
       discPrice: typeof o.discPrice === 'string' ? o.discPrice : DEFAULT_COLUMN_LABELS.discPrice,
       moq: typeof o.moq === 'string' ? o.moq : DEFAULT_COLUMN_LABELS.moq,
@@ -123,6 +128,7 @@
   let detailError = '';
   let includeRrpInPrint = false;
   let crossOutRrpInPrint = false;
+  let includePurchasePriceInPrint = false;
   let showDescription = true;
   let showPriceInPrint = true;
   let showQuantityColumnInPrint = false;
@@ -224,6 +230,7 @@
             productDiscount: item?.productDiscount != null ? String(item.productDiscount) : undefined,
             model: item?.model,
             rrp: item?.rrp,
+            purchasePrice: item?.purchasePrice,
             imageUrl: item?.imageUrl,
             hasDescription: item?.hasDescription,
             moq: item?.moq != null ? String(item.moq) : undefined
@@ -250,6 +257,7 @@
             value: item.value,
             sourceIndex: item.sourceIndex,
             rrp: item.rrp,
+            purchasePrice: item.purchasePrice,
             model: item.model,
             imageUrl: item.imageUrl,
             hasDescription: item.hasDescription,
@@ -344,6 +352,17 @@
 
   const sanitizePrice = (raw: string) => raw.replace(/[^0-9.]/g, '');
 
+  const formatDecimal2 = (raw?: string) => {
+    if (raw == null || String(raw).trim() === '') return '';
+    const n = parseFloat(sanitizePrice(String(raw)));
+    return Number.isFinite(n) ? n.toFixed(2) : '';
+  };
+
+  const displayDecimal2 = (raw?: string) => {
+    const formatted = formatDecimal2(raw);
+    return formatted !== '' ? formatted : '—';
+  };
+
   const updateBuilderItemPrice = (index: number, newPrice: string) => {
     const sanitizedPrice = sanitizePrice(newPrice);
     const priceNum = parseFloat(sanitizedPrice);
@@ -428,7 +447,7 @@
     const payload = {
       Filter: {
         SKU: skus,
-        OutputSelector: ['SKU', 'Model', 'Images', 'RRP', 'ShortDescription']
+        OutputSelector: ['SKU', 'Model', 'Images', 'RRP', 'DefaultPurchasePrice', 'ShortDescription']
       },
       action: 'GetItem'
     };
@@ -443,13 +462,17 @@
     if (data?.Ack !== 'Success') {
       throw new Error('SKU detail fetch failed');
     }
-    const map: Record<string, { model?: string; rrp?: string; imageUrl?: string; hasDescription?: boolean }> = {};
+    const map: Record<
+      string,
+      { model?: string; rrp?: string; purchasePrice?: string; imageUrl?: string; hasDescription?: boolean }
+    > = {};
     (data.Item ?? []).forEach((item: any) => {
       const sku = item?.SKU;
       if (!sku) return;
       map[sku] = {
         model: item?.Model ?? '',
         rrp: item?.RRP?.toString?.() ?? '',
+        purchasePrice: formatDecimal2(item?.DefaultPurchasePrice?.toString?.() ?? ''),
         imageUrl: getMainImage(item?.Images),
         hasDescription: Boolean(item?.ShortDescription)
       };
@@ -457,7 +480,12 @@
     return map;
   };
 
-  const mergeSkuDetails = (details: Record<string, { model?: string; rrp?: string; imageUrl?: string; hasDescription?: boolean }>) => {
+  const mergeSkuDetails = (
+    details: Record<
+      string,
+      { model?: string; rrp?: string; purchasePrice?: string; imageUrl?: string; hasDescription?: boolean }
+    >
+  ) => {
     if (!details || typeof details !== 'object') return;
     rows = rows.map((row) => {
       const detail = details[row.sku];
@@ -466,13 +494,19 @@
         ...row,
         model: detail.model || row.model,
         rrp: detail.rrp || row.rrp,
+        purchasePrice: detail.purchasePrice || row.purchasePrice,
         imageUrl: detail.imageUrl || row.imageUrl,
         hasDescription: detail.hasDescription ?? row.hasDescription
       };
     });
   };
 
-  const mergeBuilderDetails = (details: Record<string, { model?: string; rrp?: string; imageUrl?: string; hasDescription?: boolean }>) => {
+  const mergeBuilderDetails = (
+    details: Record<
+      string,
+      { model?: string; rrp?: string; purchasePrice?: string; imageUrl?: string; hasDescription?: boolean }
+    >
+  ) => {
     if (!details || typeof details !== 'object') return;
     console.log('Builder SKU detail map', details);
     builderItems = builderItems.map((item) => {
@@ -483,6 +517,7 @@
         ...item,
         model: detail.model || item.model,
         rrp: detail.rrp || item.rrp,
+        purchasePrice: detail.purchasePrice || item.purchasePrice,
         imageUrl: detail.imageUrl || item.imageUrl,
         hasDescription: detail.hasDescription ?? item.hasDescription
       };
@@ -762,6 +797,7 @@
         sku: item.sku,
         price: item.price,
         rrp: item.rrp,
+        purchasePrice: item.purchasePrice,
         model: item.model,
         imageUrl: item.imageUrl,
         hasDescription: item.hasDescription,
@@ -812,6 +848,7 @@
     if (typeof window !== 'undefined' && priceListId) {
       const rrpParam = includeRrpInPrint ? '&includeRrp=true' : '';
       const crossParam = crossOutRrpInPrint ? '&crossRrp=true' : '';
+      const purchasePriceParam = includePurchasePriceInPrint ? '&includePurchasePrice=true' : '';
       const descParam = showDescription ? '' : '&includeDescription=false';
       const priceParam = showPriceInPrint ? '' : '&includePrice=false';
       const qtyParam = showQuantityColumnInPrint ? '&includeQuantity=true' : '';
@@ -821,7 +858,7 @@
       const noteFontStyleParam = `&noteFontStyle=${encodeURIComponent(noteFontStyleInPrint)}`;
       const colLabelsParam = `&colLabels=${encodeURIComponent(JSON.stringify(columnLabels))}`;
       window.open(
-        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${descParam}${priceParam}${qtyParam}${moqParam}${noteFontSizeParam}${noteFontWeightParam}${noteFontStyleParam}${colLabelsParam}`,
+        `${base}/price-lists/print?id=${priceListId}&mode=${mode}${rrpParam}${crossParam}${purchasePriceParam}${descParam}${priceParam}${qtyParam}${moqParam}${noteFontSizeParam}${noteFontWeightParam}${noteFontStyleParam}${colLabelsParam}`,
         '_blank'
       );
     }
@@ -1045,20 +1082,21 @@
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.sku}</th>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.discPrice}</th>
                   <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.rrp}</th>
+                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.purchasePrice}</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 bg-white">
                 {#if loading}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-gray-600" colspan="4">Loading...</td>
+                    <td class="px-4 py-3 text-sm text-gray-600" colspan="5">Loading...</td>
                   </tr>
                 {:else if errorMessage}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-red-600" colspan="4">{errorMessage}</td>
+                    <td class="px-4 py-3 text-sm text-red-600" colspan="5">{errorMessage}</td>
                   </tr>
                 {:else if rows.length === 0}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-gray-600" colspan="4">No price list data found.</td>
+                    <td class="px-4 py-3 text-sm text-gray-600" colspan="5">No price list data found.</td>
                   </tr>
                 {:else}
                   {#each rows as row, index}
@@ -1103,6 +1141,7 @@
                         />
                       </td>
                       <td class="px-4 py-3 text-gray-800">{row.rrp ?? '—'}</td>
+                      <td class="px-4 py-3 text-gray-800">{displayDecimal2(row.purchasePrice)}</td>
                     </tr>
                   {/each}
                 {/if}
@@ -1204,6 +1243,9 @@
                           {#if item.rrp}
                             <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
                           {/if}
+                          {#if formatDecimal2(item.purchasePrice)}
+                            <p class="text-[11px] text-gray-600">{columnLabels.purchasePrice}: {displayDecimal2(item.purchasePrice)}</p>
+                          {/if}
                           <div class="flex items-center gap-2 min-w-0">
                             <label for={`moq-${item.id}`} class="text-xs text-gray-700 shrink-0">{columnLabels.moq}:</label>
                             <input
@@ -1291,6 +1333,14 @@
               id="col-rrp"
               class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               bind:value={columnLabels.rrp}
+            />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-700" for="col-purchase-price">Purchase price</label>
+            <input
+              id="col-purchase-price"
+              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              bind:value={columnLabels.purchasePrice}
             />
           </div>
           <div>
@@ -1428,6 +1478,15 @@
               class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
             />
             <label for="cross-rrp" class="text-sm text-gray-700">Cross out RRP</label>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="include-purchase-price"
+              bind:checked={includePurchasePriceInPrint}
+              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label for="include-purchase-price" class="text-sm text-gray-700">Include purchase price in print</label>
           </div>
           <div class="flex items-center gap-2">
             <input

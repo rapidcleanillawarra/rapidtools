@@ -7,6 +7,7 @@ type PriceListItem = {
 	kind: 'sku' | 'static';
 	price?: string;
 	rrp?: string;
+	purchasePrice?: string;
 	model?: string;
 	note?: string;
 	moq?: string;
@@ -26,6 +27,7 @@ type ColumnLabels = {
 	description: string;
 	price: string;
 	rrp: string;
+	purchasePrice: string;
 	qty: string;
 	moq: string;
 	discPrice: string;
@@ -39,6 +41,7 @@ const DEFAULT_COLUMN_LABELS: ColumnLabels = {
 	description: 'Description',
 	price: 'Price',
 	rrp: 'RRP',
+	purchasePrice: 'Purchase Price',
 	qty: 'Qty',
 	moq: 'MOQ',
 	discPrice: 'Disc Price',
@@ -75,6 +78,7 @@ const mergeColumnLabels = (...sources: unknown[]): ColumnLabels => {
 			...(typeof o.description === 'string' ? { description: o.description } : {}),
 			...(typeof o.price === 'string' ? { price: o.price } : {}),
 			...(typeof o.rrp === 'string' ? { rrp: o.rrp } : {}),
+			...(typeof o.purchasePrice === 'string' ? { purchasePrice: o.purchasePrice } : {}),
 			...(typeof o.qty === 'string' ? { qty: o.qty } : {}),
 			...(typeof o.moq === 'string' ? { moq: o.moq } : {}),
 			...(typeof o.discPrice === 'string' ? { discPrice: o.discPrice } : {}),
@@ -91,6 +95,7 @@ type PriceListData = {
 	mode?: 'thumb' | 'list';
 	includeRrp?: boolean;
 	crossRrp?: boolean;
+	includePurchasePrice?: boolean;
 	includeDescription?: boolean;
 	includePrice?: boolean;
 	includeQuantity?: boolean;
@@ -105,6 +110,12 @@ type PriceListData = {
 const skuCheckUrl =
 	'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
+const formatDecimal2 = (raw: unknown) => {
+	if (raw == null || String(raw).trim() === '') return '';
+	const n = parseFloat(String(raw).replace(/[^0-9.-]/g, ''));
+	return Number.isFinite(n) ? n.toFixed(2) : '';
+};
+
 const getMainImage = (images: any[] = []) => {
 	if (!Array.isArray(images)) return '';
 	const main = images.find((img) => img?.Name === 'Main' && img?.URL);
@@ -116,7 +127,10 @@ const getMainImage = (images: any[] = []) => {
 const fetchSkuDetails = async (
 	skus: string[]
 ): Promise<
-	Record<string, { model?: string; rrp?: string; imageUrl?: string; shortDescription?: string }>
+	Record<
+		string,
+		{ model?: string; rrp?: string; purchasePrice?: string; imageUrl?: string; shortDescription?: string }
+	>
 > => {
 	if (!skus.length) return {};
 
@@ -124,7 +138,7 @@ const fetchSkuDetails = async (
 		const payload = {
 			Filter: {
 				SKU: skus,
-				OutputSelector: ['SKU', 'Model', 'Images', 'RRP', 'ShortDescription']
+				OutputSelector: ['SKU', 'Model', 'Images', 'RRP', 'DefaultPurchasePrice', 'ShortDescription']
 			},
 			action: 'GetItem'
 		};
@@ -144,7 +158,13 @@ const fetchSkuDetails = async (
 
 		const map: Record<
 			string,
-			{ model?: string; rrp?: string; imageUrl?: string; shortDescription?: string }
+			{
+				model?: string;
+				rrp?: string;
+				purchasePrice?: string;
+				imageUrl?: string;
+				shortDescription?: string;
+			}
 		> = {};
 
 		(data.Item ?? []).forEach((item: any) => {
@@ -153,6 +173,7 @@ const fetchSkuDetails = async (
 			map[sku] = {
 				model: item?.Model ?? '',
 				rrp: item?.RRP?.toString?.() ?? '',
+				purchasePrice: formatDecimal2(item?.DefaultPurchasePrice),
 				imageUrl: getMainImage(item?.Images),
 				shortDescription: item?.ShortDescription ?? ''
 			};
@@ -170,6 +191,7 @@ export const load: PageLoad = async ({ url }) => {
 	const mode = (url.searchParams.get('mode') || 'thumb') as 'thumb' | 'list';
 	const includeRrp = url.searchParams.get('includeRrp') === 'true';
 	const crossRrp = url.searchParams.get('crossRrp') === 'true';
+	const includePurchasePrice = url.searchParams.get('includePurchasePrice') === 'true';
 	const includeDescription = url.searchParams.get('includeDescription') !== 'false';
 	const includePrice = url.searchParams.get('includePrice') !== 'false';
 	const includeQuantity = url.searchParams.get('includeQuantity') === 'true';
@@ -199,6 +221,7 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
+			includePurchasePrice,
 			includeDescription,
 			includePrice,
 			includeQuantity,
@@ -230,6 +253,7 @@ export const load: PageLoad = async ({ url }) => {
 					mode,
 					includeRrp,
 					crossRrp,
+					includePurchasePrice,
 					includeDescription,
 					includePrice,
 					includeQuantity,
@@ -252,6 +276,7 @@ export const load: PageLoad = async ({ url }) => {
 				mode,
 				includeRrp,
 				crossRrp,
+				includePurchasePrice,
 				includeDescription,
 				includePrice,
 				includeQuantity,
@@ -292,6 +317,7 @@ export const load: PageLoad = async ({ url }) => {
 				...item,
 				model: detail.model || item.model,
 				rrp: detail.rrp || item.rrp,
+				purchasePrice: detail.purchasePrice || item.purchasePrice,
 				imageUrl: detail.imageUrl || item.imageUrl,
 				shortDescription: detail.shortDescription || item.shortDescription
 			};
@@ -306,6 +332,7 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
+			includePurchasePrice,
 			includeDescription,
 			includePrice,
 			includeQuantity,
@@ -324,6 +351,7 @@ export const load: PageLoad = async ({ url }) => {
 			mode,
 			includeRrp,
 			crossRrp,
+			includePurchasePrice,
 			includeDescription,
 			includePrice,
 			includeQuantity,

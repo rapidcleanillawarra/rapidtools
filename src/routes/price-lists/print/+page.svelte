@@ -11,6 +11,7 @@
 			kind: 'sku' | 'static';
 			price?: string;
 			rrp?: string;
+			purchasePrice?: string;
 			model?: string;
 			note?: string;
 			moq?: string;
@@ -23,6 +24,7 @@
 		mode?: 'thumb' | 'list';
 		includeRrp?: boolean;
 		crossRrp?: boolean;
+		includePurchasePrice?: boolean;
 		includeDescription?: boolean;
 		includePrice?: boolean;
 		includeQuantity?: boolean;
@@ -37,6 +39,7 @@
 			description: string;
 			price: string;
 			rrp: string;
+			purchasePrice: string;
 			qty: string;
 			moq: string;
 			discPrice: string;
@@ -52,6 +55,7 @@
 		description: 'Description',
 		price: 'Price',
 		rrp: 'RRP',
+		purchasePrice: 'Purchase Price',
 		qty: 'Qty',
 		moq: 'MOQ',
 		discPrice: 'Disc Price',
@@ -72,11 +76,18 @@
 	$: noteFontWeight = data.noteFontWeight === 'bold' ? 'bold' : 'normal';
 	$: noteFontStyle = data.noteFontStyle === 'italic' ? 'italic' : 'normal';
 	$: noteInlineStyle = `font-size: ${noteFontSize}px; font-weight: ${noteFontWeight}; font-style: ${noteFontStyle};`;
+
+	const formatDecimal2 = (raw?: string) => {
+		if (raw == null || String(raw).trim() === '') return '—';
+		const n = parseFloat(String(raw).replace(/[^0-9.-]/g, ''));
+		return Number.isFinite(n) ? n.toFixed(2) : '—';
+	};
 	$: listColspan =
 		3 +
 		(data.includeDescription !== false ? 1 : 0) +
 		(data.includePrice !== false ? 1 : 0) +
 		(data.includeRrp ? 1 : 0) +
+		(data.includePurchasePrice ? 1 : 0) +
 		(data.includeMoq !== false ? 1 : 0) +
 		(data.includeQuantity ? 1 : 0) +
 		visibleCustomCols.length;
@@ -198,6 +209,9 @@ onMount(() => {
 									{#if data.includeRrp}
 										<th class="col-rrp table-header-cell">{col.rrp}</th>
 									{/if}
+									{#if data.includePurchasePrice}
+										<th class="col-purchase-price table-header-cell">{col.purchasePrice}</th>
+									{/if}
 									{#if data.includeMoq !== false}
 										<th class="col-moq table-header-cell">{col.moq}</th>
 									{/if}
@@ -223,6 +237,9 @@ onMount(() => {
 										{/if}
 										{#if data.includeRrp}
 											<th class="col-rrp table-header-cell">{col.rrp}</th>
+										{/if}
+										{#if data.includePurchasePrice}
+											<th class="col-purchase-price table-header-cell">{col.purchasePrice}</th>
 										{/if}
 										{#if data.includeMoq !== false}
 											<th class="col-moq table-header-cell">{col.moq}</th>
@@ -268,6 +285,9 @@ onMount(() => {
 									{/if}
 									{#if data.includeRrp}
 										<td class="col-rrp table-cell {data.crossRrp ? 'crossed' : ''}">{item.rrp || '—'}</td>
+									{/if}
+									{#if data.includePurchasePrice}
+										<td class="col-purchase-price table-cell">{formatDecimal2(item.purchasePrice)}</td>
 									{/if}
 									{#if data.includeMoq !== false}
 										<td class="col-moq table-cell">{item.moq || '—'}</td>
@@ -348,13 +368,16 @@ onMount(() => {
 										{/if}
 									</p>
 								{/if}
-								{#if (data.includePrice !== false) || (data.includeRrp && item.rrp)}
+								{#if (data.includePrice !== false) || (data.includeRrp && item.rrp) || (data.includePurchasePrice && item.purchasePrice)}
 									<div class="product-pricing">
 										{#if data.includePrice !== false}
 											<span class="product-price">${item.price}</span>
 										{/if}
 										{#if data.includeRrp && item.rrp}
 											<span class="product-rrp {data.crossRrp ? 'crossed' : ''}">{col.rrp}: ${item.rrp}</span>
+										{/if}
+										{#if data.includePurchasePrice && item.purchasePrice}
+											<span class="product-purchase-price">{col.purchasePrice}: ${formatDecimal2(item.purchasePrice)}</span>
 										{/if}
 									</div>
 								{/if}
@@ -632,6 +655,12 @@ onMount(() => {
 
 	.col-rrp.crossed {
 		text-decoration: line-through;
+	}
+
+	.col-purchase-price {
+		width: 100px;
+		color: #6b7280;
+		text-align: right;
 	}
 
 	.col-qty {
@@ -925,6 +954,14 @@ onMount(() => {
 		text-decoration: line-through;
 	}
 
+	.product-purchase-price {
+		display: block;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #6b7280;
+		margin-top: 4px;
+	}
+
 	.product-description {
 		font-size: 0.8125rem;
 		color: #4b5563;
@@ -1052,6 +1089,10 @@ onMount(() => {
 		}
 
 		.col-rrp {
+			width: 80px;
+		}
+
+		.col-purchase-price {
 			width: 80px;
 		}
 

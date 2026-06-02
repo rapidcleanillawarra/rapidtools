@@ -2,12 +2,18 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { CHECKLIST_SECTIONS } from './checklist-data';
+	import {
+		clearPmisDraft,
+		loadPmisDraft,
+		savePmisDraft,
+		type ChecklistStatus,
+		type PmisDraft
+	} from './pmisDraftStorage';
 	import { printSheetElement } from './printUtils';
 
 	const LOGO_URL = `${base}/company_logo_white.webp`;
 	const LOGO_PRINT_FALLBACK = LOGO_URL;
 
-	type ChecklistStatus = '' | 'pass' | 'fail';
 	type ChecklistRow = { task: string; status: ChecklistStatus; notes: string };
 	type PartRow = { part: string; qty: string; notes: string };
 
@@ -77,6 +83,89 @@
 		}
 	}
 
+	function buildDraft(): PmisDraft {
+		return {
+			customerName,
+			siteLocation,
+			contactPerson,
+			technicianName,
+			inspectionDate,
+			machineModel,
+			serialNumber,
+			assetId,
+			hoursRun,
+			checklistSections: checklistSections.map((section) => ({
+				title: section.title,
+				rows: section.rows.map((row) => ({
+					task: row.task,
+					status: row.status,
+					notes: row.notes
+				}))
+			})),
+			parts: parts.map((row) => ({ ...row })),
+			recNone,
+			recMinor,
+			recMajor,
+			recReplace,
+			recDetails,
+			outcomeCompleted,
+			outcomePartial,
+			outcomeUnsafe,
+			techSignature,
+			customerRep
+		};
+	}
+
+	function persistDraft() {
+		savePmisDraft(buildDraft());
+	}
+
+	function applyDraft(draft: PmisDraft) {
+		customerName = draft.customerName ?? '';
+		siteLocation = draft.siteLocation ?? '';
+		contactPerson = draft.contactPerson ?? '';
+		technicianName = draft.technicianName ?? '';
+		inspectionDate = draft.inspectionDate ?? '';
+		machineModel = draft.machineModel ?? '';
+		serialNumber = draft.serialNumber ?? '';
+		assetId = draft.assetId ?? '';
+		hoursRun = draft.hoursRun ?? '';
+
+		checklistSections = CHECKLIST_SECTIONS.map((section) => {
+			const saved = draft.checklistSections?.find((s) => s.title === section.title);
+			const rows = createChecklistRows(section.tasks).map((row) => {
+				const savedRow = saved?.rows?.find((r) => r.task === row.task);
+				if (!savedRow) return row;
+				const status: ChecklistStatus =
+					savedRow.status === 'pass' || savedRow.status === 'fail' ? savedRow.status : 'fail';
+				return { ...row, status, notes: savedRow.notes ?? '' };
+			});
+			return { ...section, rows };
+		});
+
+		const savedParts = draft.parts;
+		parts =
+			Array.isArray(savedParts) && savedParts.length > 0
+				? savedParts.map((row) => ({
+						part: row.part ?? '',
+						qty: row.qty ?? '',
+						notes: row.notes ?? ''
+					}))
+				: emptyPartRows();
+		while (parts.length < 3) parts.push({ part: '', qty: '', notes: '' });
+
+		recNone = !!draft.recNone;
+		recMinor = !!draft.recMinor;
+		recMajor = !!draft.recMajor;
+		recReplace = !!draft.recReplace;
+		recDetails = draft.recDetails ?? '';
+		outcomeCompleted = !!draft.outcomeCompleted;
+		outcomePartial = !!draft.outcomePartial;
+		outcomeUnsafe = !!draft.outcomeUnsafe;
+		techSignature = draft.techSignature ?? '';
+		customerRep = draft.customerRep ?? '';
+	}
+
 	function clearForm() {
 		customerName = '';
 		siteLocation = '';
@@ -102,9 +191,14 @@
 		outcomeUnsafe = false;
 		techSignature = '';
 		customerRep = '';
+		clearPmisDraft();
 	}
 
 	onMount(() => {
+		const draft = loadPmisDraft();
+		if (draft) {
+			applyDraft(draft);
+		}
 		if (!inspectionDate) inspectionDate = formatInspectionDate(new Date());
 	});
 </script>
@@ -127,7 +221,15 @@
 		</div>
 	</div>
 
-	<form bind:this={sheetEl} class="sheet" onsubmit={(e) => e.preventDefault()}>
+	<form
+		bind:this={sheetEl}
+		class="sheet"
+		onsubmit={(e) => e.preventDefault()}
+		onfocusout={persistDraft}
+		onchange={(e) => {
+			if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') persistDraft();
+		}}
+	>
 		<table class="form-table" aria-label="Form header">
 			<tbody>
 				<tr>

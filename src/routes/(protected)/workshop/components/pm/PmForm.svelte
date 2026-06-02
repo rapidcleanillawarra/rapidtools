@@ -125,22 +125,9 @@
 
 	// Floor Scrubber specific states (runes)
 	let customer = $state('');
-	let email = $state('');
-	let address = $state('');
-	let phone = $state('');
-	let city = $state('');
 	let fsState = $state('');
-	let zip = $state('');
-	let contact = $state('');
-
 	let fsSerialNumber = $state('');
-	let hourMeterKey = $state('');
 	let modelNumber = $state('');
-	let hourMeterTraction = $state('');
-	let workOrderNumber = $state('');
-	let hourMeterScrub = $state('');
-	let rechargeNumber = $state('');
-	let hourMeterVacuum = $state('');
 
 	let fsChecklistSections = $state(FLOOR_SCRUBBER_CHECKLIST_SECTIONS.map((section) => ({
 		...section,

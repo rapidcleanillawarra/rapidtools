@@ -66,12 +66,12 @@
 	<div class="screen-toolbar no-print">
 		<h1 class="screen-title">Floor Scrubber PM Sheet</h1>
 		<div class="screen-actions">
-			<button type="button" class="btn-secondary" on:click={clearForm}>Clear form</button>
-			<button type="button" class="btn-primary" on:click={printForm}>Print</button>
+			<button type="button" class="btn-secondary" onclick={clearForm}>Clear form</button>
+			<button type="button" class="btn-primary" onclick={printForm}>Print</button>
 		</div>
 	</div>
 
-	<form class="sheet" on:submit|preventDefault>
+	<form class="sheet" onsubmit={(e) => e.preventDefault()}>
 		<table class="form-table" aria-label="Form header">
 			<tbody>
 				<tr>
@@ -178,22 +178,23 @@
 					<tr class="section-bar"><th colspan="4">{section.title}</th></tr>
 					<tr>
 						<th class="col-task">{section.taskHeader}</th>
-						<th class="col-inspec">In Spec</th>
-						<th class="col-repair">Repair</th>
+						<th class="col-inspec">In Spec (✓ / ✗)</th>
+						<th class="col-repair">Repair (✓ / ✗)</th>
 						<th class="col-problem">Problem</th>
 					</tr>
 					{#each section.rows as row, i (i)}
 						<tr>
 							<td>{row.task}</td>
-							<td class="check-cell">
-								<label class="check-label" title="In spec">
+							<td class="status-cell">
+								<label class="status-checkbox" title={row.inSpec ? 'In spec' : 'Out of spec'}>
 									<input type="checkbox" bind:checked={row.inSpec} />
-									<span class="check-mark" aria-hidden="true">/</span>
+									<span aria-hidden="true">{row.inSpec ? '✓' : '✗'}</span>
 								</label>
 							</td>
-							<td class="check-cell">
-								<label class="check-label" title="Repair">
+							<td class="status-cell">
+								<label class="status-checkbox" title={row.repair ? 'Repair needed' : 'No repair'}>
 									<input type="checkbox" bind:checked={row.repair} />
+									<span aria-hidden="true">{row.repair ? '✓' : '✗'}</span>
 								</label>
 							</td>
 							<td><input class="field" type="text" bind:value={row.problem} /></td>
@@ -373,40 +374,24 @@
 		width: 34%;
 	}
 
-	.check-cell {
+	.checklist .status-cell {
 		text-align: center;
 		vertical-align: middle;
 		padding: 4px 6px;
 	}
 
-	.check-label {
+	.status-checkbox {
 		display: inline-flex;
 		align-items: center;
-		justify-content: center;
+		gap: 4px;
 		cursor: pointer;
-		min-height: 1.25em;
-		min-width: 1.25em;
-		position: relative;
-	}
-
-	.check-label input[type='checkbox'] {
 		margin: 0;
-		width: 14px;
-		height: 14px;
-		cursor: pointer;
+		font-size: 11pt;
 	}
 
-	.check-mark {
-		position: absolute;
-		pointer-events: none;
-		font-size: 14pt;
-		font-weight: bold;
-		color: #999;
-		line-height: 1;
-	}
-
-	.check-label:has(input:checked) .check-mark {
-		color: #000;
+	.status-checkbox input[type='checkbox'] {
+		margin: 0;
+		flex-shrink: 0;
 	}
 
 	.checklist input.field {
@@ -434,7 +419,7 @@
 			border: none !important;
 		}
 
-		.check-label input[type='checkbox'] {
+		.status-checkbox input[type='checkbox'] {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}

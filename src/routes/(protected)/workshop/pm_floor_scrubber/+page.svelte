@@ -13,9 +13,17 @@
 		type YesNo
 	} from './battery-brush-data';
 	import {
+		createOperationFooter,
+		FILL_SOLUTION_TANK_NOTE,
+		OPERATION_CHECK_POST_TASKS,
+		OPERATION_CHECK_PRE_TASKS,
+		type OperationFooterState
+	} from './operation-checklist-data';
+	import {
 		clearFloorScrubberDraft,
 		loadFloorScrubberDraft,
 		saveFloorScrubberDraft,
+		type FloorScrubberChecklistRowDraft,
 		type FloorScrubberDraft
 	} from './pmFloorScrubberDraftStorage';
 	import { printSheetElement } from '../pmis/printUtils';
@@ -56,6 +64,9 @@
 	let battery1 = createBatteryCells();
 	let battery2 = createBatteryCells();
 	let brushCondition = createBrushCondition();
+	let operationCheckPre = createChecklistRows([...OPERATION_CHECK_PRE_TASKS]);
+	let operationCheckPost = createChecklistRows([...OPERATION_CHECK_POST_TASKS]);
+	let operationFooter = createOperationFooter();
 
 	let sheetEl: HTMLFormElement | undefined;
 	let printing = false;
@@ -106,7 +117,43 @@
 			})),
 			battery1: battery1.map((cell) => ({ ...cell })),
 			battery2: battery2.map((cell) => ({ ...cell })),
-			brushCondition: { ...brushCondition }
+			brushCondition: { ...brushCondition },
+			operationCheckPre: operationCheckPre.map((row) => ({ ...row })),
+			operationCheckPost: operationCheckPost.map((row) => ({ ...row })),
+			operationFooter: { ...operationFooter }
+		};
+	}
+
+	function mergeChecklistRows(
+		tasks: readonly string[],
+		saved: FloorScrubberChecklistRowDraft[] | undefined
+	): ChecklistRow[] {
+		return createChecklistRows([...tasks]).map((row) => {
+			const savedRow = saved?.find((r) => r.task === row.task);
+			if (!savedRow) return row;
+			return {
+				...row,
+				inSpec: !!savedRow.inSpec,
+				repair: !!savedRow.repair,
+				problem: savedRow.problem ?? ''
+			};
+		});
+	}
+
+	function mergeOperationFooter(saved: OperationFooterState | undefined): OperationFooterState {
+		const defaults = createOperationFooter();
+		if (!saved) return defaults;
+		return {
+			comments: saved.comments ?? '',
+			testTag3Month: saved.testTag3Month ?? '',
+			testTag6Month: saved.testTag6Month ?? '',
+			testTag12Month: saved.testTag12Month ?? '',
+			technicianName: saved.technicianName ?? '',
+			technicianDate: saved.technicianDate ?? '',
+			technicianSignature: saved.technicianSignature ?? '',
+			customerName: saved.customerName ?? '',
+			customerDate: saved.customerDate ?? '',
+			customerSignature: saved.customerSignature ?? ''
 		};
 	}
 
@@ -177,6 +224,12 @@
 		battery1 = mergeBatteryCells(draft.battery1);
 		battery2 = mergeBatteryCells(draft.battery2);
 		brushCondition = mergeBrushCondition(draft.brushCondition);
+		operationCheckPre = mergeChecklistRows(OPERATION_CHECK_PRE_TASKS, draft.operationCheckPre);
+		operationCheckPost = mergeChecklistRows(
+			OPERATION_CHECK_POST_TASKS,
+			draft.operationCheckPost
+		);
+		operationFooter = mergeOperationFooter(draft.operationFooter);
 	}
 
 	function clearForm() {
@@ -203,6 +256,9 @@
 		battery1 = createBatteryCells();
 		battery2 = createBatteryCells();
 		brushCondition = createBrushCondition();
+		operationCheckPre = createChecklistRows([...OPERATION_CHECK_PRE_TASKS]);
+		operationCheckPost = createChecklistRows([...OPERATION_CHECK_POST_TASKS]);
+		operationFooter = createOperationFooter();
 		clearFloorScrubberDraft();
 	}
 
@@ -523,6 +579,128 @@
 									</td>
 								</tr>
 							{/each}
+						</tbody>
+					</table>
+
+					{#each [{ rows: operationCheckPre, label: 'Operation check before solution tank' }, { rows: operationCheckPost, label: 'Operation check after solution tank' }] as block, blockIndex (block.label)}
+						{#if blockIndex === 1}
+							<p class="solution-tank-note" role="note">{FILL_SOLUTION_TANK_NOTE}</p>
+						{/if}
+						<table class="form-table checklist operation-checklist" aria-label={block.label}>
+							<tbody>
+								<tr class="section-bar">
+									<th colspan="4">Check Operation &amp; Condition Of</th>
+								</tr>
+								<tr>
+									<th class="col-task">Check Operation &amp; Condition Of</th>
+									<th class="col-inspec">In Spec (✓ / ✗)</th>
+									<th class="col-repair">Repair (✓ / ✗)</th>
+									<th class="col-problem">Problem</th>
+								</tr>
+								{#each block.rows as row, i (i)}
+									<tr>
+										<td>{row.task}</td>
+										<td class="status-cell">
+											<label class="status-checkbox" title={row.inSpec ? 'In spec' : 'Out of spec'}>
+												<input type="checkbox" bind:checked={row.inSpec} />
+												<span
+													class:status-pass={row.inSpec}
+													class:status-fail={!row.inSpec}
+													aria-hidden="true">{row.inSpec ? '✓' : '✗'}</span
+												>
+											</label>
+										</td>
+										<td class="status-cell">
+											<label class="status-checkbox" title={row.repair ? 'Repair needed' : 'No repair'}>
+												<input type="checkbox" bind:checked={row.repair} />
+												<span
+													class:status-pass={row.repair}
+													class:status-fail={!row.repair}
+													aria-hidden="true">{row.repair ? '✓' : '✗'}</span
+												>
+											</label>
+										</td>
+										<td><input class="field" type="text" bind:value={row.problem} /></td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					{/each}
+
+					<table class="form-table comments-table" aria-label="Comments">
+						<tbody>
+							<tr class="section-bar"><th colspan="1">Comments</th></tr>
+							<tr>
+								<td class="comments-cell">
+									<textarea
+										class="field comments-field"
+										bind:value={operationFooter.comments}
+										rows="5"
+										aria-label="Comments"
+									></textarea>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+
+					<table class="form-table test-tag-table" aria-label="Electrical test and tag">
+						<tbody>
+							<tr class="section-bar"><th colspan="3">Electrical Test &amp; Tag</th></tr>
+							<tr class="test-tag-row">
+								<td>
+									<span class="test-tag-label">3 Monthly Date:</span>
+									<input class="field" type="text" bind:value={operationFooter.testTag3Month} />
+								</td>
+								<td>
+									<span class="test-tag-label">6 Monthly Date:</span>
+									<input class="field" type="text" bind:value={operationFooter.testTag6Month} />
+								</td>
+								<td>
+									<span class="test-tag-label">12 Monthly Date:</span>
+									<input class="field" type="text" bind:value={operationFooter.testTag12Month} />
+								</td>
+							</tr>
+						</tbody>
+					</table>
+
+					<table class="form-table signoff-table" aria-label="Technician and customer sign-off">
+						<tbody>
+							<tr>
+								<td class="sign-label">Technician&apos;s Name</td>
+								<td class="sign-field">
+									<input class="field" type="text" bind:value={operationFooter.technicianName} />
+								</td>
+								<td class="sign-label">Date</td>
+								<td class="sign-field">
+									<input class="field" type="text" bind:value={operationFooter.technicianDate} />
+								</td>
+								<td class="sign-label">Signature</td>
+								<td class="sign-field">
+									<input
+										class="field"
+										type="text"
+										bind:value={operationFooter.technicianSignature}
+									/>
+								</td>
+							</tr>
+							<tr>
+								<td class="sign-label">Customer&apos;s Name</td>
+								<td class="sign-field">
+									<input class="field" type="text" bind:value={operationFooter.customerName} />
+								</td>
+								<td class="sign-label">Date</td>
+								<td class="sign-field">
+									<input class="field" type="text" bind:value={operationFooter.customerDate} />
+								</td>
+								<td class="sign-label">Signature</td>
+								<td class="sign-field">
+									<input
+										class="field"
+										type="text"
+										bind:value={operationFooter.customerSignature}
+									/>
+								</td>
+							</tr>
 						</tbody>
 					</table>
 				</div>
@@ -918,6 +1096,79 @@
 		border: 0;
 	}
 
+	.operation-checklist {
+		margin-top: 0;
+	}
+
+	.solution-tank-note {
+		margin: 0;
+		padding: 8px 10px;
+		font-weight: bold;
+		font-size: 10pt;
+		text-align: center;
+		text-transform: uppercase;
+		background: #d9d9d9;
+		border: 1px solid #000;
+		border-top: none;
+	}
+
+	.comments-table .section-bar th {
+		text-align: left;
+	}
+
+	.comments-cell {
+		padding: 6px 8px;
+		vertical-align: top;
+	}
+
+	.comments-field {
+		width: 100%;
+		min-height: 6em;
+		resize: vertical;
+		border: none;
+		outline: none;
+		font: inherit;
+		background: transparent;
+		padding: 4px;
+		margin: 0;
+	}
+
+	.test-tag-table .test-tag-row td {
+		width: 33.33%;
+		vertical-align: top;
+		font-size: 9pt;
+	}
+
+	.test-tag-label {
+		display: block;
+		font-weight: bold;
+		margin-bottom: 4px;
+	}
+
+	.signoff-table {
+		table-layout: fixed;
+	}
+
+	.sign-label {
+		width: 14%;
+		font-size: 9pt;
+		font-weight: bold;
+		white-space: nowrap;
+		vertical-align: bottom;
+		padding-bottom: 2px;
+	}
+
+	.sign-field {
+		width: 19%;
+		vertical-align: bottom;
+		padding-bottom: 2px;
+	}
+
+	.sign-field .field {
+		border-bottom: 1px solid #000;
+		min-height: 1.75em;
+	}
+
 	@media (max-width: 720px) {
 		.battery-diagram {
 			flex: 1 1 100%;
@@ -943,7 +1194,8 @@
 			max-width: none;
 		}
 
-		input.field {
+		input.field,
+		textarea.comments-field {
 			border: none !important;
 		}
 

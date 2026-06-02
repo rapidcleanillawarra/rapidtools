@@ -1,4 +1,5 @@
 import type { BatteryCellRow, BrushConditionState } from './battery-brush-data';
+import type { OperationFooterState } from './operation-checklist-data';
 
 const STORAGE_KEY = 'rapidtools:workshop:pm_floor_scrubber:draft';
 
@@ -35,6 +36,9 @@ export type FloorScrubberDraft = {
 	battery1?: BatteryCellRow[];
 	battery2?: BatteryCellRow[];
 	brushCondition?: BrushConditionState;
+	operationCheckPre?: FloorScrubberChecklistRowDraft[];
+	operationCheckPost?: FloorScrubberChecklistRowDraft[];
+	operationFooter?: OperationFooterState;
 };
 
 function hasLocalStorage(): boolean {

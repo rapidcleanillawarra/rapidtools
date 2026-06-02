@@ -589,6 +589,14 @@
 			<div class="checklist-wrap" aria-label="Inspection checklist">
 				{#each checklistSections as section, sectionIdx (section.sectionTitle)}
 					<table class="form-table ims-checklist-table" aria-label={section.sectionTitle}>
+						<colgroup>
+							<col class="col-task" />
+							<col class="col-interval" />
+							<col class="col-status" />
+							<col class="col-status" />
+							<col class="col-status" />
+							<col class="col-repair" />
+						</colgroup>
 						<tbody>
 							<tr class="section-bar-grey">
 								<th colspan="6">{section.sectionTitle}</th>
@@ -600,9 +608,9 @@
 								<th class="col-repair" rowspan="2">Repair</th>
 							</tr>
 							<tr class="checklist-head checklist-head-sub">
-								<th class="col-status">Not required / available</th>
+								<th class="col-status" title="Not required / available">N/R</th>
 								<th class="col-status">OK</th>
-								<th class="col-status">Not OK</th>
+								<th class="col-status" title="Not OK">NOK</th>
 							</tr>
 
 							{#each section.subsections as sub, subIdx (sub.title ?? `sub-${subIdx}`)}
@@ -841,24 +849,33 @@
 		font-size: 7pt;
 	}
 
+	.ims-checklist-table col.col-task,
 	.ims-checklist-table .col-task {
-		width: 36%;
+		width: 20%;
 		text-align: left;
 	}
 
+	.ims-checklist-table col.col-interval,
 	.ims-checklist-table .col-interval {
-		width: 14%;
+		width: 10%;
 		text-align: center;
 	}
 
-	.ims-checklist-table .col-status {
-		width: 3%;
-		min-width: 2rem;
-		padding: 2px;
+	.ims-checklist-table .col-status-group {
+		width: 15%;
 	}
 
+	.ims-checklist-table col.col-status,
+	.ims-checklist-table .col-status {
+		width: 5%;
+		padding: 1px 2px;
+		font-size: 6.5pt;
+		line-height: 1.15;
+	}
+
+	.ims-checklist-table col.col-repair,
 	.ims-checklist-table .col-repair {
-		width: 28%;
+		width: auto;
 	}
 
 	.task-cell {
@@ -894,7 +911,7 @@
 	.status-radio-cell {
 		text-align: center;
 		vertical-align: middle;
-		padding: 2px;
+		padding: 1px 2px;
 	}
 
 	.repair-cell {

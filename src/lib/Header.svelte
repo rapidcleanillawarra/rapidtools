@@ -746,6 +746,11 @@
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Floor Scrubber PM</a
 							>
+							<a
+								href="{base}/workshop/ims"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>IMS (HD / HDS)</a
+							>
 							{#if profile?.firstName === 'Joeven' && profile?.lastName === 'Cerveza'}
 								<div class="my-1 h-px bg-gray-700"></div>
 								<a

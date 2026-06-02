@@ -1,5 +1,17 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { CHECKLIST_SECTIONS } from './checklist-data';
+	import {
+		clearFloorScrubberDraft,
+		loadFloorScrubberDraft,
+		saveFloorScrubberDraft,
+		type FloorScrubberDraft
+	} from './pmFloorScrubberDraftStorage';
+	import { printSheetElement } from '../pmis/printUtils';
+
+	const LOGO_URL = `${base}/company_logo_white.webp`;
+	const LOGO_PRINT_FALLBACK = LOGO_URL;
 
 	type ChecklistRow = { task: string; inSpec: boolean; repair: boolean; problem: string };
 
@@ -30,8 +42,92 @@
 		rows: createChecklistRows(section.tasks)
 	}));
 
-	function printForm() {
-		if (typeof window !== 'undefined') window.print();
+	let sheetEl: HTMLFormElement | undefined;
+	let printing = false;
+	let printError = '';
+
+	async function printForm() {
+		if (!sheetEl || printing) return;
+		printing = true;
+		printError = '';
+		try {
+			await printSheetElement(sheetEl, LOGO_PRINT_FALLBACK, {
+				pageClassName: 'pm-floor-scrubber-page',
+				printTitle: 'Floor Scrubber PM — Print'
+			});
+		} catch (err) {
+			printError = err instanceof Error ? err.message : 'Failed to print form';
+		} finally {
+			printing = false;
+		}
+	}
+
+	function buildDraft(): FloorScrubberDraft {
+		return {
+			customer,
+			email,
+			address,
+			phone,
+			city,
+			state,
+			zip,
+			contact,
+			serialNumber,
+			hourMeterKey,
+			modelNumber,
+			hourMeterTraction,
+			workOrderNumber,
+			hourMeterScrub,
+			rechargeNumber,
+			hourMeterVacuum,
+			checklistSections: checklistSections.map((section) => ({
+				title: section.title,
+				rows: section.rows.map((row) => ({
+					task: row.task,
+					inSpec: row.inSpec,
+					repair: row.repair,
+					problem: row.problem
+				}))
+			}))
+		};
+	}
+
+	function persistDraft() {
+		saveFloorScrubberDraft(buildDraft());
+	}
+
+	function applyDraft(draft: FloorScrubberDraft) {
+		customer = draft.customer ?? '';
+		email = draft.email ?? '';
+		address = draft.address ?? '';
+		phone = draft.phone ?? '';
+		city = draft.city ?? '';
+		state = draft.state ?? '';
+		zip = draft.zip ?? '';
+		contact = draft.contact ?? '';
+		serialNumber = draft.serialNumber ?? '';
+		hourMeterKey = draft.hourMeterKey ?? '';
+		modelNumber = draft.modelNumber ?? '';
+		hourMeterTraction = draft.hourMeterTraction ?? '';
+		workOrderNumber = draft.workOrderNumber ?? '';
+		hourMeterScrub = draft.hourMeterScrub ?? '';
+		rechargeNumber = draft.rechargeNumber ?? '';
+		hourMeterVacuum = draft.hourMeterVacuum ?? '';
+
+		checklistSections = CHECKLIST_SECTIONS.map((section) => {
+			const saved = draft.checklistSections?.find((s) => s.title === section.title);
+			const rows = createChecklistRows(section.tasks).map((row) => {
+				const savedRow = saved?.rows?.find((r) => r.task === row.task);
+				if (!savedRow) return row;
+				return {
+					...row,
+					inSpec: !!savedRow.inSpec,
+					repair: !!savedRow.repair,
+					problem: savedRow.problem ?? ''
+				};
+			});
+			return { ...section, rows };
+		});
 	}
 
 	function clearForm() {
@@ -55,7 +151,13 @@
 			...section,
 			rows: createChecklistRows(section.tasks)
 		}));
+		clearFloorScrubberDraft();
 	}
+
+	onMount(() => {
+		const draft = loadFloorScrubberDraft();
+		if (draft) applyDraft(draft);
+	});
 </script>
 
 <svelte:head>
@@ -66,16 +168,35 @@
 	<div class="screen-toolbar no-print">
 		<h1 class="screen-title">Floor Scrubber PM Sheet</h1>
 		<div class="screen-actions">
-			<button type="button" class="btn-secondary" onclick={clearForm}>Clear form</button>
-			<button type="button" class="btn-primary" onclick={printForm}>Print</button>
+			{#if printError}
+				<p class="print-error" role="alert">{printError}</p>
+			{/if}
+			<button type="button" class="btn-secondary" onclick={clearForm} disabled={printing}>Clear form</button>
+			<button type="button" class="btn-primary" onclick={printForm} disabled={printing}>
+				{printing ? 'Preparing…' : 'Print'}
+			</button>
 		</div>
 	</div>
 
-	<form class="sheet" onsubmit={(e) => e.preventDefault()}>
+	<form
+		bind:this={sheetEl}
+		class="sheet"
+		onsubmit={(e) => e.preventDefault()}
+		onfocusout={persistDraft}
+		onchange={(e) => {
+			if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') persistDraft();
+		}}
+	>
 		<table class="form-table" aria-label="Form header">
 			<tbody>
 				<tr>
-					<td class="header-title" colspan="4">Floor Scrubber PM Sheet</td>
+					<td class="logo-cell" rowspan="2">
+						<img src={LOGO_URL} alt="Rapid Supplies" width="140" height="56" />
+					</td>
+					<td class="header-title" colspan="3">Floor Scrubber PM Sheet</td>
+				</tr>
+				<tr>
+					<td class="header-sub" colspan="3">RapidClean Illawarra — Commercial Floor Scrubbers</td>
 				</tr>
 			</tbody>
 		</table>
@@ -188,13 +309,21 @@
 							<td class="status-cell">
 								<label class="status-checkbox" title={row.inSpec ? 'In spec' : 'Out of spec'}>
 									<input type="checkbox" bind:checked={row.inSpec} />
-									<span aria-hidden="true">{row.inSpec ? '✓' : '✗'}</span>
+									<span
+										class:status-pass={row.inSpec}
+										class:status-fail={!row.inSpec}
+										aria-hidden="true">{row.inSpec ? '✓' : '✗'}</span
+									>
 								</label>
 							</td>
 							<td class="status-cell">
 								<label class="status-checkbox" title={row.repair ? 'Repair needed' : 'No repair'}>
 									<input type="checkbox" bind:checked={row.repair} />
-									<span aria-hidden="true">{row.repair ? '✓' : '✗'}</span>
+									<span
+										class:status-pass={!row.repair}
+										class:status-fail={row.repair}
+										aria-hidden="true">{row.repair ? '✓' : '✗'}</span
+									>
 								</label>
 							</td>
 							<td><input class="field" type="text" bind:value={row.problem} /></td>
@@ -241,7 +370,16 @@
 
 	.screen-actions {
 		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
 		gap: 8px;
+	}
+
+	.print-error {
+		margin: 0;
+		width: 100%;
+		font-size: 0.8125rem;
+		color: #b91c1c;
 	}
 
 	.btn-primary,
@@ -309,6 +447,31 @@
 		font-weight: bold;
 		padding: 10px 8px;
 		border: 1px solid #000;
+	}
+
+	.header-sub {
+		text-align: center;
+		font-size: 11pt;
+		font-weight: bold;
+		padding: 6px 8px;
+		border: 1px solid #000;
+	}
+
+	.logo-cell {
+		width: 160px;
+		text-align: center;
+		vertical-align: middle;
+		padding: 8px;
+		border: 1px solid #000;
+		background: #000;
+	}
+
+	.logo-cell img {
+		display: block;
+		margin: 0 auto;
+		width: 140px;
+		height: 56px;
+		object-fit: contain;
 	}
 
 	.label-cell {
@@ -394,6 +557,16 @@
 		flex-shrink: 0;
 	}
 
+	.status-checkbox .status-pass {
+		color: #16a34a;
+		font-weight: 700;
+	}
+
+	.status-checkbox .status-fail {
+		color: #dc2626;
+		font-weight: 700;
+	}
+
 	.checklist input.field {
 		min-height: 1.5em;
 	}
@@ -419,7 +592,9 @@
 			border: none !important;
 		}
 
-		.status-checkbox input[type='checkbox'] {
+		.status-checkbox input[type='checkbox'],
+		.status-checkbox .status-pass,
+		.status-checkbox .status-fail {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}

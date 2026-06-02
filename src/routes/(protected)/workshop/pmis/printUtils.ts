@@ -153,9 +153,9 @@ function collectPrintBlocks(clone: HTMLElement): HTMLTableElement[] {
 	return blocks;
 }
 
-function createCaptureWrapper(styles: BlockStyles): HTMLDivElement {
+function createCaptureWrapper(styles: BlockStyles, pageClassName: string): HTMLDivElement {
 	const wrapper = document.createElement('div');
-	wrapper.className = 'pmis-page';
+	wrapper.className = pageClassName;
 	wrapper.style.position = 'fixed';
 	wrapper.style.left = '-9999px';
 	wrapper.style.top = '0';
@@ -170,9 +170,10 @@ function createCaptureWrapper(styles: BlockStyles): HTMLDivElement {
 
 async function captureBlock(
 	table: HTMLTableElement,
-	styles: BlockStyles
+	styles: BlockStyles,
+	pageClassName: string
 ): Promise<string> {
-	const wrapper = createCaptureWrapper(styles);
+	const wrapper = createCaptureWrapper(styles, pageClassName);
 	wrapper.appendChild(table.cloneNode(true));
 	document.body.appendChild(wrapper);
 
@@ -189,7 +190,7 @@ async function captureBlock(
 	}
 }
 
-function openPrintWindow(imageDataUrls: string[]): void {
+function openPrintWindow(imageDataUrls: string[], printTitle: string): void {
 	const printWindow = window.open('', '_blank');
 	if (!printWindow) {
 		throw new Error('Please allow pop-ups to print the form');
@@ -202,11 +203,13 @@ function openPrintWindow(imageDataUrls: string[]): void {
 		)
 		.join('\n');
 
+	const safeTitle = printTitle.replace(/</g, '&lt;');
+
 	printWindow.document.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>PMIS — Print</title>
+  <title>${safeTitle}</title>
   <style>
     @page { margin: 8mm; size: A4; }
     html, body { margin: 0; padding: 0; background: #fff; }
@@ -236,9 +239,12 @@ function openPrintWindow(imageDataUrls: string[]): void {
 
 export async function printSheetElement(
 	sheetEl: HTMLElement,
-	logoFallbackUrl: string
+	logoFallbackUrl: string,
+	options?: { pageClassName?: string; printTitle?: string }
 ): Promise<void> {
-	const pageEl = sheetEl.closest('.pmis-page') ?? sheetEl;
+	const pageClassName = options?.pageClassName ?? 'pmis-page';
+	const printTitle = options?.printTitle ?? 'PMIS — Print';
+	const pageEl = sheetEl.closest(`.${pageClassName}`) ?? sheetEl;
 	const pageStyles = window.getComputedStyle(pageEl);
 
 	const styles: BlockStyles = {
@@ -248,7 +254,7 @@ export async function printSheetElement(
 		color: pageStyles.color
 	};
 
-	const wrapper = createCaptureWrapper(styles);
+	const wrapper = createCaptureWrapper(styles, pageClassName);
 	const clone = sheetEl.cloneNode(true) as HTMLElement;
 	wrapper.appendChild(clone);
 	document.body.appendChild(wrapper);
@@ -261,14 +267,14 @@ export async function printSheetElement(
 		const imageDataUrls: string[] = [];
 
 		for (const table of printTables) {
-			imageDataUrls.push(await captureBlock(table, styles));
+			imageDataUrls.push(await captureBlock(table, styles, pageClassName));
 		}
 
 		if (imageDataUrls.length === 0) {
 			throw new Error('Nothing to print');
 		}
 
-		openPrintWindow(imageDataUrls);
+		openPrintWindow(imageDataUrls, printTitle);
 	} finally {
 		wrapper.remove();
 	}

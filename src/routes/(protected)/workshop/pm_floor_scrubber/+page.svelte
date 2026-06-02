@@ -320,8 +320,8 @@
 								<label class="status-checkbox" title={row.repair ? 'Repair needed' : 'No repair'}>
 									<input type="checkbox" bind:checked={row.repair} />
 									<span
-										class:status-pass={!row.repair}
-										class:status-fail={row.repair}
+										class:status-pass={row.repair}
+										class:status-fail={!row.repair}
 										aria-hidden="true">{row.repair ? '✓' : '✗'}</span
 									>
 								</label>

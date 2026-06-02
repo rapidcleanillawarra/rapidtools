@@ -1,19 +1,19 @@
-import type { ImsChecklistRowState, ImsIntervalKey } from './imsStorage';
+import type {
+	ImsChecklistRowState,
+	ImsInspectionInterval,
+	ImsIntervalKey
+} from './imsStorage';
 
 export type ImsChecklistItemDef = {
 	task: string;
-	intervalHours?: string;
-	intervalKey?: ImsIntervalKey;
 	measuringUnitDefault?: string;
 	preventiveExchangeHours?: string;
 	preventiveExchangeKey?: ImsIntervalKey;
 	isSpacer?: boolean;
 };
 
-const YEARLY_500 = { intervalHours: '500', intervalKey: 'yearly' as const };
-
 function item(task: string, opts: Omit<ImsChecklistItemDef, 'task'> = {}): ImsChecklistItemDef {
-	return { task, ...YEARLY_500, ...opts };
+	return { task, ...opts };
 }
 
 function spacer(): ImsChecklistItemDef {
@@ -30,7 +30,7 @@ export type ImsChecklistBlockDef = {
 	subsections: ImsChecklistSubsectionDef[];
 };
 
-export const IMS_INTERVAL_SYMBOLS: Record<ImsIntervalKey, string> = {
+const IMS_INTERVAL_SYMBOLS: Record<ImsIntervalKey, string> = {
 	yearly: '●',
 	nine_months: '◕',
 	six_months: '◐',
@@ -41,17 +41,6 @@ export const IMS_INTERVAL_SYMBOLS: Record<ImsIntervalKey, string> = {
 export const IMS_COMBUSTION_ENGINE_NOTE =
 	'Note: The check and replacement intervals stated here can be used as target times for most of the combustion engines in the Kärcher range. However, different intervals can be stipulated by the manufacturer for some combustion engines. Please observe the machine-specific service documents.';
 
-const REGULAR_ENGINE = { intervalHours: '50-100', intervalKey: 'yearly' as const };
-const INITIAL_ENGINE = { intervalHours: '10-50', intervalKey: undefined };
-
-export const IMS_INTERVAL_LEGEND: { symbol: string; label: string }[] = [
-	{ symbol: IMS_INTERVAL_SYMBOLS.yearly, label: 'Yearly' },
-	{ symbol: IMS_INTERVAL_SYMBOLS.nine_months, label: 'Every 9 months' },
-	{ symbol: IMS_INTERVAL_SYMBOLS.six_months, label: 'Every six months' },
-	{ symbol: IMS_INTERVAL_SYMBOLS.quarterly, label: 'Quarterly' },
-	{ symbol: IMS_INTERVAL_SYMBOLS.winter, label: 'Always before the winter season' }
-];
-
 export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 	{
 		sectionTitle: 'Safety check according to national specifications',
@@ -59,11 +48,7 @@ export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 			{
 				title: null,
 				items: [
-					{
-						task: 'Safety check according to national specifications',
-						intervalHours: '500',
-						intervalKey: 'yearly'
-					},
+					{ task: 'Safety check according to national specifications' },
 					{ isSpacer: true }
 				]
 			}
@@ -76,9 +61,7 @@ export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 				title: 'General',
 				items: [
 					{
-						task: 'Electrical safety Danger for person, object and environment Shut machine down.',
-						intervalHours: '500',
-						intervalKey: 'yearly'
+						task: 'Electrical safety Danger for person, object and environment Shut machine down.'
 					},
 					{ isSpacer: true }
 				]
@@ -88,28 +71,18 @@ export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 				items: [
 					{
 						task: 'Tight seating of screw and plug connections',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Check connection of protective earth conductor',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Oxidation and damages in current conducting cables /contacts',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Damage on the appliance plug / power cable',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Check cable connections and plugs on the control electronics',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{ isSpacer: true }
 				]
@@ -119,34 +92,20 @@ export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 				items: [
 					{
 						task: 'Check the function of the programme selector switch',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Check temperature setting for proper function',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Check detergent dosing',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Check pressure gauge for proper function',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
 					{
 						task: 'Check indicator lamps for proper function',
-						intervalHours: '500',
-						intervalKey: 'yearly'
 					},
-					{
-						task: 'Check display for proper function',
-						intervalHours: '500',
-						intervalKey: 'yearly'
-					}
+					{ task: 'Check display for proper function' }
 				]
 			}
 		]
@@ -255,71 +214,57 @@ export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 				title: 'Initial inspection / maintenance on the combustion engine petrol / diesel*',
 				items: [
 					item('Change oil and oil filter of internal combustion engine and check oil level', {
-						...INITIAL_ENGINE,
 						preventiveExchangeHours: '10-50'
 					}),
 					item(
 						'Check operating speed of internal combustion engine (+ idle run speed, if available)',
-						{ ...INITIAL_ENGINE, measuringUnitDefault: 'rpm' }
+						{ measuringUnitDefault: 'rpm' }
 					),
-					item('', {
-						...INITIAL_ENGINE,
-						measuringUnitDefault: 'mm'
-					}),
+					item('', { measuringUnitDefault: 'mm' }),
 					spacer()
 				]
 			},
 			{
 				title: 'Regular inspection / maintenance on the combustion engine petrol / diesel*',
 				items: [
-					item('General condition of the internal combustion engine', REGULAR_ENGINE),
-					item('Condition / cleaning of the radiator fins', REGULAR_ENGINE),
+					item('General condition of the internal combustion engine'),
+					item('Condition / cleaning of the radiator fins'),
 					item(
-						'Check the sealings of the cooling air suction in the internal combustion engine',
-						REGULAR_ENGINE
+						'Check the sealings of the cooling air suction in the internal combustion engine'
 					),
 					item('Replace the oil and oil filter of the internal combustion engine', {
-						...REGULAR_ENGINE,
 						preventiveExchangeHours: '50-100',
 						preventiveExchangeKey: 'yearly'
 					}),
-					item('Check the oil level of the internal combustion engine', REGULAR_ENGINE),
+					item('Check the oil level of the internal combustion engine'),
 					item('Clean/replace the air filter of the internal combustion engine', {
-						...REGULAR_ENGINE,
 						preventiveExchangeHours: '50-100',
 						preventiveExchangeKey: 'yearly'
 					}),
 					item(
-						'Check the spark plug cable of the internal combustion engine for damages / mounting',
-						REGULAR_ENGINE
+						'Check the spark plug cable of the internal combustion engine for damages / mounting'
 					),
 					item('Change the spark plug of the internal combustion engine', {
-						...REGULAR_ENGINE,
 						preventiveExchangeHours: '50-100',
 						preventiveExchangeKey: 'yearly'
 					}),
-					item('Clean the fuel filter cup', REGULAR_ENGINE),
+					item('Clean the fuel filter cup'),
 					item('Change fuel filter (if available)', {
-						...REGULAR_ENGINE,
 						preventiveExchangeHours: '50-100',
 						preventiveExchangeKey: 'yearly'
 					}),
-					item('Check internal combustion engine for leakage (oil)', REGULAR_ENGINE),
+					item('Check internal combustion engine for leakage (oil)'),
 					item(
 						'Check operating speed of internal combustion engine (+ idle run speed, if available)',
-						{ ...REGULAR_ENGINE, measuringUnitDefault: 'rpm' }
+						{ measuringUnitDefault: 'rpm' }
 					),
+					item('Check and adjust the valve clearance of the internal combustion engine'),
+					item('Check the fuel system / fuel hoses for leakage and damage'),
+					item('Check accelerator cable / choke for damage and function'),
+					item('Function / condition / wear and tear of the starter rope'),
+					item('Check exhaust system for damage and leakage'),
 					item(
-						'Check and adjust the valve clearance of the internal combustion engine',
-						REGULAR_ENGINE
-					),
-					item('Check the fuel system / fuel hoses for leakage and damage', REGULAR_ENGINE),
-					item('Check accelerator cable / choke for damage and function', REGULAR_ENGINE),
-					item('Function / condition / wear and tear of the starter rope', REGULAR_ENGINE),
-					item('Check exhaust system for damage and leakage', REGULAR_ENGINE),
-					item(
-						'Check power supply / plug / cables / sensors for function / condition / mounting / laying',
-						REGULAR_ENGINE
+						'Check power supply / plug / cables / sensors for function / condition / mounting / laying'
 					),
 					spacer(),
 					spacer(),
@@ -335,8 +280,7 @@ function createItemRow(def: ImsChecklistItemDef): ImsChecklistRowState {
 	return {
 		kind: 'item',
 		task: def.task,
-		intervalHours: def.intervalHours ?? '500',
-		intervalKey: def.intervalKey,
+		inspectionInterval: '',
 		measuredValue: '',
 		measuringUnit: def.measuringUnitDefault ?? '',
 		preventiveExchange: def.preventiveExchangeHours
@@ -345,7 +289,8 @@ function createItemRow(def: ImsChecklistItemDef): ImsChecklistRowState {
 				: def.preventiveExchangeHours
 			: '',
 		status: '',
-		repair: false
+		repair: false,
+		repairNotes: ''
 	};
 }
 
@@ -373,6 +318,31 @@ export function intervalDisplay(hours: string, key?: ImsIntervalKey): string {
 
 function isValidStatus(value: unknown): value is import('./imsStorage').ImsChecklistStatus {
 	return value === '' || value === 'not_required' || value === 'ok' || value === 'not_ok';
+}
+
+function isValidInspectionInterval(value: unknown): value is ImsInspectionInterval {
+	return value === '' || value === 'six_monthly' || value === 'twelve_monthly';
+}
+
+type LegacySavedItem = import('./imsStorage').ImsChecklistItemRow & {
+	intervalHours?: string;
+	intervalKey?: ImsIntervalKey;
+};
+
+function normalizeInspectionInterval(saved: LegacySavedItem): ImsInspectionInterval {
+	if (isValidInspectionInterval(saved.inspectionInterval) && saved.inspectionInterval !== '') {
+		return saved.inspectionInterval;
+	}
+	if (saved.intervalKey === 'six_months') return 'six_monthly';
+	if (
+		saved.intervalKey === 'yearly' ||
+		saved.intervalKey === 'nine_months' ||
+		saved.intervalKey === 'quarterly' ||
+		saved.intervalHours === '500'
+	) {
+		return 'twelve_monthly';
+	}
+	return '';
 }
 
 export function mergeChecklistSections(
@@ -409,7 +379,11 @@ export function mergeChecklistSections(
 							measuringUnit: savedItem.measuringUnit ?? '',
 							preventiveExchange: savedItem.preventiveExchange ?? '',
 							status: isValidStatus(savedItem.status) ? savedItem.status : '',
-							repair: !!savedItem.repair
+							inspectionInterval: normalizeInspectionInterval(
+								savedItem as LegacySavedItem
+							),
+							repair: !!savedItem.repair,
+							repairNotes: savedItem.repairNotes ?? ''
 						};
 					})
 				};

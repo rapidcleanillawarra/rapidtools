@@ -1,14 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import {
-		IMS_COMBUSTION_ENGINE_NOTE,
-		IMS_INTERVAL_LEGEND,
-		IMS_INTERVAL_SYMBOLS,
-		createImsChecklistSections,
-		intervalDisplay,
-		mergeChecklistSections
-	} from './imsData';
+	import { IMS_COMBUSTION_ENGINE_NOTE, createImsChecklistSections, mergeChecklistSections } from './imsData';
 	import {
 		loadImsDraft,
 		saveImsDraft,
@@ -19,6 +12,7 @@
 		type ImsDraft,
 		type ImsChecklistSectionState,
 		type ImsChecklistStatus,
+		type ImsInspectionInterval,
 		type OperatingHoursTotal,
 		type OperatingHoursSinceMaintenance,
 		type ImsSignatures
@@ -60,11 +54,23 @@
 		return `ims-${sectionIdx}-${subIdx}-${rowIdx}`;
 	}
 
+	function intervalRowId(sectionIdx: number, subIdx: number, rowIdx: number): string {
+		return `ims-interval-${sectionIdx}-${subIdx}-${rowIdx}`;
+	}
+
 	function setRowStatus(
 		row: { kind: 'item'; status: ImsChecklistStatus },
 		status: ImsChecklistStatus
 	) {
 		row.status = status;
+		persistDraft();
+	}
+
+	function setRowInterval(
+		row: { kind: 'item'; inspectionInterval: ImsInspectionInterval },
+		interval: ImsInspectionInterval
+	) {
+		row.inspectionInterval = interval;
 		persistDraft();
 	}
 
@@ -581,42 +587,15 @@
 			</table>
 
 			<div class="checklist-wrap" aria-label="Inspection checklist">
-				<table class="form-table checklist-legend-table">
-					<tbody>
-						<tr>
-							<td class="legend-cell" colspan="9">
-								<p class="legend-title">
-									Key test interval as per operating hours or at least:
-								</p>
-								<ul class="interval-legend">
-									{#each IMS_INTERVAL_LEGEND as entry (entry.label)}
-										<li>
-											<span class="interval-symbol" aria-hidden="true">{entry.symbol}</span>
-											{entry.label}
-										</li>
-									{/each}
-								</ul>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-
 				{#each checklistSections as section, sectionIdx (section.sectionTitle)}
 					<table class="form-table ims-checklist-table" aria-label={section.sectionTitle}>
 						<tbody>
 							<tr class="section-bar-grey">
-								<th colspan="9">{section.sectionTitle}</th>
+								<th colspan="6">{section.sectionTitle}</th>
 							</tr>
 							<tr class="checklist-head">
 								<th class="col-task" rowspan="2">Check</th>
-								<th class="col-measured" rowspan="2">Measured values</th>
-								<th class="col-unit" rowspan="2">Measuring unit</th>
-								<th class="col-interval" rowspan="2">
-									Inspection interval after operating hours or display or see key*
-								</th>
-								<th class="col-preventive" rowspan="2">
-									Recommended preventive exchange according to operating hours
-								</th>
+								<th class="col-interval" rowspan="2">Inspection interval</th>
 								<th class="col-status-group" colspan="3">Status</th>
 								<th class="col-repair" rowspan="2">Repair</th>
 							</tr>
@@ -629,13 +608,13 @@
 							{#each section.subsections as sub, subIdx (sub.title ?? `sub-${subIdx}`)}
 								{#if sub.title}
 									<tr class="subsection-bar">
-										<th colspan="9">{sub.title}</th>
+										<th colspan="6">{sub.title}</th>
 									</tr>
 								{/if}
 								{#each sub.rows as row, rowIdx (`${sectionIdx}-${subIdx}-${rowIdx}`)}
 									{#if row.kind === 'spacer'}
 										<tr class="spacer-row">
-											<td colspan="9">
+											<td colspan="6">
 												<input
 													class="field"
 													type="text"
@@ -647,34 +626,30 @@
 									{:else}
 										<tr>
 											<td class="task-cell">{row.task}</td>
-											<td>
-												<input
-													class="field"
-													type="text"
-													bind:value={row.measuredValue}
-												/>
-											</td>
-											<td>
-												<input
-													class="field"
-													type="text"
-													bind:value={row.measuringUnit}
-												/>
-											</td>
 											<td class="interval-cell">
-												{intervalDisplay(row.intervalHours, row.intervalKey)}
-												{#if row.intervalKey}
-													<span class="sr-only"
-														>({IMS_INTERVAL_SYMBOLS[row.intervalKey]})</span
-													>
-												{/if}
-											</td>
-											<td>
-												<input
-													class="field"
-													type="text"
-													bind:value={row.preventiveExchange}
-												/>
+												<fieldset class="interval-fieldset">
+													<legend class="sr-only">Inspection interval</legend>
+													<label class="interval-radio">
+														<input
+															type="radio"
+															name={intervalRowId(sectionIdx, subIdx, rowIdx)}
+															checked={row.inspectionInterval === 'six_monthly'}
+															onchange={() =>
+																setRowInterval(row, 'six_monthly')}
+														/>
+														6 Monthly
+													</label>
+													<label class="interval-radio">
+														<input
+															type="radio"
+															name={intervalRowId(sectionIdx, subIdx, rowIdx)}
+															checked={row.inspectionInterval === 'twelve_monthly'}
+															onchange={() =>
+																setRowInterval(row, 'twelve_monthly')}
+														/>
+														12 Monthly
+													</label>
+												</fieldset>
 											</td>
 											<td class="status-radio-cell">
 												<input
@@ -704,10 +679,18 @@
 												/>
 											</td>
 											<td class="repair-cell">
-												<label class="repair-checkbox">
-													<input type="checkbox" bind:checked={row.repair} />
-													<span class="sr-only">Repair required</span>
-												</label>
+												<div class="repair-cell-inner">
+													<label class="repair-checkbox">
+														<input type="checkbox" bind:checked={row.repair} />
+														<span class="sr-only">Repair required</span>
+													</label>
+													<textarea
+														class="field repair-notes-field"
+														bind:value={row.repairNotes}
+														rows="2"
+														aria-label="Repair notes"
+													></textarea>
+												</div>
 											</td>
 										</tr>
 									{/if}
@@ -820,39 +803,6 @@
 		margin-top: 0;
 	}
 
-	.legend-cell {
-		font-size: 8.5pt;
-		vertical-align: top;
-		padding: 8px;
-	}
-
-	.legend-title {
-		margin: 0 0 6px;
-		font-weight: bold;
-	}
-
-	.interval-legend {
-		margin: 0;
-		padding: 0 0 0 1.2em;
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
-		gap: 2px 12px;
-		list-style: none;
-	}
-
-	.interval-legend li {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.interval-symbol {
-		font-size: 12pt;
-		line-height: 1;
-		min-width: 1em;
-		text-align: center;
-	}
-
 	.section-bar-grey th {
 		background: #9ca3af;
 		color: #000;
@@ -875,7 +825,7 @@
 
 	.ims-checklist-table {
 		font-size: 8pt;
-		min-width: 980px;
+		min-width: 720px;
 	}
 
 	.checklist-head th {
@@ -892,30 +842,23 @@
 	}
 
 	.ims-checklist-table .col-task {
-		width: 28%;
+		width: 36%;
 		text-align: left;
 	}
 
-	.ims-checklist-table .col-measured,
-	.ims-checklist-table .col-unit {
-		width: 8%;
-	}
-
 	.ims-checklist-table .col-interval {
-		width: 10%;
+		width: 14%;
 		text-align: center;
 	}
 
-	.ims-checklist-table .col-preventive {
-		width: 12%;
-	}
-
 	.ims-checklist-table .col-status {
-		width: 6%;
+		width: 3%;
+		min-width: 2rem;
+		padding: 2px;
 	}
 
 	.ims-checklist-table .col-repair {
-		width: 5%;
+		width: 28%;
 	}
 
 	.task-cell {
@@ -924,21 +867,61 @@
 	}
 
 	.interval-cell {
-		text-align: center;
-		font-size: 9pt;
+		vertical-align: middle;
+		padding: 4px;
+	}
+
+	.interval-fieldset {
+		margin: 0;
+		padding: 0;
+		border: none;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 4px;
+	}
+
+	.interval-radio {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		font-size: 7.5pt;
+		line-height: 1.2;
+		cursor: pointer;
 		white-space: nowrap;
 	}
 
-	.status-radio-cell,
-	.repair-cell {
+	.status-radio-cell {
 		text-align: center;
 		vertical-align: middle;
+		padding: 2px;
+	}
+
+	.repair-cell {
+		vertical-align: top;
+		padding: 4px;
+	}
+
+	.repair-cell-inner {
+		display: flex;
+		flex-direction: column;
+		align-items: stretch;
+		gap: 4px;
 	}
 
 	.repair-checkbox {
 		display: inline-flex;
+		align-self: center;
 		margin: 0;
 		cursor: pointer;
+	}
+
+	.repair-notes-field {
+		width: 100%;
+		min-height: 2.5em;
+		resize: vertical;
+		font-size: 8pt;
+		line-height: 1.3;
 	}
 
 	.spacer-row td {
@@ -1246,13 +1229,19 @@
 		width: 24%;
 	}
 
-	input.field {
+	input.field,
+	textarea.field {
 		width: 100%;
 		border: none;
 		outline: none;
 		font: inherit;
 		background: transparent;
 		padding: 2px 0;
+		margin: 0;
+	}
+
+	textarea.field {
+		resize: vertical;
 	}
 
 	.sign-field .field {

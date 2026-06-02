@@ -19,18 +19,20 @@ export type ImsSignatures = {
 
 export type ImsIntervalKey = 'yearly' | 'nine_months' | 'six_months' | 'quarterly' | 'winter';
 
+export type ImsInspectionInterval = '' | 'six_monthly' | 'twelve_monthly';
+
 export type ImsChecklistStatus = '' | 'not_required' | 'ok' | 'not_ok';
 
 export type ImsChecklistItemRow = {
 	kind: 'item';
 	task: string;
-	intervalHours: string;
-	intervalKey?: ImsIntervalKey;
+	inspectionInterval: ImsInspectionInterval;
 	measuredValue: string;
 	measuringUnit: string;
 	preventiveExchange: string;
 	status: ImsChecklistStatus;
 	repair: boolean;
+	repairNotes: string;
 };
 
 export type ImsChecklistSpacerRow = {

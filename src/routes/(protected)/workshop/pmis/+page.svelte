@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { CHECKLIST_SECTIONS } from './checklist-data';
 	import { printSheetElement } from './printUtils';
 
 	const LOGO_URL = 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png';
+	const LOGO_PRINT_FALLBACK = `${base}/images/rapidsupplies-company-logo.png`;
 
 	type ChecklistStatus = '' | 'pass' | 'fail';
 	type ChecklistRow = { task: string; status: ChecklistStatus; notes: string };
@@ -67,7 +69,7 @@
 		printing = true;
 		printError = '';
 		try {
-			await printSheetElement(sheetEl);
+			await printSheetElement(sheetEl, LOGO_PRINT_FALLBACK);
 		} catch (err) {
 			printError = err instanceof Error ? err.message : 'Failed to print form';
 		} finally {

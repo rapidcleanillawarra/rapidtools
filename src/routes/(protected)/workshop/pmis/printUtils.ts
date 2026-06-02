@@ -2,6 +2,44 @@ import html2canvas from 'html2canvas';
 
 const CAPTURE_SCALE = 2;
 
+/** Load an image URL as a data URL (same-origin always works; remote needs CORS). */
+async function fetchImageDataUrl(url: string): Promise<string | null> {
+	try {
+		const res = await fetch(url);
+		if (!res.ok) return null;
+		const blob = await res.blob();
+		return await new Promise<string>((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => resolve(reader.result as string);
+			reader.onerror = () => reject(reader.error);
+			reader.readAsDataURL(blob);
+		});
+	} catch {
+		return null;
+	}
+}
+
+/** Replace external <img> sources in the clone so html2canvas can paint them. */
+async function inlineImagesForCapture(clone: HTMLElement, logoFallbackUrl: string): Promise<void> {
+	const cloneImgs = [...clone.querySelectorAll<HTMLImageElement>('img')];
+
+	await Promise.all(
+		cloneImgs.map(async (cloneImg) => {
+			const src = cloneImg.getAttribute('src') ?? '';
+			let dataUrl = src.startsWith('data:') ? src : await fetchImageDataUrl(src);
+
+			if (!dataUrl && cloneImg.closest('.logo-cell') && logoFallbackUrl) {
+				dataUrl = await fetchImageDataUrl(logoFallbackUrl);
+			}
+
+			if (dataUrl) {
+				cloneImg.src = dataUrl;
+				cloneImg.removeAttribute('srcset');
+			}
+		})
+	);
+}
+
 /** Replace form controls with static text so html2canvas matches on-screen values. */
 function prepareCloneForCapture(root: HTMLElement): void {
 	root.querySelectorAll<HTMLInputElement>('input[type="text"]').forEach((input) => {
@@ -42,7 +80,10 @@ function prepareCloneForCapture(root: HTMLElement): void {
 	});
 }
 
-export async function printSheetElement(sheetEl: HTMLElement): Promise<void> {
+export async function printSheetElement(
+	sheetEl: HTMLElement,
+	logoFallbackUrl: string
+): Promise<void> {
 	const pageEl = sheetEl.closest('.pmis-page') ?? sheetEl;
 	const pageStyles = window.getComputedStyle(pageEl);
 
@@ -64,6 +105,7 @@ export async function printSheetElement(sheetEl: HTMLElement): Promise<void> {
 
 	try {
 		prepareCloneForCapture(clone);
+		await inlineImagesForCapture(clone, logoFallbackUrl);
 
 		const canvas = await html2canvas(wrapper, {
 			scale: CAPTURE_SCALE,

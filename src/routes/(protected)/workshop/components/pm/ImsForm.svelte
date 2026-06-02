@@ -18,9 +18,13 @@
 		type ImsSignatures
 	} from './imsStorage';
 	import { printSheetElement } from './printUtils';
-	import WorkshopOrderCombobox, {
-		type WorkshopOrderOption
-	} from './WorkshopOrderCombobox.svelte';
+	import { type WorkshopOrderOption } from './WorkshopOrderCombobox.svelte';
+	import CustomerInformationSection from './CustomerInformationSection.svelte';
+	import MachineInformationSection from './MachineInformationSection.svelte';
+	import {
+		createEmptyCustomerInfoFields,
+		createEmptyMachineHourMeterFields
+	} from './pmStorage';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { get } from 'svelte/store';
@@ -45,6 +49,7 @@
 		operating_hours_since_maintenance: OperatingHoursSinceMaintenance | null;
 		checklist_data: ImsChecklistSectionState[] | null;
 		signatures: ImsSignatures | null;
+		equipment_details: Record<string, unknown> | null;
 		created_at: string;
 	};
 
@@ -85,6 +90,19 @@
 	let purchaseDate = $state('');
 	let testerName = $state('');
 	let customerName = $state('');
+	let email = $state('');
+	let address = $state('');
+	let phone = $state('');
+	let city = $state('');
+	let imsState = $state('');
+	let zip = $state('');
+	let contact = $state('');
+	let hourMeterKey = $state('');
+	let hourMeterTraction = $state('');
+	let hourMeterScrub = $state('');
+	let hourMeterVacuum = $state('');
+	let rechargeNumber = $state('');
+	let workOrderNumber = $state('');
 	let operatingHoursTotal = $state(createEmptyOperatingHoursTotal());
 	let operatingHoursSinceMaintenance = $state(createEmptyOperatingHoursSinceMaintenance());
 	let signatures = $state(createEmptyImsSignatures());
@@ -142,6 +160,19 @@
 			purchaseDate,
 			testerName,
 			customerName,
+			email,
+			address,
+			phone,
+			city,
+			state: imsState,
+			zip,
+			contact,
+			hourMeterKey,
+			hourMeterTraction,
+			hourMeterScrub,
+			hourMeterVacuum,
+			rechargeNumber,
+			workOrderNumber,
 			operatingHoursTotal: { ...operatingHoursTotal },
 			operatingHoursSinceMaintenance: { ...operatingHoursSinceMaintenance },
 			checklistSections: serializeChecklist(),
@@ -160,6 +191,9 @@
 	}
 
 	function applyDraft(draft: ImsDraft) {
+		const customerDefaults = createEmptyCustomerInfoFields();
+		const machineDefaults = createEmptyMachineHourMeterFields();
+
 		workshopOrderId = draft.workshopOrderId ?? '';
 		inspectionDate = draft.inspectionDate ?? '';
 		orderNo = draft.orderNo ?? '';
@@ -171,6 +205,19 @@
 		purchaseDate = draft.purchaseDate ?? '';
 		testerName = draft.testerName ?? '';
 		customerName = draft.customerName ?? '';
+		email = draft.email ?? customerDefaults.email;
+		address = draft.address ?? customerDefaults.address;
+		phone = draft.phone ?? customerDefaults.phone;
+		city = draft.city ?? customerDefaults.city;
+		imsState = draft.state ?? customerDefaults.state;
+		zip = draft.zip ?? customerDefaults.zip;
+		contact = draft.contact ?? customerDefaults.contact;
+		hourMeterKey = draft.hourMeterKey ?? machineDefaults.hourMeterKey;
+		hourMeterTraction = draft.hourMeterTraction ?? machineDefaults.hourMeterTraction;
+		hourMeterScrub = draft.hourMeterScrub ?? machineDefaults.hourMeterScrub;
+		hourMeterVacuum = draft.hourMeterVacuum ?? machineDefaults.hourMeterVacuum;
+		rechargeNumber = draft.rechargeNumber ?? machineDefaults.rechargeNumber;
+		workOrderNumber = draft.workOrderNumber ?? machineDefaults.workOrderNumber;
 		operatingHoursTotal = {
 			...createEmptyOperatingHoursTotal(),
 			...draft.operatingHoursTotal
@@ -186,16 +233,51 @@
 		checklistSections = mergeChecklistSections(draft.checklistSections);
 	}
 
+	function applyEquipmentDetails(eq: Record<string, unknown> | null | undefined) {
+		if (!eq) return;
+		const ci = eq.customerInfo as Record<string, string> | undefined;
+		if (ci?.email) email = ci.email;
+		if (ci?.phone) phone = ci.phone;
+		if (ci?.city) city = ci.city;
+		if (ci?.state) imsState = ci.state;
+		if (ci?.zip) zip = ci.zip;
+		if (ci?.contact) contact = ci.contact;
+		if (typeof eq.address === 'string' && eq.address) address = eq.address;
+		if (typeof eq.hourMeterKey === 'string') hourMeterKey = eq.hourMeterKey;
+		if (typeof eq.hourMeterTraction === 'string') hourMeterTraction = eq.hourMeterTraction;
+		if (typeof eq.hourMeterScrub === 'string') hourMeterScrub = eq.hourMeterScrub;
+		if (typeof eq.hourMeterVacuum === 'string') hourMeterVacuum = eq.hourMeterVacuum;
+		if (typeof eq.rechargeNumber === 'string') rechargeNumber = eq.rechargeNumber;
+		if (typeof eq.workOrderNumber === 'string') workOrderNumber = eq.workOrderNumber;
+	}
+
 	function persistDraft() {
 		saveImsDraft(buildDraft());
 	}
 
 	function applyWorkshopOrder(option: WorkshopOrderOption) {
-		if (option.clientsWorkOrder) orderNo = option.clientsWorkOrder;
+		if (option.clientsWorkOrder) {
+			if (!orderNo) orderNo = option.clientsWorkOrder;
+			if (!workOrderNumber) workOrderNumber = option.clientsWorkOrder;
+		}
 		if (option.makeModel) machineType = option.makeModel;
 		if (option.serialNumber) serialNumber = option.serialNumber;
 		if (option.customerName) customerName = option.customerName;
+		if (option.siteLocation) address = option.siteLocation;
 		persistDraft();
+	}
+
+	function buildEquipmentDetails() {
+		return {
+			address: address || null,
+			customerInfo: { email, phone, city, state: imsState, zip, contact },
+			hourMeterKey,
+			hourMeterTraction,
+			hourMeterScrub,
+			hourMeterVacuum,
+			rechargeNumber,
+			workOrderNumber
+		};
 	}
 
 	function buildPayload() {
@@ -216,6 +298,7 @@
 			operating_hours_since_maintenance: { ...operatingHoursSinceMaintenance },
 			checklist_data: serializeChecklist(),
 			signatures: { ...signatures },
+			equipment_details: buildEquipmentDetails(),
 			status: 'completed' as const,
 			created_by: get(currentUser)?.email ?? null
 		};
@@ -228,7 +311,7 @@
 			const { data, error } = await supabase
 				.from('workshop_ims_inspections')
 				.select(
-					'id, workshop_order_id, inspection_date, order_no, customer_no, machine_type, type_no, serial_number, year_of_manufacture, purchase_date, tester_name, customer_name, operating_hours_total, operating_hours_since_maintenance, checklist_data, signatures, created_at'
+					'id, workshop_order_id, inspection_date, order_no, customer_no, machine_type, type_no, serial_number, year_of_manufacture, purchase_date, tester_name, customer_name, operating_hours_total, operating_hours_since_maintenance, checklist_data, signatures, equipment_details, created_at'
 				)
 				.order('created_at', { ascending: false })
 				.limit(50);
@@ -254,12 +337,15 @@
 			purchaseDate: rec.purchase_date ? isoToDisplay(rec.purchase_date) : '',
 			testerName: rec.tester_name ?? '',
 			customerName: rec.customer_name ?? '',
+			...createEmptyCustomerInfoFields(),
+			...createEmptyMachineHourMeterFields(),
 			operatingHoursTotal: rec.operating_hours_total ?? createEmptyOperatingHoursTotal(),
 			operatingHoursSinceMaintenance:
 				rec.operating_hours_since_maintenance ?? createEmptyOperatingHoursSinceMaintenance(),
 			checklistSections: rec.checklist_data ?? [],
 			signatures: rec.signatures ?? createEmptyImsSignatures()
 		});
+		applyEquipmentDetails(rec.equipment_details);
 		savedId = rec.id;
 	}
 
@@ -352,6 +438,19 @@
 		purchaseDate = '';
 		testerName = '';
 		customerName = '';
+		email = '';
+		address = '';
+		phone = '';
+		city = '';
+		imsState = '';
+		zip = '';
+		contact = '';
+		hourMeterKey = '';
+		hourMeterTraction = '';
+		hourMeterScrub = '';
+		hourMeterVacuum = '';
+		rechargeNumber = '';
+		workOrderNumber = '';
 		operatingHoursTotal = createEmptyOperatingHoursTotal();
 		operatingHoursSinceMaintenance = createEmptyOperatingHoursSinceMaintenance();
 		checklistSections = createImsChecklistSections();
@@ -434,18 +533,34 @@
 				</tbody>
 			</table>
 
-			<table class="form-table cell-stack" aria-label="Machine and order details">
+			<CustomerInformationSection
+				comboboxId="ims-workshop-order-id"
+				bind:workshopOrderId
+				bind:customer={customerName}
+				bind:email
+				bind:address
+				bind:phone
+				bind:city
+				bind:state={imsState}
+				bind:zip
+				bind:contact
+				onWorkshopOrderSelect={applyWorkshopOrder}
+			/>
+
+			<MachineInformationSection
+				bind:serialNumber
+				bind:modelNumber={machineType}
+				bind:hourMeterKey
+				bind:hourMeterTraction
+				bind:workOrderNumber
+				bind:hourMeterScrub
+				bind:rechargeNumber
+				bind:hourMeterVacuum
+			/>
+
+			<table class="form-table cell-stack" aria-label="IMS order and machine details">
 				<tbody>
-					<tr>
-						<td class="label-cell">Workshop Order ID:</td>
-						<td class="field-cell" colspan="3">
-							<WorkshopOrderCombobox
-								id="ims-workshop-order-id"
-								bind:value={workshopOrderId}
-								onselect={applyWorkshopOrder}
-							/>
-						</td>
-					</tr>
+					<tr class="section-bar"><th colspan="4">Order &amp; Machine Details</th></tr>
 					<tr>
 						<td class="label-cell">Date:</td>
 						<td class="field-cell">
@@ -466,19 +581,9 @@
 						<td class="field-cell">
 							<input class="field" type="text" bind:value={customerNo} />
 						</td>
-						<td class="label-cell">Machine type:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={machineType} />
-						</td>
-					</tr>
-					<tr>
 						<td class="label-cell">Type No.:</td>
 						<td class="field-cell">
 							<input class="field" type="text" bind:value={typeNo} />
-						</td>
-						<td class="label-cell">Serial no.:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={serialNumber} />
 						</td>
 					</tr>
 					<tr>

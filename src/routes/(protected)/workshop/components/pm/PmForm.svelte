@@ -29,12 +29,14 @@
 		type BrushConditionState,
 		type BatteryCellRow,
 		type OperationFooterState,
-		type FloorScrubberChecklistRowDraft
+		type FloorScrubberChecklistRowDraft,
+		createEmptyCustomerInfoFields,
+		createEmptyMachineHourMeterFields
 	} from './pmStorage';
 	import { printSheetElement } from './printUtils';
-	import WorkshopOrderCombobox, {
-		type WorkshopOrderOption
-	} from './WorkshopOrderCombobox.svelte';
+	import CustomerInformationSection from './CustomerInformationSection.svelte';
+	import MachineInformationSection from './MachineInformationSection.svelte';
+	import { type WorkshopOrderOption } from './WorkshopOrderCombobox.svelte';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { get } from 'svelte/store';
@@ -87,6 +89,19 @@
 	let serialNumber = $state('');
 	let assetId = $state('');
 	let hoursRun = $state('');
+	let email = $state('');
+	let address = $state('');
+	let phone = $state('');
+	let city = $state('');
+	let pmState = $state('');
+	let zip = $state('');
+	let contact = $state('');
+	let hourMeterKey = $state('');
+	let hourMeterTraction = $state('');
+	let hourMeterScrub = $state('');
+	let hourMeterVacuum = $state('');
+	let rechargeNumber = $state('');
+	let workOrderNumber = $state('');
 
 	let pmisChecklistSections = $state(PMIS_CHECKLIST_SECTIONS.map((section) => ({
 		...section,
@@ -201,6 +216,14 @@
 				hoursRun?: string;
 				contactPerson?: string;
 				workshopOrderId?: string;
+				address?: string;
+				customerInfo?: Record<string, string>;
+				hourMeterKey?: string;
+				hourMeterTraction?: string;
+				hourMeterScrub?: string;
+				hourMeterVacuum?: string;
+				rechargeNumber?: string;
+				workOrderNumber?: string;
 			} | null;
 			const recs = rec.recommendations as {
 				recNone?: boolean; recMinor?: boolean; recMajor?: boolean; recReplace?: boolean;
@@ -226,6 +249,19 @@
 				serialNumber: rec.serial_number ?? '',
 				assetId: rec.work_order_number ?? '',
 				hoursRun: eq?.hoursRun ?? '',
+				email: eq?.customerInfo?.email ?? '',
+				address: eq?.address ?? rec.site_location ?? '',
+				phone: eq?.customerInfo?.phone ?? '',
+				city: eq?.customerInfo?.city ?? '',
+				state: eq?.customerInfo?.state ?? '',
+				zip: eq?.customerInfo?.zip ?? '',
+				contact: eq?.customerInfo?.contact ?? '',
+				hourMeterKey: eq?.hourMeterKey ?? '',
+				hourMeterTraction: eq?.hourMeterTraction ?? '',
+				hourMeterScrub: eq?.hourMeterScrub ?? '',
+				hourMeterVacuum: eq?.hourMeterVacuum ?? '',
+				rechargeNumber: eq?.rechargeNumber ?? '',
+				workOrderNumber: eq?.workOrderNumber ?? '',
 				checklistSections: Array.isArray(cd) ? cd.map((s) => ({
 					title: s.title,
 					rows: s.rows.map((r) => ({ task: r.task, status: r.status as import('./pmStorage').ChecklistStatus, notes: r.notes }))
@@ -367,7 +403,19 @@
 				rows: s.rows.map((r) => ({ task: r.task, status: r.status, notes: r.notes }))
 			})),
 			parts_replaced: parts.filter((p) => p.part.trim()),
-			equipment_details: { hoursRun, contactPerson, workshopOrderId: workshopOrderId || null },
+			equipment_details: {
+				hoursRun,
+				contactPerson,
+				workshopOrderId: workshopOrderId || null,
+				address: address || null,
+				customerInfo: { email, phone, city, state: pmState, zip, contact },
+				hourMeterKey,
+				hourMeterTraction,
+				hourMeterScrub,
+				hourMeterVacuum,
+				rechargeNumber,
+				workOrderNumber
+			},
 			recommendations: {
 				recNone, recMinor, recMajor, recReplace, recDetails,
 				outcomeCompleted, outcomePartial, outcomeUnsafe
@@ -461,10 +509,16 @@
 	function applyWorkshopOrder(option: WorkshopOrderOption) {
 		if (type === 'pmis') {
 			if (option.customerName) customerName = option.customerName;
-			if (option.siteLocation) siteLocation = option.siteLocation;
+			if (option.siteLocation) {
+				siteLocation = option.siteLocation;
+				if (!address) address = option.siteLocation;
+			}
 			if (option.makeModel) machineModel = option.makeModel;
 			if (option.serialNumber) serialNumber = option.serialNumber;
-			if (option.clientsWorkOrder && !assetId) assetId = option.clientsWorkOrder;
+			if (option.clientsWorkOrder) {
+				if (!assetId) assetId = option.clientsWorkOrder;
+				if (!workOrderNumber) workOrderNumber = option.clientsWorkOrder;
+			}
 		} else {
 			if (option.customerName) customer = option.customerName;
 			if (option.siteLocation) address = option.siteLocation;
@@ -487,6 +541,19 @@
 			serialNumber,
 			assetId,
 			hoursRun,
+			email,
+			address,
+			phone,
+			city,
+			state: pmState,
+			zip,
+			contact,
+			hourMeterKey,
+			hourMeterTraction,
+			hourMeterScrub,
+			hourMeterVacuum,
+			rechargeNumber,
+			workOrderNumber,
 			checklistSections: pmisChecklistSections.map((section) => ({
 				title: section.title,
 				rows: section.rows.map((row) => ({
@@ -566,6 +633,19 @@
 		serialNumber = draft.serialNumber ?? '';
 		assetId = draft.assetId ?? '';
 		hoursRun = draft.hoursRun ?? '';
+		email = draft.email ?? '';
+		address = draft.address ?? '';
+		phone = draft.phone ?? '';
+		city = draft.city ?? '';
+		pmState = draft.state ?? '';
+		zip = draft.zip ?? '';
+		contact = draft.contact ?? '';
+		hourMeterKey = draft.hourMeterKey ?? '';
+		hourMeterTraction = draft.hourMeterTraction ?? '';
+		hourMeterScrub = draft.hourMeterScrub ?? '';
+		hourMeterVacuum = draft.hourMeterVacuum ?? '';
+		rechargeNumber = draft.rechargeNumber ?? '';
+		workOrderNumber = draft.workOrderNumber ?? '';
 
 		pmisChecklistSections = PMIS_CHECKLIST_SECTIONS.map((section) => {
 			const saved = draft.checklistSections?.find((s) => s.title === section.title);
@@ -723,6 +803,21 @@
 			serialNumber = '';
 			assetId = '';
 			hoursRun = '';
+			const emptyCustomer = createEmptyCustomerInfoFields();
+			email = emptyCustomer.email;
+			address = emptyCustomer.address;
+			phone = emptyCustomer.phone;
+			city = emptyCustomer.city;
+			pmState = emptyCustomer.state;
+			zip = emptyCustomer.zip;
+			contact = emptyCustomer.contact;
+			const emptyMachine = createEmptyMachineHourMeterFields();
+			hourMeterKey = emptyMachine.hourMeterKey;
+			hourMeterTraction = emptyMachine.hourMeterTraction;
+			hourMeterScrub = emptyMachine.hourMeterScrub;
+			hourMeterVacuum = emptyMachine.hourMeterVacuum;
+			rechargeNumber = emptyMachine.rechargeNumber;
+			workOrderNumber = emptyMachine.workOrderNumber;
 			pmisChecklistSections = PMIS_CHECKLIST_SECTIONS.map((section) => ({
 				...section,
 				rows: createPmisChecklistRows(section.tasks)
@@ -862,25 +957,34 @@
 		</table>
 
 		{#if type === 'pmis'}
-			<table class="form-table cell-stack" aria-label="Section 1">
+			<CustomerInformationSection
+				comboboxId="pmis-workshop-order-id"
+				bind:workshopOrderId
+				bind:customer={customerName}
+				bind:email
+				bind:address
+				bind:phone
+				bind:city
+				bind:state={pmState}
+				bind:zip
+				bind:contact
+				onWorkshopOrderSelect={applyWorkshopOrder}
+			/>
+
+			<MachineInformationSection
+				bind:serialNumber
+				bind:modelNumber={machineModel}
+				bind:hourMeterKey
+				bind:hourMeterTraction
+				bind:workOrderNumber
+				bind:hourMeterScrub
+				bind:rechargeNumber
+				bind:hourMeterVacuum
+			/>
+
+			<table class="form-table cell-stack" aria-label="PMIS job details">
 				<tbody>
-					<tr class="section-bar"><th colspan="4">1. Job &amp; Asset Details</th></tr>
-					<tr>
-						<td class="label-cell">Workshop Order ID:</td>
-						<td class="field-cell" colspan="3">
-							<WorkshopOrderCombobox
-								id="pmis-workshop-order-id"
-								bind:value={workshopOrderId}
-								onselect={applyWorkshopOrder}
-							/>
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell" colspan="1">Customer Name:</td>
-						<td class="field-cell" colspan="3">
-							<input class="field" type="text" bind:value={customerName} autocomplete="organization" />
-						</td>
-					</tr>
+					<tr class="section-bar"><th colspan="4">Job &amp; Asset Details</th></tr>
 					<tr>
 						<td class="label-cell" colspan="1">Site Location:</td>
 						<td class="field-cell" colspan="3">
@@ -907,16 +1011,6 @@
 								placeholder="DD / MM / YYYY"
 							/>
 						</td>
-						<td class="label-cell">Machine Brand/Model:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={machineModel} />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell">Serial Number:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={serialNumber} />
-						</td>
 						<td class="label-cell">Asset ID (if applicable):</td>
 						<td class="field-cell">
 							<input class="field" type="text" bind:value={assetId} />
@@ -931,107 +1025,30 @@
 				</tbody>
 			</table>
 		{:else}
-			<table class="form-table cell-stack" aria-label="Customer information">
-				<tbody>
-					<tr class="section-bar"><th colspan="4">Customer Information</th></tr>
-					<tr>
-						<td class="label-cell">Workshop Order ID:</td>
-						<td class="field-cell" colspan="3">
-							<WorkshopOrderCombobox
-								id="fs-workshop-order-id"
-								bind:value={workshopOrderId}
-								onselect={applyWorkshopOrder}
-							/>
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell">Customer:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={customer} autocomplete="organization" />
-						</td>
-						<td class="label-cell">Email:</td>
-						<td class="field-cell">
-							<input class="field" type="email" bind:value={email} autocomplete="email" />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell">Address:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={address} autocomplete="street-address" />
-						</td>
-						<td class="label-cell">Phone:</td>
-						<td class="field-cell">
-							<input class="field" type="tel" bind:value={phone} autocomplete="tel" />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell city-label">City:</td>
-						<td class="field-cell city-field">
-							<input class="field" type="text" bind:value={city} autocomplete="address-level2" />
-						</td>
-						<td class="label-cell state-label">State:</td>
-						<td class="field-cell state-field">
-							<input class="field" type="text" bind:value={fsState} autocomplete="address-level1" />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell zip-label">Zip:</td>
-						<td class="field-cell zip-field">
-							<input class="field" type="text" bind:value={zip} autocomplete="postal-code" />
-						</td>
-						<td class="label-cell">Contact:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={contact} autocomplete="name" />
-						</td>
-					</tr>
-				</tbody>
-			</table>
+			<CustomerInformationSection
+				comboboxId="fs-workshop-order-id"
+				bind:workshopOrderId
+				bind:customer
+				bind:email
+				bind:address
+				bind:phone
+				bind:city
+				bind:state={fsState}
+				bind:zip
+				bind:contact
+				onWorkshopOrderSelect={applyWorkshopOrder}
+			/>
 
-			<table class="form-table cell-stack" aria-label="Machine information">
-				<tbody>
-					<tr class="section-bar"><th colspan="4">Machine Information</th></tr>
-					<tr>
-						<td class="label-cell">Serial #:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={fsSerialNumber} />
-						</td>
-						<td class="label-cell">Hour Meter (Key):</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={hourMeterKey} />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell">Model #:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={modelNumber} />
-						</td>
-						<td class="label-cell">Hour Meter (Traction):</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={hourMeterTraction} />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell">Work Order #:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={workOrderNumber} />
-						</td>
-						<td class="label-cell">Hour Meter (Scrub):</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={hourMeterScrub} />
-						</td>
-					</tr>
-					<tr>
-						<td class="label-cell">Recharge #:</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={rechargeNumber} />
-						</td>
-						<td class="label-cell">Hour Meter (Vacuum):</td>
-						<td class="field-cell">
-							<input class="field" type="text" bind:value={hourMeterVacuum} />
-						</td>
-					</tr>
-				</tbody>
-			</table>
+			<MachineInformationSection
+				bind:serialNumber={fsSerialNumber}
+				bind:modelNumber
+				bind:hourMeterKey
+				bind:hourMeterTraction
+				bind:workOrderNumber
+				bind:hourMeterScrub
+				bind:rechargeNumber
+				bind:hourMeterVacuum
+			/>
 		{/if}
 
 		{#if type === 'pmis'}

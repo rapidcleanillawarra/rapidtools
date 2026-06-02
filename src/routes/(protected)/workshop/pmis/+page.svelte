@@ -101,12 +101,12 @@
 	<div class="screen-toolbar no-print">
 		<h1 class="screen-title">PMIS — Preventive Maintenance Inspection</h1>
 		<div class="screen-actions">
-			<button type="button" class="btn-secondary" on:click={clearForm}>Clear form</button>
-			<button type="button" class="btn-primary" on:click={printForm}>Print</button>
+			<button type="button" class="btn-secondary" onclick={clearForm}>Clear form</button>
+			<button type="button" class="btn-primary" onclick={printForm}>Print</button>
 		</div>
 	</div>
 
-	<form class="sheet" on:submit|preventDefault>
+	<form class="sheet" onsubmit={(e) => e.preventDefault()}>
 		<table class="form-table" aria-label="Form header">
 			<tbody>
 				<tr>
@@ -193,23 +193,13 @@
 					<tr>
 						<td>{row.task}</td>
 						<td class="status-cell">
-							<label class="status-radio" title="Pass">
+							<label class="status-checkbox" title={row.status === 'pass' ? 'Pass' : 'Fail'}>
 								<input
-									type="radio"
-									name="status-{section.title}-{i}"
-									value="pass"
-									bind:group={row.status}
+									type="checkbox"
+									checked={row.status === 'pass'}
+									onchange={(e) => (row.status = e.currentTarget.checked ? 'pass' : 'fail')}
 								/>
-								<span aria-hidden="true">✓</span>
-							</label>
-							<label class="status-radio" title="Fail">
-								<input
-									type="radio"
-									name="status-{section.title}-{i}"
-									value="fail"
-									bind:group={row.status}
-								/>
-								<span aria-hidden="true">✗</span>
+								<span aria-hidden="true">{row.status === 'pass' ? '✓' : '✗'}</span>
 							</label>
 						</td>
 						<td><input class="field" type="text" bind:value={row.notes} /></td>
@@ -518,16 +508,16 @@
 		padding: 4px 6px;
 	}
 
-	.status-radio {
+	.status-checkbox {
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
 		cursor: pointer;
-		margin: 0 6px;
+		margin: 0;
 		font-size: 11pt;
 	}
 
-	.status-radio input[type='radio'] {
+	.status-checkbox input[type='checkbox'] {
 		margin: 0;
 		flex-shrink: 0;
 	}
@@ -626,7 +616,7 @@
 		}
 
 		.checkbox-row input[type='checkbox'],
-		.status-radio input[type='radio'] {
+		.status-checkbox input[type='checkbox'] {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}

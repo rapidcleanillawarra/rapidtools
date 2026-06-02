@@ -51,7 +51,7 @@ function prepareCloneForCapture(root: HTMLElement): void {
 		)
 		.forEach((el) => el.remove());
 
-	root.querySelectorAll<HTMLInputElement>('input[type="text"]').forEach((input) => {
+	root.querySelectorAll<HTMLInputElement>('input.field').forEach((input) => {
 		const span = document.createElement('span');
 		span.textContent = input.value;
 		span.className = input.className;

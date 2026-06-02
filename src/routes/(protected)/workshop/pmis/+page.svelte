@@ -220,7 +220,11 @@
 									checked={row.status === 'pass'}
 									onchange={(e) => (row.status = e.currentTarget.checked ? 'pass' : 'fail')}
 								/>
-								<span aria-hidden="true">{row.status === 'pass' ? '✓' : '✗'}</span>
+								<span
+									class:status-pass={row.status === 'pass'}
+									class:status-fail={row.status === 'fail'}
+									aria-hidden="true">{row.status === 'pass' ? '✓' : '✗'}</span
+								>
 							</label>
 						</td>
 						<td><input class="field" type="text" bind:value={row.notes} /></td>
@@ -552,6 +556,16 @@
 		flex-shrink: 0;
 	}
 
+	.status-checkbox .status-pass {
+		color: #16a34a;
+		font-weight: 700;
+	}
+
+	.status-checkbox .status-fail {
+		color: #dc2626;
+		font-weight: 700;
+	}
+
 	.checklist .col-notes {
 		width: 32%;
 	}
@@ -646,7 +660,9 @@
 		}
 
 		.checkbox-row input[type='checkbox'],
-		.status-checkbox input[type='checkbox'] {
+		.status-checkbox input[type='checkbox'],
+		.status-checkbox .status-pass,
+		.status-checkbox .status-fail {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}

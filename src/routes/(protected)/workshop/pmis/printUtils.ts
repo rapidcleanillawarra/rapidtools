@@ -1,6 +1,8 @@
 import html2canvas from 'html2canvas';
 
 const CAPTURE_SCALE = 2;
+/** Approx. printable height on A4 with 8mm margins (CSS px at 96dpi). */
+const MAX_BLOCK_HEIGHT_PX = 1000;
 
 /** Load an image URL as a data URL (same-origin always works; remote needs CORS). */
 async function fetchImageDataUrl(url: string): Promise<string | null> {
@@ -73,11 +75,163 @@ function prepareCloneForCapture(root: HTMLElement): void {
 		input.style.display = 'none';
 	});
 
+	root.querySelectorAll<HTMLElement>('.status-checkbox .status-pass').forEach((el) => {
+		el.style.color = '#16a34a';
+		el.style.fontWeight = '700';
+	});
+
+	root.querySelectorAll<HTMLElement>('.status-checkbox .status-fail').forEach((el) => {
+		el.style.color = '#dc2626';
+		el.style.fontWeight = '700';
+	});
+
 	root.querySelectorAll<HTMLInputElement>('.checkbox-row input[type="checkbox"]').forEach((input) => {
 		input.style.width = '14px';
 		input.style.height = '14px';
 		input.style.flexShrink = '0';
 	});
+}
+
+type BlockStyles = {
+	width: number;
+	fontFamily: string;
+	fontSize: string;
+	color: string;
+};
+
+function buildTableFromRows(source: HTMLTableElement, rows: HTMLTableRowElement[]): HTMLTableElement {
+	const table = document.createElement('table');
+	table.className = source.className;
+	if (source.getAttribute('aria-label')) {
+		table.setAttribute('aria-label', source.getAttribute('aria-label')!);
+	}
+	const tbody = document.createElement('tbody');
+	for (const row of rows) {
+		tbody.appendChild(row.cloneNode(true));
+	}
+	table.appendChild(tbody);
+	return table;
+}
+
+/** Split a tall table into row groups that fit roughly one printed page each. */
+function splitTableIntoRowBlocks(table: HTMLTableElement): HTMLTableElement[] {
+	const tbody = table.querySelector('tbody');
+	if (!tbody) return [table];
+
+	const rows = [...tbody.querySelectorAll<HTMLTableRowElement>(':scope > tr')];
+	if (rows.length === 0) return [table];
+
+	if (table.offsetHeight <= MAX_BLOCK_HEIGHT_PX) return [table];
+
+	const blocks: HTMLTableElement[] = [];
+	let batch: HTMLTableRowElement[] = [];
+	let batchHeight = 0;
+
+	for (const row of rows) {
+		const rowHeight = row.offsetHeight || 24;
+		if (batch.length > 0 && batchHeight + rowHeight > MAX_BLOCK_HEIGHT_PX) {
+			blocks.push(buildTableFromRows(table, batch));
+			batch = [];
+			batchHeight = 0;
+		}
+		batch.push(row);
+		batchHeight += rowHeight;
+	}
+
+	if (batch.length > 0) blocks.push(buildTableFromRows(table, batch));
+	return blocks.length > 0 ? blocks : [table];
+}
+
+function collectPrintBlocks(clone: HTMLElement): HTMLTableElement[] {
+	const tables = [...clone.querySelectorAll<HTMLTableElement>('table.form-table')];
+	const blocks: HTMLTableElement[] = [];
+
+	for (const table of tables) {
+		blocks.push(...splitTableIntoRowBlocks(table));
+	}
+
+	return blocks;
+}
+
+function createCaptureWrapper(styles: BlockStyles): HTMLDivElement {
+	const wrapper = document.createElement('div');
+	wrapper.className = 'pmis-page';
+	wrapper.style.position = 'fixed';
+	wrapper.style.left = '-9999px';
+	wrapper.style.top = '0';
+	wrapper.style.width = `${styles.width}px`;
+	wrapper.style.background = '#fff';
+	wrapper.style.padding = '0';
+	wrapper.style.fontFamily = styles.fontFamily;
+	wrapper.style.fontSize = styles.fontSize;
+	wrapper.style.color = styles.color;
+	return wrapper;
+}
+
+async function captureBlock(
+	table: HTMLTableElement,
+	styles: BlockStyles
+): Promise<string> {
+	const wrapper = createCaptureWrapper(styles);
+	wrapper.appendChild(table.cloneNode(true));
+	document.body.appendChild(wrapper);
+
+	try {
+		const canvas = await html2canvas(wrapper, {
+			scale: CAPTURE_SCALE,
+			useCORS: true,
+			backgroundColor: '#ffffff',
+			logging: false
+		});
+		return canvas.toDataURL('image/png');
+	} finally {
+		wrapper.remove();
+	}
+}
+
+function openPrintWindow(imageDataUrls: string[]): void {
+	const printWindow = window.open('', '_blank');
+	if (!printWindow) {
+		throw new Error('Please allow pop-ups to print the form');
+	}
+
+	const blocksHtml = imageDataUrls
+		.map(
+			(src) =>
+				`<div class="print-block"><img src="${src}" alt="" /></div>`
+		)
+		.join('\n');
+
+	printWindow.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>PMIS — Print</title>
+  <style>
+    @page { margin: 8mm; size: A4; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    .print-block {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .print-block img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+  ${blocksHtml}
+  <script>
+    window.onload = function () {
+      window.print();
+      window.onafterprint = function () { window.close(); };
+    };
+  <\/script>
+</body>
+</html>`);
+	printWindow.document.close();
 }
 
 export async function printSheetElement(
@@ -87,18 +241,14 @@ export async function printSheetElement(
 	const pageEl = sheetEl.closest('.pmis-page') ?? sheetEl;
 	const pageStyles = window.getComputedStyle(pageEl);
 
-	const wrapper = document.createElement('div');
-	wrapper.className = 'pmis-page';
-	wrapper.style.position = 'fixed';
-	wrapper.style.left = '-9999px';
-	wrapper.style.top = '0';
-	wrapper.style.width = `${sheetEl.offsetWidth}px`;
-	wrapper.style.background = '#fff';
-	wrapper.style.padding = '0';
-	wrapper.style.fontFamily = pageStyles.fontFamily;
-	wrapper.style.fontSize = pageStyles.fontSize;
-	wrapper.style.color = pageStyles.color;
+	const styles: BlockStyles = {
+		width: sheetEl.offsetWidth,
+		fontFamily: pageStyles.fontFamily,
+		fontSize: pageStyles.fontSize,
+		color: pageStyles.color
+	};
 
+	const wrapper = createCaptureWrapper(styles);
 	const clone = sheetEl.cloneNode(true) as HTMLElement;
 	wrapper.appendChild(clone);
 	document.body.appendChild(wrapper);
@@ -107,41 +257,18 @@ export async function printSheetElement(
 		prepareCloneForCapture(clone);
 		await inlineImagesForCapture(clone, logoFallbackUrl);
 
-		const canvas = await html2canvas(wrapper, {
-			scale: CAPTURE_SCALE,
-			useCORS: true,
-			backgroundColor: '#ffffff',
-			logging: false
-		});
+		const printTables = collectPrintBlocks(clone);
+		const imageDataUrls: string[] = [];
 
-		const imgData = canvas.toDataURL('image/png');
-		const printWindow = window.open('', '_blank');
-		if (!printWindow) {
-			throw new Error('Please allow pop-ups to print the form');
+		for (const table of printTables) {
+			imageDataUrls.push(await captureBlock(table, styles));
 		}
 
-		printWindow.document.write(`<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>PMIS — Print</title>
-  <style>
-    @page { margin: 8mm; size: auto; }
-    html, body { margin: 0; padding: 0; background: #fff; }
-    img { display: block; width: 100%; height: auto; }
-  </style>
-</head>
-<body>
-  <img src="${imgData}" alt="PMIS form" />
-  <script>
-    window.onload = function () {
-      window.print();
-      window.onafterprint = function () { window.close(); };
-    };
-  <\/script>
-</body>
-</html>`);
-		printWindow.document.close();
+		if (imageDataUrls.length === 0) {
+			throw new Error('Nothing to print');
+		}
+
+		openPrintWindow(imageDataUrls);
 	} finally {
 		wrapper.remove();
 	}

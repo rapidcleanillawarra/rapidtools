@@ -32,6 +32,9 @@
 		type FloorScrubberChecklistRowDraft
 	} from './pmStorage';
 	import { printSheetElement } from './printUtils';
+	import { supabase } from '$lib/supabase';
+	import { currentUser } from '$lib/firebase';
+	import { get } from 'svelte/store';
 
 	// Props
 	interface Props {
@@ -137,6 +140,172 @@
 	let printing = $state(false);
 	let printError = $state('');
 
+	// Save to DB states
+	let saving = $state(false);
+	let saveError = $state('');
+	let saveSuccess = $state(false);
+	let savedId = $state<string | null>(null); // track existing record for upserts
+
+	// ── Saved Records Sidebar ────────────────────────────────────────────────
+	type SavedRecord = {
+		id: string;
+		customer_name: string;
+		site_location: string | null;
+		technician_name: string;
+		inspection_date: string;
+		machine_model: string;
+		serial_number: string;
+		work_order_number: string | null;
+		checklist_data: unknown;
+		parts_replaced: unknown;
+		equipment_details: unknown;
+		recommendations: unknown;
+		signatures: unknown;
+		created_at: string;
+	};
+
+	let savedRecords = $state<SavedRecord[]>([]);
+	let recordsLoading = $state(false);
+	let recordsError = $state('');
+	let deletingId = $state<string | null>(null);
+	let sidebarOpen = $state(true);
+
+	async function fetchSavedRecords() {
+		recordsLoading = true;
+		recordsError = '';
+		try {
+			const { data, error } = await supabase
+				.from('workshop_pm_inspections')
+				.select('id, customer_name, site_location, technician_name, inspection_date, machine_model, serial_number, work_order_number, checklist_data, parts_replaced, equipment_details, recommendations, signatures, created_at')
+				.eq('type', type)
+				.order('created_at', { ascending: false })
+				.limit(50);
+			if (error) throw error;
+			savedRecords = (data ?? []) as SavedRecord[];
+		} catch (err) {
+			recordsError = err instanceof Error ? err.message : 'Failed to load records';
+		} finally {
+			recordsLoading = false;
+		}
+	}
+
+	function loadRecord(rec: SavedRecord) {
+		if (type === 'pmis') {
+			const cd = rec.checklist_data as { title: string; rows: { task: string; status: string; notes: string }[] }[];
+			const pr = rec.parts_replaced as { part: string; qty: string; notes: string }[];
+			const eq = rec.equipment_details as { hoursRun?: string; contactPerson?: string } | null;
+			const recs = rec.recommendations as {
+				recNone?: boolean; recMinor?: boolean; recMajor?: boolean; recReplace?: boolean;
+				recDetails?: string; outcomeCompleted?: boolean; outcomePartial?: boolean; outcomeUnsafe?: boolean;
+			} | null;
+			const sigs = rec.signatures as { techSignature?: string; customerRep?: string } | null;
+
+			// Convert DB date YYYY-MM-DD → DD / MM / YYYY for the form field
+			function isoToDisplay(iso: string): string {
+				const parts = iso.split('-');
+				if (parts.length === 3) return `${parts[2]} / ${parts[1]} / ${parts[0]}`;
+				return iso;
+			}
+
+			applyPmisDraft({
+				customerName: rec.customer_name ?? '',
+				siteLocation: rec.site_location ?? '',
+				contactPerson: eq?.contactPerson ?? '',
+				technicianName: rec.technician_name ?? '',
+				inspectionDate: isoToDisplay(rec.inspection_date ?? ''),
+				machineModel: rec.machine_model ?? '',
+				serialNumber: rec.serial_number ?? '',
+				assetId: rec.work_order_number ?? '',
+				hoursRun: eq?.hoursRun ?? '',
+				checklistSections: Array.isArray(cd) ? cd.map((s) => ({
+					title: s.title,
+					rows: s.rows.map((r) => ({ task: r.task, status: r.status as import('./pmStorage').ChecklistStatus, notes: r.notes }))
+				})) : [],
+				parts: Array.isArray(pr) ? pr : [],
+				recNone: !!recs?.recNone,
+				recMinor: !!recs?.recMinor,
+				recMajor: !!recs?.recMajor,
+				recReplace: !!recs?.recReplace,
+				recDetails: recs?.recDetails ?? '',
+				outcomeCompleted: !!recs?.outcomeCompleted,
+				outcomePartial: !!recs?.outcomePartial,
+				outcomeUnsafe: !!recs?.outcomeUnsafe,
+				techSignature: sigs?.techSignature ?? '',
+				customerRep: sigs?.customerRep ?? ''
+			});
+		} else {
+			const eq = rec.equipment_details as Record<string, unknown> | null;
+			const ci = eq?.customerInfo as Record<string, string> | undefined;
+			const sigs = rec.signatures as Record<string, string> | null;
+
+			applyFsDraft({
+				customer: rec.customer_name ?? '',
+				email: ci?.email ?? '',
+				address: rec.site_location ?? '',
+				phone: ci?.phone ?? '',
+				city: ci?.city ?? '',
+				state: ci?.state ?? '',
+				zip: ci?.zip ?? '',
+				contact: ci?.contact ?? '',
+				serialNumber: rec.serial_number ?? '',
+				hourMeterKey: (eq?.hourMeterKey as string) ?? '',
+				modelNumber: rec.machine_model ?? '',
+				hourMeterTraction: (eq?.hourMeterTraction as string) ?? '',
+				workOrderNumber: rec.work_order_number ?? '',
+				hourMeterScrub: (eq?.hourMeterScrub as string) ?? '',
+				rechargeNumber: (eq?.rechargeNumber as string) ?? '',
+				hourMeterVacuum: (eq?.hourMeterVacuum as string) ?? '',
+				checklistSections: Array.isArray(rec.checklist_data) ? (rec.checklist_data as import('./pmStorage').FloorScrubberChecklistSectionDraft[]) : [],
+				battery1: eq?.battery1 as import('./pmStorage').BatteryCellRow[] | undefined,
+				battery2: eq?.battery2 as import('./pmStorage').BatteryCellRow[] | undefined,
+				brushCondition: eq?.brushCondition as import('./pmStorage').BrushConditionState | undefined,
+				operationCheckPre: eq?.operationCheckPre as import('./pmStorage').FloorScrubberChecklistRowDraft[] | undefined,
+				operationCheckPost: eq?.operationCheckPost as import('./pmStorage').FloorScrubberChecklistRowDraft[] | undefined,
+				operationFooter: sigs ? {
+					comments: (eq?.operationFooter as Record<string, string>)?.comments ?? '',
+					testTag3Month: (eq?.operationFooter as Record<string, string>)?.testTag3Month ?? '',
+					testTag6Month: (eq?.operationFooter as Record<string, string>)?.testTag6Month ?? '',
+					testTag12Month: (eq?.operationFooter as Record<string, string>)?.testTag12Month ?? '',
+					technicianName: sigs.technicianName ?? '',
+					technicianDate: sigs.technicianDate ?? '',
+					technicianSignature: sigs.technicianSignature ?? '',
+					customerName: sigs.customerName ?? '',
+					customerDate: sigs.customerDate ?? '',
+					customerSignature: sigs.customerSignature ?? ''
+				} : undefined
+			});
+		}
+		savedId = rec.id;
+	}
+
+	async function deleteRecord(id: string) {
+		if (!confirm('Delete this saved record? This cannot be undone.')) return;
+		deletingId = id;
+		try {
+			const { error } = await supabase
+				.from('workshop_pm_inspections')
+				.delete()
+				.eq('id', id);
+			if (error) throw error;
+			savedRecords = savedRecords.filter((r) => r.id !== id);
+			if (savedId === id) {
+				savedId = null;
+			}
+		} catch (err) {
+			recordsError = err instanceof Error ? err.message : 'Failed to delete record';
+		} finally {
+			deletingId = null;
+		}
+	}
+
+	function formatRecordDate(iso: string): string {
+		try {
+			return new Date(iso).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+		} catch {
+			return iso;
+		}
+	}
+
 	async function printForm() {
 		if (!sheetEl || printing) return;
 		printing = true;
@@ -160,7 +329,124 @@
 		}
 	}
 
-	// Draft builders
+	// ── Save to Supabase ────────────────────────────────────────────────────
+
+	/** Convert "DD / MM / YYYY" → ISO "YYYY-MM-DD", falling back to today */
+	function parseInspectionDate(raw: string): string {
+		const parts = raw.replace(/\s/g, '').split('/');
+		if (parts.length === 3) {
+			const [dd, mm, yyyy] = parts;
+			if (dd && mm && yyyy) return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+		}
+		return new Date().toISOString().slice(0, 10);
+	}
+
+	function buildPmisPayload() {
+		return {
+			type: 'pmis' as const,
+			customer_name: customerName || 'Unknown',
+			site_location: siteLocation || null,
+			technician_name: technicianName || 'Unknown',
+			inspection_date: parseInspectionDate(inspectionDate),
+			machine_model: machineModel || 'Unknown',
+			serial_number: serialNumber || '',
+			work_order_number: assetId || null,
+			status: 'completed' as const,
+			checklist_data: pmisChecklistSections.map((s) => ({
+				title: s.title,
+				rows: s.rows.map((r) => ({ task: r.task, status: r.status, notes: r.notes }))
+			})),
+			parts_replaced: parts.filter((p) => p.part.trim()),
+			equipment_details: { hoursRun, contactPerson },
+			recommendations: {
+				recNone, recMinor, recMajor, recReplace, recDetails,
+				outcomeCompleted, outcomePartial, outcomeUnsafe
+			},
+			signatures: { techSignature, customerRep },
+			created_by: get(currentUser)?.email ?? null
+		};
+	}
+
+	function buildFsPayload() {
+		return {
+			type: 'floor_scrubber' as const,
+			customer_name: customer || 'Unknown',
+			site_location: address || null,
+			technician_name: operationFooter.technicianName || 'Unknown',
+			inspection_date: new Date().toISOString().slice(0, 10),
+			machine_model: modelNumber || 'Unknown',
+			serial_number: fsSerialNumber || '',
+			work_order_number: workOrderNumber || null,
+			status: 'completed' as const,
+			checklist_data: fsChecklistSections.map((s) => ({
+				title: s.title,
+				rows: s.rows.map((r) => ({ task: r.task, inSpec: r.inSpec, repair: r.repair, problem: r.problem }))
+			})),
+			parts_replaced: [],
+			equipment_details: {
+				customerInfo: { email, phone, city, state: fsState, zip, contact },
+				hourMeterKey, hourMeterTraction, hourMeterScrub, hourMeterVacuum, rechargeNumber,
+				battery1: battery1.map((c) => ({ ...c })),
+				battery2: battery2.map((c) => ({ ...c })),
+				brushCondition: { ...brushCondition },
+				operationCheckPre: operationCheckPre.map((r) => ({ ...r })),
+				operationCheckPost: operationCheckPost.map((r) => ({ ...r })),
+				operationFooter: { ...operationFooter }
+			},
+			recommendations: null,
+			signatures: {
+				technicianName: operationFooter.technicianName,
+				technicianDate: operationFooter.technicianDate,
+				technicianSignature: operationFooter.technicianSignature,
+				customerName: operationFooter.customerName,
+				customerDate: operationFooter.customerDate,
+				customerSignature: operationFooter.customerSignature
+			},
+			created_by: get(currentUser)?.email ?? null
+		};
+	}
+
+	async function saveForm() {
+		if (saving) return;
+		saving = true;
+		saveError = '';
+		saveSuccess = false;
+
+		try {
+			const payload = type === 'pmis' ? buildPmisPayload() : buildFsPayload();
+
+			let result;
+			if (savedId) {
+				// Update existing record
+				result = await supabase
+					.from('workshop_pm_inspections')
+					.update(payload)
+					.eq('id', savedId)
+					.select('id')
+					.single();
+			} else {
+				// Insert new record
+				result = await supabase
+					.from('workshop_pm_inspections')
+					.insert(payload)
+					.select('id')
+					.single();
+			}
+
+			if (result.error) throw result.error;
+			savedId = result.data?.id ?? savedId;
+			saveSuccess = true;
+			setTimeout(() => (saveSuccess = false), 3000);
+			await fetchSavedRecords();
+		} catch (err) {
+			saveError = err instanceof Error ? err.message : 'Failed to save. Please try again.';
+		} finally {
+			saving = false;
+		}
+	}
+
+	// ── Draft builders ───────────────────────────────────────────────────────
+
 	function buildPmisDraft(): PmisDraft {
 		return {
 			customerName,
@@ -462,6 +748,7 @@
 			const draft = loadFloorScrubberDraft();
 			if (draft) applyFsDraft(draft);
 		}
+		fetchSavedRecords();
 	});
 </script>
 
@@ -478,12 +765,31 @@
 			{#if printError}
 				<p class="print-error" role="alert">{printError}</p>
 			{/if}
-			<button type="button" class="btn-secondary" onclick={clearForm} disabled={printing}>Clear form</button>
-			<button type="button" class="btn-primary" onclick={printForm} disabled={printing}>
+			{#if saveError}
+				<p class="print-error" role="alert">{saveError}</p>
+			{/if}
+			{#if saveSuccess}
+				<p class="save-success" role="status">✓ Saved successfully</p>
+			{/if}
+			<button type="button" class="btn-secondary" onclick={clearForm} disabled={printing || saving}>Clear form</button>
+			<button type="button" class="btn-save" onclick={saveForm} disabled={saving || printing}>
+				{saving ? 'Saving…' : savedId ? 'Update' : 'Save'}
+			</button>
+			<button type="button" class="btn-primary" onclick={printForm} disabled={printing || saving}>
 				{printing ? 'Preparing…' : 'Print'}
+			</button>
+			<button
+				type="button"
+				class="btn-sidebar-toggle"
+				onclick={() => (sidebarOpen = !sidebarOpen)}
+				aria-label={sidebarOpen ? 'Hide saved records' : 'Show saved records'}
+			>
+				{sidebarOpen ? '▶ Hide Records' : '◀ Saved Records'}
 			</button>
 		</div>
 	</div>
+
+	<div class="page-layout no-print-sidebar">
 
 	<form
 		bind:this={sheetEl}
@@ -1127,6 +1433,63 @@
 			{/each}
 		{/if}
 	</form>
+
+		<!-- Saved Records Sidebar -->
+		{#if sidebarOpen}
+		<aside class="saved-sidebar no-print">
+			<div class="sidebar-header">
+				<span class="sidebar-title">Saved Records</span>
+				<button
+					type="button"
+					class="sidebar-refresh"
+					onclick={fetchSavedRecords}
+					disabled={recordsLoading}
+					aria-label="Refresh records"
+				>↻</button>
+			</div>
+
+			{#if recordsError}
+				<p class="sidebar-error">{recordsError}</p>
+			{/if}
+
+			{#if recordsLoading}
+				<p class="sidebar-loading">Loading…</p>
+			{:else if savedRecords.length === 0}
+				<p class="sidebar-empty">No saved records yet.</p>
+			{:else}
+				<ul class="sidebar-list">
+					{#each savedRecords as rec (rec.id)}
+						<li class="sidebar-item" class:sidebar-item--active={savedId === rec.id}>
+							<button
+								type="button"
+								class="sidebar-load-btn"
+								onclick={() => loadRecord(rec)}
+								title="Load this record into the form"
+							>
+								<span class="sidebar-customer">{rec.customer_name}</span>
+								<span class="sidebar-meta">{rec.machine_model || '—'} · {rec.serial_number || '—'}</span>
+								<span class="sidebar-date">{formatRecordDate(rec.inspection_date)}</span>
+								{#if rec.technician_name}
+									<span class="sidebar-tech">Tech: {rec.technician_name}</span>
+								{/if}
+							</button>
+							<button
+								type="button"
+								class="sidebar-delete-btn"
+								onclick={() => deleteRecord(rec.id)}
+								disabled={deletingId === rec.id}
+								aria-label="Delete record"
+								title="Delete this record"
+							>
+								{deletingId === rec.id ? '…' : '🗑'}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</aside>
+		{/if}
+	</div>
 </div>
 
 <style>
@@ -1149,9 +1512,198 @@
 		box-sizing: border-box;
 	}
 
+	/* Two-column layout: form on left, sidebar on right */
+	.page-layout {
+		display: flex;
+		align-items: flex-start;
+		gap: 20px;
+	}
+
+	.page-layout .sheet {
+		flex: 1 1 0;
+		min-width: 0;
+	}
+
+	/* Sidebar */
+	.saved-sidebar {
+		flex: 0 0 260px;
+		width: 260px;
+		position: sticky;
+		top: 16px;
+		max-height: calc(100vh - 48px);
+		overflow-y: auto;
+		border: 1px solid #d1d5db;
+		border-radius: 10px;
+		background: #f9fafb;
+		font-family: system-ui, sans-serif;
+		color: #111;
+		font-size: 0.8125rem;
+	}
+
+	.sidebar-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 12px 14px 10px;
+		border-bottom: 1px solid #e5e7eb;
+		position: sticky;
+		top: 0;
+		background: #f9fafb;
+		z-index: 1;
+	}
+
+	.sidebar-title {
+		font-weight: 700;
+		font-size: 0.875rem;
+		letter-spacing: 0.01em;
+		color: #111;
+	}
+
+	.sidebar-refresh {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 1rem;
+		color: #6b7280;
+		padding: 2px 4px;
+		border-radius: 4px;
+		transition: color 0.15s, background 0.15s;
+	}
+
+	.sidebar-refresh:hover:not(:disabled) {
+		color: #111;
+		background: #e5e7eb;
+	}
+
+	.sidebar-refresh:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.sidebar-loading,
+	.sidebar-empty,
+	.sidebar-error {
+		padding: 16px 14px;
+		margin: 0;
+		color: #6b7280;
+		font-size: 0.8125rem;
+	}
+
+	.sidebar-error {
+		color: #b91c1c;
+	}
+
+	.sidebar-list {
+		list-style: none;
+		margin: 0;
+		padding: 6px 0;
+	}
+
+	.sidebar-item {
+		display: flex;
+		align-items: stretch;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.sidebar-item:last-child {
+		border-bottom: none;
+	}
+
+	.sidebar-item--active .sidebar-load-btn {
+		background: #eff6ff;
+		border-left: 3px solid #2563eb;
+	}
+
+	.sidebar-load-btn {
+		flex: 1;
+		background: none;
+		border: none;
+		border-left: 3px solid transparent;
+		text-align: left;
+		cursor: pointer;
+		padding: 10px 10px 10px 11px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		transition: background 0.13s;
+	}
+
+	.sidebar-load-btn:hover {
+		background: #f0f4ff;
+	}
+
+	.sidebar-customer {
+		font-weight: 600;
+		font-size: 0.8125rem;
+		color: #111;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 170px;
+	}
+
+	.sidebar-meta {
+		font-size: 0.75rem;
+		color: #6b7280;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		max-width: 170px;
+	}
+
+	.sidebar-date {
+		font-size: 0.75rem;
+		color: #9ca3af;
+	}
+
+	.sidebar-tech {
+		font-size: 0.7rem;
+		color: #9ca3af;
+		font-style: italic;
+	}
+
+	.sidebar-delete-btn {
+		background: none;
+		border: none;
+		cursor: pointer;
+		padding: 0 10px;
+		color: #9ca3af;
+		font-size: 1rem;
+		transition: color 0.13s, background 0.13s;
+		display: flex;
+		align-items: center;
+	}
+
+	.sidebar-delete-btn:hover:not(:disabled) {
+		color: #dc2626;
+		background: #fef2f2;
+	}
+
+	.sidebar-delete-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.btn-sidebar-toggle {
+		padding: 8px 14px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		border-radius: 6px;
+		cursor: pointer;
+		border: 1px solid #d1d5db;
+		background: #f9fafb;
+		color: #374151;
+		transition: background 0.13s, border-color 0.13s;
+	}
+
+	.btn-sidebar-toggle:hover {
+		background: #e5e7eb;
+		border-color: #9ca3af;
+	}
+
 	.screen-toolbar {
-		max-width: 900px;
-		margin: 0 auto 16px;
+		max-width: none;
+		margin: 0 0 16px;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
@@ -1207,6 +1759,33 @@
 
 	.btn-secondary:hover {
 		background: #f5f5f5;
+	}
+
+	.btn-save {
+		padding: 8px 16px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		border-radius: 6px;
+		cursor: pointer;
+		border: 1px solid transparent;
+		background: #16a34a;
+		color: #fff;
+	}
+
+	.btn-save:hover:not(:disabled) {
+		background: #15803d;
+	}
+
+	.btn-save:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	.save-success {
+		margin: 0;
+		font-size: 0.8125rem;
+		color: #16a34a;
+		font-weight: 500;
 	}
 
 	.sheet {
@@ -1695,6 +2274,14 @@
 
 		.no-print {
 			display: none !important;
+		}
+
+		.saved-sidebar {
+			display: none !important;
+		}
+
+		.page-layout {
+			display: block;
 		}
 
 		.pmis-page,

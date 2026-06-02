@@ -44,6 +44,13 @@ async function inlineImagesForCapture(clone: HTMLElement, logoFallbackUrl: strin
 
 /** Replace form controls with static text so html2canvas matches on-screen values. */
 function prepareCloneForCapture(root: HTMLElement): void {
+	// html2canvas ignores @media print — strip interactive combobox chrome from the clone
+	root
+		.querySelectorAll<HTMLElement>(
+			'.order-combobox-clear, .order-combobox-list, .order-combobox-error'
+		)
+		.forEach((el) => el.remove());
+
 	root.querySelectorAll<HTMLInputElement>('input[type="text"]').forEach((input) => {
 		const span = document.createElement('span');
 		span.textContent = input.value;

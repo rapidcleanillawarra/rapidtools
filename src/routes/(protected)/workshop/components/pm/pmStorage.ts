@@ -18,6 +18,7 @@ export type PmisPartRowDraft = {
 };
 
 export type PmisDraft = {
+	workshopOrderId: string;
 	customerName: string;
 	siteLocation: string;
 	contactPerson: string;
@@ -88,6 +89,7 @@ export type OperationFooterState = {
 };
 
 export type FloorScrubberDraft = {
+	workshopOrderId: string;
 	customer: string;
 	email: string;
 	address: string;

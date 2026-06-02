@@ -32,6 +32,9 @@
 		type FloorScrubberChecklistRowDraft
 	} from './pmStorage';
 	import { printSheetElement } from './printUtils';
+	import WorkshopOrderCombobox, {
+		type WorkshopOrderOption
+	} from './WorkshopOrderCombobox.svelte';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { get } from 'svelte/store';
@@ -74,6 +77,7 @@
 	}
 
 	// PMIS specific states (runes)
+	let workshopOrderId = $state('');
 	let customerName = $state('');
 	let siteLocation = $state('');
 	let contactPerson = $state('');
@@ -193,7 +197,11 @@
 		if (type === 'pmis') {
 			const cd = rec.checklist_data as { title: string; rows: { task: string; status: string; notes: string }[] }[];
 			const pr = rec.parts_replaced as { part: string; qty: string; notes: string }[];
-			const eq = rec.equipment_details as { hoursRun?: string; contactPerson?: string } | null;
+			const eq = rec.equipment_details as {
+				hoursRun?: string;
+				contactPerson?: string;
+				workshopOrderId?: string;
+			} | null;
 			const recs = rec.recommendations as {
 				recNone?: boolean; recMinor?: boolean; recMajor?: boolean; recReplace?: boolean;
 				recDetails?: string; outcomeCompleted?: boolean; outcomePartial?: boolean; outcomeUnsafe?: boolean;
@@ -208,6 +216,7 @@
 			}
 
 			applyPmisDraft({
+				workshopOrderId: eq?.workshopOrderId ?? '',
 				customerName: rec.customer_name ?? '',
 				siteLocation: rec.site_location ?? '',
 				contactPerson: eq?.contactPerson ?? '',
@@ -239,6 +248,7 @@
 			const sigs = rec.signatures as Record<string, string> | null;
 
 			applyFsDraft({
+				workshopOrderId: (eq?.workshopOrderId as string) ?? '',
 				customer: rec.customer_name ?? '',
 				email: ci?.email ?? '',
 				address: rec.site_location ?? '',
@@ -357,7 +367,7 @@
 				rows: s.rows.map((r) => ({ task: r.task, status: r.status, notes: r.notes }))
 			})),
 			parts_replaced: parts.filter((p) => p.part.trim()),
-			equipment_details: { hoursRun, contactPerson },
+			equipment_details: { hoursRun, contactPerson, workshopOrderId: workshopOrderId || null },
 			recommendations: {
 				recNone, recMinor, recMajor, recReplace, recDetails,
 				outcomeCompleted, outcomePartial, outcomeUnsafe
@@ -384,6 +394,7 @@
 			})),
 			parts_replaced: [],
 			equipment_details: {
+				workshopOrderId: workshopOrderId || null,
 				customerInfo: { email, phone, city, state: fsState, zip, contact },
 				hourMeterKey, hourMeterTraction, hourMeterScrub, hourMeterVacuum, rechargeNumber,
 				battery1: battery1.map((c) => ({ ...c })),
@@ -447,8 +458,26 @@
 
 	// ── Draft builders ───────────────────────────────────────────────────────
 
+	function applyWorkshopOrder(option: WorkshopOrderOption) {
+		if (type === 'pmis') {
+			if (option.customerName) customerName = option.customerName;
+			if (option.siteLocation) siteLocation = option.siteLocation;
+			if (option.makeModel) machineModel = option.makeModel;
+			if (option.serialNumber) serialNumber = option.serialNumber;
+			if (option.clientsWorkOrder && !assetId) assetId = option.clientsWorkOrder;
+		} else {
+			if (option.customerName) customer = option.customerName;
+			if (option.siteLocation) address = option.siteLocation;
+			if (option.makeModel) modelNumber = option.makeModel;
+			if (option.serialNumber) fsSerialNumber = option.serialNumber;
+			if (option.clientsWorkOrder && !workOrderNumber) workOrderNumber = option.clientsWorkOrder;
+		}
+		persistDraft();
+	}
+
 	function buildPmisDraft(): PmisDraft {
 		return {
+			workshopOrderId,
 			customerName,
 			siteLocation,
 			contactPerson,
@@ -482,6 +511,7 @@
 
 	function buildFsDraft(): FloorScrubberDraft {
 		return {
+			workshopOrderId,
 			customer,
 			email,
 			address,
@@ -526,6 +556,7 @@
 
 	// Apply drafts
 	function applyPmisDraft(draft: PmisDraft) {
+		workshopOrderId = draft.workshopOrderId ?? '';
 		customerName = draft.customerName ?? '';
 		siteLocation = draft.siteLocation ?? '';
 		contactPerson = draft.contactPerson ?? '';
@@ -635,6 +666,7 @@
 	}
 
 	function applyFsDraft(draft: FloorScrubberDraft) {
+		workshopOrderId = draft.workshopOrderId ?? '';
 		customer = draft.customer ?? '';
 		email = draft.email ?? '';
 		address = draft.address ?? '';
@@ -681,6 +713,7 @@
 	// Reset forms
 	function clearForm() {
 		if (type === 'pmis') {
+			workshopOrderId = '';
 			customerName = '';
 			siteLocation = '';
 			contactPerson = '';
@@ -707,6 +740,7 @@
 			customerRep = '';
 			clearPmisDraft();
 		} else {
+			workshopOrderId = '';
 			customer = '';
 			email = '';
 			address = '';
@@ -832,6 +866,16 @@
 				<tbody>
 					<tr class="section-bar"><th colspan="4">1. Job &amp; Asset Details</th></tr>
 					<tr>
+						<td class="label-cell">Workshop Order ID:</td>
+						<td class="field-cell" colspan="3">
+							<WorkshopOrderCombobox
+								id="pmis-workshop-order-id"
+								bind:value={workshopOrderId}
+								onselect={applyWorkshopOrder}
+							/>
+						</td>
+					</tr>
+					<tr>
 						<td class="label-cell" colspan="1">Customer Name:</td>
 						<td class="field-cell" colspan="3">
 							<input class="field" type="text" bind:value={customerName} autocomplete="organization" />
@@ -890,6 +934,16 @@
 			<table class="form-table cell-stack" aria-label="Customer information">
 				<tbody>
 					<tr class="section-bar"><th colspan="4">Customer Information</th></tr>
+					<tr>
+						<td class="label-cell">Workshop Order ID:</td>
+						<td class="field-cell" colspan="3">
+							<WorkshopOrderCombobox
+								id="fs-workshop-order-id"
+								bind:value={workshopOrderId}
+								onselect={applyWorkshopOrder}
+							/>
+						</td>
+					</tr>
 					<tr>
 						<td class="label-cell">Customer:</td>
 						<td class="field-cell">
@@ -2272,7 +2326,7 @@
 			background: #fff;
 		}
 
-		.no-print {
+		:global(.no-print) {
 			display: none !important;
 		}
 

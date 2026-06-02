@@ -3,6 +3,16 @@
 	import { base } from '$app/paths';
 	import { CHECKLIST_SECTIONS } from './checklist-data';
 	import {
+		createBatteryCells,
+		createBrushCondition,
+		type BatteryCellRow,
+		type BrushConditionState,
+		type BrushPartStatus,
+		type WaterClarity,
+		type WaterLevel,
+		type YesNo
+	} from './battery-brush-data';
+	import {
 		clearFloorScrubberDraft,
 		loadFloorScrubberDraft,
 		saveFloorScrubberDraft,
@@ -12,6 +22,7 @@
 
 	const LOGO_URL = `${base}/company_logo_white.webp`;
 	const LOGO_PRINT_FALLBACK = LOGO_URL;
+	const BATTERY_LAYOUT_IMAGE_URL = `${base}/pm_floor_scrubber_battery_layout.svg`;
 
 	type ChecklistRow = { task: string; inSpec: boolean; repair: boolean; problem: string };
 
@@ -41,6 +52,10 @@
 		...section,
 		rows: createChecklistRows(section.tasks)
 	}));
+
+	let battery1 = createBatteryCells();
+	let battery2 = createBatteryCells();
+	let brushCondition = createBrushCondition();
 
 	let sheetEl: HTMLFormElement | undefined;
 	let printing = false;
@@ -88,7 +103,37 @@
 					repair: row.repair,
 					problem: row.problem
 				}))
-			}))
+			})),
+			battery1: battery1.map((cell) => ({ ...cell })),
+			battery2: battery2.map((cell) => ({ ...cell })),
+			brushCondition: { ...brushCondition }
+		};
+	}
+
+	function mergeBatteryCells(saved: BatteryCellRow[] | undefined): BatteryCellRow[] {
+		const defaults = createBatteryCells();
+		if (!saved?.length) return defaults;
+		return defaults.map((cell) => {
+			const match = saved.find((s) => s.label === cell.label);
+			if (!match) return cell;
+			return {
+				label: cell.label,
+				hydrometerReading: match.hydrometerReading ?? '',
+				waterClarity: match.waterClarity ?? '',
+				waterLevel: match.waterLevel ?? ''
+			};
+		});
+	}
+
+	function mergeBrushCondition(saved: BrushConditionState | undefined): BrushConditionState {
+		const defaults = createBrushCondition();
+		if (!saved) return defaults;
+		return {
+			brush1Length: saved.brush1Length ?? '',
+			rotatedBrushes: saved.rotatedBrushes ?? '',
+			femaleBrushSocket: saved.femaleBrushSocket ?? '',
+			maleHub: saved.maleHub ?? '',
+			diskPadDriver: saved.diskPadDriver ?? ''
 		};
 	}
 
@@ -128,6 +173,10 @@
 			});
 			return { ...section, rows };
 		});
+
+		battery1 = mergeBatteryCells(draft.battery1);
+		battery2 = mergeBatteryCells(draft.battery2);
+		brushCondition = mergeBrushCondition(draft.brushCondition);
 	}
 
 	function clearForm() {
@@ -151,6 +200,9 @@
 			...section,
 			rows: createChecklistRows(section.tasks)
 		}));
+		battery1 = createBatteryCells();
+		battery2 = createBatteryCells();
+		brushCondition = createBrushCondition();
 		clearFloorScrubberDraft();
 	}
 
@@ -184,7 +236,12 @@
 		onsubmit={(e) => e.preventDefault()}
 		onfocusout={persistDraft}
 		onchange={(e) => {
-			if (e.target instanceof HTMLInputElement && e.target.type === 'checkbox') persistDraft();
+			if (
+				e.target instanceof HTMLInputElement &&
+				(e.target.type === 'checkbox' || e.target.type === 'radio')
+			) {
+				persistDraft();
+			}
 		}}
 	>
 		<table class="form-table" aria-label="Form header">
@@ -331,6 +388,145 @@
 					{/each}
 				</tbody>
 			</table>
+			{#if section.title === 'Clean & Lubricate'}
+				<div class="battery-brush-block" aria-label="Battery maintenance and brush condition">
+					<div class="battery-layout-row">
+						<div class="battery-tables">
+							{#each [{ title: 'BATTERY #1', cells: battery1 }, { title: 'BATTERY #2', cells: battery2 }] as battery (battery.title)}
+								<table class="form-table battery-table" aria-label={battery.title}>
+									<tbody>
+										<tr class="section-bar">
+											<th colspan="4">{battery.title}</th>
+										</tr>
+										<tr>
+											<th class="battery-col-cell"></th>
+											<th class="battery-col-reading">Hydrometer Reading</th>
+											<th class="battery-col-clarity">Water Clarity (Circle One)</th>
+											<th class="battery-col-level">Water Level (Circle One)</th>
+										</tr>
+										{#each battery.cells as cell, cellIndex (cell.label)}
+											<tr>
+												<td class="battery-cell-label">{cell.label}</td>
+												<td>
+													<input
+														class="field"
+														type="text"
+														bind:value={cell.hydrometerReading}
+													/>
+												</td>
+												<td class="circle-one-cell">
+													<fieldset class="circle-one-group">
+														<legend class="sr-only">{cell.label} water clarity</legend>
+														{#each ['Clear', 'Dark'] as option (option)}
+															<label class="circle-one-option">
+																<input
+																	type="radio"
+																	name="{battery.title}-clarity-{cellIndex}"
+																	value={option}
+																	checked={cell.waterClarity === option}
+																	onchange={() => {
+																		cell.waterClarity = option as WaterClarity;
+																	}}
+																/>
+																<span>{option}</span>
+															</label>
+														{/each}
+													</fieldset>
+												</td>
+												<td class="circle-one-cell">
+													<fieldset class="circle-one-group">
+														<legend class="sr-only">{cell.label} water level</legend>
+														{#each ['Overfilled', 'Full', 'Low'] as option (option)}
+															<label class="circle-one-option">
+																<input
+																	type="radio"
+																	name="{battery.title}-level-{cellIndex}"
+																	value={option}
+																	checked={cell.waterLevel === option}
+																	onchange={() => {
+																		cell.waterLevel = option as WaterLevel;
+																	}}
+																/>
+																<span>{option}</span>
+															</label>
+														{/each}
+													</fieldset>
+												</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							{/each}
+						</div>
+						<div class="battery-diagram" aria-label="Battery cell layout diagram">
+							<img
+								src={BATTERY_LAYOUT_IMAGE_URL}
+								alt="Battery cell layout — replace static/pm_floor_scrubber_battery_layout.svg"
+								width="280"
+								height="360"
+							/>
+						</div>
+					</div>
+
+					<table class="form-table brush-table" aria-label="Brush condition">
+						<tbody>
+							<tr class="section-bar"><th colspan="4">Brush Condition</th></tr>
+							<tr class="brush-meta-row">
+								<td colspan="2">Scrub Brush Fiber Length</td>
+								<td>
+									<span class="brush-inline-label">Brush 1 Length:</span>
+									<input class="field brush-length-field" type="text" bind:value={brushCondition.brush1Length} />
+								</td>
+								<td class="circle-one-cell">
+									<span class="brush-inline-label">Rotated Brushes:</span>
+									<fieldset class="circle-one-group inline">
+										<legend class="sr-only">Rotated brushes</legend>
+										{#each ['Y', 'N'] as option (option)}
+											<label class="circle-one-option">
+												<input
+													type="radio"
+													name="rotated-brushes"
+													value={option}
+													checked={brushCondition.rotatedBrushes === option}
+													onchange={() => {
+														brushCondition.rotatedBrushes = option as YesNo;
+													}}
+												/>
+												<span>{option}</span>
+											</label>
+										{/each}
+									</fieldset>
+								</td>
+							</tr>
+							{#each [{ label: 'Female Brush Socket', key: 'femaleBrushSocket' }, { label: 'Male Hub', key: 'maleHub' }, { label: 'Disk Pad Driver', key: 'diskPadDriver' }] as part (part.key)}
+								<tr>
+									<td class="brush-part-label" colspan="1">{part.label}</td>
+									<td colspan="3" class="circle-one-cell">
+										<fieldset class="circle-one-group brush-status">
+											<legend class="sr-only">{part.label} condition</legend>
+											{#each ['Good', 'Worn', 'Needs Replacement'] as option (option)}
+												<label class="circle-one-option">
+													<input
+														type="radio"
+														name="brush-{part.key}"
+														value={option}
+														checked={brushCondition[part.key as keyof BrushConditionState] === option}
+														onchange={() => {
+															brushCondition[part.key as keyof BrushConditionState] =
+																option as BrushPartStatus;
+														}}
+													/>
+													<span>{option}</span>
+												</label>
+											{/each}
+										</fieldset>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			{/if}
 		{/each}
 	</form>
 </div>
@@ -571,6 +767,165 @@
 		min-height: 1.5em;
 	}
 
+	.battery-brush-block {
+		margin-top: 0;
+	}
+
+	.battery-layout-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		gap: 0;
+	}
+
+	.battery-tables {
+		flex: 1 1 520px;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.battery-table {
+		margin-bottom: 0;
+	}
+
+	.battery-table tr:not(.section-bar) th {
+		font-weight: bold;
+		font-size: 8pt;
+		text-align: center;
+		background: #f5f5f5;
+		vertical-align: middle;
+	}
+
+	.battery-col-cell {
+		width: 14%;
+	}
+
+	.battery-col-reading {
+		width: 22%;
+	}
+
+	.battery-col-clarity,
+	.battery-col-level {
+		width: 32%;
+	}
+
+	.battery-cell-label {
+		font-weight: bold;
+		font-size: 9pt;
+		white-space: nowrap;
+	}
+
+	.battery-diagram {
+		flex: 0 0 200px;
+		border: 1px solid #000;
+		border-left: none;
+		padding: 4px;
+		text-align: center;
+		background: #fff;
+		align-self: stretch;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.battery-diagram img {
+		max-width: 100%;
+		height: auto;
+		display: block;
+	}
+
+	.brush-table {
+		margin-top: 0;
+	}
+
+	.brush-meta-row td {
+		font-size: 9pt;
+		vertical-align: middle;
+	}
+
+	.brush-inline-label {
+		font-weight: bold;
+		margin-right: 4px;
+		white-space: nowrap;
+	}
+
+	.brush-length-field {
+		display: inline-block;
+		width: auto;
+		min-width: 4em;
+		max-width: 100%;
+		vertical-align: baseline;
+		border-bottom: 1px solid #ccc;
+	}
+
+	.brush-part-label {
+		font-weight: bold;
+		font-size: 9pt;
+		width: 28%;
+	}
+
+	.circle-one-cell {
+		font-size: 8pt;
+		vertical-align: middle;
+	}
+
+	.circle-one-group {
+		border: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: center;
+		gap: 6px 10px;
+	}
+
+	.circle-one-group.inline {
+		display: inline-flex;
+		vertical-align: middle;
+	}
+
+	.circle-one-group.brush-status {
+		justify-content: flex-start;
+		padding-left: 4px;
+	}
+
+	.circle-one-option {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		cursor: pointer;
+		margin: 0;
+		white-space: nowrap;
+	}
+
+	.circle-one-option input[type='radio'] {
+		margin: 0;
+		flex-shrink: 0;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	@media (max-width: 720px) {
+		.battery-diagram {
+			flex: 1 1 100%;
+			border-left: 1px solid #000;
+			border-top: none;
+		}
+	}
+
 	@media print {
 		:global(body) {
 			background: #fff;
@@ -595,6 +950,26 @@
 		.status-checkbox input[type='checkbox'],
 		.status-checkbox .status-pass,
 		.status-checkbox .status-fail {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+
+		.battery-layout-row {
+			display: table;
+			width: 100%;
+		}
+
+		.battery-tables,
+		.battery-diagram {
+			display: table-cell;
+			vertical-align: top;
+		}
+
+		.battery-diagram {
+			width: 200px;
+		}
+
+		.circle-one-option input[type='radio'] {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}

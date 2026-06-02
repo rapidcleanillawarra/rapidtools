@@ -4,8 +4,8 @@
 	import { CHECKLIST_SECTIONS } from './checklist-data';
 	import { printSheetElement } from './printUtils';
 
-	const LOGO_URL = 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png';
-	const LOGO_PRINT_FALLBACK = `${base}/images/rapidsupplies-company-logo.png`;
+	const LOGO_URL = `${base}/company_logo_white.webp`;
+	const LOGO_PRINT_FALLBACK = LOGO_URL;
 
 	type ChecklistStatus = '' | 'pass' | 'fail';
 	type ChecklistRow = { task: string; status: ChecklistStatus; notes: string };

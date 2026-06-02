@@ -6,10 +6,16 @@
   export let onClose: () => void;
   export let onIndexChange: (next: number) => void;
 
-  $: safeIndex = images.length === 0 ? 0 : Math.min(Math.max(0, index), images.length - 1);
-  $: current = images[safeIndex] ?? '';
-  $: canPrev = images.length > 1 && safeIndex > 0;
-  $: canNext = images.length > 1 && safeIndex < images.length - 1;
+  $: {
+    if (images == null) {
+      console.error('[update-product-pricing] PhotoViewerModal: images is null', new Error().stack);
+    }
+  }
+  $: safeImages = images ?? [];
+  $: safeIndex = safeImages.length === 0 ? 0 : Math.min(Math.max(0, index), safeImages.length - 1);
+  $: current = safeImages[safeIndex] ?? '';
+  $: canPrev = safeImages.length > 1 && safeIndex > 0;
+  $: canNext = safeImages.length > 1 && safeIndex < safeImages.length - 1;
 
   function prev() {
     if (!canPrev) return;
@@ -40,8 +46,8 @@
       <div class="flex items-center justify-between border-b px-4 py-3">
         <div class="min-w-0">
           <div class="truncate text-sm font-semibold text-gray-900">{title}</div>
-          {#if images.length > 0}
-            <div class="text-xs text-gray-500">{safeIndex + 1} / {images.length}</div>
+          {#if safeImages.length > 0}
+            <div class="text-xs text-gray-500">{safeIndex + 1} / {safeImages.length}</div>
           {/if}
         </div>
         <button
@@ -60,7 +66,7 @@
           <div class="flex h-[50vh] items-center justify-center text-sm text-gray-200">No image</div>
         {/if}
 
-        {#if images.length > 1}
+        {#if safeImages.length > 1}
           <button
             type="button"
             class="absolute left-2 top-1/2 -translate-y-1/2 rounded bg-white/80 px-3 py-2 text-sm text-gray-900 hover:bg-white disabled:opacity-50"
@@ -80,9 +86,9 @@
         {/if}
       </div>
 
-      {#if images.length > 1}
+      {#if safeImages.length > 1}
         <div class="flex gap-2 overflow-x-auto border-t bg-white px-4 py-3">
-          {#each images as img, i (img)}
+          {#each safeImages as img, i (img)}
             <button
               type="button"
               class="h-14 w-14 flex-none overflow-hidden rounded border {i === safeIndex ? 'border-blue-600' : 'border-gray-200'}"

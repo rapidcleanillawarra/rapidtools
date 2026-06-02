@@ -34,6 +34,9 @@
 
   let baselineBySku = new Map<string, { purchase_price: unknown; markup: unknown; rrp: unknown }>();
   $: {
+    if (paginatedProducts == null) {
+      console.error('[update-product-pricing] ProductsTable: paginatedProducts is null', new Error().stack);
+    }
     let changed = false;
     for (const product of paginatedProducts ?? []) {
       const sku = product?.sku;
@@ -407,7 +410,7 @@
             </td>
           </tr>
         {:else}
-          {#each paginatedProducts as product (product.sku)}
+          {#each paginatedProducts ?? [] as product (product.sku)}
             {@const mainImage = getMainImage(product)}
             {@const original = baselineBySku.get(product.sku) ?? originalMap.get(product.sku) ?? product}
             {@const currentDiff = (toNumber(product.rrp) ?? 0) - (toNumber(product.purchase_price) ?? 0)}

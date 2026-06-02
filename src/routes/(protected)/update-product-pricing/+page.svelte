@@ -47,6 +47,14 @@
 		lastPriceAdjustmentBySku
 	} from './stores';
 
+	const DEBUG = '[update-product-pricing]';
+
+	function debugNull(label: string, value: unknown): void {
+		if (value == null) {
+			console.error(`${DEBUG} NULL at ${label}`, new Error().stack);
+		}
+	}
+
 	function resetControlSection() {
 		searchSku = '';
 		searchProductName = '';
@@ -181,6 +189,22 @@
 	$: listPriceIncreaseHint = percentHint(toNumber(listPriceIncrease, 0));
 
 	onMount(async () => {
+		const onError = (event: ErrorEvent) => {
+			console.error(`${DEBUG} uncaught error`, {
+				message: event.message,
+				filename: event.filename,
+				lineno: event.lineno,
+				colno: event.colno,
+				error: event.error,
+				stack: event.error?.stack
+			});
+		};
+		const onRejection = (event: PromiseRejectionEvent) => {
+			console.error(`${DEBUG} unhandled rejection`, event.reason);
+		};
+		window.addEventListener('error', onError);
+		window.addEventListener('unhandledrejection', onRejection);
+
 		// Load products and reference data in parallel
 		const [productsResult] = await Promise.all([
 			fetchAllProducts(),
@@ -191,6 +215,17 @@
 		if (productsResult && !productsResult.success) {
 			toastError(productsResult.message || 'Failed to load products. Please try again.');
 		}
+
+		console.log(`${DEBUG} onMount loaded`, {
+			products: $products,
+			productsLength: $products?.length,
+			originalProductsLength: $originalProducts?.length
+		});
+
+		return () => {
+			window.removeEventListener('error', onError);
+			window.removeEventListener('unhandledrejection', onRejection);
+		};
 	});
 
 	// Declare reactive variables
@@ -215,33 +250,55 @@
 	let photoViewerImages: string[] = [];
 	let photoViewerIndex = 0;
 	let photoViewerTitle = '';
-	$: originalMap = new Map($originalProducts.map((p) => [p.sku, p]));
-
 	$: {
-		const skuNeedle = searchSku.trim().toLowerCase();
-		const nameNeedle = searchProductName.trim().toLowerCase();
-		visibleProducts =
-			!skuNeedle && !nameNeedle
-				? $products
-				: $products.filter((p: any) => {
-						const skuHay = String(p?.sku ?? '').toLowerCase();
-						const nameHay = String(p?.product_name ?? '').toLowerCase();
-						const skuOk = !skuNeedle || skuHay.includes(skuNeedle);
-						const nameOk = !nameNeedle || nameHay.includes(nameNeedle);
-						return skuOk && nameOk;
-					});
+		debugNull('originalMap: $originalProducts', $originalProducts);
+		if ($originalProducts == null) {
+			originalMap = new Map();
+		} else {
+			originalMap = new Map($originalProducts.map((p) => [p.sku, p]));
+		}
 	}
 
-	$: totalPages = getTotalPages(visibleProducts.length, $itemsPerPage);
-	$: paginatedProducts = getPaginatedProducts(
-		visibleProducts,
-		$currentPage,
-		$itemsPerPage,
-		$sortField || undefined,
-		$sortDirection
-	);
 	$: {
-		const total = visibleProducts.length;
+		debugNull('visibleProducts: $products', $products);
+		const skuNeedle = searchSku.trim().toLowerCase();
+		const nameNeedle = searchProductName.trim().toLowerCase();
+		if ($products == null) {
+			console.error(`${DEBUG} visibleProducts: $products is null — skipping filter`);
+			visibleProducts = [];
+		} else {
+			visibleProducts =
+				!skuNeedle && !nameNeedle
+					? $products
+					: $products.filter((p: any) => {
+							const skuHay = String(p?.sku ?? '').toLowerCase();
+							const nameHay = String(p?.product_name ?? '').toLowerCase();
+							const skuOk = !skuNeedle || skuHay.includes(skuNeedle);
+							const nameOk = !nameNeedle || nameHay.includes(nameNeedle);
+							return skuOk && nameOk;
+						});
+		}
+		console.log(`${DEBUG} visibleProducts updated`, { length: visibleProducts?.length });
+	}
+
+	$: {
+		debugNull('totalPages: visibleProducts', visibleProducts);
+		totalPages = getTotalPages(visibleProducts?.length ?? 0, $itemsPerPage);
+	}
+	$: {
+		debugNull('paginatedProducts: visibleProducts', visibleProducts);
+		paginatedProducts = getPaginatedProducts(
+			visibleProducts ?? [],
+			$currentPage,
+			$itemsPerPage,
+			$sortField || undefined,
+			$sortDirection
+		);
+		console.log(`${DEBUG} paginatedProducts updated`, { length: paginatedProducts?.length });
+	}
+	$: {
+		debugNull('currentPageItems: visibleProducts', visibleProducts);
+		const total = visibleProducts?.length ?? 0;
 		const start = total === 0 ? 0 : ($currentPage - 1) * $itemsPerPage + 1;
 		const end = total === 0 ? 0 : Math.min($currentPage * $itemsPerPage, total);
 		currentPageItems = { start, end, total };
@@ -293,6 +350,10 @@
 	function getPriceComparisonStatus(product: any): string[] {
 		const statuses: string[] = [];
 
+		if (product == null) {
+			console.error(`${DEBUG} getPriceComparisonStatus: product is null`);
+			return statuses;
+		}
 		if (!product.purchase_price) return statuses;
 
 		if (product.rrp) {
@@ -323,6 +384,7 @@
 	}
 
 	function openPhotoViewer(product: any) {
+		console.log(`${DEBUG} openPhotoViewer`, { product, images: product?.Images ?? product?.images });
 		const imagesRaw = product?.Images || product?.images || [];
 		const images = Array.isArray(imagesRaw) ? imagesRaw : [imagesRaw];
 		const urls = images
@@ -390,7 +452,7 @@
 				<!-- Products Table -->
 				<ProductsTable
 					loading={$loading}
-					productsLength={visibleProducts.length}
+					productsLength={visibleProducts?.length ?? 0}
 					{paginatedProducts}
 					lastPriceBySku={$lastPriceAdjustmentBySku}
 					{originalMap}

@@ -267,8 +267,11 @@ export async function fetchSuppliers() {
     const data = await response.json();
 
     if (data.status === 200 && data.message.Ack === "Success") {
+      if (data.message.Supplier == null) {
+        console.error('[update-product-pricing] fetchSuppliers: message.Supplier is null', data.message);
+      }
       suppliers.set(
-        data.message.Supplier
+        (data.message.Supplier ?? [])
           .filter((supplier: { SupplierID: string }) => supplier.SupplierID !== "0")
           .map((supplier: { SupplierID: string }) => ({
             value: supplier.SupplierID,
@@ -401,6 +404,7 @@ export async function fetchAllProducts() {
 
     const items = Array.isArray(data.Item) ? data.Item : [data.Item];
     const prods = items.map(transformApiItemToProduct);
+    console.log('[update-product-pricing] fetchAllProducts OK', { itemCount: prods.length, prodsIsArray: Array.isArray(prods) });
 
     originalProducts.set(prods);
     products.set(prods);
@@ -941,7 +945,10 @@ export async function handleFilterSubmit(filters: {
   loading.set(true);
   try {
     // Process SKU filter to get an array of SKUs
-    const skuList = filters.skuFilter
+    if (filters.skuFilter == null) {
+      console.error('[update-product-pricing] handleFilterSubmit: skuFilter is null', filters);
+    }
+    const skuList = (filters.skuFilter ?? '')
       .split('\n')
       .map(sku => sku.trim())
       .filter(sku => sku.length > 0);
@@ -1064,6 +1071,16 @@ export function getPaginatedProducts(
   sortFieldOverride?: string,
   sortDirectionOverride?: 'asc' | 'desc'
 ): any[] {
+  if (allProducts == null) {
+    console.error('[update-product-pricing] getPaginatedProducts: allProducts is null/undefined', {
+      allProducts,
+      page,
+      perPage,
+      sortFieldOverride,
+      stack: new Error().stack
+    });
+    return [];
+  }
   let sorted = [...allProducts];
   
   // Apply sorting if a sort field is selected

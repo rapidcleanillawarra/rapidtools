@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import {
+		IMS_COMBUSTION_ENGINE_NOTE,
 		IMS_INTERVAL_LEGEND,
 		IMS_INTERVAL_SYMBOLS,
 		createImsChecklistSections,
@@ -662,9 +663,11 @@
 											</td>
 											<td class="interval-cell">
 												{intervalDisplay(row.intervalHours, row.intervalKey)}
-												<span class="sr-only"
-													>({IMS_INTERVAL_SYMBOLS[row.intervalKey]})</span
-												>
+												{#if row.intervalKey}
+													<span class="sr-only"
+														>({IMS_INTERVAL_SYMBOLS[row.intervalKey]})</span
+													>
+												{/if}
 											</td>
 											<td>
 												<input
@@ -713,6 +716,14 @@
 						</tbody>
 					</table>
 				{/each}
+
+				<table class="form-table checklist-footnote-table" aria-label="Combustion engine note">
+					<tbody>
+						<tr>
+							<td class="checklist-footnote">{IMS_COMBUSTION_ENGINE_NOTE}</td>
+						</tr>
+					</tbody>
+				</table>
 			</div>
 		</form>
 
@@ -933,6 +944,17 @@
 	.spacer-row td {
 		height: 1.75em;
 		background: #fff;
+	}
+
+	.checklist-footnote-table {
+		margin-top: 0;
+	}
+
+	.checklist-footnote {
+		font-size: 8pt;
+		font-style: italic;
+		padding: 8px;
+		vertical-align: top;
 	}
 
 	.sr-only {

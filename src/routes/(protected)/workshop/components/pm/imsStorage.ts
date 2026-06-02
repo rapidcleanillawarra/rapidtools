@@ -25,7 +25,7 @@ export type ImsChecklistItemRow = {
 	kind: 'item';
 	task: string;
 	intervalHours: string;
-	intervalKey: ImsIntervalKey;
+	intervalKey?: ImsIntervalKey;
 	measuredValue: string;
 	measuringUnit: string;
 	preventiveExchange: string;

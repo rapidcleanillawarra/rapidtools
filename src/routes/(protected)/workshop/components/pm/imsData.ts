@@ -38,6 +38,12 @@ export const IMS_INTERVAL_SYMBOLS: Record<ImsIntervalKey, string> = {
 	winter: '*'
 };
 
+export const IMS_COMBUSTION_ENGINE_NOTE =
+	'Note: The check and replacement intervals stated here can be used as target times for most of the combustion engines in the Kärcher range. However, different intervals can be stipulated by the manufacturer for some combustion engines. Please observe the machine-specific service documents.';
+
+const REGULAR_ENGINE = { intervalHours: '50-100', intervalKey: 'yearly' as const };
+const INITIAL_ENGINE = { intervalHours: '10-50', intervalKey: undefined };
+
 export const IMS_INTERVAL_LEGEND: { symbol: string; label: string }[] = [
 	{ symbol: IMS_INTERVAL_SYMBOLS.yearly, label: 'Yearly' },
 	{ symbol: IMS_INTERVAL_SYMBOLS.nine_months, label: 'Every 9 months' },
@@ -241,20 +247,102 @@ export const IMS_CHECKLIST_BLOCKS: ImsChecklistBlockDef[] = [
 				]
 			}
 		]
+	},
+	{
+		sectionTitle: 'Combustion engine*',
+		subsections: [
+			{
+				title: 'Initial inspection / maintenance on the combustion engine petrol / diesel*',
+				items: [
+					item('Change oil and oil filter of internal combustion engine and check oil level', {
+						...INITIAL_ENGINE,
+						preventiveExchangeHours: '10-50'
+					}),
+					item(
+						'Check operating speed of internal combustion engine (+ idle run speed, if available)',
+						{ ...INITIAL_ENGINE, measuringUnitDefault: 'rpm' }
+					),
+					item('', {
+						...INITIAL_ENGINE,
+						measuringUnitDefault: 'mm'
+					}),
+					spacer()
+				]
+			},
+			{
+				title: 'Regular inspection / maintenance on the combustion engine petrol / diesel*',
+				items: [
+					item('General condition of the internal combustion engine', REGULAR_ENGINE),
+					item('Condition / cleaning of the radiator fins', REGULAR_ENGINE),
+					item(
+						'Check the sealings of the cooling air suction in the internal combustion engine',
+						REGULAR_ENGINE
+					),
+					item('Replace the oil and oil filter of the internal combustion engine', {
+						...REGULAR_ENGINE,
+						preventiveExchangeHours: '50-100',
+						preventiveExchangeKey: 'yearly'
+					}),
+					item('Check the oil level of the internal combustion engine', REGULAR_ENGINE),
+					item('Clean/replace the air filter of the internal combustion engine', {
+						...REGULAR_ENGINE,
+						preventiveExchangeHours: '50-100',
+						preventiveExchangeKey: 'yearly'
+					}),
+					item(
+						'Check the spark plug cable of the internal combustion engine for damages / mounting',
+						REGULAR_ENGINE
+					),
+					item('Change the spark plug of the internal combustion engine', {
+						...REGULAR_ENGINE,
+						preventiveExchangeHours: '50-100',
+						preventiveExchangeKey: 'yearly'
+					}),
+					item('Clean the fuel filter cup', REGULAR_ENGINE),
+					item('Change fuel filter (if available)', {
+						...REGULAR_ENGINE,
+						preventiveExchangeHours: '50-100',
+						preventiveExchangeKey: 'yearly'
+					}),
+					item('Check internal combustion engine for leakage (oil)', REGULAR_ENGINE),
+					item(
+						'Check operating speed of internal combustion engine (+ idle run speed, if available)',
+						{ ...REGULAR_ENGINE, measuringUnitDefault: 'rpm' }
+					),
+					item(
+						'Check and adjust the valve clearance of the internal combustion engine',
+						REGULAR_ENGINE
+					),
+					item('Check the fuel system / fuel hoses for leakage and damage', REGULAR_ENGINE),
+					item('Check accelerator cable / choke for damage and function', REGULAR_ENGINE),
+					item('Function / condition / wear and tear of the starter rope', REGULAR_ENGINE),
+					item('Check exhaust system for damage and leakage', REGULAR_ENGINE),
+					item(
+						'Check power supply / plug / cables / sensors for function / condition / mounting / laying',
+						REGULAR_ENGINE
+					),
+					spacer(),
+					spacer(),
+					spacer(),
+					spacer()
+				]
+			}
+		]
 	}
 ];
 
 function createItemRow(def: ImsChecklistItemDef): ImsChecklistRowState {
-	const preventiveKey = def.preventiveExchangeKey ?? 'yearly';
 	return {
 		kind: 'item',
 		task: def.task,
 		intervalHours: def.intervalHours ?? '500',
-		intervalKey: def.intervalKey ?? 'yearly',
+		intervalKey: def.intervalKey,
 		measuredValue: '',
 		measuringUnit: def.measuringUnitDefault ?? '',
 		preventiveExchange: def.preventiveExchangeHours
-			? intervalDisplay(def.preventiveExchangeHours, preventiveKey)
+			? def.preventiveExchangeKey
+				? intervalDisplay(def.preventiveExchangeHours, def.preventiveExchangeKey)
+				: def.preventiveExchangeHours
 			: '',
 		status: '',
 		repair: false
@@ -278,7 +366,8 @@ export function createImsChecklistSections(): {
 	}));
 }
 
-export function intervalDisplay(hours: string, key: ImsIntervalKey): string {
+export function intervalDisplay(hours: string, key?: ImsIntervalKey): string {
+	if (!key) return hours;
 	return `${hours} ${IMS_INTERVAL_SYMBOLS[key] ?? ''}`.trim();
 }
 

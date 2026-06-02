@@ -17,6 +17,39 @@ export type ImsSignatures = {
 	customerSignature: string;
 };
 
+export type ImsIntervalKey = 'yearly' | 'nine_months' | 'six_months' | 'quarterly' | 'winter';
+
+export type ImsChecklistStatus = '' | 'not_required' | 'ok' | 'not_ok';
+
+export type ImsChecklistItemRow = {
+	kind: 'item';
+	task: string;
+	intervalHours: string;
+	intervalKey: ImsIntervalKey;
+	measuredValue: string;
+	measuringUnit: string;
+	preventiveExchange: string;
+	status: ImsChecklistStatus;
+	repair: boolean;
+};
+
+export type ImsChecklistSpacerRow = {
+	kind: 'spacer';
+	notes: string;
+};
+
+export type ImsChecklistRowState = ImsChecklistItemRow | ImsChecklistSpacerRow;
+
+export type ImsChecklistSubsectionState = {
+	title: string | null;
+	rows: ImsChecklistRowState[];
+};
+
+export type ImsChecklistSectionState = {
+	sectionTitle: string;
+	subsections: ImsChecklistSubsectionState[];
+};
+
 export type ImsDraft = {
 	workshopOrderId: string;
 	inspectionDate: string;
@@ -31,6 +64,7 @@ export type ImsDraft = {
 	customerName: string;
 	operatingHoursTotal: OperatingHoursTotal;
 	operatingHoursSinceMaintenance: OperatingHoursSinceMaintenance;
+	checklistSections: ImsChecklistSectionState[];
 	signatures: ImsSignatures;
 };
 

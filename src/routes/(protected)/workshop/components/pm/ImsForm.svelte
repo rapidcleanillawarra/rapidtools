@@ -2,6 +2,13 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import {
+		IMS_INTERVAL_LEGEND,
+		IMS_INTERVAL_SYMBOLS,
+		createImsChecklistSections,
+		intervalDisplay,
+		mergeChecklistSections
+	} from './imsData';
+	import {
 		loadImsDraft,
 		saveImsDraft,
 		clearImsDraft,
@@ -9,6 +16,8 @@
 		createEmptyOperatingHoursSinceMaintenance,
 		createEmptyImsSignatures,
 		type ImsDraft,
+		type ImsChecklistSectionState,
+		type ImsChecklistStatus,
 		type OperatingHoursTotal,
 		type OperatingHoursSinceMaintenance,
 		type ImsSignatures
@@ -39,9 +48,24 @@
 		customer_name: string | null;
 		operating_hours_total: OperatingHoursTotal | null;
 		operating_hours_since_maintenance: OperatingHoursSinceMaintenance | null;
+		checklist_data: ImsChecklistSectionState[] | null;
 		signatures: ImsSignatures | null;
 		created_at: string;
 	};
+
+	let checklistSections = $state(createImsChecklistSections());
+
+	function checklistRowId(sectionIdx: number, subIdx: number, rowIdx: number): string {
+		return `ims-${sectionIdx}-${subIdx}-${rowIdx}`;
+	}
+
+	function setRowStatus(
+		row: { kind: 'item'; status: ImsChecklistStatus },
+		status: ImsChecklistStatus
+	) {
+		row.status = status;
+		persistDraft();
+	}
 
 	let workshopOrderId = $state('');
 	let inspectionDate = $state('');
@@ -113,8 +137,19 @@
 			customerName,
 			operatingHoursTotal: { ...operatingHoursTotal },
 			operatingHoursSinceMaintenance: { ...operatingHoursSinceMaintenance },
+			checklistSections: serializeChecklist(),
 			signatures: { ...signatures }
 		};
+	}
+
+	function serializeChecklist(): ImsChecklistSectionState[] {
+		return checklistSections.map((section) => ({
+			sectionTitle: section.sectionTitle,
+			subsections: section.subsections.map((sub) => ({
+				title: sub.title,
+				rows: sub.rows.map((row) => ({ ...row }))
+			}))
+		}));
 	}
 
 	function applyDraft(draft: ImsDraft) {
@@ -141,6 +176,7 @@
 			...createEmptyImsSignatures(),
 			...draft.signatures
 		};
+		checklistSections = mergeChecklistSections(draft.checklistSections);
 	}
 
 	function persistDraft() {
@@ -171,7 +207,7 @@
 			customer_name: customerName || null,
 			operating_hours_total: { ...operatingHoursTotal },
 			operating_hours_since_maintenance: { ...operatingHoursSinceMaintenance },
-			checklist_data: null,
+			checklist_data: serializeChecklist(),
 			signatures: { ...signatures },
 			status: 'completed' as const,
 			created_by: get(currentUser)?.email ?? null
@@ -185,7 +221,7 @@
 			const { data, error } = await supabase
 				.from('workshop_ims_inspections')
 				.select(
-					'id, workshop_order_id, inspection_date, order_no, customer_no, machine_type, type_no, serial_number, year_of_manufacture, purchase_date, tester_name, customer_name, operating_hours_total, operating_hours_since_maintenance, signatures, created_at'
+					'id, workshop_order_id, inspection_date, order_no, customer_no, machine_type, type_no, serial_number, year_of_manufacture, purchase_date, tester_name, customer_name, operating_hours_total, operating_hours_since_maintenance, checklist_data, signatures, created_at'
 				)
 				.order('created_at', { ascending: false })
 				.limit(50);
@@ -214,6 +250,7 @@
 			operatingHoursTotal: rec.operating_hours_total ?? createEmptyOperatingHoursTotal(),
 			operatingHoursSinceMaintenance:
 				rec.operating_hours_since_maintenance ?? createEmptyOperatingHoursSinceMaintenance(),
+			checklistSections: rec.checklist_data ?? [],
 			signatures: rec.signatures ?? createEmptyImsSignatures()
 		});
 		savedId = rec.id;
@@ -310,6 +347,7 @@
 		customerName = '';
 		operatingHoursTotal = createEmptyOperatingHoursTotal();
 		operatingHoursSinceMaintenance = createEmptyOperatingHoursSinceMaintenance();
+		checklistSections = createImsChecklistSections();
 		signatures = createEmptyImsSignatures();
 		savedId = null;
 		clearImsDraft();
@@ -540,6 +578,142 @@
 					</tr>
 				</tbody>
 			</table>
+
+			<div class="checklist-wrap" aria-label="Inspection checklist">
+				<table class="form-table checklist-legend-table">
+					<tbody>
+						<tr>
+							<td class="legend-cell" colspan="9">
+								<p class="legend-title">
+									Key test interval as per operating hours or at least:
+								</p>
+								<ul class="interval-legend">
+									{#each IMS_INTERVAL_LEGEND as entry (entry.label)}
+										<li>
+											<span class="interval-symbol" aria-hidden="true">{entry.symbol}</span>
+											{entry.label}
+										</li>
+									{/each}
+								</ul>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+
+				{#each checklistSections as section, sectionIdx (section.sectionTitle)}
+					<table class="form-table ims-checklist-table" aria-label={section.sectionTitle}>
+						<tbody>
+							<tr class="section-bar-grey">
+								<th colspan="9">{section.sectionTitle}</th>
+							</tr>
+							<tr class="checklist-head">
+								<th class="col-task" rowspan="2">Check</th>
+								<th class="col-measured" rowspan="2">Measured values</th>
+								<th class="col-unit" rowspan="2">Measuring unit</th>
+								<th class="col-interval" rowspan="2">
+									Inspection interval after operating hours or display or see key*
+								</th>
+								<th class="col-preventive" rowspan="2">
+									Recommended preventive exchange according to operating hours
+								</th>
+								<th class="col-status-group" colspan="3">Status</th>
+								<th class="col-repair" rowspan="2">Repair</th>
+							</tr>
+							<tr class="checklist-head checklist-head-sub">
+								<th class="col-status">Not required / available</th>
+								<th class="col-status">OK</th>
+								<th class="col-status">Not OK</th>
+							</tr>
+
+							{#each section.subsections as sub, subIdx (sub.title ?? `sub-${subIdx}`)}
+								{#if sub.title}
+									<tr class="subsection-bar">
+										<th colspan="9">{sub.title}</th>
+									</tr>
+								{/if}
+								{#each sub.rows as row, rowIdx (`${sectionIdx}-${subIdx}-${rowIdx}`)}
+									{#if row.kind === 'spacer'}
+										<tr class="spacer-row">
+											<td colspan="9">
+												<input
+													class="field"
+													type="text"
+													bind:value={row.notes}
+													aria-label="Notes"
+												/>
+											</td>
+										</tr>
+									{:else}
+										<tr>
+											<td class="task-cell">{row.task}</td>
+											<td>
+												<input
+													class="field"
+													type="text"
+													bind:value={row.measuredValue}
+												/>
+											</td>
+											<td>
+												<input
+													class="field"
+													type="text"
+													bind:value={row.measuringUnit}
+												/>
+											</td>
+											<td class="interval-cell">
+												{intervalDisplay(row.intervalHours, row.intervalKey)}
+												<span class="sr-only"
+													>({IMS_INTERVAL_SYMBOLS[row.intervalKey]})</span
+												>
+											</td>
+											<td>
+												<input
+													class="field"
+													type="text"
+													bind:value={row.preventiveExchange}
+												/>
+											</td>
+											<td class="status-radio-cell">
+												<input
+													type="radio"
+													name={checklistRowId(sectionIdx, subIdx, rowIdx)}
+													checked={row.status === 'not_required'}
+													onchange={() => setRowStatus(row, 'not_required')}
+													aria-label="Not required / available"
+												/>
+											</td>
+											<td class="status-radio-cell">
+												<input
+													type="radio"
+													name={checklistRowId(sectionIdx, subIdx, rowIdx)}
+													checked={row.status === 'ok'}
+													onchange={() => setRowStatus(row, 'ok')}
+													aria-label="OK"
+												/>
+											</td>
+											<td class="status-radio-cell">
+												<input
+													type="radio"
+													name={checklistRowId(sectionIdx, subIdx, rowIdx)}
+													checked={row.status === 'not_ok'}
+													onchange={() => setRowStatus(row, 'not_ok')}
+													aria-label="Not OK"
+												/>
+											</td>
+											<td class="repair-cell">
+												<label class="repair-checkbox">
+													<input type="checkbox" bind:checked={row.repair} />
+													<span class="sr-only">Repair required</span>
+												</label>
+											</td>
+										</tr>
+									{/if}
+								{/each}
+							{/each}
+						</tbody>
+					</table>
+				{/each}
+			</div>
 		</form>
 
 		{#if sidebarOpen}
@@ -626,8 +800,151 @@
 	.page-layout .sheet {
 		flex: 1 1 0;
 		min-width: 0;
-		max-width: 900px;
+		max-width: 1100px;
 		margin: 0 auto;
+	}
+
+	.checklist-wrap {
+		overflow-x: auto;
+		margin-top: 0;
+	}
+
+	.legend-cell {
+		font-size: 8.5pt;
+		vertical-align: top;
+		padding: 8px;
+	}
+
+	.legend-title {
+		margin: 0 0 6px;
+		font-weight: bold;
+	}
+
+	.interval-legend {
+		margin: 0;
+		padding: 0 0 0 1.2em;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+		gap: 2px 12px;
+		list-style: none;
+	}
+
+	.interval-legend li {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.interval-symbol {
+		font-size: 12pt;
+		line-height: 1;
+		min-width: 1em;
+		text-align: center;
+	}
+
+	.section-bar-grey th {
+		background: #9ca3af;
+		color: #000;
+		font-weight: bold;
+		text-align: left;
+		padding: 6px 8px;
+		font-size: 9pt;
+		border: 1px solid #000;
+	}
+
+	.subsection-bar th {
+		background: #fef08a;
+		color: #000;
+		font-weight: bold;
+		text-align: left;
+		padding: 5px 8px;
+		font-size: 9pt;
+		border: 1px solid #000;
+	}
+
+	.ims-checklist-table {
+		font-size: 8pt;
+		min-width: 980px;
+	}
+
+	.checklist-head th {
+		background: #f5f5f5;
+		font-weight: bold;
+		text-align: center;
+		font-size: 7.5pt;
+		vertical-align: middle;
+		padding: 4px;
+	}
+
+	.checklist-head-sub th {
+		font-size: 7pt;
+	}
+
+	.ims-checklist-table .col-task {
+		width: 28%;
+		text-align: left;
+	}
+
+	.ims-checklist-table .col-measured,
+	.ims-checklist-table .col-unit {
+		width: 8%;
+	}
+
+	.ims-checklist-table .col-interval {
+		width: 10%;
+		text-align: center;
+	}
+
+	.ims-checklist-table .col-preventive {
+		width: 12%;
+	}
+
+	.ims-checklist-table .col-status {
+		width: 6%;
+	}
+
+	.ims-checklist-table .col-repair {
+		width: 5%;
+	}
+
+	.task-cell {
+		font-size: 8pt;
+		vertical-align: top;
+	}
+
+	.interval-cell {
+		text-align: center;
+		font-size: 9pt;
+		white-space: nowrap;
+	}
+
+	.status-radio-cell,
+	.repair-cell {
+		text-align: center;
+		vertical-align: middle;
+	}
+
+	.repair-checkbox {
+		display: inline-flex;
+		margin: 0;
+		cursor: pointer;
+	}
+
+	.spacer-row td {
+		height: 1.75em;
+		background: #fff;
+	}
+
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	.saved-sidebar {
@@ -972,6 +1289,12 @@
 
 		input.field {
 			border: none !important;
+		}
+
+		input[type='radio'],
+		input[type='checkbox'] {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
 		}
 	}
 </style>

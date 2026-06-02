@@ -131,8 +131,9 @@
     <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="new-contact-name">Name</label>
           <input
+            id="new-contact-name"
             type="text"
             bind:value={newContact.name}
             placeholder="Enter name"
@@ -140,8 +141,9 @@
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="new-contact-phone">Phone Number</label>
           <input
+            id="new-contact-phone"
             type="tel"
             bind:value={newContact.number}
             placeholder="Numbers, spaces, and + only"
@@ -149,8 +151,9 @@
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1" for="new-contact-email">Email</label>
           <input
+            id="new-contact-email"
             type="email"
             bind:value={newContact.email}
             placeholder="Enter email"

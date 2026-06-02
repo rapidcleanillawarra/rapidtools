@@ -159,13 +159,13 @@
             </div>
 
             <!-- Optional Contacts -->
-            <div class="md:col-span-2 mt-6">
-              <label class="block text-sm font-medium text-gray-700 mb-3">
+            <fieldset class="md:col-span-2 mt-6 border-0 p-0 m-0 min-w-0">
+              <legend class="block text-sm font-medium text-gray-700 mb-3 w-full">
                 Contacts
                 {#if workshopStatus === 'new' || workshopStatus === null}
                   <span class="text-red-500">*</span>
                 {/if}
-              </label>
+              </legend>
               <ContactsManager
                 bind:this={contactsManager}
                 bind:contacts={optionalContacts}
@@ -174,7 +174,7 @@
                 on:contactsUpdated={handleContactsUpdated}
                 on:error={handleContactError}
               />
-            </div>
+            </fieldset>
           </div>
         {/if}
         </div>

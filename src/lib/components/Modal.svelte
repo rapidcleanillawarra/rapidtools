@@ -24,17 +24,23 @@
 <svelte:window on:keydown={allowClose ? handleKeydown : undefined} />
 
 {#if show}
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-		on:click={allowClose ? closeModal : undefined}
+		class="fixed inset-0 z-50 flex items-center justify-center"
 		transition:fade={{ duration: 200 }}
 	>
-		<!-- svelte-ignore a11y-click-events-have-key-events -->
+		{#if allowClose}
+			<button
+				type="button"
+				class="absolute inset-0 bg-black bg-opacity-50 cursor-default"
+				aria-label="Close modal"
+				on:click={closeModal}
+			></button>
+		{:else}
+			<div class="absolute inset-0 bg-black bg-opacity-50" aria-hidden="true"></div>
+		{/if}
 		<div
-			class="bg-white rounded-lg shadow-xl p-6 w-full {size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}"
+			class="relative z-10 bg-white rounded-lg shadow-xl p-6 w-full {size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}"
 			style={style}
-			on:click|stopPropagation
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
@@ -44,7 +50,7 @@
 					<slot name="header">Modal Title</slot>
 				</h2>
 				{#if allowClose}
-					<button on:click={closeModal} class="text-gray-500 hover:text-gray-800 text-2xl"
+					<button type="button" on:click={closeModal} class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal"
 						>&times;</button
 					>
 				{/if}

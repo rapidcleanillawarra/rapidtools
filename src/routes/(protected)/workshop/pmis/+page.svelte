@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { CHECKLIST_SECTIONS } from './checklist-data';
+	import { printSheetElement } from './printUtils';
 
 	const LOGO_URL = 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png';
 
@@ -57,8 +58,21 @@
 	let techSignature = '';
 	let customerRep = '';
 
-	function printForm() {
-		if (typeof window !== 'undefined') window.print();
+	let sheetEl: HTMLFormElement | undefined;
+	let printing = false;
+	let printError = '';
+
+	async function printForm() {
+		if (!sheetEl || printing) return;
+		printing = true;
+		printError = '';
+		try {
+			await printSheetElement(sheetEl);
+		} catch (err) {
+			printError = err instanceof Error ? err.message : 'Failed to print form';
+		} finally {
+			printing = false;
+		}
 	}
 
 	function clearForm() {
@@ -101,12 +115,17 @@
 	<div class="screen-toolbar no-print">
 		<h1 class="screen-title">PMIS — Preventive Maintenance Inspection</h1>
 		<div class="screen-actions">
-			<button type="button" class="btn-secondary" onclick={clearForm}>Clear form</button>
-			<button type="button" class="btn-primary" onclick={printForm}>Print</button>
+			{#if printError}
+				<p class="print-error" role="alert">{printError}</p>
+			{/if}
+			<button type="button" class="btn-secondary" onclick={clearForm} disabled={printing}>Clear form</button>
+			<button type="button" class="btn-primary" onclick={printForm} disabled={printing}>
+				{printing ? 'Preparing…' : 'Print'}
+			</button>
 		</div>
 	</div>
 
-	<form class="sheet" onsubmit={(e) => e.preventDefault()}>
+	<form bind:this={sheetEl} class="sheet" onsubmit={(e) => e.preventDefault()}>
 		<table class="form-table" aria-label="Form header">
 			<tbody>
 				<tr>
@@ -358,7 +377,16 @@
 
 	.screen-actions {
 		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
 		gap: 8px;
+	}
+
+	.print-error {
+		margin: 0;
+		width: 100%;
+		font-size: 0.8125rem;
+		color: #b91c1c;
 	}
 
 	.btn-primary,

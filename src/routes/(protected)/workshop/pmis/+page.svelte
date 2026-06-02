@@ -4,11 +4,12 @@
 
 	const LOGO_URL = 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png';
 
-	type ChecklistRow = { task: string; status: string; notes: string };
+	type ChecklistStatus = '' | 'pass' | 'fail';
+	type ChecklistRow = { task: string; status: ChecklistStatus; notes: string };
 	type PartRow = { part: string; qty: string; notes: string };
 
 	function createChecklistRows(tasks: string[]): ChecklistRow[] {
-		return tasks.map((task) => ({ task, status: '', notes: '' }));
+		return tasks.map((task) => ({ task, status: 'fail', notes: '' }));
 	}
 
 	function formatInspectionDate(d: Date): string {
@@ -191,7 +192,26 @@
 				{#each section.rows as row, i (i)}
 					<tr>
 						<td>{row.task}</td>
-						<td><input class="field" type="text" bind:value={row.status} /></td>
+						<td class="status-cell">
+							<label class="status-radio" title="Pass">
+								<input
+									type="radio"
+									name="status-{section.title}-{i}"
+									value="pass"
+									bind:group={row.status}
+								/>
+								<span aria-hidden="true">✓</span>
+							</label>
+							<label class="status-radio" title="Fail">
+								<input
+									type="radio"
+									name="status-{section.title}-{i}"
+									value="fail"
+									bind:group={row.status}
+								/>
+								<span aria-hidden="true">✗</span>
+							</label>
+						</td>
 						<td><input class="field" type="text" bind:value={row.notes} /></td>
 					</tr>
 				{/each}
@@ -492,6 +512,26 @@
 		text-align: center;
 	}
 
+	.checklist .status-cell {
+		text-align: center;
+		vertical-align: middle;
+		padding: 4px 6px;
+	}
+
+	.status-radio {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		cursor: pointer;
+		margin: 0 6px;
+		font-size: 11pt;
+	}
+
+	.status-radio input[type='radio'] {
+		margin: 0;
+		flex-shrink: 0;
+	}
+
 	.checklist .col-notes {
 		width: 32%;
 	}
@@ -585,7 +625,8 @@
 			border: none !important;
 		}
 
-		.checkbox-row input[type='checkbox'] {
+		.checkbox-row input[type='checkbox'],
+		.status-radio input[type='radio'] {
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}

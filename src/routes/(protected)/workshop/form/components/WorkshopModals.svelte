@@ -121,6 +121,8 @@
   {/if}
 
   <!-- Photo Viewer Modal -->
+  <!-- TEMPORARILY DISABLED: causing issues in production -->
+  {#if false}
   <PhotoViewer
     {showPhotoViewer}
     {photoUrls}
@@ -128,6 +130,7 @@
     on:close={closePhotoViewer}
     on:photoIndexChanged={({ detail }) => currentPhotoIndex = detail.index}
   />
+  {/if}
 
   <!-- Pickup Submission Modal -->
   {#if showPickupSubmissionModal}

@@ -2525,7 +2525,7 @@
 						{workshopStatus}
 						on:photosUpdated={(event) => (photos = event.detail.photos)}
 						on:error={(event) => (photoError = event.detail.message)}
-						on:photoClick={(event) => openPhotoViewer(event.detail.photoIndex)}
+						<!-- on:photoClick={(event) => openPhotoViewer(event.detail.photoIndex)} -->
 					/>
 				</div>
 				<!-- Files -->

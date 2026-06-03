@@ -139,6 +139,21 @@
 	// Photo viewer modal state
 	let showPhotoViewer = false;
 	let currentPhotoIndex = 0;
+	/** Prevents navigation click-through and stale viewer state when switching workshops. */
+	let photoViewerInteractionEnabled = false;
+	let loadedWorkshopIdFromUrl: string | null = null;
+
+	const PHOTO_VIEWER_CLICK_GUARD_MS = 350;
+
+	function schedulePhotoViewerInteractionEnable() {
+		if (typeof window === 'undefined') return;
+		photoViewerInteractionEnabled = false;
+		requestAnimationFrame(() => {
+			setTimeout(() => {
+				photoViewerInteractionEnabled = true;
+			}, PHOTO_VIEWER_CLICK_GUARD_MS);
+		});
+	}
 
 	// Form submission state
 	let isSubmitting = false;
@@ -301,6 +316,7 @@
 		if (user) {
 			loadUserProfile(user.uid);
 		}
+		schedulePhotoViewerInteractionEnable();
 	});
 
 	// Cleanup subscriptions on destroy
@@ -413,12 +429,11 @@
 	// Dynamic schedule label based on action
 	$: scheduleLabel = getScheduleLabel(action);
 
-	// Check referrer to determine if user came from camera page
-	$: if (typeof window !== 'undefined') {
+	// Check referrer to determine if user came from camera page (new jobs only; existing jobs use DB value)
+	$: if (typeof window !== 'undefined' && !existingWorkshopId) {
 		const referrer = document.referrer;
 		const currentUrl = window.location.href;
 
-		// Check if user came from camera page or if URL contains camera parameter
 		if (
 			referrer.includes('/workshop/camera') ||
 			currentUrl.includes('from=camera') ||
@@ -428,12 +443,23 @@
 		} else {
 			startedWith = 'form';
 		}
+	}
 
-		// Check if we have a workshop_id parameter to load existing workshop (regardless of entry point)
-		const workshopId = $page.url.searchParams.get('workshop_id');
-		if (workshopId) {
-			existingWorkshopId = workshopId;
-			loadExistingWorkshop(workshopId);
+	// Load existing workshop when workshop_id changes (component is reused across navigations)
+	$: workshopIdFromUrl =
+		typeof window !== 'undefined' ? $page.url.searchParams.get('workshop_id') : null;
+
+	$: if (workshopIdFromUrl !== loadedWorkshopIdFromUrl) {
+		loadedWorkshopIdFromUrl = workshopIdFromUrl;
+		showPhotoViewer = false;
+		currentPhotoIndex = 0;
+		schedulePhotoViewerInteractionEnable();
+
+		if (workshopIdFromUrl) {
+			existingWorkshopId = workshopIdFromUrl;
+			loadExistingWorkshop(workshopIdFromUrl);
+		} else {
+			existingWorkshopId = null;
 		}
 	}
 
@@ -1849,7 +1875,7 @@
 
 	// Photo viewer functions
 	function openPhotoViewer(photoIndex: number = 0) {
-		if (photos.length === 0) return;
+		if (!photoViewerInteractionEnabled || photos.length === 0) return;
 		currentPhotoIndex = photoIndex;
 		showPhotoViewer = true;
 	}

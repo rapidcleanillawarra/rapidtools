@@ -2518,15 +2518,15 @@
 			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<!-- Photos -->
 				<div>
-					<PhotoManager
-						bind:photos
-						bind:error={photoError}
-						minPhotosRequired={MIN_PHOTOS_REQUIRED}
-						{workshopStatus}
-						on:photosUpdated={(event) => (photos = event.detail.photos)}
-						on:error={(event) => (photoError = event.detail.message)}
-						<!-- on:photoClick={(event) => openPhotoViewer(event.detail.photoIndex)} -->
-					/>
+				<!-- on:photoClick temporarily disabled: on:photoClick={(event) => openPhotoViewer(event.detail.photoIndex)} -->
+				<PhotoManager
+					bind:photos
+					bind:error={photoError}
+					minPhotosRequired={MIN_PHOTOS_REQUIRED}
+					{workshopStatus}
+					on:photosUpdated={(event) => (photos = event.detail.photos)}
+					on:error={(event) => (photoError = event.detail.message)}
+				/>
 				</div>
 				<!-- Files -->
 				<div>

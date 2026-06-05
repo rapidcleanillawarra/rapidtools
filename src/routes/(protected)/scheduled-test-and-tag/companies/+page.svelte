@@ -434,109 +434,93 @@
   }
 </style>
 
-<div class="space-y-6">
+<div class="space-y-2">
   <!-- Header -->
-  <div class="flex justify-between items-center animate-fade-in">
-    <div>
-      <h2 class="text-2xl font-bold text-gray-900 flex items-center">
-        <span class="mr-3 text-3xl">🏢</span>
-        Companies
-      </h2>
-      <p class="text-gray-600 mt-1 flex items-center">
-        <span class="mr-2">📋</span>
-        Manage test and tag service schedules
-      </p>
-    </div>
-    <div class="flex gap-2">
+  <div class="flex flex-wrap justify-between items-center gap-2 animate-fade-in">
+    <h2 class="text-lg font-semibold text-gray-900">Companies</h2>
+    <div class="flex gap-1.5">
       {#if selectedSchedules.size > 0}
         <button
           on:click={handleBulkDelete}
           disabled={isDeleting}
-          class="btn-primary bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
+          class="btn-primary bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-300 flex items-center gap-1.5 shadow hover:shadow-md"
         >
           {#if isDeleting}
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
             Deleting...
           {:else}
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
-            Delete Selected ({selectedSchedules.size})
+            Delete ({selectedSchedules.size})
           {/if}
         </button>
       {/if}
       <button
         on:click={handleCreate}
         disabled={isSaving}
-        class="btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl"
+        class="btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-300 flex items-center gap-1.5 shadow hover:shadow-md"
       >
         {#if isSaving}
-          <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+          <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
           Saving...
         {:else}
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
-          Add New Company
+          Add Company
         {/if}
       </button>
     </div>
   </div>
 
   <!-- Search and Filters -->
-  <div class="bg-white rounded-lg shadow-lg p-6 animate-fade-in" style="animation-delay: 100ms;">
-    <div class="flex flex-col sm:flex-row gap-4">
-      <div class="flex-1">
-        <label for="search" class="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-          <span class="mr-2">🔍</span>
-          Search Companies
-        </label>
-        <div class="relative">
-          <input
-            id="search"
-            type="text"
-            placeholder="Search by company name, location, or contact..."
-            bind:value={$searchTerm}
-            on:input={handleSearch}
-            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
-          />
-          <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-            </svg>
-          </div>
+  <div class="bg-white rounded shadow p-2 animate-fade-in" style="animation-delay: 100ms;">
+    <div class="flex gap-2">
+      <div class="relative flex-1">
+        <label for="search" class="sr-only">Search companies</label>
+        <input
+          id="search"
+          type="text"
+          placeholder="Search companies..."
+          bind:value={$searchTerm}
+          on:input={handleSearch}
+          class="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        />
+        <div class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
+          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
         </div>
       </div>
-      <div class="flex items-end">
-        <button
-          on:click={() => searchTerm.set('')}
-          class="px-4 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-300 hover:shadow-md flex items-center"
-        >
-          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-          </svg>
-          Clear
-        </button>
-      </div>
+      <button
+        on:click={() => searchTerm.set('')}
+        class="px-2 py-1.5 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors flex items-center gap-1 shrink-0"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+        Clear
+      </button>
     </div>
   </div>
 
   <!-- Results Summary -->
-  <div class="flex justify-between items-center text-sm text-gray-600">
+  <div class="flex justify-between items-center text-xs text-gray-500 px-0.5">
     <span>
-      Showing {($filteredSchedules.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0)} to {Math.min(currentPage * itemsPerPage, $filteredSchedules.length)} of {$filteredSchedules.length} companies
+      {($filteredSchedules.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0)}–{Math.min(currentPage * itemsPerPage, $filteredSchedules.length)} of {$filteredSchedules.length}
     </span>
     <span>
-      Page {currentPage} of {totalPages}
+      Page {currentPage}/{totalPages || 1}
     </span>
   </div>
 
   <!-- Data Table -->
-  <div class="bg-white rounded-lg shadow-lg overflow-hidden animate-fade-in" style="animation-delay: 200ms;">
+  <div class="bg-white rounded shadow overflow-hidden animate-fade-in" style="animation-delay: 200ms;">
     <div class="overflow-x-auto">
       {#if isTableLoading}
         <!-- Skeleton Table -->
-        <div class="p-6">
+        <div class="p-2">
           <div class="space-y-4">
             {#each Array(5) as _, index}
               <div class="flex items-center space-x-4 animate-pulse" style="animation-delay: {index * 100}ms;">
@@ -612,8 +596,12 @@
         </thead>
         <tbody class="bg-white divide-y divide-gray-200">
           {#each paginatedSchedules as schedule, index}
-            <tr class="hover:bg-gray-50 transition-all duration-300 animate-fade-in interactive-hover" style="animation-delay: {index * 50}ms;">
-              <td class="col-tight">
+            <tr
+              class="hover:bg-gray-50 transition-all duration-300 animate-fade-in interactive-hover cursor-pointer"
+              style="animation-delay: {index * 50}ms;"
+              on:click={() => handleEdit(schedule)}
+            >
+              <td class="col-tight" on:click|stopPropagation>
                 <input
                   type="checkbox"
                   checked={selectedSchedules.has(schedule.id)}
@@ -646,17 +634,8 @@
               <td class="col-tight text-gray-900">
                 {schedule.notes.length}
               </td>
-              <td class="col-tight">
-                <div class="flex justify-center gap-0.5">
-                  <button
-                    on:click={() => handleEdit(schedule)}
-                    class="p-1 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-all duration-300"
-                    title="Edit"
-                  >
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
+              <td class="col-tight" on:click|stopPropagation>
+                <div class="flex justify-center">
                   <button
                     on:click={() => handleDeleteDirect(schedule)}
                     class="p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-all duration-300"

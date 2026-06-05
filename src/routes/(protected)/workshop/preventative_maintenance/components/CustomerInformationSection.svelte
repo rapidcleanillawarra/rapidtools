@@ -5,6 +5,8 @@
 
 	interface Props {
 		workshopOrderId?: string;
+		companyName?: string;
+		location?: string;
 		customer?: string;
 		email?: string;
 		address?: string;
@@ -19,6 +21,8 @@
 
 	let {
 		workshopOrderId = $bindable(''),
+		companyName = $bindable(''),
+		location = $bindable(''),
 		customer = $bindable(''),
 		email = $bindable(''),
 		address = $bindable(''),
@@ -43,6 +47,18 @@
 					bind:value={workshopOrderId}
 					onselect={onWorkshopOrderSelect}
 				/>
+			</td>
+		</tr>
+		<tr>
+			<td class="label-cell">Company Name:</td>
+			<td class="field-cell" colspan="3">
+				<input class="field" type="text" bind:value={companyName} autocomplete="organization" />
+			</td>
+		</tr>
+		<tr>
+			<td class="label-cell">Location:</td>
+			<td class="field-cell" colspan="3">
+				<input class="field" type="text" bind:value={location} autocomplete="street-address" />
 			</td>
 		</tr>
 		<tr>

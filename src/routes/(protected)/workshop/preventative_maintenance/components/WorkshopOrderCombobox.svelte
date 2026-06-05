@@ -5,11 +5,19 @@
 	export type WorkshopOrderOption = {
 		orderId: string;
 		customerName: string | null;
+		companyName: string | null;
 		clientsWorkOrder: string;
 		makeModel: string;
 		serialNumber: string;
 		siteLocation: string | null;
 	};
+
+	function extractCompanyName(customerData: unknown): string | null {
+		if (!customerData || typeof customerData !== 'object') return null;
+		const billCompany = (customerData as { BillingAddress?: { BillCompany?: string } }).BillingAddress
+			?.BillCompany;
+		return billCompany?.trim() || null;
+	}
 
 	interface Props {
 		value?: string;
@@ -85,6 +93,7 @@
 				select: [
 					'order_id',
 					'customer_name',
+					'customer_data',
 					'clients_work_order',
 					'make_model',
 					'serial_number',
@@ -102,6 +111,7 @@
 				.map((w) => ({
 					orderId: w.order_id!.trim(),
 					customerName: w.customer_name,
+					companyName: extractCompanyName(w.customer_data),
 					clientsWorkOrder: w.clients_work_order ?? '',
 					makeModel: w.make_model ?? '',
 					serialNumber: w.serial_number ?? '',
@@ -184,10 +194,13 @@
 							onclick={() => selectOption(option)}
 						>
 							<span class="order-combobox-option-id">#{option.orderId}</span>
-							{#if option.customerName || option.clientsWorkOrder}
+							{#if option.companyName || option.customerName || option.clientsWorkOrder}
 								<span class="order-combobox-option-meta">
-									{option.customerName || option.clientsWorkOrder}
+									{option.companyName || option.customerName || option.clientsWorkOrder}
 								</span>
+							{/if}
+							{#if option.siteLocation}
+								<span class="order-combobox-option-location">{option.siteLocation}</span>
 							{/if}
 						</button>
 					</li>
@@ -286,6 +299,11 @@
 	.order-combobox-option-meta {
 		font-size: 0.75rem;
 		color: #555;
+	}
+
+	.order-combobox-option-location {
+		font-size: 0.6875rem;
+		color: #777;
 	}
 
 	@media print {

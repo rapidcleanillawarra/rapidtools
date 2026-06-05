@@ -19,6 +19,7 @@ export type CarpetExtractorPartRowDraft = {
 
 export type CarpetExtractorDraft = {
 	workshopOrderId: string;
+	companyName: string;
 	customerName: string;
 	siteLocation: string;
 	contactPerson: string;

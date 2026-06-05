@@ -45,7 +45,9 @@ export type OperationFooterState = {
 
 export type FloorScrubberDraft = {
 	workshopOrderId: string;
+	companyName: string;
 	customer: string;
+	siteLocation: string;
 	email: string;
 	address: string;
 	phone: string;

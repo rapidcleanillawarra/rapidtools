@@ -80,6 +80,8 @@
 	}
 
 	let workshopOrderId = $state('');
+	let companyName = $state('');
+	let location = $state('');
 	let inspectionDate = $state('');
 	let orderNo = $state('');
 	let customerNo = $state('');
@@ -150,6 +152,8 @@
 	function buildDraft(): ImsDraft {
 		return {
 			workshopOrderId,
+			companyName,
+			location,
 			inspectionDate,
 			orderNo,
 			customerNo,
@@ -195,6 +199,8 @@
 		const machineDefaults = createEmptyMachineHourMeterFields();
 
 		workshopOrderId = draft.workshopOrderId ?? '';
+		companyName = draft.companyName ?? '';
+		location = draft.location ?? '';
 		inspectionDate = draft.inspectionDate ?? '';
 		orderNo = draft.orderNo ?? '';
 		customerNo = draft.customerNo ?? '';
@@ -256,6 +262,7 @@
 	}
 
 	function applyWorkshopOrder(option: WorkshopOrderOption) {
+		if (option.companyName) companyName = option.companyName;
 		if (option.clientsWorkOrder) {
 			if (!orderNo) orderNo = option.clientsWorkOrder;
 			if (!workOrderNumber) workOrderNumber = option.clientsWorkOrder;
@@ -263,7 +270,10 @@
 		if (option.makeModel) machineType = option.makeModel;
 		if (option.serialNumber) serialNumber = option.serialNumber;
 		if (option.customerName) customerName = option.customerName;
-		if (option.siteLocation) address = option.siteLocation;
+		if (option.siteLocation) {
+			location = option.siteLocation;
+			if (!address) address = option.siteLocation;
+		}
 		persistDraft();
 	}
 
@@ -327,6 +337,8 @@
 	function loadRecord(rec: SavedRecord) {
 		applyDraft({
 			workshopOrderId: rec.workshop_order_id ?? '',
+			companyName: '',
+			location: '',
 			inspectionDate: isoToDisplay(rec.inspection_date ?? ''),
 			orderNo: rec.order_no ?? '',
 			customerNo: rec.customer_no ?? '',
@@ -428,6 +440,8 @@
 
 	function clearForm() {
 		workshopOrderId = '';
+		companyName = '';
+		location = '';
 		inspectionDate = formatInspectionDate(new Date());
 		orderNo = '';
 		customerNo = '';
@@ -536,6 +550,8 @@
 			<CustomerInformationSection
 				comboboxId="ims-workshop-order-id"
 				bind:workshopOrderId
+				bind:companyName
+				bind:location
 				bind:customer={customerName}
 				bind:email
 				bind:address

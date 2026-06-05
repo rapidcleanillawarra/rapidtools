@@ -54,6 +54,8 @@ export type ImsChecklistSectionState = {
 
 export type ImsDraft = {
 	workshopOrderId: string;
+	companyName: string;
+	location: string;
 	inspectionDate: string;
 	orderNo: string;
 	customerNo: string;

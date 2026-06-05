@@ -83,6 +83,7 @@
 
 	// PMIS specific states (runes)
 	let workshopOrderId = $state('');
+	let companyName = $state('');
 	let customerName = $state('');
 	let siteLocation = $state('');
 	let contactPerson = $state('');
@@ -235,6 +236,7 @@
 
 			applyCarpetExtractorDraft({
 				workshopOrderId: eq?.workshopOrderId ?? '',
+				companyName: '',
 				customerName: rec.customer_name ?? '',
 				siteLocation: rec.site_location ?? '',
 				contactPerson: eq?.contactPerson ?? '',
@@ -280,7 +282,9 @@
 
 			applyFsDraft({
 				workshopOrderId: (eq?.workshopOrderId as string) ?? '',
+				companyName: '',
 				customer: rec.customer_name ?? '',
+				siteLocation: rec.site_location ?? '',
 				email: ci?.email ?? '',
 				address: rec.site_location ?? '',
 				phone: ci?.phone ?? '',
@@ -502,6 +506,7 @@
 	// ── Draft builders ───────────────────────────────────────────────────────
 
 	function applyWorkshopOrder(option: WorkshopOrderOption) {
+		if (option.companyName) companyName = option.companyName;
 		if (type === 'carpet_extractor') {
 			if (option.customerName) customerName = option.customerName;
 			if (option.siteLocation) {
@@ -516,7 +521,10 @@
 			}
 		} else {
 			if (option.customerName) customer = option.customerName;
-			if (option.siteLocation) address = option.siteLocation;
+			if (option.siteLocation) {
+				siteLocation = option.siteLocation;
+				if (!address) address = option.siteLocation;
+			}
 			if (option.makeModel) modelNumber = option.makeModel;
 			if (option.serialNumber) fsSerialNumber = option.serialNumber;
 			if (option.clientsWorkOrder && !workOrderNumber) workOrderNumber = option.clientsWorkOrder;
@@ -527,6 +535,7 @@
 	function buildCarpetExtractorDraft(): CarpetExtractorDraft {
 		return {
 			workshopOrderId,
+			companyName,
 			customerName,
 			siteLocation,
 			contactPerson,
@@ -574,7 +583,9 @@
 	function buildFsDraft(): FloorScrubberDraft {
 		return {
 			workshopOrderId,
+			companyName,
 			customer,
+			siteLocation,
 			email,
 			address,
 			phone,
@@ -619,6 +630,7 @@
 	// Apply drafts
 	function applyCarpetExtractorDraft(draft: CarpetExtractorDraft) {
 		workshopOrderId = draft.workshopOrderId ?? '';
+		companyName = draft.companyName ?? '';
 		customerName = draft.customerName ?? '';
 		siteLocation = draft.siteLocation ?? '';
 		contactPerson = draft.contactPerson ?? '';
@@ -742,7 +754,9 @@
 
 	function applyFsDraft(draft: FloorScrubberDraft) {
 		workshopOrderId = draft.workshopOrderId ?? '';
+		companyName = draft.companyName ?? '';
 		customer = draft.customer ?? '';
+		siteLocation = draft.siteLocation ?? '';
 		email = draft.email ?? '';
 		address = draft.address ?? '';
 		phone = draft.phone ?? '';
@@ -789,6 +803,7 @@
 	function clearForm() {
 		if (type === 'carpet_extractor') {
 			workshopOrderId = '';
+			companyName = '';
 			customerName = '';
 			siteLocation = '';
 			contactPerson = '';
@@ -831,7 +846,9 @@
 			clearCarpetExtractorDraft();
 		} else {
 			workshopOrderId = '';
+			companyName = '';
 			customer = '';
+			siteLocation = '';
 			email = '';
 			address = '';
 			phone = '';
@@ -951,6 +968,8 @@
 			<CustomerInformationSection
 				comboboxId="pmis-workshop-order-id"
 				bind:workshopOrderId
+				bind:companyName
+				bind:location={siteLocation}
 				bind:customer={customerName}
 				bind:email
 				bind:address
@@ -976,12 +995,6 @@
 			<table class="form-table cell-stack" aria-label="PMIS job details">
 				<tbody>
 					<tr class="section-bar"><th colspan="4">Job &amp; Asset Details</th></tr>
-					<tr>
-						<td class="label-cell" colspan="1">Site Location:</td>
-						<td class="field-cell" colspan="3">
-							<input class="field" type="text" bind:value={siteLocation} autocomplete="street-address" />
-						</td>
-					</tr>
 					<tr>
 						<td class="label-cell">Contact Person:</td>
 						<td class="field-cell">
@@ -1019,6 +1032,8 @@
 			<CustomerInformationSection
 				comboboxId="fs-workshop-order-id"
 				bind:workshopOrderId
+				bind:companyName
+				bind:location={siteLocation}
 				bind:customer
 				bind:email
 				bind:address

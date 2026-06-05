@@ -15,7 +15,6 @@
     sortDirection,
     setCreateMode,
     setEditMode,
-    setViewMode,
     resetForm
   } from './stores';
   import { createSchedule, updateSchedule, deleteSchedule, loadSchedulesFromFirestore } from './utils';
@@ -125,10 +124,6 @@
 
   function handleEdit(schedule: Schedule) {
     setEditMode(schedule);
-  }
-
-  function handleView(schedule: Schedule) {
-    setViewMode(schedule);
   }
 
   async function handleSave(event: CustomEvent<ScheduleFormData>) {
@@ -404,6 +399,24 @@
     transform: scale(1.01);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
+  .compact-table th,
+  .compact-table td {
+    padding: 0.375rem 0.5rem;
+  }
+  .compact-table .col-tight {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .compact-table .col-company {
+    min-width: 10rem;
+    max-width: 14rem;
+  }
+  .compact-table .col-company > div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   /* Success state animations */
   .success-glow {
     animation: successGlow 2s ease-out;
@@ -545,10 +558,10 @@
           </div>
         </div>
       {:else}
-        <table class="min-w-full divide-y divide-gray-200">
+        <table class="compact-table min-w-full divide-y divide-gray-200 text-sm">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               <input
                 type="checkbox"
                 checked={selectedSchedules.size === paginatedSchedules.length && paginatedSchedules.length > 0}
@@ -556,7 +569,7 @@
                 class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-company text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
               <button
                 on:click={() => handleSort('company')}
                 class="flex items-center gap-1 hover:text-gray-700 transition-colors"
@@ -564,35 +577,35 @@
                 Company {getSortIcon('company')}
               </button>
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               <button
                 on:click={() => handleSort('start_month')}
-                class="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                class="flex items-center justify-center gap-1 hover:text-gray-700 transition-colors w-full"
               >
-                Start Month {getSortIcon('start_month')}
+                Start {getSortIcon('start_month')}
               </button>
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               <button
                 on:click={() => handleSort('occurence')}
-                class="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                class="flex items-center justify-center gap-1 hover:text-gray-700 transition-colors w-full"
               >
-                Frequency {getSortIcon('occurence')}
+                Freq {getSortIcon('occurence')}
               </button>
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               Color
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Locations
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Loc
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Contacts
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Cont
             </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               Notes
             </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               Actions
             </th>
           </tr>
@@ -600,7 +613,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
           {#each paginatedSchedules as schedule, index}
             <tr class="hover:bg-gray-50 transition-all duration-300 animate-fade-in interactive-hover" style="animation-delay: {index * 50}ms;">
-              <td class="px-6 py-4 whitespace-nowrap">
+              <td class="col-tight">
                 <input
                   type="checkbox"
                   checked={selectedSchedules.has(schedule.id)}
@@ -608,75 +621,48 @@
                   class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm font-medium text-gray-900">{schedule.company}</div>
+              <td class="col-company">
+                <div class="font-medium text-gray-900" title={schedule.company}>{schedule.company}</div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">{getMonthName(schedule.start_month)}</div>
+              <td class="col-tight text-gray-900">
+                {getMonthName(schedule.start_month).slice(0, 3)}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">
-                  Every {schedule.occurence} month{schedule.occurence !== 1 ? 's' : ''}
-                </div>
+              <td class="col-tight text-gray-900">
+                {schedule.occurence}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="flex items-center gap-2">
-                  <div 
-                    class="w-6 h-6 rounded-full border-2 border-gray-300 shadow-sm"
-                    style="background-color: {schedule.color || '#3b82f6'};"
-                    title="{schedule.color || '#3b82f6'}"
-                  ></div>
-                  <span class="text-xs text-gray-500 font-mono">{schedule.color || '#3b82f6'}</span>
-                </div>
+              <td class="col-tight">
+                <div
+                  class="w-4 h-4 rounded-full border border-gray-300 shadow-sm mx-auto"
+                  style="background-color: {schedule.color || '#3b82f6'};"
+                  title="{schedule.color || '#3b82f6'}"
+                ></div>
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">{schedule.information.length}</div>
-                <div class="text-xs text-gray-500">
-                  {schedule.information.map(info => info.sub_company_name).join(', ')}
-                </div>
+              <td class="col-tight text-gray-900">
+                {schedule.information.length}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">
-                  {schedule.information.reduce((total, info) => total + info.contacts.length, 0)} total
-                </div>
-                <div class="text-xs text-gray-500">
-                  {schedule.information.flatMap(info => info.contacts).slice(0, 2).map(contact => contact.name).join(', ')}
-                  {schedule.information.flatMap(info => info.contacts).length > 2 ? '...' : ''}
-                </div>
+              <td class="col-tight text-gray-900">
+                {schedule.information.reduce((total, info) => total + info.contacts.length, 0)}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <div class="text-sm text-gray-900">{schedule.notes.length}</div>
-                {#if schedule.notes.length > 0}
-                  <div class="text-xs text-gray-500">{schedule.notes[0].title}</div>
-                {/if}
+              <td class="col-tight text-gray-900">
+                {schedule.notes.length}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <div class="flex justify-end gap-2">
-                  <button
-                    on:click={() => handleView(schedule)}
-                    class="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-all duration-300"
-                    title="View Details"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
+              <td class="col-tight">
+                <div class="flex justify-center gap-0.5">
                   <button
                     on:click={() => handleEdit(schedule)}
-                    class="p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-lg transition-all duration-300"
+                    class="p-1 text-green-600 hover:text-green-900 hover:bg-green-50 rounded transition-all duration-300"
                     title="Edit"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
                   <button
                     on:click={() => handleDeleteDirect(schedule)}
-                    class="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-lg transition-all duration-300"
+                    class="p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-all duration-300"
                     title="Delete"
                   >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>

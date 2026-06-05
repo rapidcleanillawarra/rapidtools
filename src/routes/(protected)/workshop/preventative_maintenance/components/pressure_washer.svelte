@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
-	import { IMS_COMBUSTION_ENGINE_NOTE, createImsChecklistSections, mergeChecklistSections } from './imsData';
+	import { IMS_COMBUSTION_ENGINE_NOTE, createImsChecklistSections, mergeChecklistSections } from './pressure_washer_data';
 	import {
 		loadImsDraft,
 		saveImsDraft,
@@ -16,15 +16,15 @@
 		type OperatingHoursTotal,
 		type OperatingHoursSinceMaintenance,
 		type ImsSignatures
-	} from './imsStorage';
-	import { printSheetElement } from './printUtils';
+	} from './pressure_washer_storage';
+	import { printSheetElement } from './print_utils';
 	import { type WorkshopOrderOption } from './WorkshopOrderCombobox.svelte';
 	import CustomerInformationSection from './CustomerInformationSection.svelte';
 	import MachineInformationSection from './MachineInformationSection.svelte';
 	import {
 		createEmptyCustomerInfoFields,
 		createEmptyMachineHourMeterFields
-	} from './pmStorage';
+	} from './shared_storage';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { get } from 'svelte/store';

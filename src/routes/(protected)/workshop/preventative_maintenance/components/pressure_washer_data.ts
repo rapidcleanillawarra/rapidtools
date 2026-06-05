@@ -2,7 +2,7 @@ import type {
 	ImsChecklistRowState,
 	ImsInspectionInterval,
 	ImsIntervalKey
-} from './imsStorage';
+} from './pressure_washer_storage';
 
 export type ImsChecklistItemDef = {
 	task: string;
@@ -316,7 +316,7 @@ export function intervalDisplay(hours: string, key?: ImsIntervalKey): string {
 	return `${hours} ${IMS_INTERVAL_SYMBOLS[key] ?? ''}`.trim();
 }
 
-function isValidStatus(value: unknown): value is import('./imsStorage').ImsChecklistStatus {
+function isValidStatus(value: unknown): value is import('./pressure_washer_storage').ImsChecklistStatus {
 	return value === '' || value === 'not_required' || value === 'ok' || value === 'not_ok';
 }
 
@@ -324,7 +324,7 @@ function isValidInspectionInterval(value: unknown): value is ImsInspectionInterv
 	return value === '' || value === 'six_monthly' || value === 'twelve_monthly';
 }
 
-type LegacySavedItem = import('./imsStorage').ImsChecklistItemRow & {
+type LegacySavedItem = import('./pressure_washer_storage').ImsChecklistItemRow & {
 	intervalHours?: string;
 	intervalKey?: ImsIntervalKey;
 };
@@ -346,7 +346,7 @@ function normalizeInspectionInterval(saved: LegacySavedItem): ImsInspectionInter
 }
 
 export function mergeChecklistSections(
-	saved: import('./imsStorage').ImsChecklistSectionState[] | undefined
+	saved: import('./pressure_washer_storage').ImsChecklistSectionState[] | undefined
 ): ReturnType<typeof createImsChecklistSections> {
 	const defaults = createImsChecklistSections();
 	if (!saved?.length) return defaults;

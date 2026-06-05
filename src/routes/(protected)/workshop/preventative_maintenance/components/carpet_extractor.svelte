@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
+	import { CARPET_EXTRACTOR_CHECKLIST_SECTIONS } from './carpet_extractor_data';
 	import {
-		PMIS_CHECKLIST_SECTIONS,
 		FLOOR_SCRUBBER_CHECKLIST_SECTIONS,
 		BATTERY_CELL_LABELS,
 		OPERATION_CHECK_PRE_TASKS,
@@ -11,16 +11,18 @@
 		createBatteryCells,
 		createBrushCondition,
 		createOperationFooter
-	} from './pmData';
+	} from './floor_scrubber_data';
 	import {
-		loadPmisDraft,
-		savePmisDraft,
-		clearPmisDraft,
+		loadCarpetExtractorDraft,
+		saveCarpetExtractorDraft,
+		clearCarpetExtractorDraft,
+		type ChecklistStatus,
+		type CarpetExtractorDraft
+	} from './carpet_extractor_storage';
+	import {
 		loadFloorScrubberDraft,
 		saveFloorScrubberDraft,
 		clearFloorScrubberDraft,
-		type ChecklistStatus,
-		type PmisDraft,
 		type FloorScrubberDraft,
 		type WaterClarity,
 		type WaterLevel,
@@ -29,11 +31,13 @@
 		type BrushConditionState,
 		type BatteryCellRow,
 		type OperationFooterState,
-		type FloorScrubberChecklistRowDraft,
+		type FloorScrubberChecklistRowDraft
+	} from './floor_scrubber_storage';
+	import {
 		createEmptyCustomerInfoFields,
 		createEmptyMachineHourMeterFields
-	} from './pmStorage';
-	import { printSheetElement } from './printUtils';
+	} from './shared_storage';
+	import { printSheetElement } from './print_utils';
 	import CustomerInformationSection from './CustomerInformationSection.svelte';
 	import MachineInformationSection from './MachineInformationSection.svelte';
 	import { type WorkshopOrderOption } from './WorkshopOrderCombobox.svelte';
@@ -41,21 +45,20 @@
 	import { currentUser } from '$lib/firebase';
 	import { get } from 'svelte/store';
 
-	// Props
 	interface Props {
-		type: 'pmis' | 'floor_scrubber';
+		type?: 'carpet_extractor' | 'floor_scrubber';
 	}
-	let { type }: Props = $props();
+	let { type = 'carpet_extractor' }: Props = $props();
 
 	const LOGO_URL = `${base}/company_logo_white.webp`;
 	const LOGO_PRINT_FALLBACK = LOGO_URL;
 	const BATTERY_LAYOUT_IMAGE_URL = `${base}/pm_floor_scrubber_battery_layout.svg`;
 
-	type PmisChecklistRow = { task: string; status: ChecklistStatus; notes: string };
+	type CarpetExtractorChecklistRow = { task: string; status: ChecklistStatus; notes: string };
 	type FsChecklistRow = { task: string; inSpec: boolean; repair: boolean; problem: string };
 	type PartRow = { part: string; qty: string; notes: string };
 
-	function createPmisChecklistRows(tasks: string[]): PmisChecklistRow[] {
+	function createCarpetExtractorChecklistRows(tasks: string[]): CarpetExtractorChecklistRow[] {
 		return tasks.map((task) => ({ task, status: 'fail', notes: '' }));
 	}
 
@@ -103,9 +106,9 @@
 	let rechargeNumber = $state('');
 	let workOrderNumber = $state('');
 
-	let pmisChecklistSections = $state(PMIS_CHECKLIST_SECTIONS.map((section) => ({
+	let carpetExtractorChecklistSections = $state(CARPET_EXTRACTOR_CHECKLIST_SECTIONS.map((section) => ({
 		...section,
-		rows: createPmisChecklistRows(section.tasks)
+		rows: createCarpetExtractorChecklistRows(section.tasks)
 	})));
 
 	let parts = $state(emptyPartRows());
@@ -180,12 +183,17 @@
 		recordsLoading = true;
 		recordsError = '';
 		try {
-			const { data, error } = await supabase
+			let query = supabase
 				.from('workshop_pm_inspections')
 				.select('id, customer_name, site_location, technician_name, inspection_date, machine_model, serial_number, work_order_number, checklist_data, parts_replaced, equipment_details, recommendations, signatures, created_at')
-				.eq('type', type)
 				.order('created_at', { ascending: false })
 				.limit(50);
+			if (type === 'carpet_extractor') {
+				query = query.in('type', ['carpet_extractor', 'pmis']);
+			} else {
+				query = query.eq('type', type);
+			}
+			const { data, error } = await query;
 			if (error) throw error;
 			savedRecords = (data ?? []) as SavedRecord[];
 		} catch (err) {
@@ -196,7 +204,7 @@
 	}
 
 	function loadRecord(rec: SavedRecord) {
-		if (type === 'pmis') {
+		if (type === 'carpet_extractor') {
 			const cd = rec.checklist_data as { title: string; rows: { task: string; status: string; notes: string }[] }[];
 			const pr = rec.parts_replaced as { part: string; qty: string; notes: string }[];
 			const eq = rec.equipment_details as {
@@ -225,7 +233,7 @@
 				return iso;
 			}
 
-			applyPmisDraft({
+			applyCarpetExtractorDraft({
 				workshopOrderId: eq?.workshopOrderId ?? '',
 				customerName: rec.customer_name ?? '',
 				siteLocation: rec.site_location ?? '',
@@ -251,7 +259,7 @@
 				workOrderNumber: eq?.workOrderNumber ?? '',
 				checklistSections: Array.isArray(cd) ? cd.map((s) => ({
 					title: s.title,
-					rows: s.rows.map((r) => ({ task: r.task, status: r.status as import('./pmStorage').ChecklistStatus, notes: r.notes }))
+					rows: s.rows.map((r) => ({ task: r.task, status: r.status as import('./carpet_extractor_storage').ChecklistStatus, notes: r.notes }))
 				})) : [],
 				parts: Array.isArray(pr) ? pr : [],
 				recNone: !!recs?.recNone,
@@ -288,12 +296,12 @@
 				hourMeterScrub: (eq?.hourMeterScrub as string) ?? '',
 				rechargeNumber: (eq?.rechargeNumber as string) ?? '',
 				hourMeterVacuum: (eq?.hourMeterVacuum as string) ?? '',
-				checklistSections: Array.isArray(rec.checklist_data) ? (rec.checklist_data as import('./pmStorage').FloorScrubberChecklistSectionDraft[]) : [],
-				battery1: eq?.battery1 as import('./pmStorage').BatteryCellRow[] | undefined,
-				battery2: eq?.battery2 as import('./pmStorage').BatteryCellRow[] | undefined,
-				brushCondition: eq?.brushCondition as import('./pmStorage').BrushConditionState | undefined,
-				operationCheckPre: eq?.operationCheckPre as import('./pmStorage').FloorScrubberChecklistRowDraft[] | undefined,
-				operationCheckPost: eq?.operationCheckPost as import('./pmStorage').FloorScrubberChecklistRowDraft[] | undefined,
+				checklistSections: Array.isArray(rec.checklist_data) ? (rec.checklist_data as import('./floor_scrubber_storage').FloorScrubberChecklistSectionDraft[]) : [],
+				battery1: eq?.battery1 as import('./floor_scrubber_storage').BatteryCellRow[] | undefined,
+				battery2: eq?.battery2 as import('./floor_scrubber_storage').BatteryCellRow[] | undefined,
+				brushCondition: eq?.brushCondition as import('./floor_scrubber_storage').BrushConditionState | undefined,
+				operationCheckPre: eq?.operationCheckPre as import('./floor_scrubber_storage').FloorScrubberChecklistRowDraft[] | undefined,
+				operationCheckPost: eq?.operationCheckPost as import('./floor_scrubber_storage').FloorScrubberChecklistRowDraft[] | undefined,
 				operationFooter: sigs ? {
 					comments: (eq?.operationFooter as Record<string, string>)?.comments ?? '',
 					testTag3Month: (eq?.operationFooter as Record<string, string>)?.testTag3Month ?? '',
@@ -344,7 +352,7 @@
 		printing = true;
 		printError = '';
 		try {
-			if (type === 'pmis') {
+			if (type === 'carpet_extractor') {
 				await printSheetElement(sheetEl, LOGO_PRINT_FALLBACK, {
 					pageClassName: 'pmis-page',
 					printTitle: 'PMIS — Print'
@@ -374,9 +382,9 @@
 		return new Date().toISOString().slice(0, 10);
 	}
 
-	function buildPmisPayload() {
+	function buildCarpetExtractorPayload() {
 		return {
-			type: 'pmis' as const,
+			type: 'carpet_extractor' as const,
 			customer_name: customerName || 'Unknown',
 			site_location: siteLocation || null,
 			technician_name: technicianName || 'Unknown',
@@ -385,7 +393,7 @@
 			serial_number: serialNumber || '',
 			work_order_number: assetId || null,
 			status: 'completed' as const,
-			checklist_data: pmisChecklistSections.map((s) => ({
+			checklist_data: carpetExtractorChecklistSections.map((s) => ({
 				title: s.title,
 				rows: s.rows.map((r) => ({ task: r.task, status: r.status, notes: r.notes }))
 			})),
@@ -459,7 +467,7 @@
 		saveSuccess = false;
 
 		try {
-			const payload = type === 'pmis' ? buildPmisPayload() : buildFsPayload();
+			const payload = type === 'carpet_extractor' ? buildCarpetExtractorPayload() : buildFsPayload();
 
 			let result;
 			if (savedId) {
@@ -494,7 +502,7 @@
 	// ── Draft builders ───────────────────────────────────────────────────────
 
 	function applyWorkshopOrder(option: WorkshopOrderOption) {
-		if (type === 'pmis') {
+		if (type === 'carpet_extractor') {
 			if (option.customerName) customerName = option.customerName;
 			if (option.siteLocation) {
 				siteLocation = option.siteLocation;
@@ -516,7 +524,7 @@
 		persistDraft();
 	}
 
-	function buildPmisDraft(): PmisDraft {
+	function buildCarpetExtractorDraft(): CarpetExtractorDraft {
 		return {
 			workshopOrderId,
 			customerName,
@@ -541,7 +549,7 @@
 			hourMeterVacuum,
 			rechargeNumber,
 			workOrderNumber,
-			checklistSections: pmisChecklistSections.map((section) => ({
+			checklistSections: carpetExtractorChecklistSections.map((section) => ({
 				title: section.title,
 				rows: section.rows.map((row) => ({
 					task: row.task,
@@ -601,15 +609,15 @@
 	}
 
 	function persistDraft() {
-		if (type === 'pmis') {
-			savePmisDraft(buildPmisDraft());
+		if (type === 'carpet_extractor') {
+			saveCarpetExtractorDraft(buildCarpetExtractorDraft());
 		} else {
 			saveFloorScrubberDraft(buildFsDraft());
 		}
 	}
 
 	// Apply drafts
-	function applyPmisDraft(draft: PmisDraft) {
+	function applyCarpetExtractorDraft(draft: CarpetExtractorDraft) {
 		workshopOrderId = draft.workshopOrderId ?? '';
 		customerName = draft.customerName ?? '';
 		siteLocation = draft.siteLocation ?? '';
@@ -634,9 +642,9 @@
 		rechargeNumber = draft.rechargeNumber ?? '';
 		workOrderNumber = draft.workOrderNumber ?? '';
 
-		pmisChecklistSections = PMIS_CHECKLIST_SECTIONS.map((section) => {
+		carpetExtractorChecklistSections = CARPET_EXTRACTOR_CHECKLIST_SECTIONS.map((section) => {
 			const saved = draft.checklistSections?.find((s) => s.title === section.title);
-			const rows = createPmisChecklistRows(section.tasks).map((row) => {
+			const rows = createCarpetExtractorChecklistRows(section.tasks).map((row) => {
 				const savedRow = saved?.rows?.find((r) => r.task === row.task);
 				if (!savedRow) return row;
 				const status: ChecklistStatus =
@@ -779,7 +787,7 @@
 
 	// Reset forms
 	function clearForm() {
-		if (type === 'pmis') {
+		if (type === 'carpet_extractor') {
 			workshopOrderId = '';
 			customerName = '';
 			siteLocation = '';
@@ -805,9 +813,9 @@
 			hourMeterVacuum = emptyMachine.hourMeterVacuum;
 			rechargeNumber = emptyMachine.rechargeNumber;
 			workOrderNumber = emptyMachine.workOrderNumber;
-			pmisChecklistSections = PMIS_CHECKLIST_SECTIONS.map((section) => ({
+			carpetExtractorChecklistSections = CARPET_EXTRACTOR_CHECKLIST_SECTIONS.map((section) => ({
 				...section,
-				rows: createPmisChecklistRows(section.tasks)
+				rows: createCarpetExtractorChecklistRows(section.tasks)
 			}));
 			parts = emptyPartRows();
 			recNone = false;
@@ -820,7 +828,7 @@
 			outcomeUnsafe = false;
 			techSignature = '';
 			customerRep = '';
-			clearPmisDraft();
+			clearCarpetExtractorDraft();
 		} else {
 			workshopOrderId = '';
 			customer = '';
@@ -854,10 +862,10 @@
 	}
 
 	onMount(() => {
-		if (type === 'pmis') {
-			const draft = loadPmisDraft();
+		if (type === 'carpet_extractor') {
+			const draft = loadCarpetExtractorDraft();
 			if (draft) {
-				applyPmisDraft(draft);
+				applyCarpetExtractorDraft(draft);
 			}
 			if (!inspectionDate) inspectionDate = formatInspectionDate(new Date());
 		} else {
@@ -872,7 +880,7 @@
 	<title>Preventive Maintenance (PM) Inspection Sheet</title>
 </svelte:head>
 
-<div class={type === 'pmis' ? 'pmis-page' : 'pm-floor-scrubber-page'}>
+<div class={type === 'carpet_extractor' ? 'pmis-page' : 'pm-floor-scrubber-page'}>
 	<div class="screen-toolbar no-print">
 		<h1 class="screen-title">Preventive Maintenance (PM) Inspection Sheet</h1>
 		<div class="screen-actions">
@@ -925,13 +933,13 @@
 					<td class="logo-cell" rowspan="2">
 						<img src={LOGO_URL} alt="Rapid Supplies" width="140" height="56" />
 					</td>
-					<td class="header-title" colspan={type === 'pmis' ? 1 : 3}>
+					<td class="header-title" colspan={type === 'carpet_extractor' ? 1 : 3}>
 						Preventive Maintenance (PM) Inspection Sheet
 					</td>
 				</tr>
 				<tr>
-					<td class="header-sub" colspan={type === 'pmis' ? 1 : 3}>
-						{type === 'pmis'
+					<td class="header-sub" colspan={type === 'carpet_extractor' ? 1 : 3}>
+						{type === 'carpet_extractor'
 							? 'Commercial Walk-Behind Carpet Extractors'
 							: 'Commercial Floor Scrubbers'}
 					</td>
@@ -939,7 +947,7 @@
 			</tbody>
 		</table>
 
-		{#if type === 'pmis'}
+		{#if type === 'carpet_extractor'}
 			<CustomerInformationSection
 				comboboxId="pmis-workshop-order-id"
 				bind:workshopOrderId
@@ -1034,8 +1042,8 @@
 			/>
 		{/if}
 
-		{#if type === 'pmis'}
-			{#each pmisChecklistSections as section (section.title)}
+		{#if type === 'carpet_extractor'}
+			{#each carpetExtractorChecklistSections as section (section.title)}
 				<table class="form-table checklist" aria-label={section.ariaLabel}>
 					<tbody>
 						<tr class="section-bar"><th colspan="3">{section.title}</th></tr>

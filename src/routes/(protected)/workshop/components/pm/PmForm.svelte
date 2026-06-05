@@ -869,14 +869,12 @@
 </script>
 
 <svelte:head>
-	<title>{type === 'pmis' ? 'PMIS — Carpet Extractor PM Inspection' : 'Floor Scrubber PM Sheet'}</title>
+	<title>Preventive Maintenance (PM) Inspection Sheet</title>
 </svelte:head>
 
 <div class={type === 'pmis' ? 'pmis-page' : 'pm-floor-scrubber-page'}>
 	<div class="screen-toolbar no-print">
-		<h1 class="screen-title">
-			{type === 'pmis' ? 'PMIS — Preventive Maintenance Inspection' : 'Floor Scrubber PM Sheet'}
-		</h1>
+		<h1 class="screen-title">Preventive Maintenance (PM) Inspection Sheet</h1>
 		<div class="screen-actions">
 			{#if printError}
 				<p class="print-error" role="alert">{printError}</p>
@@ -928,16 +926,14 @@
 						<img src={LOGO_URL} alt="Rapid Supplies" width="140" height="56" />
 					</td>
 					<td class="header-title" colspan={type === 'pmis' ? 1 : 3}>
-						{type === 'pmis'
-							? 'Preventive Maintenance (PM) Inspection Sheet'
-							: 'Floor Scrubber PM Sheet'}
+						Preventive Maintenance (PM) Inspection Sheet
 					</td>
 				</tr>
 				<tr>
 					<td class="header-sub" colspan={type === 'pmis' ? 1 : 3}>
 						{type === 'pmis'
-							? 'RapidClean Illawarra — Commercial Walk-Behind Carpet Extractors'
-							: 'RapidClean Illawarra — Commercial Floor Scrubbers'}
+							? 'Commercial Walk-Behind Carpet Extractors'
+							: 'Commercial Floor Scrubbers'}
 					</td>
 				</tr>
 			</tbody>

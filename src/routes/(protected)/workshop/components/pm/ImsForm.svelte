@@ -468,12 +468,12 @@
 </script>
 
 <svelte:head>
-	<title>IMS — HD / HDS Inspection &amp; Maintenance</title>
+	<title>Preventive Maintenance (PM) Inspection Sheet</title>
 </svelte:head>
 
 <div class="ims-page">
 	<div class="screen-toolbar no-print">
-		<h1 class="screen-title">IMS — HD / HDS Inspection &amp; Maintenance Checklist</h1>
+		<h1 class="screen-title">Preventive Maintenance (PM) Inspection Sheet</h1>
 		<div class="screen-actions">
 			{#if printError}
 				<p class="print-error" role="alert">{printError}</p>
@@ -525,10 +525,10 @@
 						<td class="logo-cell" rowspan="2">
 							<img src={LOGO_URL} alt="Rapid Supplies" width="140" height="56" />
 						</td>
-						<td class="header-title">Inspection and maintenance checklist</td>
+						<td class="header-title">Preventive Maintenance (PM) Inspection Sheet</td>
 					</tr>
 					<tr>
-						<td class="header-sub">HD / HDS</td>
+						<td class="header-sub">Pressure Washer</td>
 					</tr>
 				</tbody>
 			</table>

@@ -737,17 +737,17 @@
 								on:click={closeSidebar}>Workshop Job Status</a
 							>
 							<a
-								href="{base}/workshop/pmis"
+								href="{base}/workshop/preventative_maintenance/pmis"
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>PMIS</a
 							>
 							<a
-								href="{base}/workshop/pm_floor_scrubber"
+								href="{base}/workshop/preventative_maintenance/pm_floor_scrubber"
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Floor Scrubber PM</a
 							>
 							<a
-								href="{base}/workshop/ims"
+								href="{base}/workshop/preventative_maintenance/ims"
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>IMS (HD / HDS)</a
 							>

@@ -216,7 +216,10 @@
   }
 
   function openSheet(schedule: Schedule) {
-    const params = new URLSearchParams({ company: schedule.company });
+    const params = new URLSearchParams({
+      company: schedule.company,
+      scheduleId: schedule.id
+    });
     goto(`${base}/scheduled-test-and-tag/sheet?${params.toString()}`);
   }
 

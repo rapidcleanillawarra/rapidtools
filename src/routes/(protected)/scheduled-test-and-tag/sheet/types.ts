@@ -33,6 +33,10 @@ export const MACHINE_TYPE_OPTIONS = [
 
 export type MachineType = (typeof MACHINE_TYPE_OPTIONS)[number];
 
+export const RESULT_OPTIONS = ['pass', 'fail'] as const;
+
+export type ResultValue = (typeof RESULT_OPTIONS)[number] | '';
+
 /** Columns that support multi-row paste from Excel / Google Sheets */
 export const PASTEABLE_COLUMNS = [
 	'machines',

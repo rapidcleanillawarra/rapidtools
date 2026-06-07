@@ -1,5 +1,6 @@
 import { PASTEABLE_COLUMNS, type PasteableColumnKey } from './types';
-import type { SheetHeader, SheetRow } from './types';
+import { FREQUENCY_OPTIONS, type SheetFrequency, type SheetHeader, type SheetRow } from './types';
+import type { Schedule } from '../stores';
 
 /** Active is checked unless explicitly set to false. */
 export function normalizeSheetRow(row: SheetRow): SheetRow {
@@ -30,6 +31,65 @@ export function createEmptyHeader(): SheetHeader {
 		serviceDate: new Date().toISOString().split('T')[0],
 		frequency: ''
 	};
+}
+
+export function occurrenceToFrequency(occurence: number): SheetFrequency | '' {
+	const match = FREQUENCY_OPTIONS.find((option) => option.startsWith(`${occurence} `));
+	return match ?? '';
+}
+
+export function findScheduleForCompany(
+	schedules: Schedule[],
+	company: string,
+	scheduleId?: string | null
+): Schedule | undefined {
+	if (scheduleId) {
+		const byId = schedules.find((schedule) => schedule.id === scheduleId);
+		if (byId) return byId;
+	}
+
+	return schedules.find((schedule) => schedule.company === company);
+}
+
+export function getDefaultFrequency(
+	schedules: Schedule[],
+	company: string,
+	scheduleId?: string | null
+): SheetFrequency | '' {
+	const schedule = findScheduleForCompany(schedules, company, scheduleId);
+	if (!schedule) return '';
+	return occurrenceToFrequency(schedule.occurence);
+}
+
+export function applyCompanyToHeader(
+	header: SheetHeader,
+	schedules: Schedule[],
+	company: string,
+	scheduleId?: string | null
+): SheetHeader {
+	return {
+		...header,
+		company,
+		location: '',
+		frequency: getDefaultFrequency(schedules, company, scheduleId)
+	};
+}
+
+/** e.g. "July 07, 2026" */
+export function formatServiceDate(isoDate: string): string {
+	if (!isoDate) return 'Select date…';
+
+	const [year, month, day] = isoDate.split('-').map(Number);
+	if (!year || !month || !day) return isoDate;
+
+	const date = new Date(year, month - 1, day);
+	if (Number.isNaN(date.getTime())) return isoDate;
+
+	return new Intl.DateTimeFormat('en-US', {
+		month: 'long',
+		day: '2-digit',
+		year: 'numeric'
+	}).format(date);
 }
 
 /** Parse tab/newline clipboard text into a row/column grid (Excel-style). */

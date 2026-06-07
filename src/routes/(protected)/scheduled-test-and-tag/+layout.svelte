@@ -6,7 +6,8 @@
   // Tab options
   const tabs = [
     { id: 'schedules', label: 'Schedules', icon: '📅', path: 'schedules' },
-    { id: 'companies', label: 'Companies', icon: '🏢', path: 'companies' }
+    { id: 'companies', label: 'Companies', icon: '🏢', path: 'companies' },
+    { id: 'sheet', label: 'Sheet', icon: '📋', path: 'sheet' }
   ];
 
   // Determine active tab based on current URL

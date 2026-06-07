@@ -120,6 +120,10 @@
 		toastInfo('Sheet saved locally. Persistence will be added in a future update.', 'Saved');
 	}
 
+	function handlePrint() {
+		window.print();
+	}
+
 	function handlePaste(event: ClipboardEvent, rowId: string | null, column: PasteableColumnKey) {
 		const text = event.clipboardData?.getData('text/plain') ?? '';
 		if (!text) return;
@@ -139,13 +143,16 @@
 	}
 </script>
 
-<ToastContainer />
+<div class="no-print">
+	<ToastContainer />
+</div>
 
 <div class="sheet-page">
-	<div class="sheet-toolbar">
+	<div class="sheet-toolbar no-print">
 		<a href="{base}/scheduled-test-and-tag/companies" class="sheet-toolbar-link">← Back to Companies</a>
 		<div class="sheet-toolbar-actions">
 			<button type="button" class="sheet-toolbar-btn" on:click={addMachine}>Add Machine</button>
+			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
 			<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={handleSave}>
 				Save Sheet
 			</button>
@@ -196,40 +203,42 @@
 						{/each}
 					</select>
 				</label>
-				<label class="sheet-meta-row" for="sheet-service-date">
-					<span class="sheet-meta-label">Date</span>
-					<div class="sheet-date-field">
-						<span class="sheet-date-display">{formattedServiceDate}</span>
-						<input
-							id="sheet-service-date"
-							type="date"
-							bind:value={$sheetHeader.serviceDate}
-							class="sheet-date-input"
-							aria-label="Service date"
-						/>
-					</div>
-				</label>
-				<label class="sheet-meta-row" for="sheet-frequency">
-					<span class="sheet-meta-label">Frequency</span>
-					<select
-						id="sheet-frequency"
-						bind:value={$sheetHeader.frequency}
-						class="sheet-meta-input sheet-header-select"
-						title={$sheetHeader.frequency || 'Select frequency'}
-					>
-						<option value="">Select frequency…</option>
-						{#each FREQUENCY_OPTIONS as frequency (frequency)}
-							<option value={frequency}>{frequency}</option>
-						{/each}
-					</select>
-				</label>
+				<div class="sheet-meta-row-pair">
+					<label class="sheet-meta-row" for="sheet-service-date">
+						<span class="sheet-meta-label">Date</span>
+						<div class="sheet-date-field">
+							<span class="sheet-date-display">{formattedServiceDate}</span>
+							<input
+								id="sheet-service-date"
+								type="date"
+								bind:value={$sheetHeader.serviceDate}
+								class="sheet-date-input"
+								aria-label="Service date"
+							/>
+						</div>
+					</label>
+					<label class="sheet-meta-row" for="sheet-frequency">
+						<span class="sheet-meta-label">Frequency</span>
+						<select
+							id="sheet-frequency"
+							bind:value={$sheetHeader.frequency}
+							class="sheet-meta-input sheet-header-select"
+							title={$sheetHeader.frequency || 'Select frequency'}
+						>
+							<option value="">Select frequency…</option>
+							{#each FREQUENCY_OPTIONS as frequency (frequency)}
+								<option value={frequency}>{frequency}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
 			</div>
 		</header>
 
 		<div
 			class="sheet-table-wrap"
 			on:paste={(e) => {
-				if ($sheetRows.length === 0) handlePaste(e, null, 'machines');
+				if ($sheetRows.length === 0) handlePaste(e, null, 'tag');
 			}}
 		>
 			{#if isTableLoading}
@@ -536,6 +545,13 @@
 		padding-top: 0.875rem;
 	}
 
+	.sheet-meta-row-pair {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		width: 100%;
+	}
+
 	.sheet-meta-row {
 		display: grid;
 		grid-template-columns: 6.5rem minmax(0, 1fr);
@@ -770,9 +786,98 @@
 			margin: 0 auto;
 		}
 
+		.sheet-meta-row-pair {
+			grid-template-columns: 1fr;
+		}
+
 		.sheet-meta-row {
 			grid-template-columns: 1fr;
 			gap: 0.25rem;
+		}
+	}
+
+	@media print {
+		:global(aside),
+		:global(.sticky.top-0.z-50),
+		:global(.toast-container),
+		:global(.no-print) {
+			display: none !important;
+		}
+
+		:global(main) {
+			margin-left: 0 !important;
+		}
+
+		:global(body) {
+			background: #fff;
+		}
+
+		.sheet-page {
+			min-height: auto;
+			background: #fff;
+			padding: 0;
+		}
+
+		.sheet-document {
+			max-width: none;
+			margin: 0;
+			padding: 0;
+			box-shadow: none;
+		}
+
+		.sheet-header {
+			margin: 0 0 1rem;
+			padding: 1rem 0;
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+
+		.sheet-table-wrap {
+			overflow: visible;
+		}
+
+		.sheet-actions-col,
+		.sheet-add-row,
+		.sheet-sort-icon,
+		.sheet-date-input {
+			display: none !important;
+		}
+
+		.sheet-empty :global(button) {
+			display: none !important;
+		}
+
+		.sheet-sort-btn {
+			cursor: default;
+			pointer-events: none;
+		}
+
+		.sheet-cell-input:focus,
+		:global(.machine-type-input:focus),
+		:global(.result-select:focus) {
+			background: transparent !important;
+			box-shadow: none !important;
+		}
+
+		:global(.machine-type-options) {
+			display: none !important;
+		}
+
+		:global(.result-select--pass) {
+			color: #16a34a !important;
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+
+		:global(.result-select--fail) {
+			color: #dc2626 !important;
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+
+		.sheet-checkbox {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
 		}
 	}
 </style>

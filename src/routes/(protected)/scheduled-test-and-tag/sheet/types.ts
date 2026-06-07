@@ -9,6 +9,7 @@ export type SheetHeader = {
 
 export type SheetRow = {
 	id: string;
+	tag: string;
 	machines: string;
 	typeOfMachine: string;
 	serialNumber: string;
@@ -39,6 +40,7 @@ export type ResultValue = (typeof RESULT_OPTIONS)[number] | '';
 
 /** Columns that support multi-row paste from Excel / Google Sheets */
 export const PASTEABLE_COLUMNS = [
+	'tag',
 	'machines',
 	'typeOfMachine',
 	'serialNumber',
@@ -49,6 +51,7 @@ export const PASTEABLE_COLUMNS = [
 export type PasteableColumnKey = (typeof PASTEABLE_COLUMNS)[number];
 
 export const SHEET_COLUMNS = [
+	{ key: 'tag' as const, label: 'Tag' },
 	{ key: 'machines' as const, label: 'Machines' },
 	{ key: 'typeOfMachine' as const, label: 'Type of Machine' },
 	{ key: 'serialNumber' as const, label: 'Serial #' },

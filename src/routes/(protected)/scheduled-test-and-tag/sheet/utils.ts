@@ -10,6 +10,7 @@ export function normalizeSheetRow(row: SheetRow): SheetRow {
 export function createEmptyRow(): SheetRow {
 	return normalizeSheetRow({
 		id: crypto.randomUUID(),
+		tag: '',
 		machines: '',
 		typeOfMachine: '',
 		serialNumber: '',

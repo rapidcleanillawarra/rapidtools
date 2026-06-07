@@ -1,8 +1,13 @@
 import { PASTEABLE_COLUMNS, type PasteableColumnKey } from './types';
 import type { SheetHeader, SheetRow } from './types';
 
+/** Active is checked unless explicitly set to false. */
+export function normalizeSheetRow(row: SheetRow): SheetRow {
+	return { ...row, active: row.active !== false };
+}
+
 export function createEmptyRow(): SheetRow {
-	return {
+	return normalizeSheetRow({
 		id: crypto.randomUUID(),
 		machines: '',
 		typeOfMachine: '',
@@ -15,7 +20,7 @@ export function createEmptyRow(): SheetRow {
 		service: '',
 		parts: '',
 		notes: ''
-	};
+	});
 }
 
 export function createEmptyHeader(): SheetHeader {
@@ -59,11 +64,11 @@ export function applyPasteToRows(
 				const field = PASTEABLE_COLUMNS[startColIndex + colOffset];
 				if (field) row[field] = value.trim();
 			});
-			return row;
+			return normalizeSheetRow(row);
 		});
 	}
 
-	const result = rows.map((row) => ({ ...row }));
+	const result = rows.map((row) => normalizeSheetRow({ ...row }));
 	const startRowIndex = result.findIndex((row) => row.id === startRowId);
 	if (startRowIndex === -1) return rows;
 
@@ -78,7 +83,7 @@ export function applyPasteToRows(
 			const field = PASTEABLE_COLUMNS[startColIndex + colOffset];
 			if (field) row[field] = value.trim();
 		});
-		result[targetIndex] = row;
+		result[targetIndex] = normalizeSheetRow(row);
 	}
 
 	return result;

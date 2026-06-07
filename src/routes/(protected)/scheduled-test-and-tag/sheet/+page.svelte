@@ -12,6 +12,7 @@
 		createEmptyRow,
 		getSortIcon,
 		isMultiCellPaste,
+		normalizeSheetRow,
 		parsePasteGrid,
 		sortRows
 	} from './utils';
@@ -53,8 +54,9 @@
 				.sort((a, b) => a.localeCompare(b))
 		: [];
 
-	$: displayedRows =
-		sortField === '' ? $sheetRows : sortRows($sheetRows, sortField, sortDirection);
+	$: displayedRows = (sortField === '' ? $sheetRows : sortRows($sheetRows, sortField, sortDirection)).map(
+		normalizeSheetRow
+	);
 
 	onMount(async () => {
 		try {
@@ -210,11 +212,6 @@
 			</div>
 		</header>
 
-		<p class="sheet-paste-tip">
-			Tip: Paste from Excel into Machines, Type of Machine, Serial #, SKU, or Size to fill multiple
-			rows.
-		</p>
-
 		<div
 			class="sheet-table-wrap"
 			on:paste={(e) => {
@@ -262,7 +259,7 @@
 											{#if col.key === 'active'}
 												<input
 													type="checkbox"
-													checked={row.active}
+													checked={row.active !== false}
 													on:change={(e) =>
 														updateRow(row.id, 'active', (e.target as HTMLInputElement).checked)}
 													class="sheet-checkbox"
@@ -494,12 +491,6 @@
 		font-size: 1rem;
 		font-weight: 700;
 		color: #111;
-	}
-
-	.sheet-paste-tip {
-		margin: 0 0 0.75rem;
-		font-size: 0.6875rem;
-		color: #888;
 	}
 
 	.sheet-table-wrap {

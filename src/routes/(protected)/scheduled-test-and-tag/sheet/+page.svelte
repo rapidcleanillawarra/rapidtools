@@ -25,6 +25,7 @@
 	} from './types';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
+	import MachineTypeDropdown from './MachineTypeDropdown.svelte';
 	import { toastError, toastInfo } from '$lib/utils/toast';
 
 	const LOGO_URL = `${base}/images/rapidsupplies-company-logo.png`;
@@ -274,6 +275,12 @@
 													class="sheet-cell-input sheet-cell-textarea"
 													placeholder="Notes"
 												></textarea>
+											{:else if col.key === 'typeOfMachine'}
+												<MachineTypeDropdown
+													value={row.typeOfMachine}
+													on:change={(e) => updateRow(row.id, 'typeOfMachine', e.detail)}
+													on:paste={(e) => handlePaste(e.detail, row.id, 'typeOfMachine')}
+												/>
 											{:else if isPasteableColumn(col.key)}
 												<input
 													type="text"
@@ -561,6 +568,7 @@
 		padding: 0.75rem;
 		vertical-align: top;
 		border: none;
+		position: relative;
 	}
 
 	.sheet-cell-input {

@@ -24,6 +24,15 @@ export type SheetRow = {
 
 export const FREQUENCY_OPTIONS: SheetFrequency[] = ['3 monthly', '6 monthly', '12 monthly'];
 
+export const MACHINE_TYPE_OPTIONS = [
+	'SERV-SM',
+	'SERV-MD',
+	'SERV-LRG',
+	'SERV-PRESSLARG'
+] as const;
+
+export type MachineType = (typeof MACHINE_TYPE_OPTIONS)[number];
+
 /** Columns that support multi-row paste from Excel / Google Sheets */
 export const PASTEABLE_COLUMNS = [
 	'machines',

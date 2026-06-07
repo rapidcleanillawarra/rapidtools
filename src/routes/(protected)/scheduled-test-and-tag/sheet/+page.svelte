@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { base } from '$app/paths';
 	import { get } from 'svelte/store';
+	import { currentUser } from '$lib/firebase';
 	import { schedulesStore } from '../stores';
 	import { loadSchedulesFromFirestore } from '../companies/utils';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
@@ -24,6 +26,8 @@
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
 	import { toastError, toastInfo } from '$lib/utils/toast';
 
+	const LOGO_URL = `${base}/images/rapidsupplies-company-logo.png`;
+
 	let sortField: SheetColumnKey | '' = '';
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
@@ -33,6 +37,9 @@
 	function isPasteableColumn(key: SheetColumnKey): key is PasteableColumnKey {
 		return pasteableColumnSet.has(key);
 	}
+
+	$: technicianName =
+		$currentUser?.displayName?.trim() || ($currentUser?.email?.split('@')[0] ?? '');
 
 	$: companyOptions = [...new Set($schedulesStore.map((s) => s.company))].sort((a, b) =>
 		a.localeCompare(b)
@@ -131,203 +138,144 @@
 
 <ToastContainer />
 
-<div class="space-y-6">
-	<div class="flex flex-wrap items-center justify-between gap-3">
-		<div>
-			<h2 class="text-lg font-semibold text-gray-900">Service Sheet</h2>
-			<p class="text-sm text-gray-600">Record machines and service details for a test &amp; tag visit.</p>
-		</div>
-		<div class="flex gap-2">
-			<button
-				type="button"
-				on:click={addMachine}
-				class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-				</svg>
-				Add Machine
-			</button>
-			<button
-				type="button"
-				on:click={handleSave}
-				class="rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
-			>
+<div class="sheet-page">
+	<div class="sheet-toolbar">
+		<a href="{base}/scheduled-test-and-tag/companies" class="sheet-toolbar-link">← Back to Companies</a>
+		<div class="sheet-toolbar-actions">
+			<button type="button" class="sheet-toolbar-btn" on:click={addMachine}>Add Machine</button>
+			<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={handleSave}>
 				Save Sheet
 			</button>
 		</div>
 	</div>
 
-	<!-- Header fields -->
-	<div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-			<div>
-				<label for="sheet-company" class="mb-1 block text-sm font-medium text-gray-700">Company</label>
+	<div class="sheet-document">
+		<header class="sheet-header">
+			<div class="sheet-header-logo">
+				<img src={LOGO_URL} alt="RapidClean" class="sheet-logo" />
+			</div>
+
+			<div class="sheet-header-center">
 				<select
 					id="sheet-company"
 					value={$sheetHeader.company}
 					on:change={handleCompanyChange}
-					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					class="sheet-company-select"
+					aria-label="Company"
 				>
 					<option value="">Select company…</option>
 					{#each companyOptions as company (company)}
 						<option value={company}>{company}</option>
 					{/each}
 				</select>
+				<p class="sheet-subtitle">Service, Test Tag run</p>
+				<div class="sheet-meta">
+					<label class="sheet-meta-field">
+						<span class="sheet-meta-label">Location</span>
+						<select
+							id="sheet-location"
+							bind:value={$sheetHeader.location}
+							disabled={!$sheetHeader.company}
+							class="sheet-meta-input"
+						>
+							<option value="">—</option>
+							{#each locationOptions as location (location)}
+								<option value={location}>{location}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="sheet-meta-field">
+						<span class="sheet-meta-label">Date</span>
+						<input
+							id="sheet-service-date"
+							type="date"
+							bind:value={$sheetHeader.serviceDate}
+							class="sheet-meta-input"
+						/>
+					</label>
+					<label class="sheet-meta-field">
+						<span class="sheet-meta-label">Frequency</span>
+						<select id="sheet-frequency" bind:value={$sheetHeader.frequency} class="sheet-meta-input">
+							<option value="">—</option>
+							{#each FREQUENCY_OPTIONS as frequency (frequency)}
+								<option value={frequency}>{frequency}</option>
+							{/each}
+						</select>
+					</label>
+				</div>
 			</div>
 
-			<div>
-				<label for="sheet-location" class="mb-1 block text-sm font-medium text-gray-700">Location</label>
-				<select
-					id="sheet-location"
-					bind:value={$sheetHeader.location}
-					disabled={!$sheetHeader.company}
-					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-				>
-					<option value="">Select location…</option>
-					{#each locationOptions as location (location)}
-						<option value={location}>{location}</option>
-					{/each}
-				</select>
+			<div class="sheet-header-tech">
+				<span class="sheet-tech-name">{technicianName || 'Technician'}</span>
 			</div>
+		</header>
 
-			<div>
-				<label for="sheet-service-date" class="mb-1 block text-sm font-medium text-gray-700"
-					>Service Date</label
-				>
-				<input
-					id="sheet-service-date"
-					type="date"
-					bind:value={$sheetHeader.serviceDate}
-					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				/>
-			</div>
+		<p class="sheet-paste-tip">
+			Tip: Paste from Excel into Machines, Type of Machine, Serial #, SKU, or Size to fill multiple
+			rows.
+		</p>
 
-			<div>
-				<label for="sheet-frequency" class="mb-1 block text-sm font-medium text-gray-700"
-					>Frequency</label
-				>
-				<select
-					id="sheet-frequency"
-					bind:value={$sheetHeader.frequency}
-					class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				>
-					<option value="">Select frequency…</option>
-					{#each FREQUENCY_OPTIONS as frequency (frequency)}
-						<option value={frequency}>{frequency}</option>
-					{/each}
-				</select>
-			</div>
-		</div>
-	</div>
-
-	<!-- Machine table -->
-	<p class="text-xs text-gray-500">
-		Tip: Copy rows from Excel or Google Sheets and paste into Machines, Type of Machine, Serial #,
-		SKU, or Size to fill multiple rows at once.
-	</p>
-	<div
-		class="overflow-hidden rounded-lg border border-gray-200"
-		on:paste={(e) => {
-			if ($sheetRows.length === 0) handlePaste(e, null, 'machines');
-		}}
-	>
-		<div class="overflow-x-auto">
+		<div
+			class="sheet-table-wrap"
+			on:paste={(e) => {
+				if ($sheetRows.length === 0) handlePaste(e, null, 'machines');
+			}}
+		>
 			{#if isTableLoading}
-				<div class="space-y-2 p-6">
+				<div class="sheet-loading">
 					<SkeletonLoader type="text" height="2rem" />
 					<SkeletonLoader type="text" height="2rem" />
 					<SkeletonLoader type="text" height="2rem" />
 				</div>
 			{:else}
-				<table class="min-w-full divide-y divide-gray-200 text-sm">
-					<thead class="bg-gray-50">
+				<table class="sheet-table">
+					<thead>
 						<tr>
-							<th
-								scope="col"
-								class="w-10 px-2 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								#
-							</th>
 							{#each SHEET_COLUMNS as col (col.key)}
-								<th
-									scope="col"
-									class="min-w-[7rem] px-2 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-								>
-									<button
-										type="button"
-										class="flex items-center gap-1 text-left hover:text-gray-900"
-										on:click={() => handleSort(col.key)}
-									>
+								<th scope="col">
+									<button type="button" class="sheet-sort-btn" on:click={() => handleSort(col.key)}>
 										{col.label}
-										<span class="text-gray-400">{getSortIcon(col.key, sortField, sortDirection)}</span>
+										<span class="sheet-sort-icon"
+											>{getSortIcon(col.key, sortField, sortDirection)}</span
+										>
 									</button>
 								</th>
 							{/each}
-							<th
-								scope="col"
-								class="w-16 px-2 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								Actions
-							</th>
+							<th scope="col" class="sheet-actions-col"></th>
 						</tr>
 					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white">
+					<tbody>
 						{#if displayedRows.length === 0}
 							<tr>
-								<td
-									colspan={SHEET_COLUMNS.length + 2}
-									class="px-4 py-10 text-center text-sm text-gray-500"
-								>
-									<p class="mb-3">No machines recorded yet.</p>
-									<button
-										type="button"
-										on:click={addMachine}
-										class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
-									>
-										<svg
-											class="h-4 w-4"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											aria-hidden="true"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M12 4v16m8-8H4"
-											/>
-										</svg>
+								<td colspan={SHEET_COLUMNS.length + 1} class="sheet-empty">
+									<p>No machines recorded yet.</p>
+									<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={addMachine}>
 										Add Machine
 									</button>
 								</td>
 							</tr>
 						{:else}
 							{#each displayedRows as row, index (row.id)}
-								<tr class="hover:bg-gray-50">
-									<td class="whitespace-nowrap px-2 py-2 text-gray-500">{index + 1}</td>
+								<tr>
 									{#each SHEET_COLUMNS as col (col.key)}
-										<td class="px-2 py-2 align-top">
+										<td class="sheet-cell">
 											{#if col.key === 'active'}
-												<div class="flex justify-center">
-													<input
-														type="checkbox"
-														checked={row.active}
-														on:change={(e) =>
-															updateRow(row.id, 'active', (e.target as HTMLInputElement).checked)}
-														class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-														aria-label="Active for machine {index + 1}"
-													/>
-												</div>
+												<input
+													type="checkbox"
+													checked={row.active}
+													on:change={(e) =>
+														updateRow(row.id, 'active', (e.target as HTMLInputElement).checked)}
+													class="sheet-checkbox"
+													aria-label="Active for machine {index + 1}"
+												/>
 											{:else if col.key === 'notes'}
 												<textarea
 													value={row[col.key]}
 													on:input={(e) =>
 														updateRow(row.id, col.key, (e.target as HTMLTextAreaElement).value)}
 													rows="2"
-													class="w-full min-w-[8rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-													placeholder={col.label}
+													class="sheet-cell-input sheet-cell-textarea"
+													placeholder="Notes"
 												></textarea>
 											{:else if isPasteableColumn(col.key)}
 												<input
@@ -336,7 +284,8 @@
 													on:input={(e) =>
 														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
 													on:paste={(e) => handlePaste(e, row.id, col.key)}
-													class="w-full min-w-[6rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+													class="sheet-cell-input"
+													class:sheet-cell-input--link={col.key === 'sku'}
 													placeholder={col.label}
 												/>
 											{:else}
@@ -345,20 +294,20 @@
 													value={row[col.key]}
 													on:input={(e) =>
 														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
-													class="w-full min-w-[6rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+													class="sheet-cell-input"
 													placeholder={col.label}
 												/>
 											{/if}
 										</td>
 									{/each}
-									<td class="whitespace-nowrap px-2 py-2">
+									<td class="sheet-actions-col">
 										<button
 											type="button"
 											on:click={() => removeMachine(row.id)}
-											class="text-sm text-red-600 hover:text-red-800"
+											class="sheet-remove-btn"
 											title="Remove machine"
 										>
-											Remove
+											×
 										</button>
 									</td>
 								</tr>
@@ -366,29 +315,11 @@
 						{/if}
 					</tbody>
 					{#if displayedRows.length > 0}
-						<tfoot class="bg-gray-50">
+						<tfoot>
 							<tr>
-								<td colspan={SHEET_COLUMNS.length + 2} class="px-2 py-2">
-									<button
-										type="button"
-										on:click={addMachine}
-										class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 hover:border-blue-400 hover:bg-white hover:text-blue-600"
-									>
-										<svg
-											class="h-4 w-4"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											aria-hidden="true"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M12 4v16m8-8H4"
-											/>
-										</svg>
-										Add another machine
+								<td colspan={SHEET_COLUMNS.length + 1} class="sheet-add-row">
+									<button type="button" class="sheet-add-btn" on:click={addMachine}>
+										+ Add machine
 									</button>
 								</td>
 							</tr>
@@ -399,3 +330,356 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.sheet-page {
+		min-height: 100vh;
+		background: #e8e8e8;
+		padding: 1.5rem 1rem 2.5rem;
+		font-family: Arial, Helvetica, sans-serif;
+	}
+
+	.sheet-toolbar {
+		max-width: 72rem;
+		margin: 0 auto 1rem;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.sheet-toolbar-link {
+		font-size: 0.875rem;
+		color: #374151;
+		text-decoration: none;
+	}
+
+	.sheet-toolbar-link:hover {
+		color: #111827;
+		text-decoration: underline;
+	}
+
+	.sheet-toolbar-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.sheet-toolbar-btn {
+		border: 1px solid #d1d5db;
+		background: #fff;
+		color: #374151;
+		border-radius: 0.25rem;
+		padding: 0.375rem 0.75rem;
+		font-size: 0.8125rem;
+		cursor: pointer;
+	}
+
+	.sheet-toolbar-btn:hover {
+		background: #f9fafb;
+	}
+
+	.sheet-toolbar-btn--primary {
+		background: #1a1a1a;
+		border-color: #1a1a1a;
+		color: #fff;
+	}
+
+	.sheet-toolbar-btn--primary:hover {
+		background: #333;
+	}
+
+	.sheet-document {
+		max-width: 72rem;
+		margin: 0 auto;
+		background: #fff;
+		padding: 2rem 2.5rem 2.5rem;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+	}
+
+	.sheet-header {
+		display: grid;
+		grid-template-columns: 9rem 1fr 9rem;
+		align-items: start;
+		gap: 1rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.sheet-header-logo {
+		display: flex;
+		align-items: flex-start;
+	}
+
+	.sheet-logo {
+		max-width: 8.5rem;
+		height: auto;
+	}
+
+	.sheet-header-center {
+		text-align: center;
+		padding-top: 0.25rem;
+	}
+
+	.sheet-company-select {
+		display: block;
+		width: 100%;
+		border: none;
+		background: transparent;
+		font-size: 1.375rem;
+		font-weight: 700;
+		color: #111;
+		text-align: center;
+		cursor: pointer;
+		appearance: none;
+		padding: 0;
+		margin: 0 auto;
+	}
+
+	.sheet-company-select:focus {
+		outline: none;
+		box-shadow: 0 1px 0 #111;
+	}
+
+	.sheet-subtitle {
+		margin: 0.125rem 0 0.75rem;
+		font-size: 0.9375rem;
+		color: #333;
+	}
+
+	.sheet-meta {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 1rem 1.5rem;
+	}
+
+	.sheet-meta-field {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		color: #444;
+	}
+
+	.sheet-meta-label {
+		font-weight: 600;
+	}
+
+	.sheet-meta-input {
+		border: none;
+		border-bottom: 1px solid #ccc;
+		background: transparent;
+		font-size: 0.8125rem;
+		color: #111;
+		padding: 0.125rem 0;
+		min-width: 5rem;
+	}
+
+	.sheet-meta-input:focus {
+		outline: none;
+		border-bottom-color: #111;
+	}
+
+	.sheet-meta-input:disabled {
+		color: #999;
+		cursor: not-allowed;
+	}
+
+	.sheet-header-tech {
+		text-align: right;
+		padding-top: 0.5rem;
+	}
+
+	.sheet-tech-name {
+		font-size: 1rem;
+		font-weight: 700;
+		color: #111;
+	}
+
+	.sheet-paste-tip {
+		margin: 0 0 0.75rem;
+		font-size: 0.6875rem;
+		color: #888;
+	}
+
+	.sheet-table-wrap {
+		border-top: 3px solid #2d6a2d;
+		overflow-x: auto;
+	}
+
+	.sheet-loading {
+		padding: 2rem 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.sheet-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 0.875rem;
+		color: #111;
+	}
+
+	.sheet-table thead tr {
+		background: #ececec;
+	}
+
+	.sheet-table th {
+		padding: 0.625rem 0.75rem;
+		text-align: left;
+		font-weight: 700;
+		font-size: 0.875rem;
+		color: #111;
+		border: none;
+		white-space: nowrap;
+	}
+
+	.sheet-sort-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		border: none;
+		background: transparent;
+		padding: 0;
+		font: inherit;
+		font-weight: 700;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	.sheet-sort-btn:hover {
+		color: #000;
+	}
+
+	.sheet-sort-icon {
+		font-size: 0.6875rem;
+		color: #666;
+		font-weight: 400;
+	}
+
+	.sheet-table tbody tr {
+		border-bottom: 2px solid #111;
+	}
+
+	.sheet-table tbody tr:last-child {
+		border-bottom: 2px solid #111;
+	}
+
+	.sheet-cell {
+		padding: 0.75rem;
+		vertical-align: top;
+		border: none;
+	}
+
+	.sheet-cell-input {
+		display: block;
+		width: 100%;
+		min-width: 4rem;
+		border: none;
+		background: transparent;
+		padding: 0;
+		margin: 0;
+		font: inherit;
+		color: inherit;
+		resize: none;
+	}
+
+	.sheet-cell-input:focus {
+		outline: none;
+		background: #fafafa;
+		box-shadow: inset 0 -1px 0 #111;
+	}
+
+	.sheet-cell-input--link {
+		color: #2563eb;
+		font-weight: 500;
+	}
+
+	.sheet-cell-textarea {
+		min-height: 2.5rem;
+		line-height: 1.35;
+	}
+
+	.sheet-checkbox {
+		width: 1rem;
+		height: 1rem;
+		accent-color: #111;
+		cursor: pointer;
+	}
+
+	.sheet-actions-col {
+		width: 2rem;
+		padding: 0.75rem 0.25rem;
+		vertical-align: top;
+	}
+
+	.sheet-remove-btn {
+		border: none;
+		background: transparent;
+		color: #999;
+		font-size: 1.25rem;
+		line-height: 1;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.sheet-remove-btn:hover {
+		color: #dc2626;
+	}
+
+	.sheet-empty {
+		padding: 2.5rem 1rem;
+		text-align: center;
+		color: #666;
+		border-bottom: 2px solid #111;
+	}
+
+	.sheet-empty p {
+		margin: 0 0 1rem;
+	}
+
+	.sheet-add-row {
+		padding: 0.5rem 0.75rem;
+		border-bottom: none;
+	}
+
+	.sheet-add-btn {
+		border: none;
+		background: transparent;
+		color: #666;
+		font-size: 0.8125rem;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.sheet-add-btn:hover {
+		color: #111;
+		text-decoration: underline;
+	}
+
+	@media (max-width: 768px) {
+		.sheet-document {
+			padding: 1.25rem 1rem 1.5rem;
+		}
+
+		.sheet-header {
+			grid-template-columns: 1fr;
+			text-align: center;
+		}
+
+		.sheet-header-logo,
+		.sheet-header-tech {
+			justify-content: center;
+			text-align: center;
+		}
+
+		.sheet-header-logo {
+			display: flex;
+		}
+
+		.sheet-logo {
+			margin: 0 auto;
+		}
+	}
+</style>

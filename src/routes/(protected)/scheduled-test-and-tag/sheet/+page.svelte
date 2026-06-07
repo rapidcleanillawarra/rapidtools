@@ -1,11 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { schedulesStore } from '../stores';
 	import { loadSchedulesFromFirestore } from '../companies/utils';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
-	import { createEmptyRow, getSortIcon, sortRows } from './utils';
-	import { FREQUENCY_OPTIONS, SHEET_COLUMNS, type SheetColumnKey } from './types';
+	import {
+		applyPasteToRows,
+		createEmptyRow,
+		getSortIcon,
+		isMultiCellPaste,
+		parsePasteGrid,
+		sortRows
+	} from './utils';
+	import {
+		FREQUENCY_OPTIONS,
+		PASTEABLE_COLUMNS,
+		SHEET_COLUMNS,
+		type PasteableColumnKey,
+		type SheetColumnKey
+	} from './types';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
 	import { toastError, toastInfo } from '$lib/utils/toast';
@@ -13,6 +27,12 @@
 	let sortField: SheetColumnKey | '' = '';
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
+
+	const pasteableColumnSet = new Set<string>(PASTEABLE_COLUMNS);
+
+	function isPasteableColumn(key: SheetColumnKey): key is PasteableColumnKey {
+		return pasteableColumnSet.has(key);
+	}
 
 	$: companyOptions = [...new Set($schedulesStore.map((s) => s.company))].sort((a, b) =>
 		a.localeCompare(b)
@@ -43,6 +63,15 @@
 			isLoading.set(false);
 			isTableLoading = false;
 		}
+
+		const company = get(page).url.searchParams.get('company');
+		if (company) {
+			sheetHeader.update((header) => ({
+				...header,
+				company,
+				location: ''
+			}));
+		}
 	});
 
 	function handleCompanyChange(event: Event) {
@@ -63,15 +92,12 @@
 		}
 	}
 
-	function addRow() {
+	function addMachine() {
 		sheetRows.update((rows) => [...rows, createEmptyRow()]);
 	}
 
-	function removeRow(id: string) {
-		sheetRows.update((rows) => {
-			if (rows.length <= 1) return rows;
-			return rows.filter((row) => row.id !== id);
-		});
+	function removeMachine(id: string) {
+		sheetRows.update((rows) => rows.filter((row) => row.id !== id));
 	}
 
 	function updateRow(id: string, field: SheetColumnKey, value: string | boolean) {
@@ -82,6 +108,24 @@
 
 	function handleSave() {
 		toastInfo('Sheet saved locally. Persistence will be added in a future update.', 'Saved');
+	}
+
+	function handlePaste(event: ClipboardEvent, rowId: string | null, column: PasteableColumnKey) {
+		const text = event.clipboardData?.getData('text/plain') ?? '';
+		if (!text) return;
+
+		const grid = parsePasteGrid(text);
+		if (grid.length === 0) return;
+
+		if (!isMultiCellPaste(grid)) return;
+
+		event.preventDefault();
+		event.stopPropagation();
+		sheetRows.update((rows) => applyPasteToRows(rows, rowId, column, grid));
+		toastInfo(
+			`Pasted ${grid.length} machine${grid.length === 1 ? '' : 's'} into the table`,
+			'Pasted'
+		);
 	}
 </script>
 
@@ -96,10 +140,13 @@
 		<div class="flex gap-2">
 			<button
 				type="button"
-				on:click={addRow}
-				class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+				on:click={addMachine}
+				class="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
 			>
-				Add Row
+				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+				</svg>
+				Add Machine
 			</button>
 			<button
 				type="button"
@@ -175,7 +222,16 @@
 	</div>
 
 	<!-- Machine table -->
-	<div class="overflow-hidden rounded-lg border border-gray-200">
+	<p class="text-xs text-gray-500">
+		Tip: Copy rows from Excel or Google Sheets and paste into Machines, Type of Machine, Serial #,
+		SKU, or Size to fill multiple rows at once.
+	</p>
+	<div
+		class="overflow-hidden rounded-lg border border-gray-200"
+		on:paste={(e) => {
+			if ($sheetRows.length === 0) handlePaste(e, null, 'machines');
+		}}
+	>
 		<div class="overflow-x-auto">
 			{#if isTableLoading}
 				<div class="space-y-2 p-6">
@@ -217,63 +273,129 @@
 						</tr>
 					</thead>
 					<tbody class="divide-y divide-gray-200 bg-white">
-						{#each displayedRows as row, index (row.id)}
-							<tr class="hover:bg-gray-50">
-								<td class="whitespace-nowrap px-2 py-2 text-gray-500">{index + 1}</td>
-								{#each SHEET_COLUMNS as col (col.key)}
-									<td class="px-2 py-2 align-top">
-										{#if col.key === 'active'}
-											<div class="flex justify-center">
-												<input
-													type="checkbox"
-													checked={row.active}
-													on:change={(e) =>
-														updateRow(row.id, 'active', (e.target as HTMLInputElement).checked)}
-													class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-													aria-label="Active for row {index + 1}"
-												/>
-											</div>
-										{:else if col.key === 'notes'}
-											<textarea
-												value={row[col.key]}
-												on:input={(e) =>
-													updateRow(row.id, col.key, (e.target as HTMLTextAreaElement).value)}
-												rows="2"
-												class="w-full min-w-[8rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-												placeholder={col.label}
-											></textarea>
-										{:else}
-											<input
-												type="text"
-												value={row[col.key]}
-												on:input={(e) =>
-													updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
-												class="w-full min-w-[6rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-												placeholder={col.label}
-											/>
-										{/if}
-									</td>
-								{/each}
-								<td class="whitespace-nowrap px-2 py-2">
+						{#if displayedRows.length === 0}
+							<tr>
+								<td
+									colspan={SHEET_COLUMNS.length + 2}
+									class="px-4 py-10 text-center text-sm text-gray-500"
+								>
+									<p class="mb-3">No machines recorded yet.</p>
 									<button
 										type="button"
-										on:click={() => removeRow(row.id)}
-										disabled={$sheetRows.length <= 1}
-										class="text-sm text-red-600 hover:text-red-800 disabled:cursor-not-allowed disabled:text-gray-300"
-										title="Remove row"
+										on:click={addMachine}
+										class="inline-flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
 									>
-										Remove
+										<svg
+											class="h-4 w-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 4v16m8-8H4"
+											/>
+										</svg>
+										Add Machine
 									</button>
 								</td>
 							</tr>
-						{/each}
+						{:else}
+							{#each displayedRows as row, index (row.id)}
+								<tr class="hover:bg-gray-50">
+									<td class="whitespace-nowrap px-2 py-2 text-gray-500">{index + 1}</td>
+									{#each SHEET_COLUMNS as col (col.key)}
+										<td class="px-2 py-2 align-top">
+											{#if col.key === 'active'}
+												<div class="flex justify-center">
+													<input
+														type="checkbox"
+														checked={row.active}
+														on:change={(e) =>
+															updateRow(row.id, 'active', (e.target as HTMLInputElement).checked)}
+														class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+														aria-label="Active for machine {index + 1}"
+													/>
+												</div>
+											{:else if col.key === 'notes'}
+												<textarea
+													value={row[col.key]}
+													on:input={(e) =>
+														updateRow(row.id, col.key, (e.target as HTMLTextAreaElement).value)}
+													rows="2"
+													class="w-full min-w-[8rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+													placeholder={col.label}
+												></textarea>
+											{:else if isPasteableColumn(col.key)}
+												<input
+													type="text"
+													value={row[col.key]}
+													on:input={(e) =>
+														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
+													on:paste={(e) => handlePaste(e, row.id, col.key)}
+													class="w-full min-w-[6rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+													placeholder={col.label}
+												/>
+											{:else}
+												<input
+													type="text"
+													value={row[col.key]}
+													on:input={(e) =>
+														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
+													class="w-full min-w-[6rem] rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+													placeholder={col.label}
+												/>
+											{/if}
+										</td>
+									{/each}
+									<td class="whitespace-nowrap px-2 py-2">
+										<button
+											type="button"
+											on:click={() => removeMachine(row.id)}
+											class="text-sm text-red-600 hover:text-red-800"
+											title="Remove machine"
+										>
+											Remove
+										</button>
+									</td>
+								</tr>
+							{/each}
+						{/if}
 					</tbody>
+					{#if displayedRows.length > 0}
+						<tfoot class="bg-gray-50">
+							<tr>
+								<td colspan={SHEET_COLUMNS.length + 2} class="px-2 py-2">
+									<button
+										type="button"
+										on:click={addMachine}
+										class="inline-flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-600 hover:border-blue-400 hover:bg-white hover:text-blue-600"
+									>
+										<svg
+											class="h-4 w-4"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+											aria-hidden="true"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M12 4v16m8-8H4"
+											/>
+										</svg>
+										Add another machine
+									</button>
+								</td>
+							</tr>
+						</tfoot>
+					{/if}
 				</table>
 			{/if}
 		</div>
 	</div>
-
-	{#if displayedRows.length === 0}
-		<p class="text-center text-sm text-gray-500">No rows yet. Click "Add Row" to get started.</p>
-	{/if}
 </div>

@@ -24,6 +24,17 @@ export type SheetRow = {
 
 export const FREQUENCY_OPTIONS: SheetFrequency[] = ['3 monthly', '6 monthly', '12 monthly'];
 
+/** Columns that support multi-row paste from Excel / Google Sheets */
+export const PASTEABLE_COLUMNS = [
+	'machines',
+	'typeOfMachine',
+	'serialNumber',
+	'sku',
+	'size'
+] as const;
+
+export type PasteableColumnKey = (typeof PASTEABLE_COLUMNS)[number];
+
 export const SHEET_COLUMNS = [
 	{ key: 'machines' as const, label: 'Machines' },
 	{ key: 'typeOfMachine' as const, label: 'Type of Machine' },

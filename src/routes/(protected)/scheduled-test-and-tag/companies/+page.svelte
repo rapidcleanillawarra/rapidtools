@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { base } from '$app/paths';
   import ScheduleModal from './ScheduleModal.svelte';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
@@ -211,6 +213,11 @@
 
   function handleClose() {
     resetForm();
+  }
+
+  function openSheet(schedule: Schedule) {
+    const params = new URLSearchParams({ company: schedule.company });
+    goto(`${base}/scheduled-test-and-tag/sheet?${params.toString()}`);
   }
 
   function handleSort(column: 'company' | 'start_month' | 'occurence') {
@@ -590,6 +597,9 @@
               Notes
             </th>
             <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+              Sheet
+            </th>
+            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
               Actions
             </th>
           </tr>
@@ -633,6 +643,19 @@
               </td>
               <td class="col-tight text-gray-900">
                 {schedule.notes.length}
+              </td>
+              <td class="col-tight" on:click|stopPropagation>
+                <div class="flex justify-center">
+                  <button
+                    on:click={() => openSheet(schedule)}
+                    class="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-all duration-300"
+                    title="Open service sheet"
+                  >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </button>
+                </div>
               </td>
               <td class="col-tight" on:click|stopPropagation>
                 <div class="flex justify-center">

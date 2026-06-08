@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { MACHINE_TYPE_OPTIONS } from './types';
-	import { isMultiCellPaste, parsePasteGrid } from './utils';
+	import { getClipboardText, isMultiCellPaste, parsePasteGrid } from './utils';
 
 	export let value = '';
 	export let placeholder = 'Select type…';
@@ -75,9 +75,15 @@
 		}
 	}
 
-	function handlePaste(event: ClipboardEvent) {
-		const text = event.clipboardData?.getData('text/plain') ?? '';
+	async function handlePaste(event: ClipboardEvent) {
+		event.preventDefault();
+		event.stopPropagation();
+
+		const text = await getClipboardText(event);
+		if (!text) return;
+
 		const grid = parsePasteGrid(text);
+		if (grid.length === 0) return;
 
 		if (isMultiCellPaste(grid)) {
 			dispatch('paste', event);
@@ -87,7 +93,6 @@
 		const pasted = grid[0]?.[0]?.trim() ?? '';
 		if (!pasted) return;
 
-		event.preventDefault();
 		const match = MACHINE_TYPE_OPTIONS.find(
 			(option) => option.toLowerCase() === pasted.toLowerCase()
 		);

@@ -8,22 +8,23 @@
 	import { loadSchedulesFromFirestore } from '../companies/utils';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
 	import {
-		applyPasteToRows,
 		applyCompanyToHeader,
 		createEmptyRow,
 		formatServiceDate,
+		getClipboardText,
+		getPasteToastMessage,
 		getSortIcon,
-		isMultiCellPaste,
 		normalizeSheetRow,
 		parsePasteGrid,
+		processSheetPaste,
 		sortRows
 	} from './utils';
 	import {
 		FREQUENCY_OPTIONS,
-		PASTEABLE_COLUMNS,
 		SHEET_COLUMNS,
-		type PasteableColumnKey,
-		type SheetColumnKey
+		TEXT_PASTE_COLUMNS,
+		type SheetColumnKey,
+		type TextPasteColumnKey
 	} from './types';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
@@ -37,10 +38,10 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 
-	const pasteableColumnSet = new Set<string>(PASTEABLE_COLUMNS);
+	const textPasteColumnSet = new Set<string>(TEXT_PASTE_COLUMNS);
 
-	function isPasteableColumn(key: SheetColumnKey): key is PasteableColumnKey {
-		return pasteableColumnSet.has(key);
+	function isTextPasteColumn(key: SheetColumnKey): key is TextPasteColumnKey {
+		return textPasteColumnSet.has(key);
 	}
 
 	$: technicianName =
@@ -124,22 +125,28 @@
 		window.print();
 	}
 
-	function handlePaste(event: ClipboardEvent, rowId: string | null, column: PasteableColumnKey) {
-		const text = event.clipboardData?.getData('text/plain') ?? '';
-		if (!text) return;
-
-		const grid = parsePasteGrid(text);
-		if (grid.length === 0) return;
-
-		if (!isMultiCellPaste(grid)) return;
-
+	async function handlePaste(
+		event: ClipboardEvent,
+		rowId: string | null,
+		column: TextPasteColumnKey
+	) {
 		event.preventDefault();
 		event.stopPropagation();
-		sheetRows.update((rows) => applyPasteToRows(rows, rowId, column, grid));
-		toastInfo(
-			`Pasted ${grid.length} machine${grid.length === 1 ? '' : 's'} into the table`,
-			'Pasted'
-		);
+
+		try {
+			const text = await getClipboardText(event);
+			if (!text) return;
+
+			const grid = parsePasteGrid(text);
+			const result = processSheetPaste(get(sheetRows), rowId, column, grid);
+			if (!result) return;
+
+			sheetRows.set(result.rows);
+			toastInfo(getPasteToastMessage(column, result.pastedCount, result.mode), 'Pasted');
+		} catch (error) {
+			console.error('Error in handlePaste:', error);
+			toastError('Failed to paste data', 'Error');
+		}
 	}
 </script>
 
@@ -293,6 +300,7 @@
 													value={row[col.key]}
 													on:input={(e) =>
 														updateRow(row.id, col.key, (e.target as HTMLTextAreaElement).value)}
+													on:paste={(e) => handlePaste(e, row.id, 'notes')}
 													rows="2"
 													class="sheet-cell-input sheet-cell-textarea"
 													placeholder="Notes"
@@ -308,7 +316,7 @@
 													value={row.results}
 													on:change={(e) => updateRow(row.id, 'results', e.detail)}
 												/>
-											{:else if isPasteableColumn(col.key)}
+											{:else if isTextPasteColumn(col.key)}
 												<input
 													type="text"
 													value={row[col.key]}
@@ -317,15 +325,6 @@
 													on:paste={(e) => handlePaste(e, row.id, col.key)}
 													class="sheet-cell-input"
 													class:sheet-cell-input--link={col.key === 'sku'}
-													placeholder={col.label}
-												/>
-											{:else}
-												<input
-													type="text"
-													value={row[col.key]}
-													on:input={(e) =>
-														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
-													class="sheet-cell-input"
 													placeholder={col.label}
 												/>
 											{/if}

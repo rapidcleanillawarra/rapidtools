@@ -1,4 +1,8 @@
-import { PASTEABLE_COLUMNS, type PasteableColumnKey } from './types';
+import {
+	PASTEABLE_COLUMNS,
+	type PasteableColumnKey,
+	type TextPasteColumnKey
+} from './types';
 import { FREQUENCY_OPTIONS, type SheetFrequency, type SheetHeader, type SheetRow } from './types';
 import type { Schedule } from '../stores';
 
@@ -107,6 +111,133 @@ export function parsePasteGrid(text: string): string[][] {
 
 export function isMultiCellPaste(grid: string[][]): boolean {
 	return grid.length > 1 || (grid[0]?.length ?? 0) > 1;
+}
+
+export async function getClipboardText(event: ClipboardEvent): Promise<string> {
+	let text = event.clipboardData?.getData('text/plain') || event.clipboardData?.getData('text') || '';
+
+	if (!text && typeof navigator !== 'undefined' && navigator.clipboard) {
+		try {
+			text = await navigator.clipboard.readText();
+		} catch {
+			// Clipboard API may be blocked; event data is the primary source.
+		}
+	}
+
+	return text;
+}
+
+function setTextField(row: SheetRow, column: TextPasteColumnKey, value: string): SheetRow {
+	return normalizeSheetRow({ ...row, [column]: value.trim() });
+}
+
+/** Paste a single value into one cell; creates a row when the table is empty. */
+export function applySingleCellPaste(
+	rows: SheetRow[],
+	rowId: string | null,
+	column: TextPasteColumnKey,
+	value: string
+): SheetRow[] {
+	const trimmed = value.trim();
+
+	if (rows.length === 0 || rowId === null) {
+		return [setTextField(createEmptyRow(), column, trimmed)];
+	}
+
+	const startRowIndex = rows.findIndex((row) => row.id === rowId);
+	if (startRowIndex === -1) return rows;
+
+	return rows.map((row, index) =>
+		index === startRowIndex ? setTextField(row, column, trimmed) : normalizeSheetRow(row)
+	);
+}
+
+/** Paste values down a single column, creating rows as needed (Excel column paste). */
+export function applyColumnPaste(
+	rows: SheetRow[],
+	rowId: string | null,
+	column: TextPasteColumnKey,
+	values: string[]
+): SheetRow[] {
+	if (values.length === 0) return rows;
+
+	if (rows.length === 0 || rowId === null) {
+		return values.map((value) => setTextField(createEmptyRow(), column, value));
+	}
+
+	const result = rows.map((row) => normalizeSheetRow({ ...row }));
+	const startRowIndex = result.findIndex((row) => row.id === rowId);
+	if (startRowIndex === -1) return rows;
+
+	values.forEach((value, offset) => {
+		const targetIndex = startRowIndex + offset;
+		if (targetIndex >= result.length) {
+			result.push(createEmptyRow());
+		}
+		result[targetIndex] = setTextField(result[targetIndex], column, value);
+	});
+
+	return result;
+}
+
+export type SheetPasteResult = {
+	rows: SheetRow[];
+	pastedCount: number;
+	mode: 'cell' | 'column' | 'grid';
+};
+
+/** Route clipboard grid data to single-cell, column, or multi-column grid paste. */
+export function processSheetPaste(
+	rows: SheetRow[],
+	rowId: string | null,
+	column: TextPasteColumnKey,
+	grid: string[][]
+): SheetPasteResult | null {
+	if (grid.length === 0) return null;
+
+	const trimmedGrid = grid.map((row) => row.map((cell) => cell.trim()));
+
+	if (trimmedGrid.length === 1 && trimmedGrid[0].length === 1) {
+		return {
+			rows: applySingleCellPaste(rows, rowId, column, trimmedGrid[0][0]),
+			pastedCount: 1,
+			mode: 'cell'
+		};
+	}
+
+	const gridStartIndex = PASTEABLE_COLUMNS.indexOf(column as PasteableColumnKey);
+	const canSpreadGrid = gridStartIndex !== -1 && isMultiCellPaste(trimmedGrid);
+
+	if (canSpreadGrid) {
+		return {
+			rows: applyPasteToRows(rows, rowId, column as PasteableColumnKey, trimmedGrid),
+			pastedCount: trimmedGrid.length,
+			mode: 'grid'
+		};
+	}
+
+	const values = trimmedGrid.map((row) => row[0] ?? '');
+	return {
+		rows: applyColumnPaste(rows, rowId, column, values),
+		pastedCount: values.length,
+		mode: 'column'
+	};
+}
+
+export function getPasteToastMessage(
+	column: TextPasteColumnKey,
+	pastedCount: number,
+	mode: SheetPasteResult['mode']
+): string {
+	if (mode === 'grid') {
+		return `Pasted ${pastedCount} machine${pastedCount === 1 ? '' : 's'} into the table`;
+	}
+
+	if (mode === 'column') {
+		return `Pasted ${pastedCount} value${pastedCount === 1 ? '' : 's'} into ${column} column`;
+	}
+
+	return `Pasted value into ${column}`;
 }
 
 /** Apply a pasted grid starting at the given row and column; creates rows as needed. */

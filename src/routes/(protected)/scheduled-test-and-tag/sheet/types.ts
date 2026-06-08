@@ -50,6 +50,22 @@ export const PASTEABLE_COLUMNS = [
 
 export type PasteableColumnKey = (typeof PASTEABLE_COLUMNS)[number];
 
+/** Text columns that accept single-cell or column-down Excel paste */
+export const TEXT_PASTE_COLUMNS = [
+	'tag',
+	'machines',
+	'typeOfMachine',
+	'serialNumber',
+	'sku',
+	'size',
+	'workshopId',
+	'service',
+	'parts',
+	'notes'
+] as const;
+
+export type TextPasteColumnKey = (typeof TEXT_PASTE_COLUMNS)[number];
+
 export const SHEET_COLUMNS = [
 	{ key: 'tag' as const, label: 'Tag' },
 	{ key: 'machines' as const, label: 'Machines' },

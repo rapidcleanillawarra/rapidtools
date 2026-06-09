@@ -12,8 +12,10 @@ export function normalizeSheetRow(row: SheetRow): SheetRow {
 }
 
 export function createEmptyRow(): SheetRow {
+	const id = crypto.randomUUID();
 	return normalizeSheetRow({
-		id: crypto.randomUUID(),
+		id,
+		rciTag: id,
 		tag: '',
 		machines: '',
 		typeOfMachine: '',
@@ -31,7 +33,7 @@ export function createEmptyRow(): SheetRow {
 
 export function createEmptyHeader(): SheetHeader {
 	return {
-		scheduleId: '',
+		companyId: '',
 		company: '',
 		location: '',
 		serviceDate: new Date().toISOString().split('T')[0],
@@ -44,31 +46,44 @@ export function occurrenceToFrequency(occurence: number): SheetFrequency | '' {
 	return match ?? '';
 }
 
-export function applyScheduleToHeader(header: SheetHeader, schedule: Schedule): SheetHeader {
+export function frequencyToMonths(frequency: SheetFrequency | ''): number | null {
+	if (!frequency) return null;
+	const months = Number.parseInt(frequency.split(' ')[0], 10);
+	return Number.isNaN(months) ? null : months;
+}
+
+export function monthsToFrequency(months: number): SheetFrequency | '' {
+	return occurrenceToFrequency(months);
+}
+
+export function applyCompanyToHeader(header: SheetHeader, company: Schedule): SheetHeader {
 	return {
 		...header,
-		scheduleId: schedule.id,
-		company: schedule.company,
+		companyId: company.id,
+		company: company.company,
 		location: '',
-		frequency: occurrenceToFrequency(schedule.occurence)
+		frequency: occurrenceToFrequency(company.occurence)
 	};
 }
 
-export function applyCompanyToHeader(
+export function applyCompanyNameToHeader(
 	header: SheetHeader,
-	schedules: Schedule[],
-	company: string
+	companies: Schedule[],
+	companyName: string
 ): SheetHeader {
-	const schedule = schedules.find((s) => s.company === company);
+	const company = companies.find((c) => c.company === companyName);
 
 	return {
 		...header,
-		scheduleId: schedule?.id ?? '',
-		company,
+		companyId: company?.id ?? '',
+		company: companyName,
 		location: '',
-		frequency: schedule ? occurrenceToFrequency(schedule.occurence) : ''
+		frequency: company ? occurrenceToFrequency(company.occurence) : ''
 	};
 }
+
+/** @deprecated Use applyCompanyToHeader */
+export const applyScheduleToHeader = applyCompanyToHeader;
 
 /** e.g. "July 07, 2026" */
 export function formatServiceDate(isoDate: string): string {

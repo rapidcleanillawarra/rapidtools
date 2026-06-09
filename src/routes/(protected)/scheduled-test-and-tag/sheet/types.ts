@@ -1,15 +1,17 @@
 export type SheetFrequency = '3 monthly' | '6 monthly' | '12 monthly';
 
 export type SheetHeader = {
-	scheduleId: string;
+	companyId: string;
 	company: string;
 	location: string;
 	serviceDate: string;
 	frequency: SheetFrequency | '';
+	sheetId?: string;
 };
 
 export type SheetRow = {
 	id: string;
+	rciTag: string;
 	tag: string;
 	machines: string;
 	typeOfMachine: string;

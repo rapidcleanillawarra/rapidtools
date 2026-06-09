@@ -6,7 +6,9 @@ const EVENTS_TABLE = 'machine_inspection_events';
 export interface MachineInspectionEvent {
 	id?: string;
 	information_id: string;
-	schedule_id: string;
+	company_id: string;
+	/** @deprecated Use company_id */
+	schedule_id?: string;
 	company: string;
 	sub_company_name: string;
 	location: string;
@@ -28,7 +30,8 @@ function mapEventRow(row: MachineInspectionEventRow): MachineInspectionEvent {
 	return {
 		id: row.id,
 		information_id: row.information_id,
-		schedule_id: row.schedule_id,
+		company_id: row.company_id,
+		schedule_id: row.company_id,
 		company: row.company,
 		sub_company_name: row.sub_company_name,
 		location: row.location,
@@ -83,7 +86,7 @@ export async function saveMachineInspectionEvent(
 	const { data, error } = await supabase
 		.from(EVENTS_TABLE)
 		.insert({
-			schedule_id: event.schedule_id,
+			company_id: event.company_id,
 			information_id: event.information_id,
 			company: event.company,
 			sub_company_name: event.sub_company_name,
@@ -120,7 +123,8 @@ export async function updateMachineInspectionEvent(
 	if (updates.sub_company_name !== undefined) payload.sub_company_name = updates.sub_company_name;
 	if (updates.location !== undefined) payload.location = updates.location;
 	if (updates.information_id !== undefined) payload.information_id = updates.information_id;
-	if (updates.schedule_id !== undefined) payload.schedule_id = updates.schedule_id;
+	if (updates.company_id !== undefined) payload.company_id = updates.company_id;
+	if (updates.schedule_id !== undefined) payload.company_id = updates.schedule_id;
 
 	const { error } = await supabase.from(EVENTS_TABLE).update(payload).eq('id', eventId);
 
@@ -143,15 +147,15 @@ export async function deleteMachineInspectionEvent(eventId: string): Promise<voi
 	}
 }
 
-export async function findEventByInfoAndSchedule(
+export async function findEventByInfoAndCompany(
 	information_id: string,
-	schedule_id: string
+	company_id: string
 ): Promise<MachineInspectionEvent | null> {
 	const { data, error } = await supabase
 		.from(EVENTS_TABLE)
 		.select('*')
 		.eq('information_id', information_id)
-		.eq('schedule_id', schedule_id)
+		.eq('company_id', company_id)
 		.is('deleted_at', null)
 		.maybeSingle();
 
@@ -162,6 +166,9 @@ export async function findEventByInfoAndSchedule(
 
 	return data ? mapEventRow(data as MachineInspectionEventRow) : null;
 }
+
+/** @deprecated Use findEventByInfoAndCompany */
+export const findEventByInfoAndSchedule = findEventByInfoAndCompany;
 
 export function calendarEventToMachineInspectionEvent(
 	calendarEvent: {
@@ -184,7 +191,7 @@ export function calendarEventToMachineInspectionEvent(
 ): Omit<MachineInspectionEvent, 'id' | 'created_at' | 'updated_at'> {
 	return {
 		information_id: locationInfo.information_id,
-		schedule_id: schedule.id,
+		company_id: schedule.id,
 		company: schedule.company,
 		sub_company_name: locationInfo.sub_company_name,
 		location: locationInfo.location,
@@ -203,14 +210,16 @@ export function machineInspectionEventToCalendarEvent(event: MachineInspectionEv
 	start: string;
 	end: string;
 	backgroundColor: string;
-	extendedProps: {
-		location: string;
-		company: string;
-		scheduleId: string;
-		infoIndex: number;
-		occurrenceIndex: number;
-	};
-} {
+		extendedProps: {
+			location: string;
+			company: string;
+			companyId: string;
+			/** @deprecated Use companyId */
+			scheduleId: string;
+			infoIndex: number;
+			occurrenceIndex: number;
+		};
+	} {
 	return {
 		id: event.id,
 		title: event.title,
@@ -220,7 +229,8 @@ export function machineInspectionEventToCalendarEvent(event: MachineInspectionEv
 		extendedProps: {
 			location: event.location,
 			company: event.company,
-			scheduleId: event.schedule_id,
+			companyId: event.company_id,
+			scheduleId: event.company_id,
 			infoIndex: 0,
 			occurrenceIndex: 0
 		}

@@ -5,11 +5,12 @@
 	import { get } from 'svelte/store';
 	import { currentUser } from '$lib/firebase';
 	import { schedulesStore } from '../stores';
-	import { getScheduleById, loadSchedules } from '../companies/utils';
+	import { getCompanyById, loadCompanies } from '../companies/utils';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
+	import { loadSheetRowsForCompany, persistSheet } from './persistence';
 	import {
 		applyCompanyToHeader,
-		applyScheduleToHeader,
+		applyCompanyNameToHeader,
 		createEmptyRow,
 		formatServiceDate,
 		getClipboardText,
@@ -33,13 +34,14 @@
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
 	import MachineTypeDropdown from './MachineTypeDropdown.svelte';
 	import ResultSelect from './ResultSelect.svelte';
-	import { toastError, toastInfo } from '$lib/utils/toast';
+	import { toastError, toastInfo, toastSuccess } from '$lib/utils/toast';
 
 	const LOGO_URL = `${base}/company_logo_white.webp`;
 
 	let sortField: SheetColumnKey | '' = '';
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
+	let isSaving = false;
 
 	const textPasteColumnSet = new Set<string>(TEXT_PASTE_COLUMNS);
 
@@ -54,14 +56,14 @@
 		a.localeCompare(b)
 	);
 
-	$: activeSchedule = $sheetHeader.scheduleId
-		? $schedulesStore.find((s) => s.id === $sheetHeader.scheduleId)
+	$: activeCompany = $sheetHeader.companyId
+		? $schedulesStore.find((s) => s.id === $sheetHeader.companyId)
 		: $sheetHeader.company
 			? $schedulesStore.find((s) => s.company === $sheetHeader.company)
 			: undefined;
 
-	$: locationOptions = activeSchedule
-		? activeSchedule.information
+	$: locationOptions = activeCompany
+		? activeCompany.information
 				.map((info) => info.location)
 				.filter((location, index, arr) => location && arr.indexOf(location) === index)
 				.sort((a, b) => a.localeCompare(b))
@@ -73,44 +75,93 @@
 
 	$: formattedServiceDate = formatServiceDate($sheetHeader.serviceDate);
 
+	function resolveActiveCompany() {
+		const header = get(sheetHeader);
+		return header.companyId
+			? get(schedulesStore).find((s) => s.id === header.companyId)
+			: header.company
+				? get(schedulesStore).find((s) => s.company === header.company)
+				: undefined;
+	}
+
+	async function loadSheetData() {
+		const company = resolveActiveCompany();
+		if (!company) return;
+
+		try {
+			isTableLoading = true;
+			const header = get(sheetHeader);
+			const sheetId = get(page).url.searchParams.get('sheet') ?? header.sheetId;
+			const { header: loadedHeader, rows } = await loadSheetRowsForCompany(
+				company,
+				header.location,
+				sheetId ?? undefined
+			);
+
+			sheetHeader.update((current) => ({
+				...current,
+				...loadedHeader,
+				location: current.location,
+				frequency: current.frequency || loadedHeader.frequency || ''
+			}));
+			sheetRows.set(rows);
+		} catch (error) {
+			console.error('Failed to load sheet data:', error);
+			toastError('Failed to load sheet data', 'Error');
+		} finally {
+			isTableLoading = false;
+		}
+	}
+
 	onMount(async () => {
 		try {
 			isLoading.set(true);
 			isTableLoading = true;
 			if (get(schedulesStore).length === 0) {
-				await loadSchedules();
+				await loadCompanies();
 			}
 		} catch (error) {
 			console.error('Failed to load companies:', error);
 			toastError('Failed to load companies for sheet', 'Error');
 		} finally {
 			isLoading.set(false);
-			isTableLoading = false;
 		}
 
-		const scheduleId = get(page).url.searchParams.get('id');
-		if (scheduleId) {
-			let schedule = get(schedulesStore).find((s) => s.id === scheduleId);
-			if (!schedule) {
+		const companyId = get(page).url.searchParams.get('id');
+		if (companyId) {
+			let company = get(schedulesStore).find((s) => s.id === companyId);
+			if (!company) {
 				try {
-					schedule = await getScheduleById(scheduleId);
+					company = await getCompanyById(companyId);
 				} catch (error) {
-					console.error('Failed to load schedule:', error);
-					toastError('Failed to load schedule for sheet', 'Error');
+					console.error('Failed to load company:', error);
+					toastError('Failed to load company for sheet', 'Error');
 				}
 			}
 
-			if (schedule) {
-				sheetHeader.update((header) => applyScheduleToHeader(header, schedule!));
+			if (company) {
+				sheetHeader.update((header) => applyCompanyToHeader(header, company!));
+				await loadSheetData();
 			} else {
-				toastError('Schedule not found', 'Error');
+				toastError('Company not found', 'Error');
+				isTableLoading = false;
 			}
+		} else {
+			isTableLoading = false;
 		}
 	});
 
-	function handleCompanyChange(event: Event) {
+	async function handleCompanyChange(event: Event) {
 		const value = (event.target as HTMLSelectElement).value;
-		sheetHeader.update((header) => applyCompanyToHeader(header, get(schedulesStore), value));
+		sheetHeader.update((header) => applyCompanyNameToHeader(header, get(schedulesStore), value));
+		sheetRows.set([]);
+		await loadSheetData();
+	}
+
+	async function handleLocationChange(event: Event) {
+		const value = (event.target as HTMLSelectElement).value;
+		sheetHeader.update((header) => ({ ...header, location: value }));
+		await loadSheetData();
 	}
 
 	function handleSort(field: SheetColumnKey) {
@@ -136,8 +187,31 @@
 		);
 	}
 
-	function handleSave() {
-		toastInfo('Sheet saved locally. Persistence will be added in a future update.', 'Saved');
+	async function handleSave() {
+		const company = resolveActiveCompany();
+		if (!company) {
+			toastError('Select a company before saving.', 'Error');
+			return;
+		}
+
+		try {
+			isSaving = true;
+			const sheetId = await persistSheet({
+				header: get(sheetHeader),
+				rows: get(sheetRows),
+				company,
+				userUid: get(currentUser)?.uid,
+				userEmail: get(currentUser)?.email ?? undefined
+			});
+
+			sheetHeader.update((header) => ({ ...header, sheetId }));
+			toastSuccess('Sheet saved successfully.', 'Saved');
+		} catch (error) {
+			console.error('Failed to save sheet:', error);
+			toastError(error instanceof Error ? error.message : 'Failed to save sheet', 'Error');
+		} finally {
+			isSaving = false;
+		}
 	}
 
 	function handlePrint() {
@@ -179,8 +253,13 @@
 		<div class="sheet-toolbar-actions">
 			<button type="button" class="sheet-toolbar-btn" on:click={addMachine}>Add Machine</button>
 			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
-			<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={handleSave}>
-				Save Sheet
+			<button
+				type="button"
+				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				on:click={handleSave}
+				disabled={isSaving}
+			>
+				{isSaving ? 'Saving…' : 'Save Sheet'}
 			</button>
 		</div>
 	</div>
@@ -218,7 +297,8 @@
 					<span class="sheet-meta-label">Location</span>
 					<select
 						id="sheet-location"
-						bind:value={$sheetHeader.location}
+						value={$sheetHeader.location}
+						on:change={handleLocationChange}
 						disabled={!$sheetHeader.company}
 						class="sheet-meta-input sheet-header-select"
 						title={$sheetHeader.location || 'Select location'}

@@ -19,7 +19,8 @@ export type Note = {
     content: string;
 };
 
-export type Schedule = {
+/** Company profile for scheduled test and tag */
+export type Company = {
     id: string;
     company: string;
     start_month: number;
@@ -33,7 +34,13 @@ export type Schedule = {
     isDeleted?: boolean; // Soft delete flag
 };
 
-// Initial data
-const initialSchedules: Schedule[] = [];
+/** @deprecated Use Company */
+export type Schedule = Company;
 
-export const schedulesStore: Writable<Schedule[]> = writable(initialSchedules); 
+// Initial data
+const initialCompanies: Company[] = [];
+
+/** @deprecated Use companiesStore */
+export const schedulesStore: Writable<Company[]> = writable(initialCompanies);
+
+export const companiesStore = schedulesStore; 

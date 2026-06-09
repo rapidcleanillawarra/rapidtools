@@ -2,7 +2,10 @@ import type { Contact, LocationInfo, Note, Schedule } from '../stores';
 
 export type { Schedule, Contact, LocationInfo, Note };
 
-export type ScheduleRow = {
+/** @deprecated Use CompanyRow */
+export type ScheduleRow = CompanyRow;
+
+export type CompanyRow = {
 	id: string;
 	company: string;
 	start_month: number;
@@ -16,7 +19,7 @@ export type ScheduleRow = {
 
 export type LocationRow = {
 	id: string;
-	schedule_id: string;
+	company_id: string;
 	information_id: string;
 	sub_company_name: string;
 	location: string;
@@ -38,7 +41,7 @@ export type ContactRow = {
 
 export type NoteRow = {
 	id: string;
-	schedule_id: string;
+	company_id: string;
 	title: string;
 	content: string;
 	sort_order: number;
@@ -50,14 +53,17 @@ export type LocationWithContacts = LocationRow & {
 	machine_inspection_contacts: ContactRow[];
 };
 
-export type ScheduleWithRelations = ScheduleRow & {
+/** @deprecated Use CompanyWithRelations */
+export type ScheduleWithRelations = CompanyWithRelations;
+
+export type CompanyWithRelations = CompanyRow & {
 	machine_inspection_locations: LocationWithContacts[];
 	machine_inspection_notes: NoteRow[];
 };
 
 export type MachineInspectionEventRow = {
 	id: string;
-	schedule_id: string;
+	company_id: string;
 	information_id: string;
 	company: string;
 	sub_company_name: string;
@@ -74,7 +80,65 @@ export type MachineInspectionEventRow = {
 	legacy_firestore_id: string | null;
 };
 
-export function mapScheduleRow(row: ScheduleWithRelations): Schedule {
+export type EquipmentRow = {
+	id: string;
+	company_id: string;
+	rci_tag: string;
+	start_month: number;
+	frequency: number;
+	sort_order: number;
+	customer_tag: string;
+	equipment_name: string;
+	equipment_type: string;
+	serial_number: string;
+	sku: string;
+	size: string;
+	active: boolean;
+	created_at: string;
+	updated_at: string;
+};
+
+export type EquipmentPlacementRow = {
+	id: string;
+	company_id: string;
+	rci_tag: string;
+	location_id: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type SheetRow = {
+	id: string;
+	company_id: string;
+	service_date: string;
+	created_by_uid: string | null;
+	created_by_email: string | null;
+	created_at: string;
+	updated_at: string;
+};
+
+export type SheetLineRow = {
+	id: string;
+	sheet_id: string;
+	equipment_id: string;
+	sort_order: number;
+	result: string;
+	workshop_id: string;
+	service: string;
+	parts: string;
+	notes: string;
+	created_at: string;
+	updated_at: string;
+};
+
+export type EquipmentWithPlacement = EquipmentRow & {
+	machine_inspection_equipment_placements: EquipmentPlacementRow[];
+};
+
+/** @deprecated Use mapCompanyRow */
+export const mapScheduleRow = mapCompanyRow;
+
+export function mapCompanyRow(row: CompanyWithRelations): Schedule {
 	const locations = [...(row.machine_inspection_locations ?? [])].sort(
 		(a, b) => a.sort_order - b.sort_order
 	);

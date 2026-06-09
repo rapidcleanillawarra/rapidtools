@@ -1,18 +1,20 @@
 import type { ScheduleFormData, ValidationErrors } from './types';
 
 export {
+	createCompany,
 	createSchedule,
+	deleteCompany,
 	deleteSchedule,
+	getCompanyById,
 	getScheduleById,
+	loadCompanies,
 	loadSchedules,
+	updateCompany,
 	updateSchedule
-} from '../services/schedules';
+} from '../services/companies';
 
 // Constants
 export const DEFAULT_COLOR = '#3b82f6';
-
-/** @deprecated Use loadSchedules */
-export { loadSchedules as loadSchedulesFromFirestore } from '../services/schedules';
 
 // Validation
 export function validateSchedule(schedule: ScheduleFormData): ValidationErrors {

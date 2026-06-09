@@ -9,10 +9,12 @@
 	import { getCompanyById, loadCompanies } from '../companies/utils';
 	import CompanyCombobox from '../CompanyCombobox.svelte';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
+	import { findSheetForCurrentMonth, type SheetSummary } from '../services/sheets';
 	import { loadSheetRowsForCompany, persistSheet } from './persistence';
 	import {
 		applyCompanyToHeader,
 		defaultSheetName,
+		formatServiceDate,
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
@@ -32,6 +34,7 @@
 		type SheetRowFieldKey,
 		type TextPasteColumnKey
 	} from './types';
+	import Modal from '$lib/components/Modal.svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
 	import EquipmentInfoCard from './EquipmentInfoCard.svelte';
@@ -61,6 +64,9 @@
 
 	let originalRows: SheetRow[] = [];
 	let originalFrequency: SheetHeader['frequency'] = '';
+	let showExistingSheetModal = false;
+	let pendingExistingSheet: SheetSummary | null = null;
+	let suppressExistingSheetPrompt = false;
 
 	const textPasteColumnSet = new Set<string>(TEXT_PASTE_COLUMNS);
 
@@ -115,6 +121,7 @@
 			sheetHeader.update((current) => ({
 				...current,
 				...loadedHeader,
+				sheetId: loadedHeader.sheetId ?? '',
 				frequency: current.frequency || loadedHeader.frequency || '',
 				sheetName: loadedHeader.sheetName ?? (current.sheetName || defaultSheetName())
 			}));
@@ -127,6 +134,54 @@
 		} finally {
 			isTableLoading = false;
 		}
+	}
+
+	async function prepareSheetLoad(company: Schedule, options?: { applyHeader?: boolean }) {
+		if (options?.applyHeader !== false) {
+			sheetHeader.update((header) => applyCompanyToHeader(header, company));
+		}
+
+		const urlId = get(page).url.searchParams.get('id');
+		if (!urlId && !suppressExistingSheetPrompt) {
+			try {
+				isTableLoading = true;
+				const existing = await findSheetForCurrentMonth(company.id);
+				if (existing) {
+					pendingExistingSheet = existing;
+					showExistingSheetModal = true;
+					isTableLoading = false;
+					return;
+				}
+			} catch (error) {
+				console.error('Failed to check for existing sheet:', error);
+				toastError('Failed to check for existing sheet', 'Error');
+			}
+		}
+
+		await loadSheetData();
+	}
+
+	async function loadPendingExistingSheet() {
+		const company = resolveActiveCompany();
+		if (!company || !pendingExistingSheet) return;
+
+		const sheetId = pendingExistingSheet.id;
+		showExistingSheetModal = false;
+		pendingExistingSheet = null;
+
+		await goto(buildSheetPath(company.id, sheetId), {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
+		await loadSheetData();
+	}
+
+	async function continueWithNewSheet() {
+		showExistingSheetModal = false;
+		pendingExistingSheet = null;
+		suppressExistingSheetPrompt = true;
+		await loadSheetData();
 	}
 
 	onMount(async () => {
@@ -156,8 +211,7 @@
 			}
 
 			if (company) {
-				sheetHeader.update((header) => applyCompanyToHeader(header, company!));
-				await loadSheetData();
+				await prepareSheetLoad(company);
 			} else {
 				toastError('Company not found', 'Error');
 				isTableLoading = false;
@@ -170,6 +224,7 @@
 	async function switchToCompany(company: Schedule) {
 		if (company.id === get(sheetHeader).companyId) return;
 
+		suppressExistingSheetPrompt = false;
 		sheetHeader.update((header) => ({
 			...applyCompanyToHeader(header, company),
 			sheetId: '',
@@ -180,7 +235,7 @@
 		originalFrequency = '';
 
 		await goto(buildSheetPath(company.id), { replaceState: true, keepFocus: true, noScroll: true });
-		await loadSheetData();
+		await prepareSheetLoad(company, { applyHeader: false });
 	}
 
 	async function createNewSheet() {
@@ -190,6 +245,7 @@
 			return;
 		}
 
+		suppressExistingSheetPrompt = true;
 		sheetHeader.update((header) => ({
 			...applyCompanyToHeader(header, company),
 			sheetId: '',
@@ -304,6 +360,44 @@
 <div class="no-print">
 	<ToastContainer />
 </div>
+
+{#if showExistingSheetModal && pendingExistingSheet && activeCompany}
+	<Modal
+		show={showExistingSheetModal}
+		on:close={continueWithNewSheet}
+		size="md"
+		allowClose={!isTableLoading}
+	>
+		<span slot="header">Existing sheet found</span>
+		<div slot="body" class="existing-sheet-modal-body">
+			<p class="existing-sheet-modal-copy">
+				A sheet for <strong>{activeCompany.company}</strong> already exists for
+				<strong>{defaultSheetName()}</strong>:
+				<strong>{pendingExistingSheet.name || defaultSheetName()}</strong>
+				(service date {formatServiceDate(pendingExistingSheet.service_date)}).
+			</p>
+			<p class="existing-sheet-modal-copy">Would you like to load it?</p>
+		</div>
+		<div slot="footer" class="existing-sheet-modal-footer">
+			<button
+				type="button"
+				class="sheet-toolbar-btn"
+				on:click={continueWithNewSheet}
+				disabled={isTableLoading}
+			>
+				Continue with new sheet
+			</button>
+			<button
+				type="button"
+				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				on:click={loadPendingExistingSheet}
+				disabled={isTableLoading}
+			>
+				Load existing sheet
+			</button>
+		</div>
+	</Modal>
+{/if}
 
 <div class="sheet-page">
 	<div class="sheet-toolbar no-print">
@@ -576,6 +670,25 @@
 
 	.sheet-toolbar-btn:hover {
 		background: #f9fafb;
+	}
+
+	.existing-sheet-modal-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.existing-sheet-modal-copy {
+		margin: 0;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		color: #374151;
+	}
+
+	.existing-sheet-modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
 	}
 
 	.sheet-toolbar-btn--primary {

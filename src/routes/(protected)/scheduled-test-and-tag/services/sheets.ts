@@ -29,6 +29,45 @@ export type SaveSheetInput = {
 	lines: SheetLineInput[];
 };
 
+export type SheetSummary = {
+	id: string;
+	name: string;
+	service_date: string;
+};
+
+function currentMonthDateRange(date: Date = new Date()): { start: string; end: string } {
+	const year = date.getFullYear();
+	const month = date.getMonth();
+	const start = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+	const endYear = month === 11 ? year + 1 : year;
+	const endMonth = month === 11 ? 1 : month + 2;
+	const end = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+	return { start, end };
+}
+
+export async function findSheetForCurrentMonth(
+	companyId: string,
+	date: Date = new Date()
+): Promise<SheetSummary | null> {
+	const { start, end } = currentMonthDateRange(date);
+
+	const { data, error } = await supabase
+		.from(SHEETS_TABLE)
+		.select('id, name, service_date')
+		.eq('company_id', companyId)
+		.gte('service_date', start)
+		.lt('service_date', end)
+		.order('service_date', { ascending: false })
+		.limit(1)
+		.maybeSingle();
+
+	if (error) {
+		throw new Error(`Failed to find sheet for current month: ${error.message}`);
+	}
+
+	return data as SheetSummary | null;
+}
+
 const SHEET_LINE_SELECT = `
 	*,
 	machine_inspection_sheet_row_parts (

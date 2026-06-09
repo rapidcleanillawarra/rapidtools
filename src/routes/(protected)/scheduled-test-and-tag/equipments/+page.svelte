@@ -486,7 +486,12 @@
 
 <div class="sheet-page">
 	<div class="sheet-toolbar no-print">
-		<a href="{base}/scheduled-test-and-tag/companies" class="sheet-toolbar-link">← Back to Companies</a>
+		<a
+			href="{$equipmentHeader.companyId
+				? `${base}/scheduled-test-and-tag/sheet?company_id=${$equipmentHeader.companyId}`
+				: `${base}/scheduled-test-and-tag/sheet`}"
+			class="sheet-toolbar-link"
+		>← Back to Sheets</a>
 		<div class="sheet-toolbar-actions">
 			<button type="button" class="sheet-toolbar-btn" on:click={addEquipment}>Add Equipment</button>
 			<button

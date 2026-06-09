@@ -40,6 +40,12 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 	let isSaving = false;
+	let selectedRowIds = new Set<string>();
+	let massApplyType = '';
+	let massApplyStartMonth: number | '' = '';
+	let massApplyFrequency: number | '' = '';
+
+	const TABLE_EXTRA_COLS = 3;
 
 	const textPasteColumnSet = new Set<string>(TEXT_PASTE_COLUMNS);
 
@@ -60,6 +66,64 @@
 	$: displayedRows = (
 		sortField === '' ? $equipmentRows : sortRows($equipmentRows, sortField, sortDirection)
 	).map(normalizeEquipmentRow);
+
+	$: allDisplayedSelected =
+		displayedRows.length > 0 && displayedRows.every((row) => selectedRowIds.has(row.id));
+
+	$: canMassApply =
+		selectedRowIds.size > 0 &&
+		(massApplyType !== '' || massApplyStartMonth !== '' || massApplyFrequency !== '');
+
+	function clearSelection() {
+		selectedRowIds = new Set();
+	}
+
+	function toggleRowSelected(id: string, checked: boolean) {
+		if (checked) selectedRowIds.add(id);
+		else selectedRowIds.delete(id);
+		selectedRowIds = selectedRowIds;
+	}
+
+	function toggleSelectAllDisplayed() {
+		if (allDisplayedSelected) {
+			for (const row of displayedRows) selectedRowIds.delete(row.id);
+		} else {
+			for (const row of displayedRows) selectedRowIds.add(row.id);
+		}
+		selectedRowIds = selectedRowIds;
+	}
+
+	function applyMassValues() {
+		if (selectedRowIds.size === 0) {
+			toastError('Select at least one row.', 'Error');
+			return;
+		}
+
+		const hasType = massApplyType !== '';
+		const hasStartMonth = massApplyStartMonth !== '';
+		const hasFrequency = massApplyFrequency !== '';
+
+		if (!hasType && !hasStartMonth && !hasFrequency) {
+			toastError('Set at least one value to apply.', 'Error');
+			return;
+		}
+
+		const selectedCount = selectedRowIds.size;
+
+		equipmentRows.update((rows) =>
+			rows.map((row) => {
+				if (!selectedRowIds.has(row.id)) return row;
+				return {
+					...row,
+					...(hasType ? { typeOfMachine: massApplyType } : {}),
+					...(hasStartMonth ? { startMonth: massApplyStartMonth as number } : {}),
+					...(hasFrequency ? { frequency: massApplyFrequency as number } : {})
+				};
+			})
+		);
+
+		toastSuccess(`Applied to ${selectedCount} row${selectedCount === 1 ? '' : 's'}.`, 'Applied');
+	}
 
 	function resolveActiveCompany() {
 		const header = get(equipmentHeader);
@@ -86,6 +150,7 @@
 			isTableLoading = true;
 			const rows = await loadEquipmentsForCompany(company);
 			equipmentRows.set(rows);
+			clearSelection();
 		} catch (error) {
 			console.error('Failed to load equipments:', error);
 			toastError('Failed to load equipments', 'Error');
@@ -138,6 +203,7 @@
 			applyCompanyNameToHeader(header, get(schedulesStore), value)
 		);
 		equipmentRows.set([]);
+		clearSelection();
 		await loadEquipmentData();
 	}
 
@@ -155,6 +221,8 @@
 	}
 
 	function removeEquipment(id: string) {
+		selectedRowIds.delete(id);
+		selectedRowIds = selectedRowIds;
 		equipmentRows.update((rows) => rows.filter((row) => row.id !== id));
 	}
 
@@ -267,6 +335,61 @@
 			</div>
 		</header>
 
+		{#if displayedRows.length > 0}
+			<div class="sheet-bulk-apply no-print">
+				<span class="sheet-bulk-apply-label">
+					Apply to selected ({selectedRowIds.size}):
+				</span>
+				<label class="sheet-bulk-apply-field">
+					<span class="sheet-bulk-apply-field-label">Type</span>
+					<select
+						bind:value={massApplyType}
+						class="sheet-bulk-apply-select"
+						aria-label="Mass apply type"
+					>
+						<option value="">—</option>
+						{#each MACHINE_TYPE_OPTIONS as option (option)}
+							<option value={option}>{option}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="sheet-bulk-apply-field">
+					<span class="sheet-bulk-apply-field-label">Start Month</span>
+					<select
+						bind:value={massApplyStartMonth}
+						class="sheet-bulk-apply-select"
+						aria-label="Mass apply start month"
+					>
+						<option value="">—</option>
+						{#each MONTH_OPTIONS as month (month.value)}
+							<option value={month.value}>{month.label}</option>
+						{/each}
+					</select>
+				</label>
+				<label class="sheet-bulk-apply-field">
+					<span class="sheet-bulk-apply-field-label">Frequency</span>
+					<select
+						bind:value={massApplyFrequency}
+						class="sheet-bulk-apply-select"
+						aria-label="Mass apply frequency"
+					>
+						<option value="">—</option>
+						{#each FREQUENCY_MONTH_OPTIONS as months (months)}
+							<option value={months}>{months} monthly</option>
+						{/each}
+					</select>
+				</label>
+				<button
+					type="button"
+					class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+					on:click={applyMassValues}
+					disabled={!canMassApply}
+				>
+					Apply
+				</button>
+			</div>
+		{/if}
+
 		<div
 			class="sheet-table-wrap"
 			on:paste={(e) => {
@@ -283,6 +406,16 @@
 				<table class="sheet-table">
 					<thead>
 						<tr>
+							<th scope="col" class="sheet-select-col">
+								<input
+									type="checkbox"
+									checked={allDisplayedSelected}
+									on:change={toggleSelectAllDisplayed}
+									class="sheet-checkbox"
+									aria-label="Select all equipment rows"
+								/>
+							</th>
+							<th scope="col" class="sheet-row-num-col">#</th>
 							{#each EQUIPMENT_COLUMNS as col (col.key)}
 								<th scope="col">
 									<button type="button" class="sheet-sort-btn" on:click={() => handleSort(col.key)}>
@@ -299,7 +432,7 @@
 					<tbody>
 						{#if displayedRows.length === 0}
 							<tr>
-								<td colspan={EQUIPMENT_COLUMNS.length + 1} class="sheet-empty">
+								<td colspan={EQUIPMENT_COLUMNS.length + TABLE_EXTRA_COLS} class="sheet-empty">
 									<p>No equipment recorded yet.</p>
 									<p class="sheet-empty-hint">
 										Select a company, then add rows or paste from Excel.
@@ -316,6 +449,17 @@
 						{:else}
 							{#each displayedRows as row, index (row.id)}
 								<tr>
+									<td class="sheet-select-col">
+										<input
+											type="checkbox"
+											checked={selectedRowIds.has(row.id)}
+											on:change={(e) =>
+												toggleRowSelected(row.id, (e.target as HTMLInputElement).checked)}
+											class="sheet-checkbox"
+											aria-label="Select equipment row {index + 1}"
+										/>
+									</td>
+									<td class="sheet-row-num-col">{index + 1}</td>
 									{#each EQUIPMENT_COLUMNS as col (col.key)}
 										<td class="sheet-cell">
 											{#if col.key === 'active'}
@@ -406,7 +550,7 @@
 					{#if displayedRows.length > 0}
 						<tfoot>
 							<tr>
-								<td colspan={EQUIPMENT_COLUMNS.length + 1} class="sheet-add-row">
+								<td colspan={EQUIPMENT_COLUMNS.length + TABLE_EXTRA_COLS} class="sheet-add-row">
 									<button type="button" class="sheet-add-btn" on:click={addEquipment}>
 										+ Add equipment
 									</button>
@@ -676,6 +820,70 @@
 		height: 1rem;
 		accent-color: #111;
 		cursor: pointer;
+	}
+
+	.sheet-bulk-apply {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-end;
+		gap: 0.75rem 1rem;
+		padding: 0.875rem 0;
+		margin-bottom: 0.25rem;
+		border-bottom: 1px solid #e5e7eb;
+	}
+
+	.sheet-bulk-apply-label {
+		font-size: 0.8125rem;
+		font-weight: 600;
+		color: #374151;
+		white-space: nowrap;
+	}
+
+	.sheet-bulk-apply-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		min-width: 7rem;
+	}
+
+	.sheet-bulk-apply-field-label {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: #6b7280;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.sheet-bulk-apply-select {
+		border: 1px solid #d1d5db;
+		border-radius: 0.25rem;
+		padding: 0.375rem 0.5rem;
+		font-size: 0.8125rem;
+		color: #111;
+		background: #fff;
+		min-width: 8rem;
+	}
+
+	.sheet-bulk-apply-select:focus {
+		outline: none;
+		border-color: #111;
+	}
+
+	.sheet-select-col {
+		width: 2.25rem;
+		padding: 0.75rem 0.375rem;
+		text-align: center;
+		vertical-align: top;
+	}
+
+	.sheet-row-num-col {
+		width: 2.5rem;
+		padding: 0.75rem 0.5rem;
+		text-align: center;
+		color: #666;
+		font-weight: 600;
+		vertical-align: top;
+		white-space: nowrap;
 	}
 
 	.sheet-actions-col {

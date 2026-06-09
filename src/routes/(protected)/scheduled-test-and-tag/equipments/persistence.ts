@@ -1,5 +1,7 @@
+import { getNextRciTag } from '../rciTags';
 import {
 	deleteEquipment,
+	loadAllRciTags,
 	loadEquipmentsByCompany,
 	upsertEquipment
 } from '../services/equipments';
@@ -32,13 +34,26 @@ export async function persistEquipments(
 	company: Schedule,
 	rows: EquipmentTableRow[]
 ): Promise<void> {
-	const existing = await loadEquipmentsByCompany(company.id);
-	const currentRciTags = new Set(rows.map((row) => row.rciTag.trim() || row.id));
+	const [existing, globalRciTags] = await Promise.all([
+		loadEquipmentsByCompany(company.id),
+		loadAllRciTags()
+	]);
+	const occupiedRciTags = new Set(globalRciTags);
+	const currentRciTags = new Set<string>();
 
 	for (let index = 0; index < rows.length; index++) {
 		const row = rows[index];
+		let rciTag = row.rciTag.trim();
+
+		if (!rciTag) {
+			rciTag = getNextRciTag(occupiedRciTags);
+		}
+
+		occupiedRciTags.add(rciTag);
+		currentRciTags.add(rciTag);
+
 		await upsertEquipment(company.id, {
-			rci_tag: row.rciTag.trim() || row.id,
+			rci_tag: rciTag,
 			start_month: row.startMonth || company.start_month,
 			frequency: row.frequency || company.occurence,
 			sort_order: index,

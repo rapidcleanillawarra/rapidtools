@@ -18,6 +18,16 @@ export type EquipmentInput = {
 	active: boolean;
 };
 
+export async function loadAllRciTags(): Promise<string[]> {
+	const { data, error } = await supabase.from(EQUIPMENTS_TABLE).select('rci_tag');
+
+	if (error) {
+		throw new Error(`Failed to load RCI tags: ${error.message}`);
+	}
+
+	return (data ?? []).map((row) => row.rci_tag);
+}
+
 export async function loadEquipmentsByCompany(companyId: string): Promise<EquipmentRow[]> {
 	const { data, error } = await supabase
 		.from(EQUIPMENTS_TABLE)

@@ -45,6 +45,7 @@ export const MONTH_OPTIONS = [
 
 /** Columns that support multi-row paste from Excel / Google Sheets */
 export const PASTEABLE_COLUMNS = [
+	'rciTag',
 	'tag',
 	'name',
 	'typeOfMachine',
@@ -61,7 +62,8 @@ export const TEXT_PASTE_COLUMNS = [...PASTEABLE_COLUMNS] as const;
 export type TextPasteColumnKey = (typeof TEXT_PASTE_COLUMNS)[number];
 
 export const EQUIPMENT_COLUMNS = [
-	{ key: 'tag' as const, label: 'Tag' },
+	{ key: 'rciTag' as const, label: 'RCI Tag' },
+	{ key: 'tag' as const, label: 'Customer Tag' },
 	{ key: 'name' as const, label: 'Name' },
 	{ key: 'typeOfMachine' as const, label: 'Type' },
 	{ key: 'serialNumber' as const, label: 'Serial #' },

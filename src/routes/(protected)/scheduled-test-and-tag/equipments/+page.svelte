@@ -7,9 +7,11 @@
 	import { getCompanyById, loadCompanies } from '../companies/utils';
 	import { equipmentHeader, equipmentRows, isLoading } from './stores';
 	import { loadEquipmentsForCompany, persistEquipments } from './persistence';
+	import { loadAllRciTags } from '../services/equipments';
 	import {
 		applyCompanyToHeader,
 		applyCompanyNameToHeader,
+		collectOccupiedRciTags,
 		createEmptyRow,
 		getClipboardText,
 		getPasteToastMessage,
@@ -44,6 +46,7 @@
 	let massApplyType = '';
 	let massApplyStartMonth: number | '' = '';
 	let massApplyFrequency: number | '' = '';
+	let globalRciTags: string[] = [];
 
 	const TABLE_EXTRA_COLS = 3;
 
@@ -142,13 +145,24 @@
 		};
 	}
 
+	function getOccupiedRciTags(rows = get(equipmentRows)): string[] {
+		return collectOccupiedRciTags(rows, globalRciTags);
+	}
+
+	async function refreshGlobalRciTags() {
+		globalRciTags = await loadAllRciTags();
+	}
+
 	async function loadEquipmentData() {
 		const company = resolveActiveCompany();
 		if (!company) return;
 
 		try {
 			isTableLoading = true;
-			const rows = await loadEquipmentsForCompany(company);
+			const [rows] = await Promise.all([
+				loadEquipmentsForCompany(company),
+				refreshGlobalRciTags()
+			]);
 			equipmentRows.set(rows);
 			clearSelection();
 		} catch (error) {
@@ -217,7 +231,10 @@
 	}
 
 	function addEquipment() {
-		equipmentRows.update((rows) => [...rows, createEmptyRow(getRowDefaults())]);
+		equipmentRows.update((rows) => [
+			...rows,
+			createEmptyRow(getRowDefaults(), getOccupiedRciTags(rows))
+		]);
 	}
 
 	function removeEquipment(id: string) {
@@ -266,7 +283,13 @@
 
 			const grid = parsePasteGrid(text);
 			const defaults = getRowDefaults();
-			const result = processEquipmentPaste(get(equipmentRows), rowId, column, grid);
+			const result = processEquipmentPaste(
+				get(equipmentRows),
+				rowId,
+				column,
+				grid,
+				globalRciTags
+			);
 			if (!result) return;
 
 			const rowsWithDefaults = result.rows.map((row) =>
@@ -393,7 +416,7 @@
 		<div
 			class="sheet-table-wrap"
 			on:paste={(e) => {
-				if ($equipmentRows.length === 0) handlePaste(e, null, 'tag');
+				if ($equipmentRows.length === 0) handlePaste(e, null, 'rciTag');
 			}}
 		>
 			{#if isTableLoading}
@@ -527,6 +550,8 @@
 														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
 													on:paste={(e) => handlePaste(e, row.id, col.key)}
 													class="sheet-cell-input"
+													class:sheet-cell-input--rci={col.key === 'rciTag'}
+													class:sheet-cell-input--customer-tag={col.key === 'tag'}
 													class:sheet-cell-input--link={col.key === 'sku'}
 													placeholder={col.label}
 												/>
@@ -808,6 +833,16 @@
 		outline: none;
 		background: #fafafa;
 		box-shadow: inset 0 -1px 0 #111;
+	}
+
+	.sheet-cell-input--rci {
+		font-family: 'Consolas', 'Courier New', monospace;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+	}
+
+	.sheet-cell-input--customer-tag {
+		font-style: italic;
 	}
 
 	.sheet-cell-input--link {

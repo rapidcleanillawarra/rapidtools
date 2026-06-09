@@ -1,3 +1,4 @@
+import { getNextRciTag } from '../rciTags';
 import {
 	PASTEABLE_COLUMNS,
 	type PasteableColumnKey,
@@ -10,14 +11,26 @@ export function normalizeEquipmentRow(row: EquipmentTableRow): EquipmentTableRow
 	return { ...row, active: row.active !== false };
 }
 
-export function createEmptyRow(defaults?: {
-	startMonth?: number;
-	frequency?: number;
-}): EquipmentTableRow {
+export function collectOccupiedRciTags(
+	rows: EquipmentTableRow[],
+	additionalRciTags: Iterable<string> = []
+): string[] {
+	return [...additionalRciTags, ...rows.map((row) => row.rciTag.trim()).filter(Boolean)];
+}
+
+export function createEmptyRow(
+	defaults?: {
+		startMonth?: number;
+		frequency?: number;
+	},
+	occupiedRciTags: Iterable<string> = []
+): EquipmentTableRow {
 	const id = crypto.randomUUID();
+	const rciTag = getNextRciTag(occupiedRciTags);
+
 	return normalizeEquipmentRow({
 		id,
-		rciTag: id,
+		rciTag,
 		tag: '',
 		name: '',
 		typeOfMachine: '',
@@ -100,12 +113,15 @@ export function applySingleCellPaste(
 	rows: EquipmentTableRow[],
 	rowId: string | null,
 	column: TextPasteColumnKey,
-	value: string
+	value: string,
+	additionalRciTags: Iterable<string> = []
 ): EquipmentTableRow[] {
 	const trimmed = value.trim();
 
 	if (rows.length === 0 || rowId === null) {
-		return [setTextField(createEmptyRow(), column, trimmed)];
+		return [
+			setTextField(createEmptyRow(undefined, additionalRciTags), column, trimmed)
+		];
 	}
 
 	const startRowIndex = rows.findIndex((row) => row.id === rowId);
@@ -120,22 +136,32 @@ export function applyColumnPaste(
 	rows: EquipmentTableRow[],
 	rowId: string | null,
 	column: TextPasteColumnKey,
-	values: string[]
+	values: string[],
+	additionalRciTags: Iterable<string> = []
 ): EquipmentTableRow[] {
 	if (values.length === 0) return rows;
 
 	if (rows.length === 0 || rowId === null) {
-		return values.map((value) => setTextField(createEmptyRow(), column, value));
+		const occupied = [...additionalRciTags];
+		return values.map((value) => {
+			const row = createEmptyRow(undefined, occupied);
+			occupied.push(row.rciTag);
+			return setTextField(row, column, value);
+		});
 	}
 
 	const result = rows.map((row) => normalizeEquipmentRow({ ...row }));
 	const startRowIndex = result.findIndex((row) => row.id === rowId);
 	if (startRowIndex === -1) return rows;
 
+	const occupied = collectOccupiedRciTags(result, additionalRciTags);
+
 	values.forEach((value, offset) => {
 		const targetIndex = startRowIndex + offset;
 		if (targetIndex >= result.length) {
-			result.push(createEmptyRow());
+			const row = createEmptyRow(undefined, occupied);
+			occupied.push(row.rciTag);
+			result.push(row);
 		}
 		result[targetIndex] = setTextField(result[targetIndex], column, value);
 	});
@@ -153,7 +179,8 @@ export function processEquipmentPaste(
 	rows: EquipmentTableRow[],
 	rowId: string | null,
 	column: TextPasteColumnKey,
-	grid: string[][]
+	grid: string[][],
+	additionalRciTags: Iterable<string> = []
 ): EquipmentPasteResult | null {
 	if (grid.length === 0) return null;
 
@@ -161,7 +188,7 @@ export function processEquipmentPaste(
 
 	if (trimmedGrid.length === 1 && trimmedGrid[0].length === 1) {
 		return {
-			rows: applySingleCellPaste(rows, rowId, column, trimmedGrid[0][0]),
+			rows: applySingleCellPaste(rows, rowId, column, trimmedGrid[0][0], additionalRciTags),
 			pastedCount: 1,
 			mode: 'cell'
 		};
@@ -172,7 +199,13 @@ export function processEquipmentPaste(
 
 	if (canSpreadGrid) {
 		return {
-			rows: applyPasteToRows(rows, rowId, column as PasteableColumnKey, trimmedGrid),
+			rows: applyPasteToRows(
+				rows,
+				rowId,
+				column as PasteableColumnKey,
+				trimmedGrid,
+				additionalRciTags
+			),
 			pastedCount: trimmedGrid.length,
 			mode: 'grid'
 		};
@@ -180,7 +213,7 @@ export function processEquipmentPaste(
 
 	const values = trimmedGrid.map((row) => row[0] ?? '');
 	return {
-		rows: applyColumnPaste(rows, rowId, column, values),
+		rows: applyColumnPaste(rows, rowId, column, values, additionalRciTags),
 		pastedCount: values.length,
 		mode: 'column'
 	};
@@ -206,13 +239,16 @@ export function applyPasteToRows(
 	rows: EquipmentTableRow[],
 	startRowId: string | null,
 	startColumn: PasteableColumnKey,
-	grid: string[][]
+	grid: string[][],
+	additionalRciTags: Iterable<string> = []
 ): EquipmentTableRow[] {
 	const startColIndex = PASTEABLE_COLUMNS.indexOf(startColumn);
 
 	if (rows.length === 0 || startRowId === null) {
+		const occupied = [...additionalRciTags];
 		return grid.map((cells) => {
-			const row = createEmptyRow();
+			const row = createEmptyRow(undefined, occupied);
+			occupied.push(row.rciTag);
 			cells.forEach((value, colOffset) => {
 				const field = PASTEABLE_COLUMNS[startColIndex + colOffset];
 				if (field) row[field] = value.trim();
@@ -225,10 +261,14 @@ export function applyPasteToRows(
 	const startRowIndex = result.findIndex((row) => row.id === startRowId);
 	if (startRowIndex === -1) return rows;
 
+	const occupied = collectOccupiedRciTags(result, additionalRciTags);
+
 	for (let pasteRow = 0; pasteRow < grid.length; pasteRow++) {
 		const targetIndex = startRowIndex + pasteRow;
 		if (targetIndex >= result.length) {
-			result.push(createEmptyRow());
+			const row = createEmptyRow(undefined, occupied);
+			occupied.push(row.rciTag);
+			result.push(row);
 		}
 
 		const row = { ...result[targetIndex] };

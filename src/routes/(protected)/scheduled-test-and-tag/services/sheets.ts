@@ -1,8 +1,14 @@
 import { supabase } from '$lib/supabase';
-import type { SheetLineRow, SheetRow } from './types';
+import type { SheetLineRow, SheetRow, SheetRowPartRow } from './types';
 
 const SHEETS_TABLE = 'machine_inspection_sheets';
 const SHEET_ROWS_TABLE = 'machine_inspection_sheet_rows';
+const SHEET_ROW_PARTS_TABLE = 'machine_inspection_sheet_row_parts';
+
+export type SheetLinePartInput = {
+	sku: string;
+	name: string;
+};
 
 export type SheetLineInput = {
 	equipment_id: string;
@@ -10,7 +16,7 @@ export type SheetLineInput = {
 	result: string;
 	workshop_id: string;
 	service: string;
-	parts: string;
+	parts: SheetLinePartInput[];
 	notes: string;
 };
 
@@ -21,6 +27,23 @@ export type SaveSheetInput = {
 	created_by_email?: string;
 	lines: SheetLineInput[];
 };
+
+const SHEET_LINE_SELECT = `
+	*,
+	machine_inspection_sheet_row_parts (
+		id,
+		sheet_row_id,
+		sort_order,
+		sku,
+		name,
+		created_at,
+		updated_at
+	)
+`;
+
+function sortSheetRowParts(parts: SheetRowPartRow[] | undefined): SheetRowPartRow[] {
+	return [...(parts ?? [])].sort((a, b) => a.sort_order - b.sort_order);
+}
 
 export async function getSheetById(sheetId: string): Promise<{
 	sheet: SheetRow;
@@ -40,9 +63,10 @@ export async function getSheetById(sheetId: string): Promise<{
 
 	const { data: lines, error: linesError } = await supabase
 		.from(SHEET_ROWS_TABLE)
-		.select('*')
+		.select(SHEET_LINE_SELECT)
 		.eq('sheet_id', sheetId)
-		.order('sort_order', { ascending: true });
+		.order('sort_order', { ascending: true })
+		.order('sort_order', { ascending: true, foreignTable: 'machine_inspection_sheet_row_parts' });
 
 	if (linesError) {
 		throw new Error(`Failed to load sheet rows: ${linesError.message}`);
@@ -50,7 +74,12 @@ export async function getSheetById(sheetId: string): Promise<{
 
 	return {
 		sheet: sheet as SheetRow,
-		lines: (lines ?? []) as SheetLineRow[]
+		lines: ((lines ?? []) as SheetLineRow[]).map((line) => ({
+			...line,
+			machine_inspection_sheet_row_parts: sortSheetRowParts(
+				line.machine_inspection_sheet_row_parts
+			)
+		}))
 	};
 }
 
@@ -100,21 +129,45 @@ export async function saveSheet(input: SaveSheetInput, existingSheetId?: string)
 	}
 
 	if (input.lines.length > 0) {
-		const { error: linesError } = await supabase.from(SHEET_ROWS_TABLE).insert(
-			input.lines.map((line) => ({
-				sheet_id: sheetId,
-				equipment_id: line.equipment_id,
-				sort_order: line.sort_order,
-				result: line.result,
-				workshop_id: line.workshop_id,
-				service: line.service,
-				parts: line.parts,
-				notes: line.notes
-			}))
-		);
+		const { data: insertedRows, error: linesError } = await supabase
+			.from(SHEET_ROWS_TABLE)
+			.insert(
+				input.lines.map((line) => ({
+					sheet_id: sheetId,
+					equipment_id: line.equipment_id,
+					sort_order: line.sort_order,
+					result: line.result,
+					workshop_id: line.workshop_id,
+					service: line.service,
+					notes: line.notes
+				}))
+			)
+			.select('id, equipment_id');
 
 		if (linesError) {
 			throw new Error(`Failed to save sheet rows: ${linesError.message}`);
+		}
+
+		const partRows = (insertedRows ?? []).flatMap((row) => {
+			const line = input.lines.find((entry) => entry.equipment_id === row.equipment_id);
+			if (!line) return [];
+
+			return line.parts
+				.map((part, index) => ({
+					sheet_row_id: row.id,
+					sort_order: index,
+					sku: part.sku.trim(),
+					name: part.name.trim()
+				}))
+				.filter((part) => part.sku || part.name);
+		});
+
+		if (partRows.length > 0) {
+			const { error: partsError } = await supabase.from(SHEET_ROW_PARTS_TABLE).insert(partRows);
+
+			if (partsError) {
+				throw new Error(`Failed to save sheet row parts: ${partsError.message}`);
+			}
 		}
 	}
 

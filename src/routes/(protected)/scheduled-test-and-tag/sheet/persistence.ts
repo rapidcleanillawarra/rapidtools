@@ -9,7 +9,7 @@ import { getSheetById, saveSheet } from '../services/sheets';
 import type { EquipmentPlacementRow, EquipmentRow, SheetLineRow } from '../services/types';
 import type { Schedule } from '../stores';
 import type { SheetHeader, SheetRow } from './types';
-import { frequencyToMonths, occurrenceToFrequency } from './utils';
+import { formatParts, frequencyToMonths, occurrenceToFrequency, parseParts } from './utils';
 
 export function equipmentToSheetRow(
 	equipment: EquipmentRow,
@@ -30,7 +30,11 @@ export function equipmentToSheetRow(
 		results: line?.result ?? '',
 		workshopId: line?.workshop_id ?? '',
 		service: line?.service ?? '',
-		parts: line?.parts ?? '',
+		parts: line?.machine_inspection_sheet_row_parts?.length
+			? formatParts(
+					line.machine_inspection_sheet_row_parts.map(({ sku, name }) => ({ sku, name }))
+				)
+			: '',
 		notes: line?.notes ?? ''
 	};
 }
@@ -149,7 +153,7 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 				result: row.results,
 				workshop_id: row.workshopId,
 				service: row.service,
-				parts: row.parts,
+				parts: parseParts(row.parts),
 				notes: row.notes
 			}))
 		},

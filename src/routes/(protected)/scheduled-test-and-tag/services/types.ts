@@ -117,6 +117,16 @@ export type SheetRow = {
 	updated_at: string;
 };
 
+export type SheetRowPartRow = {
+	id: string;
+	sheet_row_id: string;
+	sort_order: number;
+	sku: string;
+	name: string;
+	created_at: string;
+	updated_at: string;
+};
+
 export type SheetLineRow = {
 	id: string;
 	sheet_id: string;
@@ -125,10 +135,10 @@ export type SheetLineRow = {
 	result: string;
 	workshop_id: string;
 	service: string;
-	parts: string;
 	notes: string;
 	created_at: string;
 	updated_at: string;
+	machine_inspection_sheet_row_parts?: SheetRowPartRow[];
 };
 
 export type EquipmentWithPlacement = EquipmentRow & {

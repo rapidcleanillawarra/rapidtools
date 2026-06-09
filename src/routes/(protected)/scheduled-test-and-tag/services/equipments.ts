@@ -163,24 +163,30 @@ export async function upsertPlacement(
 	}
 }
 
-export async function deleteEquipment(companyId: string, rciTag: string): Promise<void> {
+export async function bulkDeleteEquipments(companyId: string, rciTags: string[]): Promise<void> {
+	if (rciTags.length === 0) return;
+
 	const { error: placementError } = await supabase
 		.from(PLACEMENTS_TABLE)
 		.delete()
 		.eq('company_id', companyId)
-		.eq('rci_tag', rciTag);
+		.in('rci_tag', rciTags);
 
 	if (placementError) {
-		throw new Error(`Failed to delete equipment placement: ${placementError.message}`);
+		throw new Error(`Failed to delete equipment placements: ${placementError.message}`);
 	}
 
 	const { error } = await supabase
 		.from(EQUIPMENTS_TABLE)
 		.delete()
 		.eq('company_id', companyId)
-		.eq('rci_tag', rciTag);
+		.in('rci_tag', rciTags);
 
 	if (error) {
-		throw new Error(`Failed to delete equipment: ${error.message}`);
+		throw new Error(`Failed to delete equipments: ${error.message}`);
 	}
+}
+
+export async function deleteEquipment(companyId: string, rciTag: string): Promise<void> {
+	await bulkDeleteEquipments(companyId, [rciTag]);
 }

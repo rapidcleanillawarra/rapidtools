@@ -31,6 +31,7 @@
 		SIZE_OPTIONS,
 		TEXT_PASTE_COLUMNS,
 		type EquipmentColumnKey,
+		type EquipmentTableRow,
 		type TextPasteColumnKey
 	} from './types';
 	import Modal from '$lib/components/Modal.svelte';
@@ -46,6 +47,7 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 	let isSaving = false;
+	let originalRows: EquipmentTableRow[] = [];
 	let selectedRowIds = new Set<string>();
 	let massApplyType = '';
 	let massApplyStartMonth: number | '' = '';
@@ -212,6 +214,7 @@
 				refreshGlobalRciTags()
 			]);
 			equipmentRows.set(rows);
+			originalRows = rows.map((row) => ({ ...row }));
 			clearSelection();
 		} catch (error) {
 			console.error('Failed to load equipments:', error);
@@ -264,6 +267,7 @@
 
 		equipmentHeader.update((header) => applyCompanyToHeader(header, company));
 		equipmentRows.set([]);
+		originalRows = [];
 		clearSelection();
 
 		const path = `${base}/scheduled-test-and-tag/equipments?id=${company.id}`.replace(
@@ -315,7 +319,7 @@
 
 		try {
 			isSaving = true;
-			await persistEquipments(company, get(equipmentRows));
+			await persistEquipments(company, get(equipmentRows), originalRows);
 			await loadEquipmentData();
 			toastSuccess('Equipments saved successfully.', 'Saved');
 		} catch (error) {

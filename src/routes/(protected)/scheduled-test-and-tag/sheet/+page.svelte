@@ -442,11 +442,9 @@
 	.sheet-header {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0;
 		margin: -2rem -2.5rem 1.25rem;
-		padding: 1.5rem 2.5rem;
-		background: rgb(40, 40, 40);
-		color: #fff;
+		padding: 0;
 	}
 
 	.sheet-header-main {
@@ -454,6 +452,9 @@
 		grid-template-columns: 9rem 1fr 9rem;
 		align-items: start;
 		gap: 1rem;
+		padding: 1.5rem 2.5rem;
+		background: rgb(40, 40, 40);
+		color: #fff;
 	}
 
 	.sheet-header-logo {
@@ -504,7 +505,7 @@
 
 	.sheet-meta-input[type='date'],
 	.sheet-meta-input--date {
-		color-scheme: dark;
+		color-scheme: light;
 	}
 
 	.sheet-date-field {
@@ -519,7 +520,7 @@
 		padding: 0.375rem 0;
 		border-bottom: 1px solid #9ca3af;
 		font-size: 0.875rem;
-		color: #fff;
+		color: #111;
 		text-align: left;
 	}
 
@@ -534,11 +535,11 @@
 		background: transparent;
 		opacity: 0;
 		cursor: pointer;
-		color-scheme: dark;
+		color-scheme: light;
 	}
 
 	.sheet-date-field:focus-within .sheet-date-display {
-		border-bottom-color: #fff;
+		border-bottom-color: #111;
 	}
 
 	.sheet-subtitle {
@@ -552,8 +553,8 @@
 		flex-direction: column;
 		gap: 0.625rem;
 		width: 100%;
-		border-top: 1px solid rgba(255, 255, 255, 0.15);
-		padding-top: 0.875rem;
+		background: #fff;
+		padding: 0.875rem 2.5rem 0;
 	}
 
 	.sheet-meta-row-pair {
@@ -570,7 +571,7 @@
 		gap: 1rem;
 		width: 100%;
 		font-size: 0.875rem;
-		color: #e5e7eb;
+		color: #374151;
 	}
 
 	.sheet-meta-label {
@@ -585,14 +586,14 @@
 		border-bottom: 1px solid #9ca3af;
 		background: transparent;
 		font-size: 0.875rem;
-		color: #fff;
+		color: #111;
 		padding: 0.375rem 0;
 		text-align: left;
 	}
 
 	.sheet-meta-input:focus {
 		outline: none;
-		border-bottom-color: #fff;
+		border-bottom-color: #111;
 	}
 
 	.sheet-meta-input:disabled {
@@ -775,7 +776,14 @@
 
 		.sheet-header {
 			margin: -1.25rem -1rem 1.25rem;
+		}
+
+		.sheet-header-main {
 			padding: 1.25rem 1rem;
+		}
+
+		.sheet-meta {
+			padding: 0.875rem 1rem 0;
 		}
 
 		.sheet-header-main {
@@ -838,9 +846,16 @@
 
 		.sheet-header {
 			margin: 0 0 1rem;
+		}
+
+		.sheet-header-main {
 			padding: 1rem 0;
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
+		}
+
+		.sheet-meta {
+			padding: 0.875rem 0 0;
 		}
 
 		.sheet-table-wrap {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
 	import { get } from 'svelte/store';
@@ -163,6 +164,15 @@
 		sheetRows.update((rows) => [...rows, createEmptyRow()]);
 	}
 
+	function openEquipments() {
+		const company = resolveActiveCompany();
+		if (!company) {
+			toastError('Select a company before managing equipments.', 'Error');
+			return;
+		}
+		goto(`${base}/scheduled-test-and-tag/equipments?id=${company.id}`);
+	}
+
 	function removeMachine(id: string) {
 		sheetRows.update((rows) => rows.filter((row) => row.id !== id));
 	}
@@ -237,7 +247,9 @@
 	<div class="sheet-toolbar no-print">
 		<a href="{base}/scheduled-test-and-tag/companies" class="sheet-toolbar-link">← Back to Companies</a>
 		<div class="sheet-toolbar-actions">
-			<button type="button" class="sheet-toolbar-btn" on:click={addMachine}>Add Machine</button>
+			<button type="button" class="sheet-toolbar-btn" on:click={openEquipments}>
+				Manage Equipments
+			</button>
 			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
 			<button
 				type="button"

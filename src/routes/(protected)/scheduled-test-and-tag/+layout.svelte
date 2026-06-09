@@ -11,10 +11,10 @@
 
   // Determine active tab based on current URL
   $: activeTab = $page.url.pathname.split('/').pop() || 'schedules';
-  $: isSheetPage = activeTab === 'sheet';
+  $: isFullWidthPage = activeTab === 'sheet' || activeTab === 'equipments';
 </script>
 
-{#if isSheetPage}
+{#if isFullWidthPage}
   <slot />
 {:else}
 <div class="container mx-auto px-4 py-8" in:fade>

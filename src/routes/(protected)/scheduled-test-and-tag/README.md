@@ -1,78 +1,39 @@
-# Scheduled Test and Tag - Firestore Integration
+# Scheduled Test and Tag - Supabase Integration
 
-This document explains the Firebase Firestore integration for the Scheduled Test and Tag (STT) events system.
+Machine inspection data is stored in normalized Supabase tables with the `machine_inspection_` prefix.
 
-## Overview
+## Tables
 
-The STT events are stored in the `stt_events` collection in Firebase Firestore. Each event represents a scheduled test and tag appointment for a specific location within a company.
+| Table | Purpose |
+|-------|---------|
+| `machine_inspection_schedules` | Company schedule profile (frequency, color, etc.) |
+| `machine_inspection_locations` | Sub-company locations linked to a schedule |
+| `machine_inspection_contacts` | Contacts linked to a location |
+| `machine_inspection_notes` | Notes linked to a schedule |
+| `machine_inspection_events` | Calendar appointments |
 
-## Data Structure
+## Service layer
 
-### STTEvent Interface
+- `services/schedules.ts` — schedule CRUD and nested location/contact/note writes
+- `services/events.ts` — event CRUD and calendar mapping helpers
+- `companies/utils.ts` — validation helpers; re-exports schedule operations
+- `utils/sttEvents.ts` — backward-compatible re-exports for event operations
 
-```typescript
-interface STTEvent {
-  id?: string; // Firestore document ID
-  information_id: string; // From the source JSON structure
-  schedule_id: number; // From the source JSON structure
-  company: string;
-  sub_company_name: string;
-  location: string;
-  start_date: string; // ISO string
-  end_date: string; // ISO string
-  title: string;
-  backgroundColor: string;
-  created_at?: any; // serverTimestamp
-  updated_at?: any; // serverTimestamp
-  created_by_uid?: string;
-  created_by_email?: string;
-}
+## Migration from Firestore
+
+Legacy Firestore collections (`stt`, `stt_events`) can be migrated with:
+
+```bash
+node scripts/migrate-machine-inspection-from-firestore.mjs
 ```
 
-### Key Fields
+Apply the SQL migration first:
 
-- **information_id**: Unique identifier from the source JSON structure, used to link events to specific locations
-- **schedule_id**: Links the event to a specific schedule/company
-- **start_date/end_date**: ISO date strings for the appointment period
-- **created_by_uid/created_by_email**: Tracks who created the event
+```bash
+# via Supabase CLI or dashboard
+supabase/migrations/20260609120000_machine_inspection.sql
+```
 
-## API Functions
+## Auth
 
-### Core Operations
-
-1. **loadSTTEvents()**: Loads all events from Firestore
-2. **saveSTTEvent()**: Creates a new event in Firestore
-3. **updateSTTEvent()**: Updates an existing event
-4. **deleteSTTEvent()**: Deletes an event from Firestore
-5. **findEventByInfoAndSchedule()**: Finds events by information_id and schedule_id
-
-### Utility Functions
-
-1. **calendarEventToSTTEvent()**: Converts calendar event format to Firestore format
-2. **sttEventToCalendarEvent()**: Converts Firestore format to calendar event format
-
-## Usage Flow
-
-1. **Loading Events**: On page mount, events are loaded from Firestore and converted to calendar format
-2. **Adding Events**: When a user schedules an appointment, the event is saved to Firestore with user tracking
-3. **Editing Events**: Existing events can be updated with new dates
-4. **Deleting Events**: Events can be removed from both the calendar and Firestore
-
-## Data Integrity
-
-- Events are validated against the source schedule data
-- Duplicate events are prevented using information_id and schedule_id
-- User authentication is required for all write operations
-- Timestamps are automatically managed by Firestore
-
-## Error Handling
-
-- Network errors are caught and displayed to users via toast notifications
-- Validation errors prevent invalid data from being saved
-- Loading states provide user feedback during operations
-
-## Security
-
-- All operations require user authentication
-- Events are associated with the creating user
-- Firestore security rules should be configured to restrict access to authenticated users 
+Firebase Authentication is still used for app login. Supabase stores machine inspection data using the project anon key and RLS policies consistent with other Rapid Tools tables.

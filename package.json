@@ -17,7 +17,8 @@
 		"lint": "prettier --check . && eslint .",
 		"test": "vitest",
 		"test:run": "vitest run",
-		"test:sydney-timezone": "node \"src/routes/(protected)/orders-past-due-accounts/components/TicketModal.test.js\""
+		"test:sydney-timezone": "node \"src/routes/(protected)/orders-past-due-accounts/components/TicketModal.test.js\"",
+		"migrate:machine-inspection": "node scripts/migrate-machine-inspection-from-firestore.mjs"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",

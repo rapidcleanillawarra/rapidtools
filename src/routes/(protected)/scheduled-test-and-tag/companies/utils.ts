@@ -1,208 +1,18 @@
-import { schedulesStore } from '../stores';
-import { db } from '$lib/firebase';
-import {
-  collection,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  query,
-  orderBy,
-  where,
-  serverTimestamp
-} from 'firebase/firestore';
-import { get } from 'svelte/store';
-import type { Schedule, ScheduleFormData, ValidationErrors } from './types';
+import type { ScheduleFormData, ValidationErrors } from './types';
+
+export {
+	createSchedule,
+	deleteSchedule,
+	getScheduleById,
+	loadSchedules,
+	updateSchedule
+} from '../services/schedules';
 
 // Constants
 export const DEFAULT_COLOR = '#3b82f6';
 
-// Helper to remove undefined values
-function sanitizeData(data: any): any {
-  if (data === null || data === undefined) return data;
-  if (data instanceof Date) return data; // Keep Date objects
-  if (typeof data !== 'object') return data;
-
-  // Handle arrays
-  if (Array.isArray(data)) {
-    return data.map(item => sanitizeData(item));
-  }
-
-  // Handle objects
-  const result: any = {};
-  for (const key in data) {
-    const value = sanitizeData(data[key]);
-    if (value !== undefined) {
-      result[key] = value;
-    }
-  }
-  return result;
-}
-
-// CRUD Operations
-export async function createSchedule(scheduleData: ScheduleFormData): Promise<Schedule> {
-  console.log('=== CREATING SCHEDULE IN FIREBASE ===');
-  console.log('Data:', scheduleData);
-
-  try {
-    // Sanitize data to remove undefined values
-    const sanitizedData = sanitizeData(scheduleData);
-
-    // Add to Firestore first to get the document ID
-    const docRef = await addDoc(collection(db, 'stt'), {
-      ...sanitizedData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    console.log('Document created with ID:', docRef.id);
-
-    // Create the new schedule with Firestore document ID
-    const newSchedule: Schedule = {
-      ...scheduleData,
-      id: docRef.id // Use Firestore document ID directly as string
-    };
-
-    // Update the Firestore document to include the ID
-    await updateDoc(docRef, { id: docRef.id });
-
-    // Update local store
-    schedulesStore.update(schedules => [...schedules, newSchedule]);
-
-    console.log('Schedule created successfully');
-    return newSchedule;
-  } catch (error) {
-    console.error('Error creating schedule:', error);
-    throw new Error(`Failed to create schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-export async function updateSchedule(id: string, scheduleData: ScheduleFormData): Promise<Schedule> {
-  try {
-    // Use the ID directly as the Firestore document ID
-    const docRef = doc(db, 'stt', id);
-
-    // Sanitize data to remove undefined values
-    const sanitizedData = sanitizeData(scheduleData);
-
-    // Update in Firestore
-    await updateDoc(docRef, {
-      ...sanitizedData,
-      id, // Keep the ID in Firestore
-      updatedAt: serverTimestamp()
-    });
-
-    // Create updated schedule
-    const updatedSchedule: Schedule = {
-      ...scheduleData,
-      id
-    };
-
-    // Update local store
-    schedulesStore.update(schedules =>
-      schedules.map(schedule =>
-        schedule.id === id ? updatedSchedule : schedule
-      )
-    );
-
-    console.log('Schedule updated successfully in Firestore');
-    return updatedSchedule;
-  } catch (error) {
-    console.error('Error updating schedule in Firestore:', error);
-    throw new Error(`Failed to update schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-export async function deleteSchedule(id: string): Promise<void> {
-  try {
-    // Use the ID directly as the Firestore document ID
-    const docRef = doc(db, 'stt', id);
-
-    // First, soft delete all associated STT events
-    const sttEventsQuery = query(
-      collection(db, 'stt_events'),
-      where('schedule_id', '==', parseInt(id))
-      // where('is_deleted', '!=', true) // Removed to include docs without field
-    );
-
-    const sttEventsSnapshot = await getDocs(sttEventsQuery);
-    const softDeletePromises = sttEventsSnapshot.docs
-      .filter(doc => doc.data().is_deleted !== true) // Only update if not already deleted
-      .map(doc =>
-        updateDoc(doc.ref, {
-          is_deleted: true,
-          deleted_at: serverTimestamp()
-        })
-      );
-
-    if (softDeletePromises.length > 0) {
-      await Promise.all(softDeletePromises);
-      console.log(`Soft deleted ${softDeletePromises.length} associated STT events`);
-    }
-
-    // Soft delete the schedule from Firestore
-    await updateDoc(docRef, {
-      isDeleted: true,
-      deletedAt: serverTimestamp()
-    });
-
-    // Update local store
-    schedulesStore.update(schedules =>
-      schedules.filter(schedule => schedule.id !== id)
-    );
-
-    console.log('Schedule and associated events soft deleted successfully from Firestore');
-  } catch (error) {
-    console.error('Error soft deleting schedule from Firestore:', error);
-    throw new Error(`Failed to delete schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-export async function getScheduleById(id: string): Promise<Schedule | undefined> {
-  const schedules = get(schedulesStore);
-  return schedules.find(schedule => schedule.id === id);
-}
-
-// Load schedules from Firestore
-export async function loadSchedulesFromFirestore(): Promise<void> {
-  try {
-    const querySnapshot = await getDocs(
-      query(
-        collection(db, 'stt'),
-        // where('isDeleted', '!=', true), // REMOVED: potentially filters out docs without field
-        orderBy('createdAt', 'desc')
-      )
-    );
-    const schedules: Schedule[] = [];
-
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      // Filter out soft-deleted schedules manually since valid docs might miss the field
-      if (data.isDeleted === true) return;
-
-      schedules.push({
-        id: data.id || doc.id, // Use existing ID or Firestore document ID as string
-        company: data.company,
-        start_month: data.start_month,
-        occurence: data.occurence,
-        color: data.color || DEFAULT_COLOR, // Default to blue if no color is set
-        information: data.information || [],
-        notes: data.notes || [],
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-        deletedAt: data.deletedAt,
-        isDeleted: data.isDeleted
-      });
-    });
-
-    // Update local store with Firestore data
-    schedulesStore.set(schedules);
-    console.log('Schedules loaded from Firestore:', schedules.length);
-  } catch (error) {
-    console.error('Error loading schedules from Firestore:', error);
-    throw new Error('Failed to load schedules from database.');
-  }
-}
+/** @deprecated Use loadSchedules */
+export { loadSchedules as loadSchedulesFromFirestore } from '../services/schedules';
 
 // Validation
 export function validateSchedule(schedule: ScheduleFormData): ValidationErrors {
@@ -478,4 +288,4 @@ export function getAvailableColors(schedules: any[], currentColor?: string, isCr
 
   // Get distinct colors excluding used ones
   return getDistinctColors(25, usedColors);
-} 
+}

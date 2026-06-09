@@ -27,9 +27,9 @@ export type Schedule = {
     color: string;
     information: LocationInfo[];
     notes: Note[];
-    createdAt?: any; // Firestore timestamp
-    updatedAt?: any; // Firestore timestamp
-    deletedAt?: any; // Firestore timestamp for soft delete
+    createdAt?: string;
+    updatedAt?: string;
+    deletedAt?: string;
     isDeleted?: boolean; // Soft delete flag
 };
 

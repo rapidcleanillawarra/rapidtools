@@ -19,7 +19,7 @@
     setEditMode,
     resetForm
   } from './stores';
-  import { createSchedule, updateSchedule, deleteSchedule, loadSchedulesFromFirestore } from './utils';
+  import { createSchedule, updateSchedule, deleteSchedule, loadSchedules } from './utils';
   import { getMonthName, formatPhoneNumber } from './utils';
   import type { Schedule, ScheduleFormData } from './types';
 
@@ -96,12 +96,12 @@
     }
   }
 
-  // Load data from Firestore on component mount
+  // Load data from Supabase on component mount
   onMount(async () => {
     try {
       isLoading.set(true);
       isTableLoading = true;
-      await loadSchedulesFromFirestore();
+      await loadSchedules();
     } catch (error) {
       console.error('Failed to load schedules:', error);
       toastError('Failed to load companies', 'Error');

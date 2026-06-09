@@ -5,7 +5,7 @@
 	import { get } from 'svelte/store';
 	import { currentUser } from '$lib/firebase';
 	import { schedulesStore } from '../stores';
-	import { loadSchedulesFromFirestore } from '../companies/utils';
+	import { loadSchedules } from '../companies/utils';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
 	import {
 		applyCompanyToHeader,
@@ -72,7 +72,7 @@
 			isLoading.set(true);
 			isTableLoading = true;
 			if (get(schedulesStore).length === 0) {
-				await loadSchedulesFromFirestore();
+				await loadSchedules();
 			}
 		} catch (error) {
 			console.error('Failed to load companies:', error);

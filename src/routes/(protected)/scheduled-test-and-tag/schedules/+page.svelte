@@ -15,7 +15,7 @@
     sttEventToCalendarEvent,
     type STTEvent 
   } from '../utils/sttEvents';
-  import { loadSchedulesFromFirestore } from '../companies/utils';
+  import { loadSchedules } from '../companies/utils';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import { toastSuccess, toastError, toastInfo, toastWarning } from '$lib/utils/toast';
@@ -28,7 +28,7 @@
     extendedProps: {
       location: string;
       company: string;
-      scheduleId: number;
+      scheduleId: string;
       infoIndex: number;
       occurrenceIndex: number;
     };
@@ -116,21 +116,21 @@
   // Reactive statement to load events when schedules are loaded and we have a valid month
   $: if (schedulesLoaded && !isLoadingSchedules && !isLoadingEvents && !eventsLoaded && currentMonth > 0) {
     eventsLoaded = true;
-    loadEventsFromFirestore();
+    loadEventsFromDatabase();
   }
 
 
 
 
 
-  // Load schedules from Firestore
-  async function loadSchedulesFromFirestoreData() {
+  // Load schedules from Supabase
+  async function loadSchedulesData() {
     try {
       isLoadingSchedules = true;
-      await loadSchedulesFromFirestore();
+      await loadSchedules();
       schedulesLoaded = true;
     } catch (error) {
-      console.error('Error loading schedules from Firestore:', error);
+      console.error('Error loading schedules:', error);
       toastError('Failed to load company data from database', 'Error');
     } finally {
       isLoadingSchedules = false;
@@ -308,7 +308,7 @@
     try {
       isSaving = true;
       if (isEditMode && editingEventId) {
-        // Update existing event in Firestore
+        // Update existing event
         await updateSTTEvent(editingEventId, {
           start_date: new Date(startDateStr).toISOString(),
           end_date: new Date(endDateStr).toISOString()
@@ -363,7 +363,7 @@
           backgroundColor: selectedLocation.backgroundColor
         };
 
-        // Save to Firestore
+        // Save to database
         const schedule = $schedulesStore.find(s => s.id === selectedLocation.scheduleId);
         const locationInfo = schedule?.information[selectedLocation.infoIndex];
         
@@ -386,11 +386,11 @@
           user?.email
         );
         
-        const firestoreId = await saveSTTEvent(sttEventData);
+        const eventId = await saveSTTEvent(sttEventData);
         
         // Add to local calendar events
         const newEvent: CalendarEvent = {
-          id: firestoreId,
+          id: eventId,
           ...newEventData
         };
         
@@ -446,7 +446,7 @@
     
     try {
       isDeleting = true;
-      // Delete from Firestore
+      // Delete from database
       await deleteSTTEvent(event.id);
       
       // Remove from scheduled items set
@@ -503,7 +503,7 @@
       
       sttEvents.forEach(sttEvent => {
         // Find the corresponding schedule and location info to get infoIndex
-        const schedule = $schedulesStore.find(s => s.id === sttEvent.schedule_id.toString());
+        const schedule = $schedulesStore.find(s => s.id === sttEvent.schedule_id);
         if (schedule) {
           const infoIndex = schedule.information.findIndex(info => info.information_id === sttEvent.information_id);
           if (infoIndex !== -1) {
@@ -512,7 +512,7 @@
             events.push(calendarEvent);
             
             // Add to scheduled items set
-            const itemKey = `${sttEvent.schedule_id.toString()}-${infoIndex}`;
+            const itemKey = `${sttEvent.schedule_id}-${infoIndex}`;
             scheduledSet.add(itemKey);
           }
         }
@@ -522,15 +522,14 @@
       scheduledItems = scheduledSet;
       
     } catch (error) {
-      console.error('Error loading events from Firestore:', error);
+      console.error('Error loading events:', error);
       toastError('Failed to load events from database', 'Error');
     } finally {
       isLoadingEvents = false;
     }
   }
 
-  // Load events from Firestore on mount (loads all events for backward compatibility)
-  async function loadEventsFromFirestore() {
+  async function loadEventsFromDatabase() {
     await loadEventsForMonth(currentMonth);
   }
 
@@ -629,10 +628,10 @@
     toastInfo(message, 'Loading');
   }
 
-  // Refresh events from Firestore
+  // Refresh events from database
   async function refreshEvents() {
     eventsLoaded = false; // Reset events loaded flag
-    await loadSchedulesFromFirestoreData(); // Reload schedules first
+    await loadSchedulesData(); // Reload schedules first
     await loadEventsForMonth(currentMonth); // Then reload events for current month
   }
 
@@ -640,7 +639,7 @@
 
   onMount(async () => {
     console.log('PAGE LOAD - Waiting for calendar to set initial month');
-    await loadSchedulesFromFirestoreData(); // Load schedules first, events will load automatically via reactive statement when calendar sets the month
+    await loadSchedulesData(); // Load schedules first, events will load automatically via reactive statement when calendar sets the month
   });
 </script>
 

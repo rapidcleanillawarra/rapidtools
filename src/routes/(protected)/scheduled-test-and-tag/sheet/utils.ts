@@ -23,6 +23,7 @@ export function createEmptyRow(): SheetRow {
 		sku: '',
 		size: '',
 		active: true,
+		location: '',
 		results: '',
 		workshopId: '',
 		service: '',

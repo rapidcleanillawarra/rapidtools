@@ -254,6 +254,19 @@ export async function getCompanyById(id: string): Promise<Schedule | undefined> 
 /** @deprecated Use getCompanyById */
 export const getScheduleById = getCompanyById;
 
+export async function loadLocationNameMap(companyId: string): Promise<Map<string, string>> {
+	const { data, error } = await supabase
+		.from(LOCATIONS_TABLE)
+		.select('id, location')
+		.eq('company_id', companyId);
+
+	if (error) {
+		throw new Error(`Failed to load locations: ${error.message}`);
+	}
+
+	return new Map((data ?? []).map((row) => [row.id, row.location]));
+}
+
 export async function getLocationIdByName(
 	companyId: string,
 	locationName: string

@@ -1,4 +1,4 @@
-import { getLocationIdByName } from '../services/companies';
+import { getLocationIdByName, loadLocationNameMap } from '../services/companies';
 import {
 	loadEquipmentsByCompany,
 	loadPlacementsByCompany,
@@ -11,7 +11,11 @@ import type { Schedule } from '../stores';
 import type { SheetHeader, SheetRow } from './types';
 import { frequencyToMonths, occurrenceToFrequency } from './utils';
 
-export function equipmentToSheetRow(equipment: EquipmentRow, line?: SheetLineRow): SheetRow {
+export function equipmentToSheetRow(
+	equipment: EquipmentRow,
+	line?: SheetLineRow,
+	locationName = ''
+): SheetRow {
 	return {
 		id: equipment.id,
 		rciTag: equipment.rci_tag,
@@ -22,6 +26,7 @@ export function equipmentToSheetRow(equipment: EquipmentRow, line?: SheetLineRow
 		sku: equipment.sku,
 		size: equipment.size,
 		active: equipment.active,
+		location: locationName,
 		results: line?.result ?? '',
 		workshopId: line?.workshop_id ?? '',
 		service: line?.service ?? '',
@@ -30,33 +35,14 @@ export function equipmentToSheetRow(equipment: EquipmentRow, line?: SheetLineRow
 	};
 }
 
-export async function filterEquipmentsByLocation(
-	equipments: EquipmentRow[],
-	placements: EquipmentPlacementRow[],
-	companyId: string,
-	locationName: string
-): Promise<EquipmentRow[]> {
-	if (!locationName) return equipments;
-
-	const locationId = await getLocationIdByName(companyId, locationName);
-	if (!locationId) return equipments;
-
-	const placementTags = new Set(
-		placements.filter((placement) => placement.location_id === locationId).map((p) => p.rci_tag)
-	);
-
-	if (placementTags.size === 0) return [];
-	return equipments.filter((equipment) => placementTags.has(equipment.rci_tag));
-}
-
 export async function loadSheetRowsForCompany(
 	company: Schedule,
-	locationFilter: string,
 	sheetId?: string
 ): Promise<{ header: Partial<SheetHeader>; rows: SheetRow[] }> {
-	const [equipments, placements] = await Promise.all([
+	const [equipments, placements, locationNameMap] = await Promise.all([
 		loadEquipmentsByCompany(company.id),
-		loadPlacementsByCompany(company.id)
+		loadPlacementsByCompany(company.id),
+		loadLocationNameMap(company.id)
 	]);
 
 	let linesByEquipmentId = new Map<string, SheetLineRow>();
@@ -80,13 +66,21 @@ export async function loadSheetRowsForCompany(
 		}
 	}
 
-	const filtered = locationFilter
-		? await filterEquipmentsByLocation(equipments, placements, company.id, locationFilter)
-		: equipments;
-
-	const rows = filtered.map((equipment) =>
-		equipmentToSheetRow(equipment, linesByEquipmentId.get(equipment.id))
+	const placementByRciTag = new Map<string, EquipmentPlacementRow>(
+		placements.map((placement) => [placement.rci_tag, placement])
 	);
+
+	const rows = equipments.map((equipment) => {
+		const placement = placementByRciTag.get(equipment.rci_tag);
+		const locationName = placement
+			? (locationNameMap.get(placement.location_id) ?? '')
+			: '';
+		return equipmentToSheetRow(
+			equipment,
+			linesByEquipmentId.get(equipment.id),
+			locationName
+		);
+	});
 
 	return { header: sheetHeader, rows };
 }
@@ -129,8 +123,8 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 			active: row.active !== false
 		});
 
-		if (header.location) {
-			const locationId = await getLocationIdByName(header.companyId, header.location);
+		if (row.location) {
+			const locationId = await getLocationIdByName(header.companyId, row.location);
 			if (locationId) {
 				await upsertPlacement(header.companyId, rciTag, locationId);
 			}

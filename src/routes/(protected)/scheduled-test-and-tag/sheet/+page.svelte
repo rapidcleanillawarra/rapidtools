@@ -12,7 +12,6 @@
 		applyCompanyToHeader,
 		applyCompanyNameToHeader,
 		createEmptyRow,
-		formatServiceDate,
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
@@ -49,9 +48,6 @@
 		return textPasteColumnSet.has(key);
 	}
 
-	$: technicianName =
-		$currentUser?.displayName?.trim() || ($currentUser?.email?.split('@')[0] ?? '');
-
 	$: companyOptions = [...new Set($schedulesStore.map((s) => s.company))].sort((a, b) =>
 		a.localeCompare(b)
 	);
@@ -73,8 +69,6 @@
 		normalizeSheetRow
 	);
 
-	$: formattedServiceDate = formatServiceDate($sheetHeader.serviceDate);
-
 	function resolveActiveCompany() {
 		const header = get(sheetHeader);
 		return header.companyId
@@ -94,14 +88,12 @@
 			const sheetId = get(page).url.searchParams.get('sheet') ?? header.sheetId;
 			const { header: loadedHeader, rows } = await loadSheetRowsForCompany(
 				company,
-				header.location,
 				sheetId ?? undefined
 			);
 
 			sheetHeader.update((current) => ({
 				...current,
 				...loadedHeader,
-				location: current.location,
 				frequency: current.frequency || loadedHeader.frequency || ''
 			}));
 			sheetRows.set(rows);
@@ -155,12 +147,6 @@
 		const value = (event.target as HTMLSelectElement).value;
 		sheetHeader.update((header) => applyCompanyNameToHeader(header, get(schedulesStore), value));
 		sheetRows.set([]);
-		await loadSheetData();
-	}
-
-	async function handleLocationChange(event: Event) {
-		const value = (event.target as HTMLSelectElement).value;
-		sheetHeader.update((header) => ({ ...header, location: value }));
 		await loadSheetData();
 	}
 
@@ -264,82 +250,42 @@
 		</div>
 	</div>
 
-	<div class="sheet-document">
-		<header class="sheet-header">
-			<div class="sheet-header-main">
-				<div class="sheet-header-logo">
-					<img src={LOGO_URL} alt="RapidClean" class="sheet-logo" />
-				</div>
+	<div class="sheet-layout">
+		<div class="sheet-document">
+			<header class="sheet-header">
+				<div class="sheet-header-main">
+					<div class="sheet-header-logo">
+						<img src={LOGO_URL} alt="RapidClean" class="sheet-logo" />
+					</div>
 
-				<div class="sheet-header-center">
-					<select
-						id="sheet-company"
-						value={$sheetHeader.company}
-						on:change={handleCompanyChange}
-						class="sheet-company-select"
-						aria-label="Company"
-					>
-						<option value="">Select company…</option>
-						{#each companyOptions as company (company)}
-							<option value={company}>{company}</option>
-						{/each}
-					</select>
-					<p class="sheet-subtitle">Service, Test Tag run</p>
-				</div>
-
-				<div class="sheet-header-tech">
-					<span class="sheet-tech-name">{technicianName || 'Technician'}</span>
-				</div>
-			</div>
-
-			<div class="sheet-meta">
-				<label class="sheet-meta-row" for="sheet-location">
-					<span class="sheet-meta-label">Location</span>
-					<select
-						id="sheet-location"
-						value={$sheetHeader.location}
-						on:change={handleLocationChange}
-						disabled={!$sheetHeader.company}
-						class="sheet-meta-input sheet-header-select"
-						title={$sheetHeader.location || 'Select location'}
-					>
-						<option value="">Select location…</option>
-						{#each locationOptions as location (location)}
-							<option value={location}>{location}</option>
-						{/each}
-					</select>
-				</label>
-				<div class="sheet-meta-row-pair">
-					<label class="sheet-meta-row" for="sheet-service-date">
-						<span class="sheet-meta-label">Date</span>
-						<div class="sheet-date-field">
-							<span class="sheet-date-display">{formattedServiceDate}</span>
-							<input
-								id="sheet-service-date"
-								type="date"
-								bind:value={$sheetHeader.serviceDate}
-								class="sheet-date-input"
-								aria-label="Service date"
-							/>
-						</div>
-					</label>
-					<label class="sheet-meta-row" for="sheet-frequency">
-						<span class="sheet-meta-label">Frequency</span>
+					<div class="sheet-header-center">
 						<select
-							id="sheet-frequency"
-							bind:value={$sheetHeader.frequency}
-							class="sheet-meta-input sheet-header-select"
-							title={$sheetHeader.frequency || 'Select frequency'}
+							id="sheet-company"
+							value={$sheetHeader.company}
+							on:change={handleCompanyChange}
+							class="sheet-company-select"
+							aria-label="Company"
 						>
-							<option value="">Select frequency…</option>
-							{#each FREQUENCY_OPTIONS as frequency (frequency)}
-								<option value={frequency}>{frequency}</option>
+							<option value="">Select company…</option>
+							{#each companyOptions as company (company)}
+								<option value={company}>{company}</option>
 							{/each}
 						</select>
-					</label>
+						<p class="sheet-subtitle">Service, Test Tag run</p>
+					</div>
+
+					<div class="sheet-header-date">
+						<label class="sheet-header-date-label" for="sheet-service-date">Date</label>
+						<input
+							id="sheet-service-date"
+							type="date"
+							bind:value={$sheetHeader.serviceDate}
+							class="sheet-header-date-input"
+							aria-label="Service date"
+						/>
+					</div>
 				</div>
-			</div>
-		</header>
+			</header>
 
 		<div
 			class="sheet-table-wrap"
@@ -394,6 +340,21 @@
 													class="sheet-checkbox"
 													aria-label="Active for machine {index + 1}"
 												/>
+											{:else if col.key === 'location'}
+												<select
+													value={row.location}
+													on:change={(e) =>
+														updateRow(row.id, 'location', (e.target as HTMLSelectElement).value)}
+													class="sheet-cell-select sheet-header-select"
+													disabled={!$sheetHeader.company}
+													title={row.location || 'Select location'}
+													aria-label="Location for machine {index + 1}"
+												>
+													<option value="">Select location…</option>
+													{#each locationOptions as location (location)}
+														<option value={location}>{location}</option>
+													{/each}
+												</select>
 											{:else if col.key === 'notes'}
 												<textarea
 													value={row[col.key]}
@@ -467,6 +428,24 @@
 				</table>
 			{/if}
 		</div>
+		</div>
+
+		<aside class="sheet-sidebar">
+			<label class="sheet-sidebar-field" for="sheet-frequency">
+				<span class="sheet-sidebar-label">Frequency</span>
+				<select
+					id="sheet-frequency"
+					bind:value={$sheetHeader.frequency}
+					class="sheet-sidebar-input sheet-header-select"
+					title={$sheetHeader.frequency || 'Select frequency'}
+				>
+					<option value="">Select frequency…</option>
+					{#each FREQUENCY_OPTIONS as frequency (frequency)}
+						<option value={frequency}>{frequency}</option>
+					{/each}
+				</select>
+			</label>
+		</aside>
 	</div>
 </div>
 
@@ -479,7 +458,7 @@
 	}
 
 	.sheet-toolbar {
-		max-width: 72rem;
+		max-width: 80rem;
 		margin: 0 auto 1rem;
 		display: flex;
 		flex-wrap: wrap;
@@ -528,12 +507,60 @@
 		background: #333;
 	}
 
-	.sheet-document {
-		max-width: 72rem;
+	.sheet-layout {
+		max-width: 80rem;
 		margin: 0 auto;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 9rem;
+		gap: 1rem;
+		align-items: start;
+	}
+
+	.sheet-document {
+		min-width: 0;
 		background: #fff;
 		padding: 2rem 2.5rem 2.5rem;
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+	}
+
+	.sheet-sidebar {
+		background: #fff;
+		padding: 1rem 0.75rem;
+		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+	}
+
+	.sheet-sidebar-field {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		color: #374151;
+	}
+
+	.sheet-sidebar-label {
+		font-weight: 600;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.02em;
+		color: #6b7280;
+	}
+
+	.sheet-sidebar-input {
+		width: 100%;
+		min-width: 0;
+		border: none;
+		border-bottom: 1px solid #9ca3af;
+		background: transparent;
+		font-size: 0.8125rem;
+		color: #111;
+		padding: 0.375rem 0;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.sheet-sidebar-input:focus {
+		outline: none;
+		border-bottom-color: #111;
 	}
 
 	.sheet-header {
@@ -639,6 +666,18 @@
 		border-bottom-color: #111;
 	}
 
+	.sheet-date-field--header .sheet-date-display {
+		color: #fff;
+		border-bottom-color: rgba(255, 255, 255, 0.45);
+		text-align: right;
+		font-weight: 700;
+		font-size: 1rem;
+	}
+
+	.sheet-date-field--header:focus-within .sheet-date-display {
+		border-bottom-color: #fff;
+	}
+
 	.sheet-subtitle {
 		margin: 0.125rem 0 0;
 		font-size: 0.9375rem;
@@ -652,13 +691,6 @@
 		width: 100%;
 		background: #fff;
 		padding: 0.875rem 2.5rem 0;
-	}
-
-	.sheet-meta-row-pair {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 1rem;
-		width: 100%;
 	}
 
 	.sheet-meta-row {
@@ -698,15 +730,45 @@
 		cursor: not-allowed;
 	}
 
-	.sheet-header-tech {
+	.sheet-header-date {
 		text-align: right;
-		padding-top: 0.5rem;
+		padding-top: 0.25rem;
 	}
 
-	.sheet-tech-name {
+	.sheet-header-date-label {
+		display: block;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #9ca3af;
+		margin-bottom: 0.25rem;
+	}
+
+	.sheet-header-date-input {
+		display: block;
+		width: 100%;
+		min-width: 0;
+		border: none;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+		background: transparent;
+		color: #fff;
 		font-size: 1rem;
 		font-weight: 700;
-		color: #fff;
+		text-align: right;
+		padding: 0.25rem 0;
+		cursor: pointer;
+		color-scheme: dark;
+	}
+
+	.sheet-header-date-input:focus {
+		outline: none;
+		border-bottom-color: #fff;
+	}
+
+	.sheet-header-date-input::-webkit-calendar-picker-indicator {
+		filter: invert(1);
+		cursor: pointer;
 	}
 
 	.sheet-table-wrap {
@@ -799,6 +861,30 @@
 		box-shadow: inset 0 -1px 0 #111;
 	}
 
+	.sheet-cell-select {
+		display: block;
+		width: 100%;
+		min-width: 6rem;
+		border: none;
+		background: transparent;
+		padding: 0;
+		margin: 0;
+		font: inherit;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	.sheet-cell-select:focus {
+		outline: none;
+		background: #fafafa;
+		box-shadow: inset 0 -1px 0 #111;
+	}
+
+	.sheet-cell-select:disabled {
+		color: #9ca3af;
+		cursor: not-allowed;
+	}
+
 	.sheet-cell-input--link {
 		color: #2563eb;
 		font-weight: 500;
@@ -867,6 +953,14 @@
 	}
 
 	@media (max-width: 768px) {
+		.sheet-layout {
+			grid-template-columns: 1fr;
+		}
+
+		.sheet-sidebar {
+			order: -1;
+		}
+
 		.sheet-document {
 			padding: 1.25rem 1rem 1.5rem;
 		}
@@ -889,8 +983,13 @@
 		}
 
 		.sheet-header-logo,
-		.sheet-header-tech {
+		.sheet-header-date {
 			justify-content: center;
+			text-align: center;
+		}
+
+		.sheet-header-date-label,
+		.sheet-header-date-input {
 			text-align: center;
 		}
 
@@ -900,10 +999,6 @@
 
 		.sheet-logo {
 			margin: 0 auto;
-		}
-
-		.sheet-meta-row-pair {
-			grid-template-columns: 1fr;
 		}
 
 		.sheet-meta-row {
@@ -941,6 +1036,17 @@
 			box-shadow: none;
 		}
 
+		.sheet-sidebar {
+			box-shadow: none;
+			padding: 0 0 0.75rem;
+		}
+
+		.sheet-layout {
+			max-width: none;
+			grid-template-columns: 1fr auto;
+			gap: 1.5rem;
+		}
+
 		.sheet-header {
 			margin: 0 0 1rem;
 		}
@@ -961,9 +1067,15 @@
 
 		.sheet-actions-col,
 		.sheet-add-row,
-		.sheet-sort-icon,
-		.sheet-date-input {
+		.sheet-sort-icon {
 			display: none !important;
+		}
+
+		.sheet-header-date-input {
+			color-scheme: light;
+			color: #fff;
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
 		}
 
 		.sheet-empty :global(button) {

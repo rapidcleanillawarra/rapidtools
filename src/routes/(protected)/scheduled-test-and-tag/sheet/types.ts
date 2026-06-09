@@ -19,6 +19,7 @@ export type SheetRow = {
 	sku: string;
 	size: string;
 	active: boolean;
+	location: string;
 	results: string;
 	workshopId: string;
 	service: string;
@@ -75,12 +76,13 @@ export type TextPasteColumnKey = (typeof TEXT_PASTE_COLUMNS)[number];
 
 export const SHEET_COLUMNS = [
 	{ key: 'tag' as const, label: 'Tag' },
-	{ key: 'machines' as const, label: 'Machines' },
-	{ key: 'typeOfMachine' as const, label: 'Type of Machine' },
+	{ key: 'machines' as const, label: 'Name' },
+	{ key: 'typeOfMachine' as const, label: 'Type' },
 	{ key: 'serialNumber' as const, label: 'Serial #' },
 	{ key: 'sku' as const, label: 'SKU' },
 	{ key: 'size' as const, label: 'Size' },
 	{ key: 'active' as const, label: 'Active' },
+	{ key: 'location' as const, label: 'Location' },
 	{ key: 'results' as const, label: 'Results' },
 	{ key: 'workshopId' as const, label: 'Workshop ID' },
 	{ key: 'service' as const, label: 'Service' },

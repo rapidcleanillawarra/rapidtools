@@ -1,14 +1,97 @@
 import {
 	PASTEABLE_COLUMNS,
 	type PasteableColumnKey,
+	type SheetColumnKey,
 	type TextPasteColumnKey
 } from './types';
-import { FREQUENCY_OPTIONS, type SheetFrequency, type SheetHeader, type SheetRow } from './types';
+import { FREQUENCY_OPTIONS, SERVICE_OPTIONS, type SheetFrequency, type SheetHeader, type SheetPart, type SheetRow, type ServiceOption } from './types';
 import type { Schedule } from '../stores';
 
 /** Active is checked unless explicitly set to false. */
 export function normalizeSheetRow(row: SheetRow): SheetRow {
 	return { ...row, active: row.active !== false };
+}
+
+export function parseServiceValues(value: string): ServiceOption[] {
+	if (!value.trim()) return [];
+
+	return value
+		.split(',')
+		.map((part) => part.trim())
+		.filter((part): part is ServiceOption => SERVICE_OPTIONS.includes(part as ServiceOption));
+}
+
+export function formatServiceValues(values: Iterable<ServiceOption>): string {
+	const selected = new Set(values);
+	return SERVICE_OPTIONS.filter((option) => selected.has(option)).join(', ');
+}
+
+export function toggleServiceValue(current: string, option: ServiceOption): string {
+	const selected = new Set(parseServiceValues(current));
+
+	if (selected.has(option)) {
+		selected.delete(option);
+	} else {
+		selected.add(option);
+	}
+
+	return formatServiceValues(selected);
+}
+
+export function createEmptyPart(): SheetPart {
+	return { sku: '', name: '' };
+}
+
+function normalizePart(part: unknown): SheetPart | null {
+	if (!part || typeof part !== 'object') return null;
+
+	const record = part as Record<string, unknown>;
+	const sku = typeof record.sku === 'string' ? record.sku : '';
+	const name = typeof record.name === 'string' ? record.name : '';
+
+	if (!sku.trim() && !name.trim()) return null;
+
+	return { sku, name };
+}
+
+export function parseParts(value: string): SheetPart[] {
+	if (!value.trim()) return [];
+
+	try {
+		const parsed = JSON.parse(value);
+		if (!Array.isArray(parsed)) {
+			return [{ sku: '', name: value.trim() }];
+		}
+
+		return parsed
+			.map(normalizePart)
+			.filter((part): part is SheetPart => part !== null);
+	} catch {
+		return [{ sku: '', name: value.trim() }];
+	}
+}
+
+export function formatParts(parts: SheetPart[]): string {
+	const cleaned = parts
+		.map((part) => ({ sku: part.sku.trim(), name: part.name.trim() }))
+		.filter((part) => part.sku || part.name);
+
+	if (cleaned.length === 0) return '';
+	return JSON.stringify(cleaned);
+}
+
+export function formatPartsSummary(value: string): string {
+	const parts = parseParts(value);
+	if (parts.length === 0) return '';
+
+	return parts
+		.map((part) => {
+			const sku = part.sku.trim();
+			const name = part.name.trim();
+			if (sku && name) return `${sku} — ${name}`;
+			return sku || name;
+		})
+		.join(', ');
 }
 
 export function createEmptyRow(): SheetRow {
@@ -288,8 +371,8 @@ export function applyPasteToRows(
 }
 
 export function getSortIcon(
-	field: keyof SheetRow,
-	currentField: keyof SheetRow | '',
+	field: SheetColumnKey,
+	currentField: SheetColumnKey | '',
 	direction: 'asc' | 'desc'
 ): string {
 	if (currentField !== field) return '↕';
@@ -298,12 +381,14 @@ export function getSortIcon(
 
 export function sortRows(
 	rows: SheetRow[],
-	field: keyof SheetRow,
+	field: SheetColumnKey,
 	direction: 'asc' | 'desc'
 ): SheetRow[] {
+	const sortField: keyof SheetRow = field === 'equipmentInfo' ? 'tag' : field;
+
 	return [...rows].sort((a, b) => {
-		const valueA = a[field];
-		const valueB = b[field];
+		const valueA = a[sortField];
+		const valueB = b[sortField];
 
 		if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
 			const numA = valueA ? 1 : 0;

@@ -5,13 +5,13 @@
 	import { base } from '$app/paths';
 	import { get } from 'svelte/store';
 	import { currentUser } from '$lib/firebase';
-	import { schedulesStore } from '../stores';
+	import { schedulesStore, type Schedule } from '../stores';
 	import { getCompanyById, loadCompanies } from '../companies/utils';
+	import CompanyCombobox from '../CompanyCombobox.svelte';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
 	import { loadSheetRowsForCompany, persistSheet } from './persistence';
 	import {
 		applyCompanyToHeader,
-		applyCompanyNameToHeader,
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
@@ -22,20 +22,25 @@
 	} from './utils';
 	import {
 		FREQUENCY_OPTIONS,
-		MACHINE_TYPE_OPTIONS,
 		SHEET_COLUMNS,
-		SIZE_OPTIONS,
 		TEXT_PASTE_COLUMNS,
 		type SheetColumnKey,
+		type SheetRowFieldKey,
 		type TextPasteColumnKey
 	} from './types';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
-	import MachineTypeDropdown from './MachineTypeDropdown.svelte';
+	import EquipmentInfoCard from './EquipmentInfoCard.svelte';
 	import ResultSelect from './ResultSelect.svelte';
+	import ServiceSelect from './ServiceSelect.svelte';
+	import PartsEditor from './PartsEditor.svelte';
 	import { toastError, toastInfo, toastSuccess } from '$lib/utils/toast';
 
+	type ServiceTextColumnKey = Extract<TextPasteColumnKey, SheetColumnKey>;
+
 	const LOGO_URL = `${base}/company_logo_white.webp`;
+
+	const TABLE_EXTRA_COLS = 2;
 
 	let sortField: SheetColumnKey | '' = '';
 	let sortDirection: 'asc' | 'desc' = 'asc';
@@ -44,13 +49,9 @@
 
 	const textPasteColumnSet = new Set<string>(TEXT_PASTE_COLUMNS);
 
-	function isTextPasteColumn(key: SheetColumnKey): key is TextPasteColumnKey {
+	function isTextPasteColumn(key: SheetColumnKey): key is ServiceTextColumnKey {
 		return textPasteColumnSet.has(key);
 	}
-
-	$: companyOptions = [...new Set($schedulesStore.map((s) => s.company))].sort((a, b) =>
-		a.localeCompare(b)
-	);
 
 	$: activeCompany = $sheetHeader.companyId
 		? $schedulesStore.find((s) => s.id === $sheetHeader.companyId)
@@ -143,11 +144,22 @@
 		}
 	});
 
-	async function handleCompanyChange(event: Event) {
-		const value = (event.target as HTMLSelectElement).value;
-		sheetHeader.update((header) => applyCompanyNameToHeader(header, get(schedulesStore), value));
+	async function switchToCompany(company: Schedule) {
+		if (company.id === get(sheetHeader).companyId) return;
+
+		sheetHeader.update((header) => ({
+			...applyCompanyToHeader(header, company),
+			sheetId: ''
+		}));
 		sheetRows.set([]);
+
+		const path = `${base}/scheduled-test-and-tag/sheet?id=${company.id}`.replace(/\/\/+/g, '/');
+		await goto(path, { replaceState: true, keepFocus: true, noScroll: true });
 		await loadSheetData();
+	}
+
+	async function handleCompanySelect(event: CustomEvent<Schedule>) {
+		await switchToCompany(event.detail);
 	}
 
 	function handleSort(field: SheetColumnKey) {
@@ -172,7 +184,7 @@
 		sheetRows.update((rows) => rows.filter((row) => row.id !== id));
 	}
 
-	function updateRow(id: string, field: SheetColumnKey, value: string | boolean) {
+	function updateRow(id: string, field: SheetRowFieldKey, value: string | boolean) {
 		sheetRows.update((rows) =>
 			rows.map((row) => (row.id === id ? { ...row, [field]: value } : row))
 		);
@@ -266,18 +278,13 @@
 					</div>
 
 					<div class="sheet-header-center">
-						<select
-							id="sheet-company"
-							value={$sheetHeader.company}
-							on:change={handleCompanyChange}
-							class="sheet-company-select"
-							aria-label="Company"
-						>
-							<option value="">Select company…</option>
-							{#each companyOptions as company (company)}
-								<option value={company}>{company}</option>
-							{/each}
-						</select>
+						<CompanyCombobox
+							companies={$schedulesStore}
+							companyName={$sheetHeader.company}
+							inputId="sheet-company"
+							placeholder="Search company…"
+							on:select={handleCompanySelect}
+						/>
 						<p class="sheet-subtitle">Service, Test Tag run</p>
 					</div>
 
@@ -310,6 +317,7 @@
 				<table class="sheet-table">
 					<thead>
 						<tr>
+							<th scope="col" class="sheet-row-num-col">#</th>
 							{#each SHEET_COLUMNS as col (col.key)}
 								<th scope="col">
 									<button type="button" class="sheet-sort-btn" on:click={() => handleSort(col.key)}>
@@ -326,7 +334,7 @@
 					<tbody>
 						{#if displayedRows.length === 0}
 							<tr>
-								<td colspan={SHEET_COLUMNS.length + 1} class="sheet-empty">
+								<td colspan={SHEET_COLUMNS.length + TABLE_EXTRA_COLS} class="sheet-empty">
 									<p>No machines recorded yet.</p>
 									<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={openEquipments}>
 										Add Equipment
@@ -336,32 +344,21 @@
 						{:else}
 							{#each displayedRows as row, index (row.id)}
 								<tr>
+									<td class="sheet-row-num-col">{index + 1}</td>
 									{#each SHEET_COLUMNS as col (col.key)}
-										<td class="sheet-cell">
-											{#if col.key === 'active'}
-												<input
-													type="checkbox"
-													checked={row.active !== false}
-													on:change={(e) =>
-														updateRow(row.id, 'active', (e.target as HTMLInputElement).checked)}
-													class="sheet-checkbox"
-													aria-label="Active for machine {index + 1}"
+										<td
+											class="sheet-cell"
+											class:sheet-cell--equipment-info={col.key === 'equipmentInfo'}
+										>
+											{#if col.key === 'equipmentInfo'}
+												<EquipmentInfoCard
+													{row}
+													rowIndex={index}
+													{locationOptions}
+													companySelected={Boolean($sheetHeader.company)}
+													on:update={(e) => updateRow(row.id, e.detail.field, e.detail.value)}
+													on:paste={(e) => handlePaste(e.detail.event, row.id, e.detail.field)}
 												/>
-											{:else if col.key === 'location'}
-												<select
-													value={row.location}
-													on:change={(e) =>
-														updateRow(row.id, 'location', (e.target as HTMLSelectElement).value)}
-													class="sheet-cell-select sheet-header-select"
-													disabled={!$sheetHeader.company}
-													title={row.location || 'Select location'}
-													aria-label="Location for machine {index + 1}"
-												>
-													<option value="">Select location…</option>
-													{#each locationOptions as location (location)}
-														<option value={location}>{location}</option>
-													{/each}
-												</select>
 											{:else if col.key === 'notes'}
 												<textarea
 													value={row[col.key]}
@@ -372,26 +369,20 @@
 													class="sheet-cell-input sheet-cell-textarea"
 													placeholder="Notes"
 												></textarea>
-											{:else if col.key === 'typeOfMachine'}
-												<MachineTypeDropdown
-													value={row.typeOfMachine}
-													options={MACHINE_TYPE_OPTIONS}
-													placeholder="Select type…"
-													on:change={(e) => updateRow(row.id, 'typeOfMachine', e.detail)}
-													on:paste={(e) => handlePaste(e.detail, row.id, 'typeOfMachine')}
-												/>
-											{:else if col.key === 'size'}
-												<MachineTypeDropdown
-													value={row.size}
-													options={SIZE_OPTIONS}
-													placeholder="Select size…"
-													on:change={(e) => updateRow(row.id, 'size', e.detail)}
-													on:paste={(e) => handlePaste(e.detail, row.id, 'size')}
-												/>
 											{:else if col.key === 'results'}
 												<ResultSelect
 													value={row.results}
 													on:change={(e) => updateRow(row.id, 'results', e.detail)}
+												/>
+											{:else if col.key === 'service'}
+												<ServiceSelect
+													value={row.service}
+													on:change={(e) => updateRow(row.id, 'service', e.detail)}
+												/>
+											{:else if col.key === 'parts'}
+												<PartsEditor
+													value={row.parts}
+													on:change={(e) => updateRow(row.id, 'parts', e.detail)}
 												/>
 											{:else if isTextPasteColumn(col.key)}
 												<input
@@ -401,7 +392,6 @@
 														updateRow(row.id, col.key, (e.target as HTMLInputElement).value)}
 													on:paste={(e) => handlePaste(e, row.id, col.key)}
 													class="sheet-cell-input"
-													class:sheet-cell-input--link={col.key === 'sku'}
 													placeholder={col.label}
 												/>
 											{/if}
@@ -424,7 +414,7 @@
 					{#if displayedRows.length > 0}
 						<tfoot>
 							<tr>
-								<td colspan={SHEET_COLUMNS.length + 1} class="sheet-add-row">
+								<td colspan={SHEET_COLUMNS.length + TABLE_EXTRA_COLS} class="sheet-add-row">
 									<button type="button" class="sheet-add-btn" on:click={openEquipments}>
 										+ Add Equipment
 									</button>
@@ -603,27 +593,6 @@
 		padding-top: 0.25rem;
 	}
 
-	.sheet-company-select {
-		display: block;
-		width: 100%;
-		border: none;
-		background: transparent;
-		font-size: 1.375rem;
-		font-weight: 700;
-		color: #fff;
-		text-align: center;
-		cursor: pointer;
-		appearance: none;
-		padding: 0;
-		margin: 0 auto;
-	}
-
-	.sheet-company-select:focus {
-		outline: none;
-		box-shadow: 0 1px 0 #fff;
-	}
-
-	.sheet-company-select option,
 	.sheet-header-select option {
 		color: #111;
 		background-color: #fff;
@@ -849,6 +818,11 @@
 		position: relative;
 	}
 
+	.sheet-cell--equipment-info {
+		padding: 0.5rem;
+		min-width: 16rem;
+	}
+
 	.sheet-cell-input {
 		display: block;
 		width: 100%;
@@ -907,6 +881,16 @@
 		height: 1rem;
 		accent-color: #111;
 		cursor: pointer;
+	}
+
+	.sheet-row-num-col {
+		width: 2.5rem;
+		padding: 0.75rem 0.5rem;
+		text-align: center;
+		color: #666;
+		font-weight: 600;
+		vertical-align: top;
+		white-space: nowrap;
 	}
 
 	.sheet-actions-col {
@@ -1103,6 +1087,11 @@
 
 		:global(.machine-type-options) {
 			display: none !important;
+		}
+
+		:global(.equipment-info-card) {
+			box-shadow: none;
+			break-inside: avoid;
 		}
 
 		:global(.result-select--pass) {

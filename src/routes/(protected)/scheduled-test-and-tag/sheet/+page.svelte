@@ -43,6 +43,14 @@
 
 	const TABLE_EXTRA_COLS = 2;
 
+	function buildSheetPath(companyId: string, sheetId?: string): string {
+		const params = new URLSearchParams({ company_id: companyId });
+		if (sheetId) {
+			params.set('id', sheetId);
+		}
+		return `${base}/scheduled-test-and-tag/sheet?${params.toString()}`.replace(/\/\/+/g, '/');
+	}
+
 	let sortField: SheetColumnKey | '' = '';
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
@@ -89,7 +97,7 @@
 		try {
 			isTableLoading = true;
 			const header = get(sheetHeader);
-			const sheetId = get(page).url.searchParams.get('sheet') ?? header.sheetId;
+			const sheetId = get(page).url.searchParams.get('id') ?? header.sheetId;
 			const { header: loadedHeader, rows } = await loadSheetRowsForCompany(
 				company,
 				sheetId ?? undefined
@@ -123,7 +131,7 @@
 			isLoading.set(false);
 		}
 
-		const companyId = get(page).url.searchParams.get('id');
+		const companyId = get(page).url.searchParams.get('company_id');
 		if (companyId) {
 			let company = get(schedulesStore).find((s) => s.id === companyId);
 			if (!company) {
@@ -156,8 +164,7 @@
 		}));
 		sheetRows.set([]);
 
-		const path = `${base}/scheduled-test-and-tag/sheet?id=${company.id}`.replace(/\/\/+/g, '/');
-		await goto(path, { replaceState: true, keepFocus: true, noScroll: true });
+		await goto(buildSheetPath(company.id), { replaceState: true, keepFocus: true, noScroll: true });
 		await loadSheetData();
 	}
 
@@ -210,7 +217,12 @@
 				userEmail: get(currentUser)?.email ?? undefined
 			});
 
-			sheetHeader.update((header) => ({ ...header, sheetId }));
+			await goto(buildSheetPath(company.id, sheetId), {
+				replaceState: true,
+				keepFocus: true,
+				noScroll: true
+			});
+			await loadSheetData();
 			toastSuccess('Sheet saved successfully.', 'Saved');
 		} catch (error) {
 			console.error('Failed to save sheet:', error);

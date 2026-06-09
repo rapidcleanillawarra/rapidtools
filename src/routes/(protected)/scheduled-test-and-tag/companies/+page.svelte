@@ -216,7 +216,7 @@
   }
 
   function openSheet(schedule: Schedule) {
-    goto(`${base}/scheduled-test-and-tag/sheet?id=${schedule.id}`);
+    goto(`${base}/scheduled-test-and-tag/sheet?company_id=${schedule.id}`);
   }
 
   function openEquipments(schedule: Schedule) {

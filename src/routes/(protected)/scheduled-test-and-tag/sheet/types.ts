@@ -1,6 +1,7 @@
 export type SheetFrequency = '3 monthly' | '6 monthly' | '12 monthly';
 
 export type SheetHeader = {
+	scheduleId: string;
 	company: string;
 	location: string;
 	serviceDate: string;

@@ -216,11 +216,7 @@
   }
 
   function openSheet(schedule: Schedule) {
-    const params = new URLSearchParams({
-      company: schedule.company,
-      scheduleId: schedule.id
-    });
-    goto(`${base}/scheduled-test-and-tag/sheet?${params.toString()}`);
+    goto(`${base}/scheduled-test-and-tag/sheet?id=${schedule.id}`);
   }
 
   function handleSort(column: 'company' | 'start_month' | 'occurence') {

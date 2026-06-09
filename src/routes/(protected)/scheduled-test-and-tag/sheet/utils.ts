@@ -31,6 +31,7 @@ export function createEmptyRow(): SheetRow {
 
 export function createEmptyHeader(): SheetHeader {
 	return {
+		scheduleId: '',
 		company: '',
 		location: '',
 		serviceDate: new Date().toISOString().split('T')[0],
@@ -43,40 +44,29 @@ export function occurrenceToFrequency(occurence: number): SheetFrequency | '' {
 	return match ?? '';
 }
 
-export function findScheduleForCompany(
-	schedules: Schedule[],
-	company: string,
-	scheduleId?: string | null
-): Schedule | undefined {
-	if (scheduleId) {
-		const byId = schedules.find((schedule) => schedule.id === scheduleId);
-		if (byId) return byId;
-	}
-
-	return schedules.find((schedule) => schedule.company === company);
-}
-
-export function getDefaultFrequency(
-	schedules: Schedule[],
-	company: string,
-	scheduleId?: string | null
-): SheetFrequency | '' {
-	const schedule = findScheduleForCompany(schedules, company, scheduleId);
-	if (!schedule) return '';
-	return occurrenceToFrequency(schedule.occurence);
+export function applyScheduleToHeader(header: SheetHeader, schedule: Schedule): SheetHeader {
+	return {
+		...header,
+		scheduleId: schedule.id,
+		company: schedule.company,
+		location: '',
+		frequency: occurrenceToFrequency(schedule.occurence)
+	};
 }
 
 export function applyCompanyToHeader(
 	header: SheetHeader,
 	schedules: Schedule[],
-	company: string,
-	scheduleId?: string | null
+	company: string
 ): SheetHeader {
+	const schedule = schedules.find((s) => s.company === company);
+
 	return {
 		...header,
+		scheduleId: schedule?.id ?? '',
 		company,
 		location: '',
-		frequency: getDefaultFrequency(schedules, company, scheduleId)
+		frequency: schedule ? occurrenceToFrequency(schedule.occurence) : ''
 	};
 }
 

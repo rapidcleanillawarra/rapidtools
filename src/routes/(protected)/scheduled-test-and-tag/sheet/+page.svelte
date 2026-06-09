@@ -5,10 +5,11 @@
 	import { get } from 'svelte/store';
 	import { currentUser } from '$lib/firebase';
 	import { schedulesStore } from '../stores';
-	import { loadSchedules } from '../companies/utils';
+	import { getScheduleById, loadSchedules } from '../companies/utils';
 	import { sheetHeader, sheetRows, isLoading } from './stores';
 	import {
 		applyCompanyToHeader,
+		applyScheduleToHeader,
 		createEmptyRow,
 		formatServiceDate,
 		getClipboardText,
@@ -53,10 +54,15 @@
 		a.localeCompare(b)
 	);
 
-	$: locationOptions = $sheetHeader.company
-		? $schedulesStore
-				.filter((s) => s.company === $sheetHeader.company)
-				.flatMap((s) => s.information.map((info) => info.location))
+	$: activeSchedule = $sheetHeader.scheduleId
+		? $schedulesStore.find((s) => s.id === $sheetHeader.scheduleId)
+		: $sheetHeader.company
+			? $schedulesStore.find((s) => s.company === $sheetHeader.company)
+			: undefined;
+
+	$: locationOptions = activeSchedule
+		? activeSchedule.information
+				.map((info) => info.location)
 				.filter((location, index, arr) => location && arr.indexOf(location) === index)
 				.sort((a, b) => a.localeCompare(b))
 		: [];
@@ -82,12 +88,23 @@
 			isTableLoading = false;
 		}
 
-		const company = get(page).url.searchParams.get('company');
-		const scheduleId = get(page).url.searchParams.get('scheduleId');
-		if (company) {
-			sheetHeader.update((header) =>
-				applyCompanyToHeader(header, get(schedulesStore), company, scheduleId)
-			);
+		const scheduleId = get(page).url.searchParams.get('id');
+		if (scheduleId) {
+			let schedule = get(schedulesStore).find((s) => s.id === scheduleId);
+			if (!schedule) {
+				try {
+					schedule = await getScheduleById(scheduleId);
+				} catch (error) {
+					console.error('Failed to load schedule:', error);
+					toastError('Failed to load schedule for sheet', 'Error');
+				}
+			}
+
+			if (schedule) {
+				sheetHeader.update((header) => applyScheduleToHeader(header, schedule!));
+			} else {
+				toastError('Schedule not found', 'Error');
+			}
 		}
 	});
 

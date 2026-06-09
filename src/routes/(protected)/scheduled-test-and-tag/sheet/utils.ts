@@ -30,13 +30,43 @@ export function formatServiceValues(values: Iterable<ServiceOption>): string {
 	return SERVICE_OPTIONS.filter((option) => selected.has(option)).join(', ');
 }
 
+/** Tag is redundant when Test and Tag is selected. */
+export function isServiceOptionAvailable(
+	selected: ServiceOption[],
+	option: ServiceOption
+): boolean {
+	if (option === 'Tag' && selected.includes('Test and Tag')) {
+		return false;
+	}
+
+	return true;
+}
+
+export function normalizeServiceValue(value: string): string {
+	const selected = parseServiceValues(value);
+
+	if (selected.includes('Test and Tag') && selected.includes('Tag')) {
+		return formatServiceValues(selected.filter((option) => option !== 'Tag'));
+	}
+
+	return formatServiceValues(selected);
+}
+
 export function toggleServiceValue(current: string, option: ServiceOption): string {
 	const selected = new Set(parseServiceValues(current));
 
 	if (selected.has(option)) {
 		selected.delete(option);
 	} else {
+		if (option === 'Tag' && selected.has('Test and Tag')) {
+			return formatServiceValues(selected);
+		}
+
 		selected.add(option);
+
+		if (option === 'Test and Tag') {
+			selected.delete('Tag');
+		}
 	}
 
 	return formatServiceValues(selected);

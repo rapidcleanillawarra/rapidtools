@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { SERVICE_OPTIONS } from './types';
-	import { parseServiceValues, toggleServiceValue } from './utils';
+	import { isServiceOptionAvailable, parseServiceValues, toggleServiceValue } from './utils';
 
 	export let value = '';
 
@@ -17,14 +17,16 @@
 <fieldset class="service-select">
 	<legend class="service-select-legend">Service types</legend>
 	{#each SERVICE_OPTIONS as option (option)}
-		<label class="service-select-option">
-			<input
-				type="checkbox"
-				checked={selectedValues.includes(option)}
-				on:change={() => handleToggle(option)}
-			/>
-			<span>{option}</span>
-		</label>
+		{#if isServiceOptionAvailable(selectedValues, option)}
+			<label class="service-select-option">
+				<input
+					type="checkbox"
+					checked={selectedValues.includes(option)}
+					on:change={() => handleToggle(option)}
+				/>
+				<span>{option}</span>
+			</label>
+		{/if}
 	{/each}
 </fieldset>
 

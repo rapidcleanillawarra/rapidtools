@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { MACHINE_TYPE_OPTIONS } from './types';
 	import { getClipboardText, isMultiCellPaste, parsePasteGrid } from './utils';
 
 	export let value = '';
-	export let placeholder = 'Select type…';
+	export let options: readonly string[] = [];
+	export let placeholder = 'Select…';
 
 	const dispatch = createEventDispatcher<{ change: string; paste: ClipboardEvent }>();
 
@@ -13,7 +13,7 @@
 	let container: HTMLDivElement;
 	let blurTimeout: ReturnType<typeof setTimeout>;
 
-	$: filteredOptions = MACHINE_TYPE_OPTIONS.filter((option) =>
+	$: filteredOptions = options.filter((option) =>
 		option.toLowerCase().includes(searchQuery.toLowerCase())
 	);
 
@@ -52,7 +52,7 @@
 
 	function handleBlur() {
 		blurTimeout = setTimeout(() => {
-			const match = MACHINE_TYPE_OPTIONS.find(
+			const match = options.find(
 				(option) => option.toLowerCase() === searchQuery.trim().toLowerCase()
 			);
 			if (match) {
@@ -93,9 +93,7 @@
 		const pasted = grid[0]?.[0]?.trim() ?? '';
 		if (!pasted) return;
 
-		const match = MACHINE_TYPE_OPTIONS.find(
-			(option) => option.toLowerCase() === pasted.toLowerCase()
-		);
+		const match = options.find((option) => option.toLowerCase() === pasted.toLowerCase());
 		if (match) {
 			selectOption(match);
 		} else {

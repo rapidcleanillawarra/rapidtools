@@ -21,7 +21,9 @@
 	} from './utils';
 	import {
 		FREQUENCY_OPTIONS,
+		MACHINE_TYPE_OPTIONS,
 		SHEET_COLUMNS,
+		SIZE_OPTIONS,
 		TEXT_PASTE_COLUMNS,
 		type SheetColumnKey,
 		type TextPasteColumnKey
@@ -308,8 +310,18 @@
 											{:else if col.key === 'typeOfMachine'}
 												<MachineTypeDropdown
 													value={row.typeOfMachine}
+													options={MACHINE_TYPE_OPTIONS}
+													placeholder="Select type…"
 													on:change={(e) => updateRow(row.id, 'typeOfMachine', e.detail)}
 													on:paste={(e) => handlePaste(e.detail, row.id, 'typeOfMachine')}
+												/>
+											{:else if col.key === 'size'}
+												<MachineTypeDropdown
+													value={row.size}
+													options={SIZE_OPTIONS}
+													placeholder="Select size…"
+													on:change={(e) => updateRow(row.id, 'size', e.detail)}
+													on:paste={(e) => handlePaste(e.detail, row.id, 'size')}
 												/>
 											{:else if col.key === 'results'}
 												<ResultSelect

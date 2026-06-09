@@ -26,13 +26,17 @@ export type SheetRow = {
 export const FREQUENCY_OPTIONS: SheetFrequency[] = ['3 monthly', '6 monthly', '12 monthly'];
 
 export const MACHINE_TYPE_OPTIONS = [
-	'SERV-SM',
-	'SERV-MD',
-	'SERV-LRG',
-	'SERV-PRESSLARG'
+	'Floor Scrubber',
+	'Pressure Washer',
+	'Carpet Extractors',
+	'Other'
 ] as const;
 
 export type MachineType = (typeof MACHINE_TYPE_OPTIONS)[number];
+
+export const SIZE_OPTIONS = ['SERV-SM', 'SERV-MD', 'SERV-LRG', 'SERV-PRESSLARG'] as const;
+
+export type MachineSize = (typeof SIZE_OPTIONS)[number];
 
 export const RESULT_OPTIONS = ['pass', 'fail'] as const;
 

@@ -1,3 +1,4 @@
+import type { CompanyListItem } from '../companies/types';
 import type { Contact, LocationInfo, Note, Schedule } from '../stores';
 
 export type { Schedule, Contact, LocationInfo, Note };
@@ -59,6 +60,25 @@ export type ScheduleWithRelations = CompanyWithRelations;
 export type CompanyWithRelations = CompanyRow & {
 	machine_inspection_locations: LocationWithContacts[];
 	machine_inspection_notes: NoteRow[];
+};
+
+export type CompanyListContactRow = {
+	name: string;
+	email: string;
+};
+
+export type CompanyListLocationRow = {
+	location: string;
+	sub_company_name: string;
+	machine_inspection_contacts: CompanyListContactRow[];
+};
+
+export type CompanyListWithRelations = Pick<
+	CompanyRow,
+	'id' | 'company' | 'start_month' | 'occurence' | 'color' | 'created_at' | 'updated_at'
+> & {
+	machine_inspection_locations: CompanyListLocationRow[];
+	machine_inspection_notes: { count: number }[];
 };
 
 export type MachineInspectionEventRow = {
@@ -148,6 +168,40 @@ export type EquipmentWithPlacement = EquipmentRow & {
 
 /** @deprecated Use mapCompanyRow */
 export const mapScheduleRow = mapCompanyRow;
+
+export function mapCompanyListRow(row: CompanyListWithRelations): CompanyListItem {
+	const locations = row.machine_inspection_locations ?? [];
+	let contactCount = 0;
+
+	const information = locations.map((location) => {
+		const contacts = location.machine_inspection_contacts ?? [];
+		contactCount += contacts.length;
+		return {
+			sub_company_name: location.sub_company_name,
+			location: location.location,
+			contacts: contacts.map((contact) => ({
+				name: contact.name,
+				email: contact.email
+			}))
+		};
+	});
+
+	const noteCount = row.machine_inspection_notes?.[0]?.count ?? 0;
+
+	return {
+		id: row.id,
+		company: row.company,
+		start_month: row.start_month,
+		occurence: row.occurence,
+		color: row.color,
+		locationCount: locations.length,
+		contactCount,
+		noteCount,
+		information,
+		createdAt: row.created_at,
+		updatedAt: row.updated_at
+	};
+}
 
 export function mapCompanyRow(row: CompanyWithRelations): Schedule {
 	const locations = [...(row.machine_inspection_locations ?? [])].sort(

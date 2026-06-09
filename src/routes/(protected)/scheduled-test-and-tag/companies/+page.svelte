@@ -2,11 +2,13 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
+  import { get } from 'svelte/store';
   import ScheduleModal from './ScheduleModal.svelte';
   import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import { toastSuccess, toastError, toastInfo, toastWarning } from '$lib/utils/toast';
   import {
+    companiesListStore,
     filteredSchedules,
     currentSchedule,
     formMode,
@@ -19,9 +21,15 @@
     setEditMode,
     resetForm
   } from './stores';
-  import { createSchedule, updateSchedule, deleteSchedule, loadSchedules } from './utils';
+  import {
+    createSchedule,
+    updateSchedule,
+    deleteSchedule,
+    getCompanyById,
+    loadCompaniesList
+  } from './utils';
   import { getMonthName, formatPhoneNumber } from './utils';
-  import type { Schedule, ScheduleFormData } from './types';
+  import type { CompanyListItem, ScheduleFormData } from './types';
 
   let currentPage = 1;
   const itemsPerPage = 10;
@@ -30,6 +38,7 @@
   let isTableLoading = false;
   let isSaving = false;
   let isDeleting = false;
+  let isOpeningEdit = false;
 
   // Animation functions
   function addRippleEffect(event: MouseEvent) {
@@ -96,17 +105,20 @@
     }
   }
 
-  // Load data from Supabase on component mount
   onMount(async () => {
-    try {
-      isLoading.set(true);
+    const cached = get(companiesListStore);
+    if (cached.length > 0) {
+      isTableLoading = false;
+    } else {
       isTableLoading = true;
-      await loadSchedules();
+    }
+
+    try {
+      await loadCompaniesList();
     } catch (error) {
-      console.error('Failed to load schedules:', error);
+      console.error('Failed to load companies:', error);
       toastError('Failed to load companies', 'Error');
     } finally {
-      isLoading.set(false);
       isTableLoading = false;
     }
   });
@@ -124,8 +136,23 @@
     setCreateMode();
   }
 
-  function handleEdit(schedule: Schedule) {
-    setEditMode(schedule);
+  async function handleEdit(schedule: CompanyListItem) {
+    if (isOpeningEdit) return;
+
+    try {
+      isOpeningEdit = true;
+      const full = await getCompanyById(schedule.id);
+      if (full) {
+        setEditMode(full);
+      } else {
+        toastError('Company not found', 'Error');
+      }
+    } catch (error) {
+      console.error('Failed to load company:', error);
+      toastError('Failed to load company details', 'Error');
+    } finally {
+      isOpeningEdit = false;
+    }
   }
 
   async function handleSave(event: CustomEvent<ScheduleFormData>) {
@@ -151,6 +178,7 @@
         toastSuccess('Company updated successfully!', 'Updated');
       }
       resetForm();
+      await loadCompaniesList();
     } catch (error) {
       console.error('Error saving schedule:', error);
       toastError(`Failed to save company: ${error instanceof Error ? error.message : 'Unknown error'}`, 'Error');
@@ -180,11 +208,11 @@
     }
   }
 
-  async function handleDeleteDirect(schedule: Schedule) {
+  async function handleDeleteDirect(schedule: CompanyListItem) {
     const companyName = schedule.company;
-    const locationCount = schedule.information.length;
-    const contactCount = schedule.information.reduce((total, info) => total + info.contacts.length, 0);
-    const noteCount = schedule.notes.length;
+    const locationCount = schedule.locationCount;
+    const contactCount = schedule.contactCount;
+    const noteCount = schedule.noteCount;
     
     const confirmMessage = `Are you sure you want to delete "${companyName}"?\n\n` +
       `This will permanently remove:\n` +
@@ -215,11 +243,11 @@
     resetForm();
   }
 
-  function openSheet(schedule: Schedule) {
+  function openSheet(schedule: CompanyListItem) {
     goto(`${base}/scheduled-test-and-tag/sheet?company_id=${schedule.id}`);
   }
 
-  function openEquipments(schedule: Schedule) {
+  function openEquipments(schedule: CompanyListItem) {
     goto(`${base}/scheduled-test-and-tag/equipments?id=${schedule.id}`);
   }
 
@@ -642,13 +670,13 @@
                 ></div>
               </td>
               <td class="col-tight text-gray-900">
-                {schedule.information.length}
+                {schedule.locationCount}
               </td>
               <td class="col-tight text-gray-900">
-                {schedule.information.reduce((total, info) => total + info.contacts.length, 0)}
+                {schedule.contactCount}
               </td>
               <td class="col-tight text-gray-900">
-                {schedule.notes.length}
+                {schedule.noteCount}
               </td>
               <td class="col-tight" on:click|stopPropagation>
                 <div class="flex justify-center">
@@ -780,8 +808,8 @@
 <!-- Toast Container -->
 <ToastContainer />
 
-<!-- Loading Overlay -->
-{#if $isLoading}
+<!-- Loading overlay for save/delete only (table uses its own skeleton) -->
+{#if $isLoading && (isSaving || isDeleting)}
   <div class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 flex items-center gap-3 shadow-lg">
       <div class="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>

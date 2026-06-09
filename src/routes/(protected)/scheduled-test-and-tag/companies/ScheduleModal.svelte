@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import type { Schedule, ScheduleFormData, Contact, LocationInfo, Note } from './types';
   import { generateId, getMonthName, validateSchedule, getAvailableColors, DEFAULT_COLOR } from './utils';
-  import { schedulesStore } from '../stores';
+  import { companiesListStore } from './listStore';
 
   export let schedule: ScheduleFormData | null = null;
   export let mode: 'create' | 'edit' | 'view' = 'view';
@@ -19,7 +19,7 @@
   let showColorDropdown = false;
 
   // Get available colors excluding currently used ones
-  $: availableColors = getAvailableColors($schedulesStore, formData?.color, mode === 'create');
+  $: availableColors = getAvailableColors($companiesListStore, formData?.color, mode === 'create');
 
   // Debug logging for props
   $: {

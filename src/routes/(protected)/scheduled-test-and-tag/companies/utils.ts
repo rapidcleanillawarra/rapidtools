@@ -8,6 +8,7 @@ export {
 	getCompanyById,
 	getScheduleById,
 	loadCompanies,
+	loadCompaniesList,
 	loadSchedules,
 	updateCompany,
 	updateSchedule

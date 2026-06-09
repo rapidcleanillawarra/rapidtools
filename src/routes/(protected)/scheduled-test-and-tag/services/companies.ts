@@ -1,8 +1,14 @@
 import { supabase } from '$lib/supabase';
+import { companiesListStore } from '../companies/listStore';
 import { schedulesStore } from '../stores';
 import type { ScheduleFormData } from '../companies/types';
 import type { Schedule } from '../stores';
-import { mapCompanyRow, type CompanyWithRelations } from './types';
+import {
+	mapCompanyListRow,
+	mapCompanyRow,
+	type CompanyListWithRelations,
+	type CompanyWithRelations
+} from './types';
 
 const COMPANIES_TABLE = 'machine_inspection_companies';
 const LOCATIONS_TABLE = 'machine_inspection_locations';
@@ -17,6 +23,25 @@ const COMPANY_SELECT = `
     machine_inspection_contacts (*)
   ),
   machine_inspection_notes (*)
+`;
+
+const COMPANY_LIST_SELECT = `
+  id,
+  company,
+  start_month,
+  occurence,
+  color,
+  created_at,
+  updated_at,
+  machine_inspection_locations (
+    location,
+    sub_company_name,
+    machine_inspection_contacts (
+      name,
+      email
+    )
+  ),
+  machine_inspection_notes (count)
 `;
 
 async function insertNestedCompanyData(
@@ -118,6 +143,23 @@ export async function loadCompanies(): Promise<void> {
 
 	const companies = (data as CompanyWithRelations[]).map(mapCompanyRow);
 	schedulesStore.set(companies);
+}
+
+/** Lightweight list for the companies table (no note bodies or contact phones). */
+export async function loadCompaniesList(): Promise<void> {
+	const { data, error } = await supabase
+		.from(COMPANIES_TABLE)
+		.select(COMPANY_LIST_SELECT)
+		.is('deleted_at', null)
+		.order('created_at', { ascending: false });
+
+	if (error) {
+		console.error('Error loading machine inspection companies list:', error);
+		throw new Error('Failed to load companies from database.');
+	}
+
+	const companies = (data as CompanyListWithRelations[]).map(mapCompanyListRow);
+	companiesListStore.set(companies);
 }
 
 /** @deprecated Use loadCompanies */
@@ -230,6 +272,7 @@ export async function deleteCompany(id: string): Promise<void> {
 	}
 
 	schedulesStore.update((companies) => companies.filter((company) => company.id !== id));
+	companiesListStore.update((companies) => companies.filter((company) => company.id !== id));
 }
 
 /** @deprecated Use deleteCompany */

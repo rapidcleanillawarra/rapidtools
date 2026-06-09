@@ -1,5 +1,5 @@
-import { writable, derived, get } from 'svelte/store';
-import { schedulesStore } from '../stores';
+import { writable, derived } from 'svelte/store';
+import { companiesListStore } from './listStore';
 import { DEFAULT_COLOR } from './utils';
 import type { Schedule, ScheduleFormData, ValidationErrors, FormMode } from './types';
 
@@ -19,11 +19,12 @@ export const searchTerm = writable('');
 export const sortBy = writable<'company' | 'start_month' | 'occurence'>('company');
 export const sortDirection = writable<'asc' | 'desc'>('asc');
 
-// Filtered and sorted schedules
+export { companiesListStore };
+
+// Filtered and sorted companies (list view)
 export const filteredSchedules = derived(
-  [schedulesStore, searchTerm, sortBy, sortDirection],
+  [companiesListStore, searchTerm, sortBy, sortDirection],
   ([schedules, search, sort, direction]) => {
-    // Ensure schedules is always an array
     const schedulesArray = schedules || [];
     
     let filtered = schedulesArray;

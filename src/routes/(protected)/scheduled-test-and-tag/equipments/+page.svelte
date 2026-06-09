@@ -19,6 +19,7 @@
 		normalizeEquipmentRow,
 		parsePasteGrid,
 		processEquipmentPaste,
+		resetRciTagsForSelectedRows,
 		sortRows
 	} from './utils';
 	import {
@@ -77,6 +78,8 @@
 		selectedRowIds.size > 0 &&
 		(massApplyType !== '' || massApplyStartMonth !== '' || massApplyFrequency !== '');
 
+	$: canResetRciTags = selectedRowIds.size > 0;
+
 	function clearSelection() {
 		selectedRowIds = new Set();
 	}
@@ -126,6 +129,29 @@
 		);
 
 		toastSuccess(`Applied to ${selectedCount} row${selectedCount === 1 ? '' : 's'}.`, 'Applied');
+	}
+
+	function resetSelectedRciTags() {
+		if (selectedRowIds.size === 0) {
+			toastError('Select at least one row.', 'Error');
+			return;
+		}
+
+		const selectedCount = selectedRowIds.size;
+		const confirmed = confirm(
+			`Reassign RCI tags for ${selectedCount} selected row${selectedCount === 1 ? '' : 's'}? ` +
+				'New tags will use the current year format (e.g. 26-0001). Save afterwards to persist.'
+		);
+
+		if (!confirmed) return;
+
+		equipmentRows.update((rows) =>
+			resetRciTagsForSelectedRows(rows, selectedRowIds, globalRciTags)
+		);
+		toastSuccess(
+			`Reassigned RCI tags for ${selectedCount} row${selectedCount === 1 ? '' : 's'}. Save to persist.`,
+			'RCI Tags'
+		);
 	}
 
 	function resolveActiveCompany() {
@@ -409,6 +435,14 @@
 					disabled={!canMassApply}
 				>
 					Apply
+				</button>
+				<button
+					type="button"
+					class="sheet-toolbar-btn sheet-bulk-apply-reset"
+					on:click={resetSelectedRciTags}
+					disabled={!canResetRciTags}
+				>
+					Reset RCI Tags
 				</button>
 			</div>
 		{/if}
@@ -902,6 +936,15 @@
 	.sheet-bulk-apply-select:focus {
 		outline: none;
 		border-color: #111;
+	}
+
+	.sheet-bulk-apply-reset {
+		margin-left: auto;
+	}
+
+	.sheet-bulk-apply-reset:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.sheet-select-col {

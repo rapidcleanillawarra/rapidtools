@@ -18,6 +18,37 @@ export function collectOccupiedRciTags(
 	return [...additionalRciTags, ...rows.map((row) => row.rciTag.trim()).filter(Boolean)];
 }
 
+export function resetRciTagsForSelectedRows(
+	rows: EquipmentTableRow[],
+	selectedIds: Set<string>,
+	globalRciTags: Iterable<string> = []
+): EquipmentTableRow[] {
+	if (selectedIds.size === 0) return rows;
+
+	const tagsBeingReplaced = new Set(
+		rows
+			.filter((row) => selectedIds.has(row.id))
+			.map((row) => row.rciTag.trim())
+			.filter(Boolean)
+	);
+
+	const occupied = [
+		...[...globalRciTags].filter((tag) => !tagsBeingReplaced.has(tag)),
+		...rows
+			.filter((row) => !selectedIds.has(row.id))
+			.map((row) => row.rciTag.trim())
+			.filter(Boolean)
+	];
+
+	return rows.map((row) => {
+		if (!selectedIds.has(row.id)) return row;
+
+		const rciTag = getNextRciTag(occupied);
+		occupied.push(rciTag);
+		return { ...row, rciTag };
+	});
+}
+
 export function createEmptyRow(
 	defaults?: {
 		startMonth?: number;

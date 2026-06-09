@@ -149,12 +149,21 @@ export function createEmptyRow(): SheetRow {
 	});
 }
 
+/** e.g. "July 2026" from the given date (defaults to today). */
+export function defaultSheetName(date: Date = new Date()): string {
+	return new Intl.DateTimeFormat('en-US', {
+		month: 'long',
+		year: 'numeric'
+	}).format(date);
+}
+
 export function createEmptyHeader(): SheetHeader {
 	return {
 		companyId: '',
 		company: '',
 		location: '',
 		serviceDate: new Date().toISOString().split('T')[0],
+		sheetName: defaultSheetName(),
 		frequency: ''
 	};
 }

@@ -12,6 +12,7 @@
 	import { loadSheetRowsForCompany, persistSheet } from './persistence';
 	import {
 		applyCompanyToHeader,
+		defaultSheetName,
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
@@ -106,7 +107,8 @@
 			sheetHeader.update((current) => ({
 				...current,
 				...loadedHeader,
-				frequency: current.frequency || loadedHeader.frequency || ''
+				frequency: current.frequency || loadedHeader.frequency || '',
+				sheetName: loadedHeader.sheetName ?? (current.sheetName || defaultSheetName())
 			}));
 			sheetRows.set(rows);
 		} catch (error) {
@@ -160,7 +162,8 @@
 
 		sheetHeader.update((header) => ({
 			...applyCompanyToHeader(header, company),
-			sheetId: ''
+			sheetId: '',
+			sheetName: defaultSheetName()
 		}));
 		sheetRows.set([]);
 
@@ -442,6 +445,18 @@
 		</div>
 
 		<aside class="sheet-sidebar">
+			<label class="sheet-sidebar-field" for="sheet-name">
+				<span class="sheet-sidebar-label">Sheet name</span>
+				<input
+					id="sheet-name"
+					type="text"
+					bind:value={$sheetHeader.sheetName}
+					class="sheet-sidebar-input"
+					placeholder={defaultSheetName()}
+					aria-label="Sheet name"
+				/>
+			</label>
+
 			<label class="sheet-sidebar-field" for="sheet-frequency">
 				<span class="sheet-sidebar-label">Frequency</span>
 				<select

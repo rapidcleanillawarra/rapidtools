@@ -22,6 +22,7 @@ export type SheetLineInput = {
 
 export type SaveSheetInput = {
 	company_id: string;
+	name: string;
 	service_date: string;
 	created_by_uid?: string;
 	created_by_email?: string;
@@ -91,6 +92,7 @@ export async function saveSheet(input: SaveSheetInput, existingSheetId?: string)
 			.from(SHEETS_TABLE)
 			.update({
 				company_id: input.company_id,
+				name: input.name,
 				service_date: input.service_date,
 				created_by_uid: input.created_by_uid ?? null,
 				created_by_email: input.created_by_email ?? null
@@ -114,6 +116,7 @@ export async function saveSheet(input: SaveSheetInput, existingSheetId?: string)
 			.from(SHEETS_TABLE)
 			.insert({
 				company_id: input.company_id,
+				name: input.name,
 				service_date: input.service_date,
 				created_by_uid: input.created_by_uid ?? null,
 				created_by_email: input.created_by_email ?? null

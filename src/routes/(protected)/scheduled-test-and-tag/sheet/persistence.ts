@@ -10,6 +10,7 @@ import type { EquipmentPlacementRow, EquipmentRow, SheetLineRow } from '../servi
 import type { Schedule } from '../stores';
 import type { SheetHeader, SheetRow } from './types';
 import {
+	defaultSheetName,
 	formatParts,
 	frequencyToMonths,
 	normalizeServiceValue,
@@ -68,6 +69,7 @@ export async function loadSheetRowsForCompany(
 			sheetHeader = {
 				...sheetHeader,
 				sheetId: sheetData.sheet.id,
+				sheetName: sheetData.sheet.name || defaultSheetName(),
 				serviceDate: sheetData.sheet.service_date
 			};
 			linesByEquipmentId = new Map(
@@ -150,6 +152,7 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 	return saveSheet(
 		{
 			company_id: header.companyId,
+			name: header.sheetName.trim() || defaultSheetName(),
 			service_date: header.serviceDate,
 			created_by_uid: userUid,
 			created_by_email: userEmail,

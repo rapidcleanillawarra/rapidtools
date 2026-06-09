@@ -13,7 +13,7 @@ Machine inspection data is stored in normalized Supabase tables with the `machin
 | `machine_inspection_events` | Calendar appointments |
 | `machine_inspection_equipments` | Master equipment list per company |
 | `machine_inspection_equipment_placements` | Equipment location per company (can change between periods) |
-| `machine_inspection_sheets` | Saved service run (date, company) |
+| `machine_inspection_sheets` | Saved service run (name, date, company) |
 | `machine_inspection_sheet_rows` | Per-service results per equipment |
 | `machine_inspection_sheet_row_parts` | Parts (SKU + name) linked to a sheet row |
 
@@ -35,6 +35,7 @@ Apply via Supabase CLI or dashboard:
 supabase/migrations/20260609120000_machine_inspection.sql
 supabase/migrations/20260610120000_machine_inspection_companies_and_sheets.sql
 supabase/migrations/20260610130000_machine_inspection_sheet_row_parts.sql
+supabase/migrations/20260610140000_machine_inspection_sheets_name.sql
 ```
 
 ## Auth

@@ -5,6 +5,7 @@ export type SheetHeader = {
 	company: string;
 	location: string;
 	serviceDate: string;
+	sheetName: string;
 	frequency: SheetFrequency | '';
 	sheetId?: string;
 };

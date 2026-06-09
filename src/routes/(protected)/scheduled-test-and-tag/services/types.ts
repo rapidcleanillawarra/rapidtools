@@ -110,6 +110,7 @@ export type EquipmentPlacementRow = {
 export type SheetRow = {
 	id: string;
 	company_id: string;
+	name: string;
 	service_date: string;
 	created_by_uid: string | null;
 	created_by_email: string | null;

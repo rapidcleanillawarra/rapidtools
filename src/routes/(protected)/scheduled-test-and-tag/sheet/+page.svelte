@@ -27,6 +27,8 @@
 		SHEET_COLUMNS,
 		TEXT_PASTE_COLUMNS,
 		type SheetColumnKey,
+		type SheetHeader,
+		type SheetRow,
 		type SheetRowFieldKey,
 		type TextPasteColumnKey
 	} from './types';
@@ -56,6 +58,9 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 	let isSaving = false;
+
+	let originalRows: SheetRow[] = [];
+	let originalFrequency: SheetHeader['frequency'] = '';
 
 	const textPasteColumnSet = new Set<string>(TEXT_PASTE_COLUMNS);
 
@@ -113,6 +118,8 @@
 				sheetName: loadedHeader.sheetName ?? (current.sheetName || defaultSheetName())
 			}));
 			sheetRows.set(rows);
+			originalRows = rows.map((row) => ({ ...row }));
+			originalFrequency = get(sheetHeader).frequency;
 		} catch (error) {
 			console.error('Failed to load sheet data:', error);
 			toastError('Failed to load sheet data', 'Error');
@@ -168,6 +175,8 @@
 			sheetName: defaultSheetName()
 		}));
 		sheetRows.set([]);
+		originalRows = [];
+		originalFrequency = '';
 
 		await goto(buildSheetPath(company.id), { replaceState: true, keepFocus: true, noScroll: true });
 		await loadSheetData();
@@ -219,7 +228,8 @@
 				rows: get(sheetRows),
 				company,
 				userUid: get(currentUser)?.uid,
-				userEmail: get(currentUser)?.email ?? undefined
+				userEmail: get(currentUser)?.email ?? undefined,
+				original: { rows: originalRows, frequency: originalFrequency }
 			});
 
 			await goto(buildSheetPath(company.id, sheetId), {

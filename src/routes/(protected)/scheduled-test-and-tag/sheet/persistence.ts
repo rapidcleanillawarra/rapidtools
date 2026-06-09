@@ -1,9 +1,10 @@
-import { getLocationIdByName, loadLocationNameMap } from '../services/companies';
+import { loadLocationNameMap, loadLocationNameToIdMap } from '../services/companies';
 import {
+	bulkUpsertEquipments,
+	bulkUpsertPlacements,
 	loadEquipmentsByCompany,
 	loadPlacementsByCompany,
-	upsertEquipment,
-	upsertPlacement
+	type EquipmentInput
 } from '../services/equipments';
 import { getSheetById, saveSheet } from '../services/sheets';
 import type { EquipmentPlacementRow, EquipmentRow, SheetLineRow } from '../services/types';
@@ -105,66 +106,136 @@ export type SaveSheetContext = {
 	company: Schedule;
 	userUid?: string;
 	userEmail?: string;
+	/** Snapshot of the rows/frequency as last loaded, used to skip unchanged writes. */
+	original?: { rows: SheetRow[]; frequency: SheetHeader['frequency'] } | null;
 };
 
+function getRciTag(row: SheetRow): string {
+	return row.rciTag?.trim() || row.id;
+}
+
+function buildEquipmentInput(
+	row: SheetRow,
+	index: number,
+	frequency: number,
+	startMonth: number
+): EquipmentInput {
+	return {
+		rci_tag: getRciTag(row),
+		start_month: startMonth,
+		frequency,
+		sort_order: index,
+		customer_tag: row.tag,
+		equipment_name: row.machines,
+		equipment_type: row.typeOfMachine,
+		serial_number: row.serialNumber,
+		sku: row.sku,
+		size: row.size,
+		active: row.active !== false
+	};
+}
+
 export async function persistSheet(context: SaveSheetContext): Promise<string> {
-	const { header, rows, company, userUid, userEmail } = context;
+	const { header, rows, company, userUid, userEmail, original } = context;
 
 	if (!header.companyId) {
 		throw new Error('Company is required before saving.');
 	}
 
-	const defaultFrequency = company.occurence;
-	const defaultStartMonth = company.start_month;
-	const equipmentIds: { equipmentId: string; row: SheetRow; sortOrder: number }[] = [];
+	const companyId = header.companyId;
+	const startMonth = company.start_month;
+	const frequency = frequencyToMonths(header.frequency) ?? company.occurence;
+	const originalFrequency = original
+		? (frequencyToMonths(original.frequency) ?? company.occurence)
+		: frequency;
 
-	for (let index = 0; index < rows.length; index++) {
-		const row = rows[index];
-		const rciTag = row.rciTag?.trim() || row.id;
-		const frequency = frequencyToMonths(header.frequency) ?? defaultFrequency;
+	const originalById = new Map<string, { row: SheetRow; index: number }>();
+	original?.rows.forEach((row, index) => originalById.set(row.id, { row, index }));
 
-		const equipment = await upsertEquipment(header.companyId, {
-			rci_tag: rciTag,
-			start_month: defaultStartMonth,
-			frequency,
-			sort_order: index,
-			customer_tag: row.tag,
-			equipment_name: row.machines,
-			equipment_type: row.typeOfMachine,
-			serial_number: row.serialNumber,
-			sku: row.sku,
-			size: row.size,
-			active: row.active !== false
-		});
+	// Resolve each row to its equipment id. Unchanged rows already carry their
+	// equipment id as `row.id`, so only changed/new rows need to be upserted.
+	const equipmentIdByRowId = new Map<string, string>();
+	const equipmentsToUpsert: { row: SheetRow; input: EquipmentInput }[] = [];
+	const placementsToUpsert: SheetRow[] = [];
 
-		if (row.location) {
-			const locationId = await getLocationIdByName(header.companyId, row.location);
-			if (locationId) {
-				await upsertPlacement(header.companyId, rciTag, locationId);
-			}
+	rows.forEach((row, index) => {
+		const input = buildEquipmentInput(row, index, frequency, startMonth);
+		const snapshot = originalById.get(row.id);
+
+		const equipmentUnchanged =
+			snapshot &&
+			JSON.stringify(input) ===
+				JSON.stringify(
+					buildEquipmentInput(snapshot.row, snapshot.index, originalFrequency, startMonth)
+				);
+
+		if (equipmentUnchanged) {
+			equipmentIdByRowId.set(row.id, row.id);
+		} else {
+			equipmentsToUpsert.push({ row, input });
 		}
 
-		equipmentIds.push({ equipmentId: equipment.id, row, sortOrder: index });
-	}
+		const locationChanged = !snapshot || snapshot.row.location !== row.location;
+		if (row.location && locationChanged) {
+			placementsToUpsert.push(row);
+		}
+	});
 
-	const activeEquipmentIds = equipmentIds.filter(({ row }) => row.active !== false);
+	const upsertEquipmentsTask = async () => {
+		if (equipmentsToUpsert.length === 0) return;
+		const saved = await bulkUpsertEquipments(
+			companyId,
+			equipmentsToUpsert.map(({ input }) => input)
+		);
+		const idByRciTag = new Map(saved.map((equipment) => [equipment.rci_tag, equipment.id]));
+		for (const { row } of equipmentsToUpsert) {
+			const equipmentId = idByRciTag.get(getRciTag(row));
+			if (equipmentId) {
+				equipmentIdByRowId.set(row.id, equipmentId);
+			}
+		}
+	};
+
+	const upsertPlacementsTask = async () => {
+		if (placementsToUpsert.length === 0) return;
+		const nameToId = await loadLocationNameToIdMap(companyId);
+		const placements = placementsToUpsert
+			.map((row) => {
+				const locationId = nameToId.get(row.location);
+				return locationId ? { rci_tag: getRciTag(row), location_id: locationId } : null;
+			})
+			.filter((placement): placement is { rci_tag: string; location_id: string } =>
+				placement !== null
+			);
+		await bulkUpsertPlacements(companyId, placements);
+	};
+
+	await Promise.all([upsertEquipmentsTask(), upsertPlacementsTask()]);
+
+	const activeRows = rows.filter((row) => row.active !== false);
 
 	return saveSheet(
 		{
-			company_id: header.companyId,
+			company_id: companyId,
 			name: header.sheetName.trim() || defaultSheetName(),
 			service_date: header.serviceDate,
 			created_by_uid: userUid,
 			created_by_email: userEmail,
-			lines: activeEquipmentIds.map(({ equipmentId, row }, index) => ({
-				equipment_id: equipmentId,
-				sort_order: index,
-				result: row.results,
-				workshop_id: row.workshopId,
-				service: normalizeServiceValue(row.service),
-				parts: parseParts(row.parts),
-				notes: row.notes
-			}))
+			lines: activeRows.map((row, index) => {
+				const equipmentId = equipmentIdByRowId.get(row.id);
+				if (!equipmentId) {
+					throw new Error(`Failed to resolve equipment for row "${row.machines || row.id}".`);
+				}
+				return {
+					equipment_id: equipmentId,
+					sort_order: index,
+					result: row.results,
+					workshop_id: row.workshopId,
+					service: normalizeServiceValue(row.service),
+					parts: parseParts(row.parts),
+					notes: row.notes
+				};
+			})
 		},
 		header.sheetId
 	);

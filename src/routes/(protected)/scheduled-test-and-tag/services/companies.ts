@@ -267,6 +267,25 @@ export async function loadLocationNameMap(companyId: string): Promise<Map<string
 	return new Map((data ?? []).map((row) => [row.id, row.location]));
 }
 
+export async function loadLocationNameToIdMap(companyId: string): Promise<Map<string, string>> {
+	const { data, error } = await supabase
+		.from(LOCATIONS_TABLE)
+		.select('id, location')
+		.eq('company_id', companyId);
+
+	if (error) {
+		throw new Error(`Failed to load locations: ${error.message}`);
+	}
+
+	const map = new Map<string, string>();
+	for (const row of data ?? []) {
+		if (row.location && !map.has(row.location)) {
+			map.set(row.location, row.id);
+		}
+	}
+	return map;
+}
+
 export async function getLocationIdByName(
 	companyId: string,
 	locationName: string

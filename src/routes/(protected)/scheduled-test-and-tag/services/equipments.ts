@@ -90,6 +90,60 @@ export async function upsertEquipment(
 	return data as EquipmentRow;
 }
 
+export async function bulkUpsertEquipments(
+	companyId: string,
+	inputs: EquipmentInput[]
+): Promise<EquipmentRow[]> {
+	if (inputs.length === 0) return [];
+
+	const { data, error } = await supabase
+		.from(EQUIPMENTS_TABLE)
+		.upsert(
+			inputs.map((input) => ({
+				company_id: companyId,
+				rci_tag: input.rci_tag,
+				start_month: input.start_month,
+				frequency: input.frequency,
+				sort_order: input.sort_order,
+				customer_tag: input.customer_tag,
+				equipment_name: input.equipment_name,
+				equipment_type: input.equipment_type,
+				serial_number: input.serial_number,
+				sku: input.sku,
+				size: input.size,
+				active: input.active
+			})),
+			{ onConflict: 'company_id,rci_tag' }
+		)
+		.select('*');
+
+	if (error) {
+		throw new Error(`Failed to save equipments: ${error.message}`);
+	}
+
+	return (data ?? []) as EquipmentRow[];
+}
+
+export async function bulkUpsertPlacements(
+	companyId: string,
+	placements: { rci_tag: string; location_id: string }[]
+): Promise<void> {
+	if (placements.length === 0) return;
+
+	const { error } = await supabase.from(PLACEMENTS_TABLE).upsert(
+		placements.map((placement) => ({
+			company_id: companyId,
+			rci_tag: placement.rci_tag,
+			location_id: placement.location_id
+		})),
+		{ onConflict: 'company_id,rci_tag' }
+	);
+
+	if (error) {
+		throw new Error(`Failed to save equipment placements: ${error.message}`);
+	}
+}
+
 export async function upsertPlacement(
 	companyId: string,
 	rciTag: string,

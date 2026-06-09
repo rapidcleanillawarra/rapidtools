@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { base } from '$app/paths';
 	import { get } from 'svelte/store';
-	import { schedulesStore } from '../stores';
+	import { schedulesStore, type Schedule } from '../stores';
+	import CompanyCombobox from '../CompanyCombobox.svelte';
 	import { getCompanyById, loadCompanies } from '../companies/utils';
 	import { equipmentHeader, equipmentRows, isLoading } from './stores';
 	import { loadEquipmentsForCompany, persistEquipments } from './persistence';
 	import { loadAllRciTags } from '../services/equipments';
 	import {
 		applyCompanyToHeader,
-		applyCompanyNameToHeader,
 		collectOccupiedRciTags,
 		createEmptyRow,
 		getClipboardText,
@@ -32,9 +33,11 @@
 		type EquipmentColumnKey,
 		type TextPasteColumnKey
 	} from './types';
+	import Modal from '$lib/components/Modal.svelte';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
 	import SkeletonLoader from '$lib/components/SkeletonLoader.svelte';
 	import MachineTypeDropdown from '../sheet/MachineTypeDropdown.svelte';
+	import { transferEquipmentsToCompany } from './transfer';
 	import { toastError, toastInfo, toastSuccess } from '$lib/utils/toast';
 
 	const LOGO_URL = `${base}/company_logo_white.webp`;
@@ -48,6 +51,11 @@
 	let massApplyStartMonth: number | '' = '';
 	let massApplyFrequency: number | '' = '';
 	let globalRciTags: string[] = [];
+	let companyIdDraft = '';
+	let showTransferModal = false;
+	let isTransferring = false;
+	let transferTargetCompany: Schedule | null = null;
+	let transferTargetName = '';
 
 	const TABLE_EXTRA_COLS = 3;
 
@@ -57,9 +65,7 @@
 		return textPasteColumnSet.has(key);
 	}
 
-	$: companyOptions = [...new Set($schedulesStore.map((s) => s.company))].sort((a, b) =>
-		a.localeCompare(b)
-	);
+	$: companyIdDraft = $equipmentHeader.companyId;
 
 	$: activeCompany = $equipmentHeader.companyId
 		? $schedulesStore.find((s) => s.id === $equipmentHeader.companyId)
@@ -79,6 +85,12 @@
 		(massApplyType !== '' || massApplyStartMonth !== '' || massApplyFrequency !== '');
 
 	$: canResetRciTags = selectedRowIds.size > 0;
+
+	$: transferCompanyOptions = $schedulesStore.filter(
+		(company) => company.id !== $equipmentHeader.companyId
+	);
+
+	$: canTransferEquipments = selectedRowIds.size > 0;
 
 	function clearSelection() {
 		selectedRowIds = new Set();
@@ -237,14 +249,55 @@
 		}
 	});
 
-	async function handleCompanyChange(event: Event) {
-		const value = (event.target as HTMLSelectElement).value;
-		equipmentHeader.update((header) =>
-			applyCompanyNameToHeader(header, get(schedulesStore), value)
-		);
+	async function switchToCompany(company: Schedule) {
+		if (company.id === get(equipmentHeader).companyId) return;
+
+		equipmentHeader.update((header) => applyCompanyToHeader(header, company));
 		equipmentRows.set([]);
 		clearSelection();
+
+		const path = `${base}/scheduled-test-and-tag/equipments?id=${company.id}`.replace(
+			/\/\/+/g,
+			'/'
+		);
+		await goto(path, { replaceState: true, keepFocus: true, noScroll: true });
 		await loadEquipmentData();
+	}
+
+	async function handleCompanySelect(event: CustomEvent<Schedule>) {
+		await switchToCompany(event.detail);
+	}
+
+	async function handleCompanyIdSubmit() {
+		const id = companyIdDraft.trim();
+		if (!id || id === get(equipmentHeader).companyId) return;
+
+		let company = get(schedulesStore).find((schedule) => schedule.id === id);
+		if (!company) {
+			try {
+				company = await getCompanyById(id);
+			} catch (error) {
+				console.error('Failed to load company by id:', error);
+				toastError('Failed to load company', 'Error');
+				companyIdDraft = get(equipmentHeader).companyId;
+				return;
+			}
+		}
+
+		if (!company) {
+			toastError('Company not found', 'Error');
+			companyIdDraft = get(equipmentHeader).companyId;
+			return;
+		}
+
+		await switchToCompany(company);
+	}
+
+	function handleCompanyIdKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			void handleCompanyIdSubmit();
+		}
 	}
 
 	function handleSort(field: EquipmentColumnKey) {
@@ -295,6 +348,73 @@
 		}
 	}
 
+	function openTransferModal() {
+		if (selectedRowIds.size === 0) {
+			toastError('Select at least one equipment row to transfer.', 'Error');
+			return;
+		}
+
+		transferTargetCompany = null;
+		transferTargetName = '';
+		showTransferModal = true;
+	}
+
+	function closeTransferModal() {
+		if (isTransferring) return;
+		showTransferModal = false;
+		transferTargetCompany = null;
+		transferTargetName = '';
+	}
+
+	function handleTransferTargetSelect(event: CustomEvent<Schedule>) {
+		transferTargetCompany = event.detail;
+		transferTargetName = event.detail.company;
+	}
+
+	async function handleTransferEquipments() {
+		const sourceCompany = resolveActiveCompany();
+		if (!sourceCompany) {
+			toastError('Select a source company first.', 'Error');
+			return;
+		}
+
+		if (!transferTargetCompany) {
+			toastError('Select a target company.', 'Error');
+			return;
+		}
+
+		const rows = get(equipmentRows).filter((row) => selectedRowIds.has(row.id));
+		const confirmed = confirm(
+			`Transfer ${rows.length} equipment row${rows.length === 1 ? '' : 's'} from ${sourceCompany.company} to ${transferTargetCompany.company}? ` +
+				'Equipment will be removed from the source company and added to the target company.'
+		);
+
+		if (!confirmed) return;
+
+		try {
+			isTransferring = true;
+			const targetCompany = transferTargetCompany;
+			const result = await transferEquipmentsToCompany(sourceCompany, targetCompany, rows);
+
+			showTransferModal = false;
+			transferTargetCompany = null;
+			transferTargetName = '';
+			await loadEquipmentData();
+
+			let message = `Transferred ${result.transferred} equipment row${result.transferred === 1 ? '' : 's'} to ${targetCompany.company}.`;
+			if (result.placementWarnings > 0) {
+				message += ` ${result.placementWarnings} placement${result.placementWarnings === 1 ? '' : 's'} could not be matched on the target company.`;
+			}
+
+			toastSuccess(message, 'Transferred');
+		} catch (error) {
+			console.error('Failed to transfer equipment:', error);
+			toastError(error instanceof Error ? error.message : 'Failed to transfer equipment', 'Error');
+		} finally {
+			isTransferring = false;
+		}
+	}
+
 	async function handlePaste(
 		event: ClipboardEvent,
 		rowId: string | null,
@@ -341,11 +461,60 @@
 	<ToastContainer />
 </div>
 
+{#if showTransferModal && activeCompany}
+	<Modal show={showTransferModal} on:close={closeTransferModal} size="md" allowClose={!isTransferring}>
+		<span slot="header">Transfer equipment to company</span>
+		<div slot="body" class="transfer-modal-body">
+			<p class="transfer-modal-copy">
+				Move <strong>{selectedRowIds.size}</strong>
+				selected equipment row{selectedRowIds.size === 1 ? '' : 's'} from
+				<strong>{activeCompany.company}</strong>
+				to another company. Equipment is removed from the source and created on the target.
+			</p>
+			<label class="transfer-modal-label" for="transfer-target-company">Target company</label>
+			<CompanyCombobox
+				companies={transferCompanyOptions}
+				companyName={transferTargetName}
+				inputId="transfer-target-company"
+				placeholder="Search target company…"
+				theme="light"
+				on:select={handleTransferTargetSelect}
+			/>
+		</div>
+		<div slot="footer" class="transfer-modal-footer">
+			<button
+				type="button"
+				class="sheet-toolbar-btn"
+				on:click={closeTransferModal}
+				disabled={isTransferring}
+			>
+				Cancel
+			</button>
+			<button
+				type="button"
+				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				on:click={handleTransferEquipments}
+				disabled={!transferTargetCompany || isTransferring}
+			>
+				{isTransferring ? 'Transferring…' : 'Transfer equipment'}
+			</button>
+		</div>
+	</Modal>
+{/if}
+
 <div class="sheet-page">
 	<div class="sheet-toolbar no-print">
 		<a href="{base}/scheduled-test-and-tag/companies" class="sheet-toolbar-link">← Back to Companies</a>
 		<div class="sheet-toolbar-actions">
 			<button type="button" class="sheet-toolbar-btn" on:click={addEquipment}>Add Equipment</button>
+			<button
+				type="button"
+				class="sheet-toolbar-btn"
+				on:click={openTransferModal}
+				disabled={!canTransferEquipments}
+			>
+				Transfer to Company
+			</button>
 			<button
 				type="button"
 				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
@@ -365,22 +534,30 @@
 				</div>
 
 				<div class="sheet-header-center">
-					<select
-						id="equipment-company"
-						value={$equipmentHeader.company}
-						on:change={handleCompanyChange}
-						class="sheet-company-select"
-						aria-label="Company"
-					>
-						<option value="">Select company…</option>
-						{#each companyOptions as company (company)}
-							<option value={company}>{company}</option>
-						{/each}
-					</select>
+					<CompanyCombobox
+						companies={$schedulesStore}
+						companyName={$equipmentHeader.company}
+						inputId="equipment-company"
+						placeholder="Search company…"
+						on:select={handleCompanySelect}
+					/>
 					<p class="sheet-subtitle">Equipment master list</p>
 				</div>
 
-				<div class="sheet-header-spacer" aria-hidden="true"></div>
+				<div class="sheet-header-id">
+					<label class="sheet-header-id-label" for="equipment-company-id">Company ID</label>
+					<input
+						id="equipment-company-id"
+						type="text"
+						class="sheet-header-id-input"
+						bind:value={companyIdDraft}
+						on:blur={handleCompanyIdSubmit}
+						on:keydown={handleCompanyIdKeydown}
+						placeholder="UUID…"
+						spellcheck="false"
+						autocomplete="off"
+					/>
+				</div>
 			</div>
 		</header>
 
@@ -681,6 +858,38 @@
 		background: #333;
 	}
 
+	.sheet-toolbar-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.transfer-modal-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.transfer-modal-copy {
+		margin: 0;
+		font-size: 0.875rem;
+		color: #374151;
+		line-height: 1.5;
+	}
+
+	.transfer-modal-label {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: #6b7280;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.transfer-modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+	}
+
 	.sheet-document {
 		max-width: 80rem;
 		margin: 0 auto;
@@ -723,31 +932,44 @@
 		padding-top: 0.25rem;
 	}
 
-	.sheet-header-spacer {
+	.sheet-header-id {
 		width: 9rem;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+		gap: 0.25rem;
+		padding-top: 0.125rem;
 	}
 
-	.sheet-company-select {
-		display: block;
+	.sheet-header-id-label {
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: #d1d5db;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.sheet-header-id-input {
 		width: 100%;
 		border: none;
+		border-bottom: 1px solid #6b7280;
 		background: transparent;
-		font-size: 1.375rem;
-		font-weight: 700;
 		color: #fff;
-		text-align: center;
-		cursor: pointer;
-		appearance: none;
-		padding: 0;
-		margin: 0 auto;
+		font-size: 0.6875rem;
+		font-family: 'Consolas', 'Courier New', monospace;
+		padding: 0.125rem 0;
+		text-align: right;
 	}
 
-	.sheet-company-select:focus {
+	.sheet-header-id-input::placeholder {
+		color: #6b7280;
+	}
+
+	.sheet-header-id-input:focus {
 		outline: none;
-		box-shadow: 0 1px 0 #fff;
+		border-bottom-color: #fff;
 	}
 
-	.sheet-company-select option,
 	.sheet-header-select option {
 		color: #111;
 		background-color: #fff;
@@ -1044,8 +1266,13 @@
 			margin: 0 auto;
 		}
 
-		.sheet-header-spacer {
-			display: none;
+		.sheet-header-id {
+			width: 100%;
+			align-items: center;
+		}
+
+		.sheet-header-id-input {
+			text-align: center;
 		}
 	}
 </style>

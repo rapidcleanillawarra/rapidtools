@@ -50,8 +50,8 @@
 	let massApplyType = '';
 	let massApplyStartMonth: number | '' = '';
 	let massApplyFrequency: number | '' = '';
+	let massApplyLocation = '';
 	let globalRciTags: string[] = [];
-	let companyIdDraft = '';
 	let showTransferModal = false;
 	let isTransferring = false;
 	let transferTargetCompany: Schedule | null = null;
@@ -65,13 +65,18 @@
 		return textPasteColumnSet.has(key);
 	}
 
-	$: companyIdDraft = $equipmentHeader.companyId;
-
 	$: activeCompany = $equipmentHeader.companyId
 		? $schedulesStore.find((s) => s.id === $equipmentHeader.companyId)
 		: $equipmentHeader.company
 			? $schedulesStore.find((s) => s.company === $equipmentHeader.company)
 			: undefined;
+
+	$: locationOptions = activeCompany
+		? activeCompany.information
+				.map((info) => info.location)
+				.filter((location, index, arr) => location && arr.indexOf(location) === index)
+				.sort((a, b) => a.localeCompare(b))
+		: [];
 
 	$: displayedRows = (
 		sortField === '' ? $equipmentRows : sortRows($equipmentRows, sortField, sortDirection)
@@ -82,7 +87,10 @@
 
 	$: canMassApply =
 		selectedRowIds.size > 0 &&
-		(massApplyType !== '' || massApplyStartMonth !== '' || massApplyFrequency !== '');
+		(massApplyType !== '' ||
+			massApplyStartMonth !== '' ||
+			massApplyFrequency !== '' ||
+			massApplyLocation !== '');
 
 	$: canResetRciTags = selectedRowIds.size > 0;
 
@@ -120,8 +128,9 @@
 		const hasType = massApplyType !== '';
 		const hasStartMonth = massApplyStartMonth !== '';
 		const hasFrequency = massApplyFrequency !== '';
+		const hasLocation = massApplyLocation !== '';
 
-		if (!hasType && !hasStartMonth && !hasFrequency) {
+		if (!hasType && !hasStartMonth && !hasFrequency && !hasLocation) {
 			toastError('Set at least one value to apply.', 'Error');
 			return;
 		}
@@ -135,7 +144,8 @@
 					...row,
 					...(hasType ? { typeOfMachine: massApplyType } : {}),
 					...(hasStartMonth ? { startMonth: massApplyStartMonth as number } : {}),
-					...(hasFrequency ? { frequency: massApplyFrequency as number } : {})
+					...(hasFrequency ? { frequency: massApplyFrequency as number } : {}),
+					...(hasLocation ? { location: massApplyLocation } : {})
 				};
 			})
 		);
@@ -266,38 +276,6 @@
 
 	async function handleCompanySelect(event: CustomEvent<Schedule>) {
 		await switchToCompany(event.detail);
-	}
-
-	async function handleCompanyIdSubmit() {
-		const id = companyIdDraft.trim();
-		if (!id || id === get(equipmentHeader).companyId) return;
-
-		let company = get(schedulesStore).find((schedule) => schedule.id === id);
-		if (!company) {
-			try {
-				company = await getCompanyById(id);
-			} catch (error) {
-				console.error('Failed to load company by id:', error);
-				toastError('Failed to load company', 'Error');
-				companyIdDraft = get(equipmentHeader).companyId;
-				return;
-			}
-		}
-
-		if (!company) {
-			toastError('Company not found', 'Error');
-			companyIdDraft = get(equipmentHeader).companyId;
-			return;
-		}
-
-		await switchToCompany(company);
-	}
-
-	function handleCompanyIdKeydown(event: KeyboardEvent) {
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			void handleCompanyIdSubmit();
-		}
 	}
 
 	function handleSort(field: EquipmentColumnKey) {
@@ -543,21 +521,6 @@
 					/>
 					<p class="sheet-subtitle">Equipment master list</p>
 				</div>
-
-				<div class="sheet-header-id">
-					<label class="sheet-header-id-label" for="equipment-company-id">Company ID</label>
-					<input
-						id="equipment-company-id"
-						type="text"
-						class="sheet-header-id-input"
-						bind:value={companyIdDraft}
-						on:blur={handleCompanyIdSubmit}
-						on:keydown={handleCompanyIdKeydown}
-						placeholder="UUID…"
-						spellcheck="false"
-						autocomplete="off"
-					/>
-				</div>
 			</div>
 		</header>
 
@@ -602,6 +565,20 @@
 						<option value="">—</option>
 						{#each FREQUENCY_MONTH_OPTIONS as months (months)}
 							<option value={months}>{months} monthly</option>
+						{/each}
+					</select>
+				</label>
+				<label class="sheet-bulk-apply-field">
+					<span class="sheet-bulk-apply-field-label">Location</span>
+					<select
+						bind:value={massApplyLocation}
+						class="sheet-bulk-apply-select"
+						disabled={!$equipmentHeader.company}
+						aria-label="Mass apply location"
+					>
+						<option value="">—</option>
+						{#each locationOptions as location (location)}
+							<option value={location}>{location}</option>
 						{/each}
 					</select>
 				</label>
@@ -735,6 +712,21 @@
 												>
 													{#each FREQUENCY_MONTH_OPTIONS as months (months)}
 														<option value={months}>{months} monthly</option>
+													{/each}
+												</select>
+											{:else if col.key === 'location'}
+												<select
+													value={row.location}
+													on:change={(e) =>
+														updateRow(row.id, 'location', (e.target as HTMLSelectElement).value)}
+													class="sheet-cell-select sheet-header-select"
+													disabled={!$equipmentHeader.company}
+													title={row.location || 'Select location'}
+													aria-label="Location for equipment {index + 1}"
+												>
+													<option value="">Select location…</option>
+													{#each locationOptions as location (location)}
+														<option value={location}>{location}</option>
 													{/each}
 												</select>
 											{:else if col.key === 'typeOfMachine'}
@@ -930,44 +922,6 @@
 	.sheet-header-center {
 		text-align: center;
 		padding-top: 0.25rem;
-	}
-
-	.sheet-header-id {
-		width: 9rem;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		gap: 0.25rem;
-		padding-top: 0.125rem;
-	}
-
-	.sheet-header-id-label {
-		font-size: 0.6875rem;
-		font-weight: 600;
-		color: #d1d5db;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-	}
-
-	.sheet-header-id-input {
-		width: 100%;
-		border: none;
-		border-bottom: 1px solid #6b7280;
-		background: transparent;
-		color: #fff;
-		font-size: 0.6875rem;
-		font-family: 'Consolas', 'Courier New', monospace;
-		padding: 0.125rem 0;
-		text-align: right;
-	}
-
-	.sheet-header-id-input::placeholder {
-		color: #6b7280;
-	}
-
-	.sheet-header-id-input:focus {
-		outline: none;
-		border-bottom-color: #fff;
 	}
 
 	.sheet-header-select option {
@@ -1264,15 +1218,6 @@
 
 		.sheet-logo {
 			margin: 0 auto;
-		}
-
-		.sheet-header-id {
-			width: 100%;
-			align-items: center;
-		}
-
-		.sheet-header-id-input {
-			text-align: center;
 		}
 	}
 </style>

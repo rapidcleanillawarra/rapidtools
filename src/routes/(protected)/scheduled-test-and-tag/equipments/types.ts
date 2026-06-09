@@ -15,6 +15,7 @@ export type EquipmentTableRow = {
 	active: boolean;
 	startMonth: number;
 	frequency: number;
+	location: string;
 };
 
 export const MACHINE_TYPE_OPTIONS = [
@@ -71,7 +72,8 @@ export const EQUIPMENT_COLUMNS = [
 	{ key: 'size' as const, label: 'Size' },
 	{ key: 'active' as const, label: 'Active' },
 	{ key: 'startMonth' as const, label: 'Start Month' },
-	{ key: 'frequency' as const, label: 'Frequency' }
+	{ key: 'frequency' as const, label: 'Frequency' },
+	{ key: 'location' as const, label: 'Location' }
 ] as const;
 
 export type EquipmentColumnKey = (typeof EQUIPMENT_COLUMNS)[number]['key'];

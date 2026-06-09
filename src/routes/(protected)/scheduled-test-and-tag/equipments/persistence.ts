@@ -1,9 +1,12 @@
+import { getLocationIdByName, loadLocationNameMap } from '../services/companies';
 import { getNextRciTag } from '../rciTags';
 import {
 	deleteEquipment,
 	loadAllRciTags,
 	loadEquipmentsByCompany,
-	upsertEquipment
+	loadPlacementsByCompany,
+	upsertEquipment,
+	upsertPlacement
 } from '../services/equipments';
 import type { EquipmentRow } from '../services/types';
 import type { Schedule } from '../stores';
@@ -26,8 +29,24 @@ export function dbRowToTableRow(row: EquipmentRow): EquipmentTableRow {
 }
 
 export async function loadEquipmentsForCompany(company: Schedule): Promise<EquipmentTableRow[]> {
-	const equipments = await loadEquipmentsByCompany(company.id);
-	return equipments.map(dbRowToTableRow);
+	const [equipments, placements, locationNameMap] = await Promise.all([
+		loadEquipmentsByCompany(company.id),
+		loadPlacementsByCompany(company.id),
+		loadLocationNameMap(company.id)
+	]);
+
+	const placementByRciTag = new Map(
+		placements.map((placement) => [placement.rci_tag, placement])
+	);
+
+	return equipments.map((equipment) => {
+		const placement = placementByRciTag.get(equipment.rci_tag);
+		const location = placement
+			? (locationNameMap.get(placement.location_id) ?? '')
+			: '';
+
+		return { ...dbRowToTableRow(equipment), location };
+	});
 }
 
 export async function persistEquipments(
@@ -65,6 +84,13 @@ export async function persistEquipments(
 			size: row.size,
 			active: row.active !== false
 		});
+
+		if (row.location) {
+			const locationId = await getLocationIdByName(company.id, row.location);
+			if (locationId) {
+				await upsertPlacement(company.id, rciTag, locationId);
+			}
+		}
 	}
 
 	for (const equipment of existing) {

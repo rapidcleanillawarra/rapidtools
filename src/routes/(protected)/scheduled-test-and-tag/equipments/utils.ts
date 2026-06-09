@@ -70,7 +70,8 @@ export function createEmptyRow(
 		size: '',
 		active: true,
 		startMonth: defaults?.startMonth ?? 1,
-		frequency: defaults?.frequency ?? 12
+		frequency: defaults?.frequency ?? 12,
+		location: ''
 	});
 }
 

@@ -12,7 +12,6 @@
 	import {
 		applyCompanyToHeader,
 		applyCompanyNameToHeader,
-		createEmptyRow,
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
@@ -158,10 +157,6 @@
 			sortField = field;
 			sortDirection = 'asc';
 		}
-	}
-
-	function addMachine() {
-		sheetRows.update((rows) => [...rows, createEmptyRow()]);
 	}
 
 	function openEquipments() {
@@ -333,8 +328,8 @@
 							<tr>
 								<td colspan={SHEET_COLUMNS.length + 1} class="sheet-empty">
 									<p>No machines recorded yet.</p>
-									<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={addMachine}>
-										Add Machine
+									<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={openEquipments}>
+										Add Equipment
 									</button>
 								</td>
 							</tr>
@@ -430,8 +425,8 @@
 						<tfoot>
 							<tr>
 								<td colspan={SHEET_COLUMNS.length + 1} class="sheet-add-row">
-									<button type="button" class="sheet-add-btn" on:click={addMachine}>
-										+ Add machine
+									<button type="button" class="sheet-add-btn" on:click={openEquipments}>
+										+ Add Equipment
 									</button>
 								</td>
 							</tr>

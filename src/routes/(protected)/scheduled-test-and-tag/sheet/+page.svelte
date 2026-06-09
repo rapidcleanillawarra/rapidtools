@@ -69,6 +69,8 @@
 			? $schedulesStore.find((s) => s.company === $sheetHeader.company)
 			: undefined;
 
+	$: isSheetLoaded = Boolean($sheetHeader.sheetId);
+
 	$: locationOptions = activeCompany
 		? activeCompany.information
 				.map((info) => info.location)
@@ -226,7 +228,10 @@
 				noScroll: true
 			});
 			await loadSheetData();
-			toastSuccess('Sheet saved successfully.', 'Saved');
+			toastSuccess(
+				isSheetLoaded ? 'Sheet updated successfully.' : 'Sheet saved successfully.',
+				isSheetLoaded ? 'Updated' : 'Saved'
+			);
 		} catch (error) {
 			console.error('Failed to save sheet:', error);
 			toastError(error instanceof Error ? error.message : 'Failed to save sheet', 'Error');
@@ -279,10 +284,17 @@
 			<button
 				type="button"
 				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				class:sheet-toolbar-btn--update={isSheetLoaded}
 				on:click={handleSave}
 				disabled={isSaving}
 			>
-				{isSaving ? 'Saving…' : 'Save Sheet'}
+				{isSaving
+					? isSheetLoaded
+						? 'Updating…'
+						: 'Saving…'
+					: isSheetLoaded
+						? 'Update Sheet'
+						: 'Save Sheet'}
 			</button>
 		</div>
 	</div>
@@ -531,6 +543,14 @@
 
 	.sheet-toolbar-btn--primary:hover {
 		background: #333;
+	}
+
+	.sheet-toolbar-btn--update {
+		color: #facc15;
+	}
+
+	.sheet-toolbar-btn--update:hover {
+		color: #fde047;
 	}
 
 	.sheet-layout {

@@ -15,6 +15,7 @@
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
+		isActiveSheetRow,
 		normalizeSheetRow,
 		parsePasteGrid,
 		processSheetPaste,
@@ -66,9 +67,11 @@
 				.sort((a, b) => a.localeCompare(b))
 		: [];
 
-	$: displayedRows = (sortField === '' ? $sheetRows : sortRows($sheetRows, sortField, sortDirection)).map(
-		normalizeSheetRow
-	);
+	$: displayedRows = (
+		sortField === '' ? $sheetRows : sortRows($sheetRows, sortField, sortDirection)
+	)
+		.filter(isActiveSheetRow)
+		.map(normalizeSheetRow);
 
 	function resolveActiveCompany() {
 		const header = get(sheetHeader);
@@ -353,7 +356,6 @@
 											{#if col.key === 'equipmentInfo'}
 												<EquipmentInfoCard
 													{row}
-													rowIndex={index}
 													{locationOptions}
 													companySelected={Boolean($sheetHeader.company)}
 													on:update={(e) => updateRow(row.id, e.detail.field, e.detail.value)}
@@ -516,7 +518,7 @@
 	.sheet-document {
 		min-width: 0;
 		background: #fff;
-		padding: 2rem 2.5rem 2.5rem;
+		padding: 0;
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 	}
 
@@ -564,7 +566,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0;
-		margin: -2rem -2.5rem 1.25rem;
+		margin: 0;
 		padding: 0;
 	}
 
@@ -753,7 +755,7 @@
 	}
 
 	.sheet-loading {
-		padding: 2rem 0;
+		padding: 1rem 0.75rem;
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
@@ -953,11 +955,11 @@
 		}
 
 		.sheet-document {
-			padding: 1.25rem 1rem 1.5rem;
+			padding: 0;
 		}
 
 		.sheet-header {
-			margin: -1.25rem -1rem 1.25rem;
+			margin: 0;
 		}
 
 		.sheet-header-main {

@@ -12,6 +12,10 @@ export function normalizeSheetRow(row: SheetRow): SheetRow {
 	return { ...row, active: row.active !== false };
 }
 
+export function isActiveSheetRow(row: SheetRow): boolean {
+	return row.active !== false;
+}
+
 export function parseServiceValues(value: string): ServiceOption[] {
 	if (!value.trim()) return [];
 

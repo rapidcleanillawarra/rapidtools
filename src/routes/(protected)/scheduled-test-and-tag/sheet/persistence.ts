@@ -70,17 +70,19 @@ export async function loadSheetRowsForCompany(
 		placements.map((placement) => [placement.rci_tag, placement])
 	);
 
-	const rows = equipments.map((equipment) => {
-		const placement = placementByRciTag.get(equipment.rci_tag);
-		const locationName = placement
-			? (locationNameMap.get(placement.location_id) ?? '')
-			: '';
-		return equipmentToSheetRow(
-			equipment,
-			linesByEquipmentId.get(equipment.id),
-			locationName
-		);
-	});
+	const rows = equipments
+		.filter((equipment) => equipment.active !== false)
+		.map((equipment) => {
+			const placement = placementByRciTag.get(equipment.rci_tag);
+			const locationName = placement
+				? (locationNameMap.get(placement.location_id) ?? '')
+				: '';
+			return equipmentToSheetRow(
+				equipment,
+				linesByEquipmentId.get(equipment.id),
+				locationName
+			);
+		});
 
 	return { header: sheetHeader, rows };
 }
@@ -133,15 +135,17 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 		equipmentIds.push({ equipmentId: equipment.id, row, sortOrder: index });
 	}
 
+	const activeEquipmentIds = equipmentIds.filter(({ row }) => row.active !== false);
+
 	return saveSheet(
 		{
 			company_id: header.companyId,
 			service_date: header.serviceDate,
 			created_by_uid: userUid,
 			created_by_email: userEmail,
-			lines: equipmentIds.map(({ equipmentId, row, sortOrder }) => ({
+			lines: activeEquipmentIds.map(({ equipmentId, row }, index) => ({
 				equipment_id: equipmentId,
-				sort_order: sortOrder,
+				sort_order: index,
 				result: row.results,
 				workshop_id: row.workshopId,
 				service: row.service,

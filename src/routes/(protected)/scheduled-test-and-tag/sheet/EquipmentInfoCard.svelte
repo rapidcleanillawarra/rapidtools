@@ -9,7 +9,6 @@
 	} from './types';
 
 	export let row: SheetRow;
-	export let rowIndex = 0;
 	export let locationOptions: string[] = [];
 	export let companySelected = false;
 
@@ -28,28 +27,17 @@
 </script>
 
 <div class="equipment-info-card">
-	<div class="equipment-info-card-top">
-		<label class="equipment-info-card-field">
-			<span class="equipment-info-card-label">Tag</span>
-			<input
-				type="text"
-				value={row.tag}
-				on:input={(e) => update('tag', (e.target as HTMLInputElement).value)}
-				on:paste={(e) => handlePaste(e, 'tag')}
-				class="equipment-info-card-input"
-				placeholder="Customer tag"
-			/>
-		</label>
-		<label class="equipment-info-card-active">
-			<input
-				type="checkbox"
-				checked={row.active !== false}
-				on:change={(e) => update('active', (e.target as HTMLInputElement).checked)}
-				aria-label="Active for equipment {rowIndex + 1}"
-			/>
-			<span class="equipment-info-card-label">Active</span>
-		</label>
-	</div>
+	<label class="equipment-info-card-field equipment-info-card-field--full">
+		<span class="equipment-info-card-label">Tag</span>
+		<input
+			type="text"
+			value={row.tag}
+			on:input={(e) => update('tag', (e.target as HTMLInputElement).value)}
+			on:paste={(e) => handlePaste(e, 'tag')}
+			class="equipment-info-card-input"
+			placeholder="Customer tag"
+		/>
+	</label>
 
 	<label class="equipment-info-card-field equipment-info-card-field--full">
 		<span class="equipment-info-card-label">Name</span>
@@ -141,13 +129,6 @@
 		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 	}
 
-	.equipment-info-card-top {
-		display: flex;
-		align-items: flex-end;
-		justify-content: space-between;
-		gap: 0.75rem;
-	}
-
 	.equipment-info-card-field {
 		display: flex;
 		flex-direction: column;
@@ -157,21 +138,6 @@
 
 	.equipment-info-card-field--full {
 		width: 100%;
-	}
-
-	.equipment-info-card-active {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		flex-shrink: 0;
-		padding-bottom: 0.125rem;
-	}
-
-	.equipment-info-card-active input[type='checkbox'] {
-		width: 1rem;
-		height: 1rem;
-		cursor: pointer;
-		accent-color: #2d6a2d;
 	}
 
 	.equipment-info-card-label {

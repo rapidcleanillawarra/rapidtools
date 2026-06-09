@@ -102,6 +102,5 @@ export const EQUIPMENT_INFO_FIELDS = [
 	'serialNumber',
 	'sku',
 	'size',
-	'active',
 	'location'
 ] as const satisfies readonly SheetRowFieldKey[];

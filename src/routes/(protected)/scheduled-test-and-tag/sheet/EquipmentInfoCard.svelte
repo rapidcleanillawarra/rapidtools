@@ -4,11 +4,13 @@
 	import {
 		MACHINE_TYPE_OPTIONS,
 		SIZE_OPTIONS,
+		type SheetFrequency,
 		type SheetRow,
 		type TextPasteColumnKey
 	} from './types';
 
 	export let row: SheetRow;
+	export let frequency: SheetFrequency | '' = '';
 	export let locationOptions: string[] = [];
 	export let companySelected = false;
 
@@ -29,6 +31,9 @@
 <div class="equipment-info-card">
 	<div class="equipment-info-card-top">
 		<span class="equipment-info-card-rci" title="RCI Tag">{row.rciTag || '—'}</span>
+		{#if frequency}
+			<span class="equipment-info-card-frequency" title="Frequency">{frequency}</span>
+		{/if}
 		<input
 			type="text"
 			value={row.tag}
@@ -132,6 +137,17 @@
 		font-weight: 600;
 		letter-spacing: 0.02em;
 		color: #1d4ed8;
+	}
+
+	.equipment-info-card-frequency {
+		flex-shrink: 0;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		color: #4b5563;
+		background: #e5e7eb;
+		border-radius: 0.25rem;
+		padding: 0.0625rem 0.375rem;
+		white-space: nowrap;
 	}
 
 	.equipment-info-card-input {

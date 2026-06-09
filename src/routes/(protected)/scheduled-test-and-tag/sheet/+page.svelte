@@ -75,6 +75,7 @@
 			: undefined;
 
 	$: isSheetLoaded = Boolean($sheetHeader.sheetId);
+	$: sheetUrlId = $page.url.searchParams.get('id') ?? '';
 
 	$: locationOptions = activeCompany
 		? activeCompany.information
@@ -177,6 +178,27 @@
 		sheetRows.set([]);
 		originalRows = [];
 		originalFrequency = '';
+
+		await goto(buildSheetPath(company.id), { replaceState: true, keepFocus: true, noScroll: true });
+		await loadSheetData();
+	}
+
+	async function createNewSheet() {
+		const company = resolveActiveCompany();
+		if (!company) {
+			toastError('Select a company before creating a new sheet.', 'Error');
+			return;
+		}
+
+		sheetHeader.update((header) => ({
+			...applyCompanyToHeader(header, company),
+			sheetId: '',
+			sheetName: defaultSheetName(),
+			serviceDate: new Date().toISOString().split('T')[0]
+		}));
+		sheetRows.set([]);
+		originalRows = [];
+		originalFrequency = get(sheetHeader).frequency;
 
 		await goto(buildSheetPath(company.id), { replaceState: true, keepFocus: true, noScroll: true });
 		await loadSheetData();
@@ -290,6 +312,16 @@
 			<button type="button" class="sheet-toolbar-btn" on:click={openEquipments}>
 				Manage Equipments
 			</button>
+			{#if sheetUrlId}
+				<button
+					type="button"
+					class="sheet-toolbar-btn"
+					on:click={createNewSheet}
+					disabled={!$sheetHeader.companyId || isTableLoading}
+				>
+					New Sheet
+				</button>
+			{/if}
 			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
 			<button
 				type="button"
@@ -393,6 +425,7 @@
 											{#if col.key === 'equipmentInfo'}
 												<EquipmentInfoCard
 													{row}
+													frequency={$sheetHeader.frequency}
 													{locationOptions}
 													companySelected={Boolean($sheetHeader.company)}
 													on:update={(e) => updateRow(row.id, e.detail.field, e.detail.value)}

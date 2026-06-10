@@ -1,5 +1,5 @@
 import { supabase } from '$lib/supabase';
-import type { SheetLineRow, SheetRow, SheetRowPartRow } from './types';
+import type { SheetEquipmentInfo, SheetLineRow, SheetRow, SheetRowPartRow } from './types';
 
 const SHEETS_TABLE = 'machine_inspection_sheets';
 const SHEET_ROWS_TABLE = 'machine_inspection_sheet_rows';
@@ -12,7 +12,7 @@ export type SheetLinePartInput = {
 
 export type SheetLineInput = {
 	equipment_id: string;
-	sort_order: number;
+	equipment_info: SheetEquipmentInfo;
 	result: string;
 	workshop_id: string;
 	service: string;
@@ -105,7 +105,7 @@ export async function getSheetById(sheetId: string): Promise<{
 		.from(SHEET_ROWS_TABLE)
 		.select(SHEET_LINE_SELECT)
 		.eq('sheet_id', sheetId)
-		.order('sort_order', { ascending: true })
+		.order('created_at', { ascending: true })
 		.order('sort_order', { ascending: true, foreignTable: 'machine_inspection_sheet_row_parts' });
 
 	if (linesError) {
@@ -177,7 +177,7 @@ export async function saveSheet(input: SaveSheetInput, existingSheetId?: string)
 				input.lines.map((line) => ({
 					sheet_id: sheetId,
 					equipment_id: line.equipment_id,
-					sort_order: line.sort_order,
+					equipment_info: line.equipment_info,
 					result: line.result,
 					workshop_id: line.workshop_id,
 					service: line.service,

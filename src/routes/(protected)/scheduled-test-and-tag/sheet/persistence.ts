@@ -7,7 +7,12 @@ import {
 	type EquipmentInput
 } from '../services/equipments';
 import { getSheetById, saveSheet } from '../services/sheets';
-import type { EquipmentPlacementRow, EquipmentRow, SheetLineRow } from '../services/types';
+import type {
+	EquipmentPlacementRow,
+	EquipmentRow,
+	SheetEquipmentInfo,
+	SheetLineRow
+} from '../services/types';
 import type { Schedule } from '../stores';
 import type { SheetHeader, SheetRow } from './types';
 import {
@@ -19,22 +24,59 @@ import {
 	parseParts
 } from './utils';
 
+export function sheetRowToEquipmentInfo(row: SheetRow): SheetEquipmentInfo {
+	return {
+		tag: row.tag,
+		machines: row.machines,
+		typeOfMachine: row.typeOfMachine,
+		serialNumber: row.serialNumber,
+		sku: row.sku,
+		size: row.size,
+		location: row.location
+	};
+}
+
+function equipmentInfoFromLine(
+	line: SheetLineRow | undefined,
+	equipment: EquipmentRow,
+	locationName: string
+): Pick<SheetRow, 'tag' | 'machines' | 'typeOfMachine' | 'serialNumber' | 'sku' | 'size' | 'location'> {
+	const info = line?.equipment_info;
+	if (!info || Object.keys(info).length === 0) {
+		return {
+			tag: equipment.customer_tag,
+			machines: equipment.equipment_name,
+			typeOfMachine: equipment.equipment_type,
+			serialNumber: equipment.serial_number,
+			sku: equipment.sku,
+			size: equipment.size,
+			location: locationName
+		};
+	}
+
+	return {
+		tag: info.tag ?? equipment.customer_tag,
+		machines: info.machines ?? equipment.equipment_name,
+		typeOfMachine: info.typeOfMachine ?? equipment.equipment_type,
+		serialNumber: info.serialNumber ?? equipment.serial_number,
+		sku: info.sku ?? equipment.sku,
+		size: info.size ?? equipment.size,
+		location: info.location ?? locationName
+	};
+}
+
 export function equipmentToSheetRow(
 	equipment: EquipmentRow,
 	line?: SheetLineRow,
 	locationName = ''
 ): SheetRow {
+	const equipmentInfo = equipmentInfoFromLine(line, equipment, locationName);
+
 	return {
 		id: equipment.id,
 		rciTag: equipment.rci_tag,
-		tag: equipment.customer_tag,
-		machines: equipment.equipment_name,
-		typeOfMachine: equipment.equipment_type,
-		serialNumber: equipment.serial_number,
-		sku: equipment.sku,
-		size: equipment.size,
+		...equipmentInfo,
 		active: equipment.active,
-		location: locationName,
 		results: line?.result ?? '',
 		workshopId: line?.workshop_id ?? '',
 		service: normalizeServiceValue(line?.service ?? ''),
@@ -221,14 +263,14 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 			service_date: header.serviceDate,
 			created_by_uid: userUid,
 			created_by_email: userEmail,
-			lines: activeRows.map((row, index) => {
+			lines: activeRows.map((row) => {
 				const equipmentId = equipmentIdByRowId.get(row.id);
 				if (!equipmentId) {
 					throw new Error(`Failed to resolve equipment for row "${row.machines || row.id}".`);
 				}
 				return {
 					equipment_id: equipmentId,
-					sort_order: index,
+					equipment_info: sheetRowToEquipmentInfo(row),
 					result: row.results,
 					workshop_id: row.workshopId,
 					service: normalizeServiceValue(row.service),

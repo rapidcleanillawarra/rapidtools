@@ -148,11 +148,21 @@ export type SheetRowPartRow = {
 	updated_at: string;
 };
 
+export type SheetEquipmentInfo = {
+	tag: string;
+	machines: string;
+	typeOfMachine: string;
+	serialNumber: string;
+	sku: string;
+	size: string;
+	location: string;
+};
+
 export type SheetLineRow = {
 	id: string;
 	sheet_id: string;
 	equipment_id: string;
-	sort_order: number;
+	equipment_info: SheetEquipmentInfo;
 	result: string;
 	workshop_id: string;
 	service: string;

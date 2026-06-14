@@ -92,7 +92,7 @@ export function equipmentToSheetRow(
 export async function loadSheetRowsForCompany(
 	company: Schedule,
 	sheetId?: string
-): Promise<{ header: Partial<SheetHeader>; rows: SheetRow[] }> {
+): Promise<{ header: Partial<SheetHeader>; rows: SheetRow[]; inactiveRows: SheetRow[] }> {
 	const [equipments, placements, locationNameMap] = await Promise.all([
 		loadEquipmentsByCompany(company.id),
 		loadPlacementsByCompany(company.id),
@@ -125,21 +125,31 @@ export async function loadSheetRowsForCompany(
 		placements.map((placement) => [placement.rci_tag, placement])
 	);
 
-	const rows = equipments
-		.filter((equipment) => equipment.active !== false)
-		.map((equipment) => {
-			const placement = placementByRciTag.get(equipment.rci_tag);
-			const locationName = placement
-				? (locationNameMap.get(placement.location_id) ?? '')
-				: '';
-			return equipmentToSheetRow(
-				equipment,
-				linesByEquipmentId.get(equipment.id),
-				locationName
-			);
-		});
+	const rows: SheetRow[] = [];
+	const inactiveRows: SheetRow[] = [];
 
-	return { header: sheetHeader, rows };
+	for (const equipment of equipments) {
+		const placement = placementByRciTag.get(equipment.rci_tag);
+		const locationName = placement ? (locationNameMap.get(placement.location_id) ?? '') : '';
+		const row = equipmentToSheetRow(
+			equipment,
+			linesByEquipmentId.get(equipment.id),
+			locationName
+		);
+
+		if (equipment.active !== false) {
+			rows.push(row);
+			continue;
+		}
+
+		if (linesByEquipmentId.has(equipment.id)) {
+			rows.push({ ...row, active: false, onSheet: true });
+		} else {
+			inactiveRows.push({ ...row, active: false });
+		}
+	}
+
+	return { header: sheetHeader, rows, inactiveRows };
 }
 
 export type SaveSheetContext = {
@@ -254,8 +264,6 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 
 	await Promise.all([upsertEquipmentsTask(), upsertPlacementsTask()]);
 
-	const activeRows = rows.filter((row) => row.active !== false);
-
 	return saveSheet(
 		{
 			company_id: companyId,
@@ -263,7 +271,7 @@ export async function persistSheet(context: SaveSheetContext): Promise<string> {
 			service_date: header.serviceDate,
 			created_by_uid: userUid,
 			created_by_email: userEmail,
-			lines: activeRows.map((row) => {
+			lines: rows.map((row) => {
 				const equipmentId = equipmentIdByRowId.get(row.id);
 				if (!equipmentId) {
 					throw new Error(`Failed to resolve equipment for row "${row.machines || row.id}".`);

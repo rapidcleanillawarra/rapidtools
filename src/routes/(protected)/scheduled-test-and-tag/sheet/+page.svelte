@@ -8,7 +8,7 @@
 	import { schedulesStore, type Schedule } from '../stores';
 	import { getCompanyById, loadCompanies } from '../companies/utils';
 	import CompanyCombobox from '../CompanyCombobox.svelte';
-	import { sheetHeader, sheetRows, isLoading } from './stores';
+	import { sheetHeader, sheetRows, inactiveSheetRows, isLoading } from './stores';
 	import { findSheetForCurrentMonth, type SheetSummary } from '../services/sheets';
 	import { loadSheetRowsForCompany, persistSheet } from './persistence';
 	import {
@@ -18,7 +18,7 @@
 		getClipboardText,
 		getPasteToastMessage,
 		getSortIcon,
-		isActiveSheetRow,
+		isDisplayedSheetRow,
 		normalizeSheetRow,
 		parsePasteGrid,
 		processSheetPaste,
@@ -93,8 +93,12 @@
 	$: displayedRows = (
 		sortField === '' ? $sheetRows : sortRows($sheetRows, sortField, sortDirection)
 	)
-		.filter(isActiveSheetRow)
+		.filter(isDisplayedSheetRow)
 		.map(normalizeSheetRow);
+
+	$: sidebarInactiveRows = [...$inactiveSheetRows].sort((a, b) =>
+		(a.machines || a.tag || a.rciTag).localeCompare(b.machines || b.tag || b.rciTag)
+	);
 
 	function resolveActiveCompany() {
 		const header = get(sheetHeader);
@@ -113,7 +117,7 @@
 			isTableLoading = true;
 			const header = get(sheetHeader);
 			const sheetId = get(page).url.searchParams.get('id') ?? header.sheetId;
-			const { header: loadedHeader, rows } = await loadSheetRowsForCompany(
+			const { header: loadedHeader, rows, inactiveRows } = await loadSheetRowsForCompany(
 				company,
 				sheetId ?? undefined
 			);
@@ -126,6 +130,7 @@
 				sheetName: loadedHeader.sheetName ?? (current.sheetName || defaultSheetName())
 			}));
 			sheetRows.set(rows);
+			inactiveSheetRows.set(inactiveRows);
 			originalRows = rows.map((row) => ({ ...row }));
 			originalFrequency = get(sheetHeader).frequency;
 		} catch (error) {
@@ -231,6 +236,7 @@
 			sheetName: defaultSheetName()
 		}));
 		sheetRows.set([]);
+		inactiveSheetRows.set([]);
 		originalRows = [];
 		originalFrequency = '';
 
@@ -253,6 +259,7 @@
 			serviceDate: new Date().toISOString().split('T')[0]
 		}));
 		sheetRows.set([]);
+		inactiveSheetRows.set([]);
 		originalRows = [];
 		originalFrequency = get(sheetHeader).frequency;
 
@@ -283,7 +290,19 @@
 	}
 
 	function removeMachine(id: string) {
-		sheetRows.update((rows) => rows.filter((row) => row.id !== id));
+		const row = get(sheetRows).find((item) => item.id === id);
+		if (row && row.active === false && row.onSheet) {
+			sheetRows.update((rows) => rows.filter((item) => item.id !== id));
+			inactiveSheetRows.update((rows) => [...rows, { ...row, onSheet: undefined }]);
+			return;
+		}
+
+		sheetRows.update((rows) => rows.filter((item) => item.id !== id));
+	}
+
+	function restoreInactiveEquipment(row: SheetRow) {
+		inactiveSheetRows.update((rows) => rows.filter((item) => item.id !== row.id));
+		sheetRows.update((rows) => [...rows, { ...row, active: false, onSheet: true }]);
 	}
 
 	function updateRow(id: string, field: SheetRowFieldKey, value: string | boolean) {
@@ -620,6 +639,38 @@
 					{/each}
 				</select>
 			</label>
+
+			<div class="sheet-sidebar-inactive no-print">
+				<span class="sheet-sidebar-label">Inactive equipment</span>
+				{#if isTableLoading}
+					<p class="sheet-sidebar-inactive-empty">Loading…</p>
+				{:else if sidebarInactiveRows.length === 0}
+					<p class="sheet-sidebar-inactive-empty">None</p>
+				{:else}
+					<ul class="sheet-sidebar-inactive-list">
+						{#each sidebarInactiveRows as row (row.id)}
+							<li class="sheet-sidebar-inactive-item">
+								<div class="sheet-sidebar-inactive-info">
+									<span class="sheet-sidebar-inactive-name" title={row.machines || row.tag}>
+										{row.machines || row.tag || 'Unnamed'}
+									</span>
+									{#if row.tag && row.machines}
+										<span class="sheet-sidebar-inactive-tag">{row.tag}</span>
+									{/if}
+								</div>
+								<button
+									type="button"
+									class="sheet-sidebar-restore-btn"
+									title="Add back to sheet"
+									on:click={() => restoreInactiveEquipment(row)}
+								>
+									+
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</div>
 		</aside>
 	</div>
 </div>
@@ -713,7 +764,7 @@
 		max-width: 80rem;
 		margin: 0 auto;
 		display: grid;
-		grid-template-columns: minmax(0, 1fr) 9rem;
+		grid-template-columns: minmax(0, 1fr) 14rem;
 		gap: 1rem;
 		align-items: start;
 	}
@@ -729,6 +780,9 @@
 		background: #fff;
 		padding: 1rem 0.75rem;
 		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
 	}
 
 	.sheet-sidebar-field {
@@ -763,6 +817,87 @@
 	.sheet-sidebar-input:focus {
 		outline: none;
 		border-bottom-color: #111;
+	}
+
+	.sheet-sidebar-inactive {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		border-top: 1px solid #e5e7eb;
+		padding-top: 1rem;
+	}
+
+	.sheet-sidebar-inactive-empty {
+		margin: 0;
+		font-size: 0.8125rem;
+		color: #9ca3af;
+	}
+
+	.sheet-sidebar-inactive-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+		max-height: 24rem;
+		overflow-y: auto;
+	}
+
+	.sheet-sidebar-inactive-item {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.375rem;
+		padding: 0.375rem 0;
+		border-bottom: 1px solid #f3f4f6;
+	}
+
+	.sheet-sidebar-inactive-item:last-child {
+		border-bottom: none;
+	}
+
+	.sheet-sidebar-inactive-info {
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.sheet-sidebar-inactive-name {
+		font-size: 0.8125rem;
+		color: #374151;
+		line-height: 1.3;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+
+	.sheet-sidebar-inactive-tag {
+		font-size: 0.6875rem;
+		color: #9ca3af;
+	}
+
+	.sheet-sidebar-restore-btn {
+		flex-shrink: 0;
+		border: 1px solid #d1d5db;
+		background: #fff;
+		color: #374151;
+		border-radius: 0.25rem;
+		width: 1.5rem;
+		height: 1.5rem;
+		font-size: 1rem;
+		line-height: 1;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.sheet-sidebar-restore-btn:hover {
+		background: #f3f4f6;
+		border-color: #9ca3af;
+		color: #111;
 	}
 
 	.sheet-header {

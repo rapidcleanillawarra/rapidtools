@@ -16,6 +16,11 @@ export function isActiveSheetRow(row: SheetRow): boolean {
 	return row.active !== false;
 }
 
+/** Shown on the main sheet table (active equipment, or inactive equipment restored for this sheet). */
+export function isDisplayedSheetRow(row: SheetRow): boolean {
+	return row.active !== false || row.onSheet === true;
+}
+
 export function parseServiceValues(value: string): ServiceOption[] {
 	if (!value.trim()) return [];
 

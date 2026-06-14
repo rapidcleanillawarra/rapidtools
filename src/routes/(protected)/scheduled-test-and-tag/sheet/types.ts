@@ -20,6 +20,8 @@ export type SheetRow = {
 	sku: string;
 	size: string;
 	active: boolean;
+	/** Included on this sheet while equipment remains inactive in the registry. */
+	onSheet?: boolean;
 	location: string;
 	results: string;
 	workshopId: string;

@@ -96,9 +96,11 @@
 		.filter(isDisplayedSheetRow)
 		.map(normalizeSheetRow);
 
-	$: sidebarInactiveRows = [...$inactiveSheetRows].sort((a, b) =>
-		(a.machines || a.tag || a.rciTag).localeCompare(b.machines || b.tag || b.rciTag)
-	);
+	$: sidebarInactiveRows = [...$inactiveSheetRows]
+		.filter((row) => !$sheetRows.some((sheetRow) => sheetRow.id === row.id && isDisplayedSheetRow(sheetRow)))
+		.sort((a, b) =>
+			(a.machines || a.tag || a.rciTag).localeCompare(b.machines || b.tag || b.rciTag)
+		);
 
 	function resolveActiveCompany() {
 		const header = get(sheetHeader);
@@ -109,17 +111,18 @@
 				: undefined;
 	}
 
-	async function loadSheetData() {
+	async function loadSheetData(explicitSheetId?: string) {
 		const company = resolveActiveCompany();
 		if (!company) return;
 
 		try {
 			isTableLoading = true;
 			const header = get(sheetHeader);
-			const sheetId = get(page).url.searchParams.get('id') ?? header.sheetId;
+			const sheetId =
+				explicitSheetId ?? get(page).url.searchParams.get('id') ?? header.sheetId ?? undefined;
 			const { header: loadedHeader, rows, inactiveRows } = await loadSheetRowsForCompany(
 				company,
-				sheetId ?? undefined
+				sheetId || undefined
 			);
 
 			sheetHeader.update((current) => ({
@@ -179,7 +182,7 @@
 			keepFocus: true,
 			noScroll: true
 		});
-		await loadSheetData();
+		await loadSheetData(sheetId);
 	}
 
 	async function continueWithNewSheet() {
@@ -297,7 +300,7 @@
 
 		inactiveSheetRows.update((rows) => {
 			if (rows.some((item) => item.id === id)) return rows;
-			return [...rows, { ...row, onSheet: undefined }];
+			return [...rows, { ...row, onSheet: false }];
 		});
 	}
 
@@ -337,7 +340,7 @@
 				keepFocus: true,
 				noScroll: true
 			});
-			await loadSheetData();
+			await loadSheetData(sheetId);
 			toastSuccess(
 				isSheetLoaded ? 'Sheet updated successfully.' : 'Sheet saved successfully.',
 				isSheetLoaded ? 'Updated' : 'Saved'

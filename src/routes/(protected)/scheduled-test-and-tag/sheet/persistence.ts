@@ -127,29 +127,46 @@ export async function loadSheetRowsForCompany(
 
 	const rows: SheetRow[] = [];
 	const inactiveRows: SheetRow[] = [];
+	const equipmentById = new Map(equipments.map((equipment) => [equipment.id, equipment]));
 
 	for (const equipment of equipments) {
 		const placement = placementByRciTag.get(equipment.rci_tag);
 		const locationName = placement ? (locationNameMap.get(placement.location_id) ?? '') : '';
-		const row = equipmentToSheetRow(
-			equipment,
-			linesByEquipmentId.get(equipment.id),
-			locationName
-		);
+		const savedLine = linesByEquipmentId.get(equipment.id);
+		const row = equipmentToSheetRow(equipment, savedLine, locationName);
+		const onSavedSheet = linesByEquipmentId.has(equipment.id);
 
-		if (equipment.active !== false) {
-			rows.push(row);
-			continue;
-		}
-
-		if (linesByEquipmentId.has(equipment.id)) {
-			rows.push({ ...row, active: false, onSheet: true });
+		if (equipment.active !== false || onSavedSheet) {
+			rows.push(
+				equipment.active === false ? { ...row, active: false, onSheet: true } : row
+			);
 		} else {
 			inactiveRows.push({ ...row, active: false });
 		}
 	}
 
-	return { header: sheetHeader, rows, inactiveRows };
+	// Ensure every saved line is on the table even if the equipment record was missed above.
+	for (const [equipmentId, line] of linesByEquipmentId) {
+		if (rows.some((row) => row.id === equipmentId)) continue;
+
+		const equipment = equipmentById.get(equipmentId);
+		if (!equipment) continue;
+
+		const placement = placementByRciTag.get(equipment.rci_tag);
+		const locationName = placement ? (locationNameMap.get(placement.location_id) ?? '') : '';
+		const row = equipmentToSheetRow(equipment, line, locationName);
+
+		rows.push(
+			equipment.active === false ? { ...row, active: false, onSheet: true } : row
+		);
+	}
+
+	const rowIds = new Set(rows.map((row) => row.id));
+	const sidebarInactiveRows = inactiveRows.filter(
+		(row) => !rowIds.has(row.id) && !linesByEquipmentId.has(row.id)
+	);
+
+	return { header: sheetHeader, rows, inactiveRows: sidebarInactiveRows };
 }
 
 export type SaveSheetContext = {

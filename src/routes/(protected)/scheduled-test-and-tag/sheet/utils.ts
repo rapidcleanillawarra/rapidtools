@@ -9,15 +9,19 @@ import type { Schedule } from '../stores';
 
 /** Active is checked unless explicitly set to false. */
 export function normalizeSheetRow(row: SheetRow): SheetRow {
-	return { ...row, active: row.active !== false };
+	return {
+		...row,
+		active: row.active === false ? false : row.active !== false
+	};
 }
 
 export function isActiveSheetRow(row: SheetRow): boolean {
 	return row.active !== false;
 }
 
-/** Shown on the main sheet table (active equipment, or inactive equipment restored for this sheet). */
+/** Shown on the main sheet table (active equipment, or inactive equipment on this saved sheet). */
 export function isDisplayedSheetRow(row: SheetRow): boolean {
+	if (row.onSheet === false) return false;
 	return row.active !== false || row.onSheet === true;
 }
 

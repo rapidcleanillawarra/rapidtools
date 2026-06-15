@@ -26,11 +26,18 @@
 	function handlePaste(event: ClipboardEvent, field: TextPasteColumnKey) {
 		dispatch('paste', { event, field });
 	}
+
+	$: isRegistryInactive = row.active === false;
 </script>
 
-<div class="equipment-info-card">
+<div class="equipment-info-card" class:equipment-info-card--inactive={isRegistryInactive}>
 	<div class="equipment-info-card-top">
 		<span class="equipment-info-card-rci" title="RCI Tag">{row.rciTag || '—'}</span>
+		{#if isRegistryInactive}
+			<span class="equipment-info-card-inactive-badge" title="Inactive in equipment registry">
+				Inactive
+			</span>
+		{/if}
 		{#if frequency}
 			<span class="equipment-info-card-frequency" title="Frequency">{frequency}</span>
 		{/if}
@@ -137,6 +144,25 @@
 		font-weight: 600;
 		letter-spacing: 0.02em;
 		color: #1d4ed8;
+	}
+
+	.equipment-info-card--inactive {
+		border-color: #d1d5db;
+		background: #f3f4f6;
+	}
+
+	.equipment-info-card-inactive-badge {
+		flex-shrink: 0;
+		font-size: 0.625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #92400e;
+		background: #fef3c7;
+		border: 1px solid #fcd34d;
+		border-radius: 0.25rem;
+		padding: 0.0625rem 0.375rem;
+		white-space: nowrap;
 	}
 
 	.equipment-info-card-frequency {

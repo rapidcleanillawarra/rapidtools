@@ -531,7 +531,7 @@
 							</tr>
 						{:else}
 							{#each displayedRows as row, index (row.id)}
-								<tr>
+								<tr class:sheet-row--inactive={row.active === false}>
 									<td class="sheet-row-num-col">{index + 1}</td>
 									{#each SHEET_COLUMNS as col (col.key)}
 										<td
@@ -654,9 +654,14 @@
 						{#each sidebarInactiveRows as row (row.id)}
 							<li class="sheet-sidebar-inactive-item">
 								<div class="sheet-sidebar-inactive-info">
-									<span class="sheet-sidebar-inactive-name" title={row.machines || row.tag}>
-										{row.machines || row.tag || 'Unnamed'}
-									</span>
+									<div class="sheet-sidebar-inactive-name-row">
+										<span class="sheet-sidebar-inactive-name" title={row.machines || row.tag}>
+											{row.machines || row.tag || 'Unnamed'}
+										</span>
+										{#if row.active === false}
+											<span class="sheet-sidebar-inactive-badge">Inactive</span>
+										{/if}
+									</div>
 									{#if row.tag && row.machines}
 										<span class="sheet-sidebar-inactive-tag">{row.tag}</span>
 									{/if}
@@ -865,6 +870,27 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.125rem;
+	}
+
+	.sheet-sidebar-inactive-name-row {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.25rem;
+		min-width: 0;
+	}
+
+	.sheet-sidebar-inactive-badge {
+		flex-shrink: 0;
+		font-size: 0.5625rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: #92400e;
+		background: #fef3c7;
+		border: 1px solid #fcd34d;
+		border-radius: 0.25rem;
+		padding: 0.0625rem 0.25rem;
+		line-height: 1.2;
 	}
 
 	.sheet-sidebar-inactive-name {
@@ -1148,6 +1174,10 @@
 
 	.sheet-table tbody tr {
 		border-bottom: 2px solid #111;
+	}
+
+	.sheet-row--inactive {
+		background: #fafafa;
 	}
 
 	.sheet-table tbody tr:last-child {

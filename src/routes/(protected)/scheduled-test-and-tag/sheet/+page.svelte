@@ -291,18 +291,21 @@
 
 	function removeMachine(id: string) {
 		const row = get(sheetRows).find((item) => item.id === id);
-		if (row && row.active === false && row.onSheet) {
-			sheetRows.update((rows) => rows.filter((item) => item.id !== id));
-			inactiveSheetRows.update((rows) => [...rows, { ...row, onSheet: undefined }]);
-			return;
-		}
+		if (!row) return;
 
 		sheetRows.update((rows) => rows.filter((item) => item.id !== id));
+
+		inactiveSheetRows.update((rows) => {
+			if (rows.some((item) => item.id === id)) return rows;
+			return [...rows, { ...row, onSheet: undefined }];
+		});
 	}
 
 	function restoreInactiveEquipment(row: SheetRow) {
 		inactiveSheetRows.update((rows) => rows.filter((item) => item.id !== row.id));
-		sheetRows.update((rows) => [...rows, { ...row, active: false, onSheet: true }]);
+		const restored =
+			row.active === false ? { ...row, active: false, onSheet: true } : { ...row };
+		sheetRows.update((rows) => [...rows, restored]);
 	}
 
 	function updateRow(id: string, field: SheetRowFieldKey, value: string | boolean) {

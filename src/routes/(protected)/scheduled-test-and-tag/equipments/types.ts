@@ -22,6 +22,8 @@ export const MACHINE_TYPE_OPTIONS = [
 	'Floor Scrubber',
 	'Pressure Washer',
 	'Carpet Extractors',
+	'Polisher',
+	'Vacuums',
 	'Other'
 ] as const;
 

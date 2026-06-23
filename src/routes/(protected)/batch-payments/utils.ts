@@ -10,7 +10,8 @@ export function createEmptyPayment(): BatchPayment {
 		paymentMode: 'Direct Deposit',
 		isOverCredit: false,
 		creditError: '',
-		balance: 0
+		balance: 0,
+		orderStatus: ''
 	};
 }
 

@@ -18,6 +18,7 @@
 	<thead>
 		<tr>
 			<th class="py-2 w-1/3">Invoice ID</th>
+			<th class="py-2 w-1/6">Order Status</th>
 			<th class="py-2 w-1/3">Payment</th>
 			<th class="py-2 w-1/6">
 				<div class="flex items-center justify-between px-2">
@@ -61,6 +62,9 @@
 					{#if payment.isOverCredit}
 						<div class="text-xs text-red-600 mt-1">{payment.creditError}</div>
 					{/if}
+				</td>
+				<td class="border px-4 py-2 text-sm text-gray-700">
+					{payment.orderStatus || '—'}
 				</td>
 				<td class="border px-4 py-2">
 					<input

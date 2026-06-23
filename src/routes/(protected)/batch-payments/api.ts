@@ -14,7 +14,7 @@ import type { ApiPaymentResult, BatchPayment, PaymentSession, SessionRow } from 
 import { getSessionTotalAmount, hasValidPayments } from './utils';
 
 const GENERAL_API_ENDPOINT =
-	'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+	'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
 export async function postToGeneralApi(payload: Record<string, unknown>) {
 	const response = await fetch(GENERAL_API_ENDPOINT, {
@@ -49,7 +49,7 @@ export async function fetchOrderDetails(invoiceIds: string[]) {
 	const payload = {
 		Filter: {
 			OrderID: invoiceIds,
-			OutputSelector: ['Username', 'GrandTotal', 'OrderPayment', 'ID']
+			OutputSelector: ['Username', 'GrandTotal', 'OrderPayment', 'ID', 'OrderStatus']
 		},
 		action: 'GetOrder'
 	};
@@ -197,6 +197,7 @@ export async function calculateBalancesFromOrders(
 	if (!orders) return payments;
 
 	const balanceMap = new Map<string, number>();
+	const orderStatusMap = new Map<string, string>();
 
 	for (const order of orders) {
 		const grandTotal = parseFloat(order.GrandTotal) || 0;
@@ -207,13 +208,15 @@ export async function calculateBalancesFromOrders(
 		);
 
 		balanceMap.set(order.ID, grandTotal - totalPaid);
+		orderStatusMap.set(order.ID, order.OrderStatus ?? '');
 	}
 
 	return payments.map((payment) => {
 		if (payment.reference && balanceMap.has(payment.reference)) {
 			return {
 				...payment,
-				balance: balanceMap.get(payment.reference) || 0
+				balance: balanceMap.get(payment.reference) || 0,
+				orderStatus: orderStatusMap.get(payment.reference) || ''
 			};
 		}
 		return payment;

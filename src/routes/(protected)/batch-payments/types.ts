@@ -6,6 +6,7 @@ export interface BatchPayment {
 	isOverCredit?: boolean;
 	creditError?: string;
 	balance?: number;
+	orderStatus?: string;
 }
 
 export interface SessionPayment {

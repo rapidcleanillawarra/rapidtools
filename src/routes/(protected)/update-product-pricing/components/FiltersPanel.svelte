@@ -78,7 +78,7 @@
               items={$brands}
               bind:value={$brandFilter}
               placeholder="Select Brand"
-              clearable={false}
+              clearable={true}
             />
           {/if}
         </div>
@@ -94,7 +94,7 @@
               items={$suppliers}
               bind:value={$supplierFilter}
               placeholder="Select Supplier"
-              clearable={false}
+              clearable={true}
             />
           {/if}
         </div>

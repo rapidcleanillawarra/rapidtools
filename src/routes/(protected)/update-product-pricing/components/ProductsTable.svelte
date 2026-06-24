@@ -66,6 +66,8 @@
     { key: 'select', label: '', minWidth: 50, width: 50 },
     { key: 'img', label: 'IMG', minWidth: 60, width: 60 },
     { key: 'sku', label: 'SKU', minWidth: 100, width: 120 },
+    { key: 'brand', label: 'Brand', minWidth: 90, width: 110 },
+    { key: 'supplier', label: 'Supplier', minWidth: 90, width: 110 },
     { key: 'product_name', label: 'Product Name', minWidth: 150, width: 200 },
     { key: 'last_price', label: 'Last Price', minWidth: 80, width: 100 },
     { key: 'price_info', label: 'Current Price', minWidth: 80, width: 100 },
@@ -311,6 +313,20 @@
                 >
                   {col.label} {getSortIcon('sku')}
                 </div>
+              {:else if col.key === 'brand'}
+                <div
+                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
+                  on:click={() => onSortClick('brand')}
+                >
+                  {col.label} {getSortIcon('brand')}
+                </div>
+              {:else if col.key === 'supplier'}
+                <div
+                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
+                  on:click={() => onSortClick('primary_supplier')}
+                >
+                  {col.label} {getSortIcon('primary_supplier')}
+                </div>
               {:else if col.key === 'product_name'}
                 <div
                   class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
@@ -412,7 +428,7 @@
       <tbody class="bg-white divide-y divide-gray-200">
         {#if productsLength === 0}
           <tr>
-            <td colspan="16" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="18" class="px-2 py-8 text-center text-gray-500">
               No products found
             </td>
           </tr>
@@ -466,6 +482,10 @@
                     >
                       {product.sku}
                     </a>
+                  {:else if col.key === 'brand'}
+                    {product.brand || '—'}
+                  {:else if col.key === 'supplier'}
+                    {product.primary_supplier || '—'}
                   {:else if col.key === 'product_name'}
                     {product.product_name}
                   {:else if col.key === 'last_price'}

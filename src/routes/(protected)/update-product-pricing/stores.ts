@@ -1031,6 +1031,7 @@ export async function handleFilterSubmit(filters: {
         SKU: payload.sku || '',
         Name: payload.productName || '',
         Brand: payload.brand || '',
+        PrimarySupplier: payload.supplier || '',
         IsActive: true,
         Page: 0,
         Limit: 100,
@@ -1052,6 +1053,13 @@ export async function handleFilterSubmit(filters: {
       },
       "action": "GetItem"
     };
+
+    console.log('[update-product-pricing] handleFilterSubmit payload', {
+      supplierFilter: filters.supplierFilter,
+      internalPayload: payload,
+      apiPayload: payloadForAPI,
+      apiPayloadJson: JSON.stringify(payloadForAPI, null, 2)
+    });
 
     // Make API call with filter payload
     const response = await fetch(filterProductsUrl, {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { normalizeSkuKey } from '../stores';
+  import { normalizeSkuKey, type PricingEditSource } from '../stores';
 
   export let loading: boolean;
   export let productsLength: number;
@@ -20,7 +20,7 @@
   export let onUpdateProductPricingBySku: (
     sku: string,
     patch: Record<string, unknown>,
-    source?: 'markup' | 'price'
+    source: PricingEditSource
   ) => void;
   export let onSortClick: (field: string) => void;
 
@@ -72,7 +72,7 @@
     { key: 'purchase_price', label: 'Purchase Price', minWidth: 100, width: 120 },
     { key: 'markup', label: 'Markup', minWidth: 100, width: 120 },
     { key: 'rrp', label: 'List Price', minWidth: 100, width: 120 },
-    { key: 'plus_gst', label: '+GST', minWidth: 90, width: 110 },
+    { key: 'plus_gst', label: 'RRP', minWidth: 90, width: 110 },
     { key: 'gpp', label: 'GPP', minWidth: 72, width: 88 },
     { key: 'difference', label: 'Difference', minWidth: 80, width: 100 },
     { key: 'remove_pricegroups', label: 'Remove PriceGroups', minWidth: 120, width: 140 },
@@ -202,11 +202,18 @@
     return n.toFixed(2).replace(/\.?0+$/, '');
   }
 
-  /** List price (RRP) + 10% GST */
-  function listPricePlusGst(listPrice: unknown): string | null {
+  /** List price (ex-GST) + 10% GST */
+  function gstInclusivePrice(listPrice: unknown): number | null {
     const n = toNumber(listPrice);
     if (n === null) return null;
-    return formatMoney(round2(n * 1.1));
+    return round2(n * 1.1);
+  }
+
+  /** Prefer the exact GST-inclusive value the user entered in the RRP column. */
+  function displayGstInclusiveRrp(product: { rrp?: unknown; rrp_gst_inclusive?: unknown }): number | null {
+    const stored = toNumber(product?.rrp_gst_inclusive);
+    if (stored !== null) return stored;
+    return gstInclusivePrice(product?.rrp);
   }
 
   function moneyDelta(current: unknown, original: unknown): { txt: string; cls: string } | null {
@@ -416,7 +423,7 @@
             {@const currentDiff = (toNumber(product.rrp) ?? 0) - (toNumber(product.purchase_price) ?? 0)}
             {@const originalDiff = (toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0)}
             {@const diffDelta = currentDiff - originalDiff}
-            {@const gstPlusVal = listPricePlusGst(product.rrp)}
+            {@const gstPlusVal = displayGstInclusiveRrp(product)}
             <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
               {#each columnDefs as col, i}
                 <td
@@ -519,7 +526,7 @@
                       type="number"
                       value={product.purchase_price}
                       on:blur={(e) =>
-                        onUpdateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'markup')}
+                        onUpdateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'purchase_price')}
                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
                       step="0.01"
                     />
@@ -557,7 +564,7 @@
                     <input
                       type="number"
                       value={product.rrp}
-                      on:blur={(e) => onUpdateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'price')}
+                      on:blur={(e) => onUpdateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'rrp')}
                       class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
                       step="0.01"
                     />
@@ -566,10 +573,26 @@
                       <div class={`field_number_changes mt-0.5 text-[10px] ${rrpDelta.cls}`}>{rrpDelta.txt || '$0'}</div>
                     {/if}
                   {:else if col.key === 'plus_gst'}
-                    {#if gstPlusVal !== null}
-                      <span class="font-medium text-gray-900">${gstPlusVal}</span>
-                    {:else}
-                      <span class="text-gray-400">—</span>
+                    <input
+                      type="number"
+                      value={gstPlusVal ?? ''}
+                      on:blur={(e) => {
+                        const gstInc = onNumberInput(e);
+                        onUpdateProductPricingBySku(
+                          product.sku,
+                          { rrp_gst_inclusive: gstInc },
+                          'rrp_gst_inclusive'
+                        );
+                      }}
+                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
+                      step="0.01"
+                    />
+                    {#if true}
+                      {@const gstDelta = moneyDeltaAlways(
+                        displayGstInclusiveRrp(product),
+                        gstInclusivePrice(original?.rrp)
+                      )}
+                      <div class={`field_number_changes mt-0.5 text-[10px] ${gstDelta.cls}`}>{gstDelta.txt || '$0'}</div>
                     {/if}
                   {:else if col.key === 'gpp'}
                     {@const gppVal = grossProfitPercent(product.purchase_price, product.rrp)}

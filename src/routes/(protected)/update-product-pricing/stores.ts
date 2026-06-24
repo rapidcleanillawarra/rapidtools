@@ -119,33 +119,66 @@ export async function fetchLastPriceAdjustmentsForCurrentProducts(): Promise<voi
   lastPriceAdjustmentBySku.set(next);
 }
 
-function computePricing(product: any, source: 'markup' | 'price' = 'markup') {
-  const purchasePrice = toNumber(product.purchase_price, 0);
-  let markup = toNumber(product.markup ?? product.client_mup ?? product.retail_mup, 0);
-  let rrp = toNumber(product.rrp, 0);
+/** Which pricing field the user last edited; that value is kept as-is, others are derived. */
+export type PricingEditSource = 'purchase_price' | 'markup' | 'rrp' | 'rrp_gst_inclusive';
 
-  if (source === 'markup') {
-    if (purchasePrice && markup) {
-      rrp = round2(purchasePrice * markup);
-    }
-  } else {
-    if (purchasePrice && rrp) {
-      markup = round2(rrp / purchasePrice);
-    }
-    if (purchasePrice && markup) {
-      rrp = round2(purchasePrice * markup);
-    }
+function listPriceFromGstInclusive(gstInclusive: number): number {
+  return round2(gstInclusive / 1.1);
+}
+
+function computePricing(product: any, source: PricingEditSource) {
+  const anchorPurchase = toNumber(product.purchase_price, 0);
+  const anchorMarkup = toNumber(product.markup ?? product.client_mup ?? product.retail_mup, 0);
+  const anchorRrp = toNumber(product.rrp, 0);
+  const anchorRrpGst = toNumber(product.rrp_gst_inclusive, NaN);
+
+  let purchasePrice = anchorPurchase;
+  let markup = anchorMarkup;
+  let rrp = anchorRrp;
+  let rrpGstInclusive: number | undefined;
+
+  switch (source) {
+    case 'purchase_price':
+      if (purchasePrice && markup) {
+        rrp = round2(purchasePrice * markup);
+      }
+      break;
+    case 'markup':
+      if (purchasePrice && markup) {
+        rrp = round2(purchasePrice * markup);
+      }
+      break;
+    case 'rrp':
+      if (purchasePrice && rrp) {
+        markup = round2(rrp / purchasePrice);
+      }
+      break;
+    case 'rrp_gst_inclusive':
+      rrpGstInclusive = Number.isFinite(anchorRrpGst) ? anchorRrpGst : 0;
+      rrp = listPriceFromGstInclusive(rrpGstInclusive);
+      if (purchasePrice && rrp) {
+        markup = round2(rrp / purchasePrice);
+      }
+      break;
   }
 
-  // Keep legacy fields in sync for downstream payload generation
-  return {
+  const roundedMarkup = source === 'markup' ? markup : round2(markup);
+  const result: any = {
     ...product,
-    purchase_price: purchasePrice,
-    markup: round2(markup),
-    client_mup: round2(markup),
-    retail_mup: round2(markup),
-    rrp: round2(rrp)
+    purchase_price: source === 'purchase_price' ? purchasePrice : round2(purchasePrice),
+    markup: roundedMarkup,
+    client_mup: roundedMarkup,
+    retail_mup: roundedMarkup,
+    rrp: source === 'rrp' ? rrp : round2(rrp)
   };
+
+  if (source === 'rrp_gst_inclusive' && rrpGstInclusive !== undefined) {
+    result.rrp_gst_inclusive = rrpGstInclusive;
+  } else {
+    delete result.rrp_gst_inclusive;
+  }
+
+  return result;
 }
 
 function updateProductBySkuInternal(list: any[], sku: string, updater: (p: any) => any): any[] {
@@ -167,15 +200,21 @@ export function updateProductBySku(sku: string, patch: Record<string, unknown>) 
 export function updateProductPricingBySku(
   sku: string,
   patch: Record<string, unknown>,
-  source: 'markup' | 'price' = 'markup'
+  source: PricingEditSource
 ) {
   products.update(list =>
-    updateProductBySkuInternal(list, sku, p => computePricing({ ...p, ...patch }, source))
+    updateProductBySkuInternal(list, sku, p => {
+      const merged = { ...p, ...patch };
+      if (source !== 'rrp_gst_inclusive') {
+        delete merged.rrp_gst_inclusive;
+      }
+      return computePricing(merged, source);
+    })
   );
 }
 
 // Back-compat: keep signature used by the page, but update immutably.
-export function calculatePrices(product: any, source: 'markup' | 'price' = 'markup') {
+export function calculatePrices(product: any, source: PricingEditSource = 'markup') {
   if (!product?.sku) return;
   updateProductPricingBySku(product.sku, {
     purchase_price: product.purchase_price,

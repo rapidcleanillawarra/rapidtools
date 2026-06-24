@@ -152,7 +152,7 @@
 				$products.find((p: any) => p?.sku === sku)?.purchase_price;
 			const baseNum = toNumber(base, 0);
 			const next = Math.max(0, baseNum * factor);
-			updateProductPricingBySku(sku, { purchase_price: next }, 'markup');
+			updateProductPricingBySku(sku, { purchase_price: next }, 'purchase_price');
 		}
 	}
 
@@ -180,7 +180,7 @@
 			const base = originalMap.get(sku)?.rrp ?? $products.find((p: any) => p?.sku === sku)?.rrp;
 			const baseNum = toNumber(base, 0);
 			const next = Math.max(0, baseNum * factor);
-			updateProductPricingBySku(sku, { rrp: next }, 'price');
+			updateProductPricingBySku(sku, { rrp: next }, 'rrp');
 		}
 	}
 

@@ -874,6 +874,11 @@
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>Preventative Maintenance</a
 							>
+							<a
+								href="{base}/brochures/washroom_fitout"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Washroom Fitout</a
+							>
 						</div>
 					{/if}
 				</div>

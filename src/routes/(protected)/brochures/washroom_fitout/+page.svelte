@@ -724,6 +724,7 @@
 		position: relative;
 		height: 28mm;
 		border-radius: 8px;
+		overflow: hidden;
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -734,11 +735,11 @@
 	}
 
 	.system-item .thumb .thumb-img {
+		position: absolute;
+		inset: 0;
 		width: 100%;
 		height: 100%;
-		object-fit: contain;
-		padding: 4mm;
-		box-sizing: border-box;
+		object-fit: cover;
 		display: block;
 	}
 

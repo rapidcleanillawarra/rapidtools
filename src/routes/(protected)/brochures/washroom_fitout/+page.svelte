@@ -6,6 +6,18 @@
 	const brandTag = 'orders@rapidcleanillawarra.com.au · (02) 4227 2833';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
 
+	const svgDataUri = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;
+
+	const soapIcon = svgDataUri(
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#2f6f2f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="17" width="20" height="25" rx="3"/><path d="M19 17v-4h10v4"/><rect x="21" y="6" width="6" height="7" rx="1"/><path d="M27 9h7"/></svg>'
+	);
+	const toiletIcon = svgDataUri(
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#2f6f2f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="22" cy="15" rx="13" ry="6"/><path d="M9 15v15c0 3.3 5.8 6 13 6s13-2.7 13-6V15"/><ellipse cx="22" cy="15" rx="4.5" ry="2"/><path d="M35 24c4 0 4 9 0 9"/></svg>'
+	);
+	const towelIcon = svgDataUri(
+		'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="#2f6f2f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="11" y="8" width="26" height="23" rx="3"/><path d="M17 15h14M17 20h14" opacity="0.6"/><path d="M21 31c0 5 6 4 6 9"/></svg>'
+	);
+
 	const SLUG = 'washroom_fitout';
 	const imageSlots: BrochureImageSlot[] = [
 		{
@@ -19,6 +31,24 @@
 			label: 'Front cover background',
 			defaultUrl:
 				'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1600&q=80'
+		},
+		{
+			key: 'product_soap',
+			label: 'Product · Soap dispenser',
+			defaultUrl: soapIcon,
+			hint: 'Page 2 thumbnail (GOJO 2L Soap Dispensers).'
+		},
+		{
+			key: 'product_toilet',
+			label: 'Product · Toilet paper',
+			defaultUrl: toiletIcon,
+			hint: 'Page 2 thumbnail (ESG Slim 3-Roll Toilet Paper).'
+		},
+		{
+			key: 'product_towel',
+			label: 'Product · Roll towel',
+			defaultUrl: towelIcon,
+			hint: 'Page 2 thumbnail (ESG Auto-Cut Roll Towel).'
 		},
 		{
 			key: 'back_cover_hero',
@@ -158,12 +188,7 @@
 					<div class="system-item">
 						<div class="thumb">
 							<span class="badge">Soap</span>
-							<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-								<rect x="14" y="17" width="20" height="25" rx="3" />
-								<path d="M19 17v-4h10v4" stroke-linecap="round" stroke-linejoin="round" />
-								<rect x="21" y="6" width="6" height="7" rx="1" />
-								<path d="M27 9h7" stroke-linecap="round" />
-							</svg>
+							<img class="thumb-img" src={images.product_soap} alt="GOJO 2L Soap Dispensers" />
 						</div>
 						<div>
 							<strong>GOJO 2L Soap Dispensers</strong>
@@ -177,12 +202,7 @@
 					<div class="system-item">
 						<div class="thumb">
 							<span class="badge">Toilet</span>
-							<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-								<ellipse cx="22" cy="15" rx="13" ry="6" />
-								<path d="M9 15v15c0 3.3 5.8 6 13 6s13-2.7 13-6V15" stroke-linecap="round" />
-								<ellipse cx="22" cy="15" rx="4.5" ry="2" />
-								<path d="M35 24c4 0 4 9 0 9" stroke-linecap="round" stroke-linejoin="round" />
-							</svg>
+							<img class="thumb-img" src={images.product_toilet} alt="ESG Slim 3-Roll Toilet Paper" />
 						</div>
 						<div>
 							<strong>ESG Slim 3-Roll Toilet Paper</strong>
@@ -196,11 +216,7 @@
 					<div class="system-item">
 						<div class="thumb">
 							<span class="badge">Towel</span>
-							<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-								<rect x="11" y="8" width="26" height="23" rx="3" />
-								<path d="M17 15h14M17 20h14" stroke-linecap="round" opacity="0.6" />
-								<path d="M21 31c0 5 6 4 6 9" stroke-linecap="round" stroke-linejoin="round" />
-							</svg>
+							<img class="thumb-img" src={images.product_towel} alt="ESG Auto-Cut Roll Towel" />
 						</div>
 						<div>
 							<strong>ESG Auto-Cut Roll Towel</strong>
@@ -679,9 +695,13 @@
 			linear-gradient(135deg, #f3faec 0%, #e2efd4 100%);
 	}
 
-	.system-item .thumb svg {
-		width: 15mm;
-		height: 15mm;
+	.system-item .thumb .thumb-img {
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		padding: 4mm;
+		box-sizing: border-box;
+		display: block;
 	}
 
 	.system-item .badge {

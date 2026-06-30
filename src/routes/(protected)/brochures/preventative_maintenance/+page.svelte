@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { loadBrochureImages, type BrochureImageSlot } from '$lib/brochures/brochureImages';
+	import { exportBrochurePdf } from '$lib/brochures/exportBrochurePdf';
 	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
+	import { toastError } from '$lib/utils/toast';
 
 	const brandTag = 'orders@rapidcleanillawarra.com.au · (02) 4227 2833';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
@@ -49,11 +51,25 @@
 
 	let images = $state<Record<string, string>>({ ...defaults });
 	let editorOpen = $state(false);
+	let exporting = $state(false);
+	let brochureEl = $state<HTMLDivElement | null>(null);
 
 	onMount(async () => {
 		const overrides = await loadBrochureImages(SLUG);
 		images = { ...defaults, ...overrides };
 	});
+
+	async function downloadPdf() {
+		if (!brochureEl || exporting) return;
+		exporting = true;
+		try {
+			await exportBrochurePdf(brochureEl, 'rapidclean-preventative-maintenance.pdf');
+		} catch (error) {
+			toastError(`Could not generate PDF: ${error instanceof Error ? error.message : 'unknown error'}`);
+		} finally {
+			exporting = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -64,7 +80,7 @@
 	/>
 </svelte:head>
 
-<div class="brochure">
+<div class="brochure" bind:this={brochureEl}>
 	<!-- ========== FRONT COVER ========== -->
 	<section class="page cover-page" aria-label="Front cover">
 		<div
@@ -526,37 +542,56 @@
 	</section>
 </div>
 
-<button type="button" class="edit-toggle" onclick={() => (editorOpen = true)}>
-	Edit images
-</button>
+<div class="brochure-toolbar">
+	<button type="button" class="tool-btn" onclick={downloadPdf} disabled={exporting}>
+		{exporting ? 'Generating…' : 'Download PDF'}
+	</button>
+	<button type="button" class="tool-btn primary" onclick={() => (editorOpen = true)}>Edit images</button>
+</div>
 
 <BrochureImageEditor slug={SLUG} slots={imageSlots} bind:images bind:open={editorOpen} />
 
 <style>
-	/* ---------- Edit Images toggle (screen only) ---------- */
-	.edit-toggle {
+	/* ---------- Floating toolbar (screen only) ---------- */
+	.brochure-toolbar {
 		position: fixed;
 		top: 16px;
 		right: 16px;
 		z-index: 900;
-		background: linear-gradient(135deg, #2f6f2f 0%, #78be20 100%);
-		color: #fff;
-		border: none;
+		display: flex;
+		gap: 8px;
+	}
+
+	.tool-btn {
+		background: #ffffff;
+		color: #2f6f2f;
+		border: 1px solid #c7d8b9;
 		border-radius: 999px;
 		padding: 10px 18px;
 		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		font-size: 13px;
 		font-weight: 700;
 		cursor: pointer;
-		box-shadow: 0 6px 18px rgba(47, 111, 47, 0.3);
+		box-shadow: 0 6px 18px rgba(31, 41, 51, 0.18);
 	}
 
-	.edit-toggle:hover {
-		filter: brightness(1.05);
+	.tool-btn.primary {
+		background: linear-gradient(135deg, #2f6f2f 0%, #78be20 100%);
+		color: #fff;
+		border-color: transparent;
+	}
+
+	.tool-btn:hover {
+		filter: brightness(1.04);
+	}
+
+	.tool-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 
 	@media print {
-		.edit-toggle {
+		.brochure-toolbar {
 			display: none !important;
 		}
 	}
@@ -1431,9 +1466,23 @@
 	/* =====================================================
    PRINT
    ===================================================== */
+	@page {
+		size: A4;
+		margin: 0;
+	}
+
 	@media print {
 		.brochure {
 			background: white;
+			padding: 0;
+			/* Print every colour, gradient and image exactly as shown on screen */
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
+		}
+
+		.brochure * {
+			-webkit-print-color-adjust: exact;
+			print-color-adjust: exact;
 		}
 
 		.page {
@@ -1441,13 +1490,6 @@
 			box-shadow: none;
 			width: var(--page-w);
 			height: var(--page-h);
-		}
-
-		/* Make sure dark cover backgrounds print as designed */
-		.cover-page,
-		.back-cover-page {
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
 		}
 	}
 </style>

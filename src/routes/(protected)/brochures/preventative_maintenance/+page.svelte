@@ -1,7 +1,59 @@
 <script lang="ts">
-	const logo = 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png';
+	import { onMount } from 'svelte';
+	import { loadBrochureImages, type BrochureImageSlot } from '$lib/brochures/brochureImages';
+	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
+
 	const brandTag = 'orders@rapidcleanillawarra.com.au · (02) 4227 2833';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
+
+	const SLUG = 'preventative_maintenance';
+	const imageSlots: BrochureImageSlot[] = [
+		{
+			key: 'logo',
+			label: 'Company logo',
+			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png',
+			hint: 'Appears on every page header and both covers.'
+		},
+		{
+			key: 'cover_hero',
+			label: 'Front cover background',
+			defaultUrl:
+				'https://www.rapidsupplies.com.au/assets/images/industries_industrial_and_warehousing.png'
+		},
+		{
+			key: 'intro_image',
+			label: 'Page 1 · Introduction image',
+			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/preventative_maintenance_1.png'
+		},
+		{
+			key: 'challenge_image',
+			label: 'Page 2 · Challenge image',
+			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/second_brochure.png'
+		},
+		{
+			key: 'approach_image',
+			label: 'Page 3 · Approach image',
+			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/third_brochure.png'
+		},
+		{
+			key: 'back_cover_hero',
+			label: 'Back cover background',
+			defaultUrl:
+				'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80'
+		}
+	];
+
+	const defaults: Record<string, string> = Object.fromEntries(
+		imageSlots.map((slot) => [slot.key, slot.defaultUrl])
+	);
+
+	let images = $state<Record<string, string>>({ ...defaults });
+	let editorOpen = $state(false);
+
+	onMount(async () => {
+		const overrides = await loadBrochureImages(SLUG);
+		images = { ...defaults, ...overrides };
+	});
 </script>
 
 <svelte:head>
@@ -15,11 +67,16 @@
 <div class="brochure">
 	<!-- ========== FRONT COVER ========== -->
 	<section class="page cover-page" aria-label="Front cover">
-		<div class="cover-hero" role="img" aria-label="Commercial cleaning operations"></div>
+		<div
+			class="cover-hero"
+			role="img"
+			aria-label="Commercial cleaning operations"
+			style="background-image: url('{images.cover_hero}');"
+		></div>
 
 		<div class="cover-content">
 			<div class="cover-top">
-				<img class="logo" src={logo} alt="RapidClean Illawarra" />
+				<img class="logo" src={images.logo} alt="RapidClean Illawarra" />
 				<span class="tag">Service · Supply · Support<br />Illawarra · NSW</span>
 			</div>
 
@@ -52,7 +109,7 @@
 	<!-- ========== PAGE 1 · INTRODUCTION ========== -->
 	<section class="page page-intro" aria-label="Page 1: Introduction">
 		<div class="brand-bar">
-			<img class="site-logo" src={logo} alt="RapidClean Illawarra" />
+			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
 		</div>
 		<div class="corner-accent"></div>
@@ -82,7 +139,7 @@
 
 		<figure class="page-full-image">
 			<img
-				src="https://www.rapidsupplies.com.au/assets/images/preventative_maintenance_1.png"
+				src={images.intro_image}
 				alt="Sales, service coordination and equipment support from RapidClean Illawarra"
 			/>
 		</figure>
@@ -96,7 +153,7 @@
 	<!-- ========== PAGE 2 · THE CHALLENGE ========== -->
 	<section class="page" aria-label="Page 2: The challenge">
 		<div class="brand-bar">
-			<img class="site-logo" src={logo} alt="RapidClean Illawarra" />
+			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
 		</div>
 		<div class="corner-accent"></div>
@@ -124,7 +181,7 @@
 				</div>
 				<div class="image-card">
 					<img
-						src="https://www.rapidsupplies.com.au/assets/images/second_brochure.png"
+						src={images.challenge_image}
 						alt="Service coordination for scheduled maintenance, repairs and compliance follow-up"
 					/>
 					<div class="caption">
@@ -161,7 +218,7 @@
 	<!-- ========== PAGE 3 · OUR APPROACH ========== -->
 	<section class="page" aria-label="Page 3: Our approach">
 		<div class="brand-bar">
-			<img class="site-logo" src={logo} alt="RapidClean Illawarra" />
+			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
 		</div>
 		<div class="corner-accent"></div>
@@ -176,7 +233,7 @@
 
 			<div class="image-card team-hero wide cover">
 				<img
-					src="https://www.rapidsupplies.com.au/assets/images/third_brochure.png"
+					src={images.approach_image}
 					alt="Our preventative maintenance model for cleaning equipment"
 				/>
 				<div class="caption">
@@ -252,7 +309,7 @@
 	<!-- ========== PAGE 4 · PARTNERSHIP ========== -->
 	<section class="page" aria-label="Page 4: Partnership">
 		<div class="brand-bar">
-			<img class="site-logo" src={logo} alt="RapidClean Illawarra" />
+			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
 		</div>
 		<div class="corner-accent"></div>
@@ -386,7 +443,7 @@
 	<!-- ========== PAGE 5 · NEXT STEPS ========== -->
 	<section class="page" aria-label="Page 5: Next steps">
 		<div class="brand-bar">
-			<img class="site-logo" src={logo} alt="RapidClean Illawarra" />
+			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
 		</div>
 		<div class="corner-accent"></div>
@@ -424,11 +481,16 @@
 
 	<!-- ========== BACK COVER ========== -->
 	<section class="page back-cover-page" aria-label="Back cover">
-		<div class="back-cover-hero" role="img" aria-label="Modern facility interior"></div>
+		<div
+			class="back-cover-hero"
+			role="img"
+			aria-label="Modern facility interior"
+			style="background-image: url('{images.back_cover_hero}');"
+		></div>
 
 		<div class="back-cover-inner">
 			<div class="back-cover-top">
-				<img class="logo" src={logo} alt="RapidClean Illawarra" />
+				<img class="logo" src={images.logo} alt="RapidClean Illawarra" />
 				<span class="ribbon">Service · Supply · Support</span>
 			</div>
 
@@ -464,7 +526,41 @@
 	</section>
 </div>
 
+<button type="button" class="edit-toggle" onclick={() => (editorOpen = true)}>
+	Edit images
+</button>
+
+<BrochureImageEditor slug={SLUG} slots={imageSlots} bind:images bind:open={editorOpen} />
+
 <style>
+	/* ---------- Edit Images toggle (screen only) ---------- */
+	.edit-toggle {
+		position: fixed;
+		top: 16px;
+		right: 16px;
+		z-index: 900;
+		background: linear-gradient(135deg, #2f6f2f 0%, #78be20 100%);
+		color: #fff;
+		border: none;
+		border-radius: 999px;
+		padding: 10px 18px;
+		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: 13px;
+		font-weight: 700;
+		cursor: pointer;
+		box-shadow: 0 6px 18px rgba(47, 111, 47, 0.3);
+	}
+
+	.edit-toggle:hover {
+		filter: brightness(1.05);
+	}
+
+	@media print {
+		.edit-toggle {
+			display: none !important;
+		}
+	}
+
 	/* =====================================================
    RapidClean Illawarra · Preventative Maintenance Brochure
    ===================================================== */
@@ -1075,7 +1171,6 @@
 	.cover-hero {
 		position: absolute;
 		inset: 0;
-		background-image: url('https://www.rapidsupplies.com.au/assets/images/industries_industrial_and_warehousing.png');
 		background-size: cover;
 		background-position: center;
 		z-index: 0;
@@ -1214,7 +1309,6 @@
 		left: 0;
 		right: 0;
 		height: 110mm;
-		background-image: url('https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80');
 		background-size: cover;
 		background-position: center;
 		opacity: 0.28;

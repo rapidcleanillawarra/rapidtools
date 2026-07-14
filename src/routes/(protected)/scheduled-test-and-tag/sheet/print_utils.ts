@@ -260,10 +260,17 @@ function drawEquipmentCell(doc: jsPDF, row: PrintRow, x: number, y: number, w: n
 	doc.text(rci, x + padX, y + 4.2);
 
 	doc.setTextColor(17, 24, 39);
-	const name = fitText(doc, row.machines || row.tag || 'Unnamed', maxW * 0.55, 7.5);
-	doc.text(name, x + padX + maxW * 0.45, y + 4.2);
+	const nameX = x + padX + maxW * 0.45;
+	const nameMaxW = maxW * 0.55;
+	if (row.machines) {
+		doc.text(fitText(doc, row.machines, nameMaxW, 7.5), nameX, y + 4.2);
+	} else {
+		doc.setDrawColor(209, 213, 219);
+		doc.setLineWidth(0.25);
+		doc.line(nameX, y + 4.5, nameX + nameMaxW - 1, y + 4.5);
+	}
 
-	if (row.tag && row.machines) {
+	if (row.tag) {
 		doc.setFont('helvetica', 'normal');
 		doc.setFontSize(6.5);
 		doc.setTextColor(75, 85, 99);
@@ -389,10 +396,10 @@ function openPdfForPrint(doc: jsPDF, printTitle: string): void {
 }
 
 /**
- * Build a landscape A4 printable sheet with equipment pre-filled and blank
+ * Build a landscape A4 fillable sheet with equipment pre-filled and blank
  * writing space for results, service, parts, workshop ID, and notes.
  */
-export async function printSheetDocument(
+export async function printFillableSheet(
 	header: SheetHeader,
 	rows: SheetRow[],
 	options?: PrintSheetOptions

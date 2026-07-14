@@ -42,7 +42,7 @@
 	import ServiceSelect from './ServiceSelect.svelte';
 	import PartsEditor from './PartsEditor.svelte';
 	import { toastError, toastInfo, toastSuccess } from '$lib/utils/toast';
-	import { printSheetDocument } from './print_utils';
+	import { printFillableSheet } from './print_utils';
 
 	type ServiceTextColumnKey = Extract<TextPasteColumnKey, SheetColumnKey>;
 
@@ -63,7 +63,7 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 	let isSaving = false;
-	let isPrinting = false;
+	let isPrintingFillable = false;
 
 	let originalRows: SheetRow[] = [];
 	let originalFrequency: SheetHeader['frequency'] = '';
@@ -360,24 +360,31 @@
 		}
 	}
 
-	async function handlePrint() {
-		if (isPrinting) return;
+	function handlePrint() {
+		window.print();
+	}
 
-		isPrinting = true;
+	async function handlePrintFillable() {
+		if (isPrintingFillable) return;
+
+		isPrintingFillable = true;
 		try {
 			const title =
 				[$sheetHeader.company, $sheetHeader.sheetName || defaultSheetName()]
 					.filter(Boolean)
 					.join(' — ') || 'Service Test & Tag Sheet';
-			await printSheetDocument($sheetHeader, displayedRows, {
+			await printFillableSheet($sheetHeader, displayedRows, {
 				printTitle: title,
 				logoUrl: LOGO_PRINT_FALLBACK
 			});
 		} catch (error) {
-			console.error('Failed to print sheet:', error);
-			toastError(error instanceof Error ? error.message : 'Failed to prepare print', 'Print');
+			console.error('Failed to print fillable sheet:', error);
+			toastError(
+				error instanceof Error ? error.message : 'Failed to prepare fillable print',
+				'Print'
+			);
 		} finally {
-			isPrinting = false;
+			isPrintingFillable = false;
 		}
 	}
 
@@ -465,13 +472,14 @@
 					New Sheet
 				</button>
 			{/if}
+			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
 			<button
 				type="button"
 				class="sheet-toolbar-btn"
-				on:click={handlePrint}
-				disabled={isPrinting || isTableLoading}
+				on:click={handlePrintFillable}
+				disabled={isPrintingFillable || isTableLoading}
 			>
-				{isPrinting ? 'Preparing…' : 'Print'}
+				{isPrintingFillable ? 'Preparing…' : 'Print Fillable'}
 			</button>
 			<button
 				type="button"

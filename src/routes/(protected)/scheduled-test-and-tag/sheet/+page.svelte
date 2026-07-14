@@ -90,14 +90,18 @@
 				.sort((a, b) => a.localeCompare(b))
 		: [];
 
+	$: locationFilter = $sheetHeader.location;
+
 	$: displayedRows = (
 		sortField === '' ? $sheetRows : sortRows($sheetRows, sortField, sortDirection)
 	)
 		.filter(isDisplayedSheetRow)
+		.filter((row) => !locationFilter || row.location === locationFilter)
 		.map(normalizeSheetRow);
 
 	$: sidebarInactiveRows = [...$inactiveSheetRows]
 		.filter((row) => !$sheetRows.some((sheetRow) => sheetRow.id === row.id && isDisplayedSheetRow(sheetRow)))
+		.filter((row) => !locationFilter || row.location === locationFilter)
 		.sort((a, b) =>
 			(a.machines || a.tag || a.rciTag).localeCompare(b.machines || b.tag || b.rciTag)
 		);
@@ -642,6 +646,22 @@
 					<option value="">Select frequency…</option>
 					{#each FREQUENCY_OPTIONS as frequency (frequency)}
 						<option value={frequency}>{frequency}</option>
+					{/each}
+				</select>
+			</label>
+
+			<label class="sheet-sidebar-field" for="sheet-location-filter">
+				<span class="sheet-sidebar-label">Location</span>
+				<select
+					id="sheet-location-filter"
+					bind:value={$sheetHeader.location}
+					class="sheet-sidebar-input sheet-header-select"
+					title={$sheetHeader.location || 'All locations'}
+					disabled={locationOptions.length === 0}
+				>
+					<option value="">All locations</option>
+					{#each locationOptions as location (location)}
+						<option value={location}>{location}</option>
 					{/each}
 				</select>
 			</label>

@@ -64,7 +64,6 @@
 	let isTableLoading = false;
 	let isSaving = false;
 	let isPrinting = false;
-	let sheetLayoutEl: HTMLDivElement | undefined;
 
 	let originalRows: SheetRow[] = [];
 	let originalFrequency: SheetHeader['frequency'] = '';
@@ -362,7 +361,7 @@
 	}
 
 	async function handlePrint() {
-		if (!sheetLayoutEl || isPrinting) return;
+		if (isPrinting) return;
 
 		isPrinting = true;
 		try {
@@ -370,7 +369,10 @@
 				[$sheetHeader.company, $sheetHeader.sheetName || defaultSheetName()]
 					.filter(Boolean)
 					.join(' — ') || 'Service Test & Tag Sheet';
-			await printSheetDocument(sheetLayoutEl, LOGO_PRINT_FALLBACK, { printTitle: title });
+			await printSheetDocument($sheetHeader, displayedRows, {
+				printTitle: title,
+				logoUrl: LOGO_PRINT_FALLBACK
+			});
 		} catch (error) {
 			console.error('Failed to print sheet:', error);
 			toastError(error instanceof Error ? error.message : 'Failed to prepare print', 'Print');
@@ -489,7 +491,7 @@
 		</div>
 	</div>
 
-	<div class="sheet-layout" bind:this={sheetLayoutEl}>
+	<div class="sheet-layout">
 		<div class="sheet-document">
 			<header class="sheet-header">
 				<div class="sheet-header-main">

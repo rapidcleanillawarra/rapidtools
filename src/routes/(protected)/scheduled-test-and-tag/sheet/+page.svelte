@@ -42,10 +42,12 @@
 	import ServiceSelect from './ServiceSelect.svelte';
 	import PartsEditor from './PartsEditor.svelte';
 	import { toastError, toastInfo, toastSuccess } from '$lib/utils/toast';
+	import { printSheetDocument } from './print_utils';
 
 	type ServiceTextColumnKey = Extract<TextPasteColumnKey, SheetColumnKey>;
 
 	const LOGO_URL = `${base}/company_logo_white.webp`;
+	const LOGO_PRINT_FALLBACK = LOGO_URL;
 
 	const TABLE_EXTRA_COLS = 2;
 
@@ -61,6 +63,8 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 	let isSaving = false;
+	let isPrinting = false;
+	let sheetLayoutEl: HTMLDivElement | undefined;
 
 	let originalRows: SheetRow[] = [];
 	let originalFrequency: SheetHeader['frequency'] = '';
@@ -357,8 +361,22 @@
 		}
 	}
 
-	function handlePrint() {
-		window.print();
+	async function handlePrint() {
+		if (!sheetLayoutEl || isPrinting) return;
+
+		isPrinting = true;
+		try {
+			const title =
+				[$sheetHeader.company, $sheetHeader.sheetName || defaultSheetName()]
+					.filter(Boolean)
+					.join(' — ') || 'Service Test & Tag Sheet';
+			await printSheetDocument(sheetLayoutEl, LOGO_PRINT_FALLBACK, { printTitle: title });
+		} catch (error) {
+			console.error('Failed to print sheet:', error);
+			toastError(error instanceof Error ? error.message : 'Failed to prepare print', 'Print');
+		} finally {
+			isPrinting = false;
+		}
 	}
 
 	async function handlePaste(
@@ -445,7 +463,14 @@
 					New Sheet
 				</button>
 			{/if}
-			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
+			<button
+				type="button"
+				class="sheet-toolbar-btn"
+				on:click={handlePrint}
+				disabled={isPrinting || isTableLoading}
+			>
+				{isPrinting ? 'Preparing…' : 'Print'}
+			</button>
 			<button
 				type="button"
 				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
@@ -464,7 +489,7 @@
 		</div>
 	</div>
 
-	<div class="sheet-layout">
+	<div class="sheet-layout" bind:this={sheetLayoutEl}>
 		<div class="sheet-document">
 			<header class="sheet-header">
 				<div class="sheet-header-main">
@@ -1424,14 +1449,13 @@
 		}
 
 		.sheet-sidebar {
-			box-shadow: none;
-			padding: 0 0 0.75rem;
+			display: none !important;
 		}
 
 		.sheet-layout {
 			max-width: none;
-			grid-template-columns: 1fr auto;
-			gap: 1.5rem;
+			grid-template-columns: 1fr;
+			gap: 0;
 		}
 
 		.sheet-header {

@@ -12,6 +12,7 @@
 
   type TrackingFilter = 'pending' | 'done' | 'all';
   type ColumnVariant = 'pickup' | 'return';
+  type SortDaysDir = 'desc' | 'asc';
 
   const trackingChips: { key: TrackingFilter; label: string }[] = [
     { key: 'pending', label: 'Pending' },
@@ -26,6 +27,8 @@
   let trackingFilter = $state<TrackingFilter>('pending');
   let confirmingId = $state<string | null>(null);
   let activeTab = $state<ColumnVariant>('pickup');
+  /** desc = most days pending first (default) */
+  let sortDaysDir = $state<SortDaysDir>('desc');
 
   let showPhotoViewer = $state(false);
   let currentPhotoIndex = $state(0);
@@ -33,8 +36,19 @@
 
   let pendingCount = $derived(rows.filter((r) => r.is_pending).length);
 
-  let filteredRows = $derived(
-    rows.filter((row) => {
+  /** Days since assigned (or workshop updated/created if no transport yet) */
+  function getPendingDays(row: DeliveryTrackingRow): number {
+    const iso =
+      row.assigned_at || row.workshop.updated_at || row.workshop.created_at || null;
+    if (!iso) return 0;
+    const start = new Date(iso).getTime();
+    if (Number.isNaN(start)) return 0;
+    const ms = Date.now() - start;
+    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+  }
+
+  let filteredRows = $derived.by(() => {
+    const filtered = rows.filter((row) => {
       if (trackingFilter === 'pending' && !row.is_pending) return false;
       if (trackingFilter === 'done' && row.is_pending) return false;
 
@@ -49,11 +63,26 @@
         w.make_model?.toLowerCase().includes(q) ||
         row.assigned_to_name?.toLowerCase().includes(q)
       );
-    })
-  );
+    });
+
+    return [...filtered].sort((a, b) => {
+      const daysDiff =
+        sortDaysDir === 'desc'
+          ? getPendingDays(b) - getPendingDays(a)
+          : getPendingDays(a) - getPendingDays(b);
+      if (daysDiff !== 0) return daysDiff;
+      // Pending before done when tied
+      if (a.is_pending !== b.is_pending) return a.is_pending ? -1 : 1;
+      return 0;
+    });
+  });
 
   let pickupRows = $derived(filteredRows.filter((row) => row.job_status !== 'return'));
   let returnRows = $derived(filteredRows.filter((row) => row.job_status === 'return'));
+
+  function toggleSortDays() {
+    sortDaysDir = sortDaysDir === 'desc' ? 'asc' : 'desc';
+  }
 
   async function loadDeliveries() {
     try {
@@ -85,17 +114,6 @@
     } catch {
       return iso;
     }
-  }
-
-  /** Days since assigned (or workshop updated/created if no transport yet) */
-  function getPendingDays(row: DeliveryTrackingRow): number {
-    const iso =
-      row.assigned_at || row.workshop.updated_at || row.workshop.created_at || null;
-    if (!iso) return 0;
-    const start = new Date(iso).getTime();
-    if (Number.isNaN(start)) return 0;
-    const ms = Date.now() - start;
-    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
   }
 
   /**
@@ -373,7 +391,7 @@
         />
       </div>
 
-      <div class="mt-3 flex flex-wrap gap-2">
+      <div class="mt-3 flex flex-wrap items-center gap-2">
         {#each trackingChips as chip (chip.key)}
           <button
             type="button"
@@ -386,6 +404,18 @@
             {chip.label}
           </button>
         {/each}
+
+        <button
+          type="button"
+          class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          onclick={toggleSortDays}
+          aria-label={sortDaysDir === 'desc'
+            ? 'Sorted by most days pending. Tap to show fewest days first.'
+            : 'Sorted by fewest days pending. Tap to show most days first.'}
+        >
+          <span aria-hidden="true">{sortDaysDir === 'desc' ? '↓' : '↑'}</span>
+          {sortDaysDir === 'desc' ? 'Most days' : 'Fewest days'}
+        </button>
       </div>
 
       <!-- Mobile: Pickup / Return tabs (sticky with header) -->

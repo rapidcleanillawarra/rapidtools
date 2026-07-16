@@ -87,6 +87,53 @@
     }
   }
 
+  /** Days since assigned (or workshop updated/created if no transport yet) */
+  function getPendingDays(row: DeliveryTrackingRow): number {
+    const iso =
+      row.assigned_at || row.workshop.updated_at || row.workshop.created_at || null;
+    if (!iso) return 0;
+    const start = new Date(iso).getTime();
+    if (Number.isNaN(start)) return 0;
+    const ms = Date.now() - start;
+    return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
+  }
+
+  /**
+   * Age colors for pending cards:
+   * &lt; 3 days green · 3–6 days yellow · 7+ days red
+   */
+  function getAgeCardClass(row: DeliveryTrackingRow): string {
+    if (!row.is_pending) {
+      return 'border-gray-200 bg-white';
+    }
+    const days = getPendingDays(row);
+    if (days >= 7) {
+      return 'border-red-400 bg-red-50 ring-1 ring-red-200';
+    }
+    if (days >= 3) {
+      return 'border-amber-400 bg-amber-50 ring-1 ring-amber-200';
+    }
+    return 'border-green-400 bg-green-50 ring-1 ring-green-200';
+  }
+
+  function getAgeBadgeClass(row: DeliveryTrackingRow): string {
+    if (!row.is_pending) {
+      return 'bg-green-100 text-green-800';
+    }
+    const days = getPendingDays(row);
+    if (days >= 7) return 'bg-red-600 text-white';
+    if (days >= 3) return 'bg-amber-500 text-white';
+    return 'bg-green-600 text-white';
+  }
+
+  function ageLabel(row: DeliveryTrackingRow): string {
+    if (!row.is_pending) return trackingLabel(row);
+    const days = getPendingDays(row);
+    if (days === 0) return 'Pending · today';
+    if (days === 1) return 'Pending · 1 day';
+    return `Pending · ${days} days`;
+  }
+
   function trackingLabel(row: DeliveryTrackingRow): string {
     if (row.is_pending) return 'Pending';
     return row.job_status === 'return' ? 'Returned' : 'Picked up';
@@ -184,7 +231,7 @@
         {@const heroPhoto = photos[0]}
         <li class="min-w-0">
           <div
-            class="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm active:scale-[0.99] transition-transform md:rounded-xl md:shadow-md"
+            class="flex h-full flex-col overflow-hidden rounded-lg border-2 shadow-sm active:scale-[0.99] transition-transform md:rounded-xl md:shadow-md {getAgeCardClass(row)}"
             role="button"
             tabindex="0"
             onclick={() => openWorkshop(row)}
@@ -223,10 +270,9 @@
             <!-- Card body -->
             <div class="flex flex-1 flex-col p-2 md:p-4">
               <span
-                class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-[10px] font-semibold md:rounded-md md:px-2 md:text-xs
-                  {row.is_pending ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}"
+                class="inline-flex w-fit max-w-full items-center truncate rounded px-1.5 py-0.5 text-[10px] font-semibold md:rounded-md md:px-2 md:text-xs {getAgeBadgeClass(row)}"
               >
-                {trackingLabel(row)}
+                {ageLabel(row)}
               </span>
 
               <p class="mt-1 truncate text-[10px] font-medium uppercase tracking-wide text-gray-500 md:mt-2 md:text-xs">

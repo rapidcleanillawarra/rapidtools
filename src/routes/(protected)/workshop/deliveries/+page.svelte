@@ -5,10 +5,14 @@
   import {
     getDeliveryTrackingList,
     confirmDeliveryTransport,
+    updateWorkshop,
     type DeliveryTrackingRow
   } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
+  import { currentUser } from '$lib/firebase';
+  import { userProfile } from '$lib/userProfile';
+  import { get } from 'svelte/store';
 
   type TrackingFilter = 'pending' | 'done' | 'all';
   type ColumnVariant = 'pickup' | 'return';
@@ -186,38 +190,72 @@
     const previous = { ...row };
     confirmingId = row.workshop.id;
 
-    rows = rows.map((r) =>
-      r.workshop.id === row.workshop.id
-        ? {
-            ...r,
-            transport_status: 'confirmed',
-            is_pending: false
-          }
-        : r
-    );
+    const isPickup = row.job_status === 'pickup';
 
-    try {
-      const transport = await confirmDeliveryTransport(row.workshop.id, row.job_status);
+    // Optimistic: pickup jobs leave this list after move to to_be_quoted
+    if (isPickup) {
+      rows = rows.filter((r) => r.workshop.id !== row.workshop.id);
+    } else {
       rows = rows.map((r) =>
         r.workshop.id === row.workshop.id
           ? {
               ...r,
-              transport_id: transport.id,
               transport_status: 'confirmed',
-              assigned_to_name: transport.assigned_to_name ?? r.assigned_to_name,
-              assigned_at: transport.created_at ?? r.assigned_at,
-              schedule: transport.schedule ?? r.schedule,
               is_pending: false
             }
           : r
       );
-      toastSuccess(
-        row.job_status === 'return' ? 'Marked as returned' : 'Marked as picked up',
-        'Updated'
-      );
+    }
+
+    try {
+      const transport = await confirmDeliveryTransport(row.workshop.id, row.job_status);
+
+      if (isPickup) {
+        const user = get(currentUser);
+        const profile = get(userProfile);
+        const userName = user
+          ? profile
+            ? `${profile.firstName} ${profile.lastName}`.trim()
+            : user.displayName || user.email?.split('@')[0] || 'Unknown User'
+          : 'Unknown User';
+
+        await updateWorkshop(row.workshop.id, {
+          status: 'to_be_quoted',
+          history: [
+            {
+              id: Date.now().toString(),
+              timestamp: new Date().toISOString(),
+              user: userName,
+              status: 'to_be_quoted',
+              isCreation: false
+            }
+          ]
+        });
+
+        toastSuccess('Marked as picked up · moved to To be Quoted', 'Updated');
+      } else {
+        rows = rows.map((r) =>
+          r.workshop.id === row.workshop.id
+            ? {
+                ...r,
+                transport_id: transport.id,
+                transport_status: 'confirmed',
+                assigned_to_name: transport.assigned_to_name ?? r.assigned_to_name,
+                assigned_at: transport.created_at ?? r.assigned_at,
+                schedule: transport.schedule ?? r.schedule,
+                is_pending: false
+              }
+            : r
+        );
+        toastSuccess('Marked as returned', 'Updated');
+      }
     } catch (err) {
       console.error('Failed to confirm pickup/return:', err);
-      rows = rows.map((r) => (r.workshop.id === previous.workshop.id ? previous : r));
+      if (isPickup) {
+        rows = [...rows, previous];
+      } else {
+        rows = rows.map((r) => (r.workshop.id === previous.workshop.id ? previous : r));
+      }
       toastError('Failed to update. Please try again.');
     } finally {
       confirmingId = null;

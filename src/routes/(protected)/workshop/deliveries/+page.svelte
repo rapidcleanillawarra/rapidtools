@@ -70,12 +70,12 @@
     }
   }
 
-  function formatSchedule(iso: string | null): string {
+  /** Shorter date for compact cards */
+  function formatDateShort(iso: string | null): string {
     if (!iso) return '—';
     try {
       return new Intl.DateTimeFormat('en-AU', {
         timeZone: 'Australia/Sydney',
-        weekday: 'short',
         day: 'numeric',
         month: 'short',
         hour: 'numeric',
@@ -89,11 +89,11 @@
 
   function trackingLabel(row: DeliveryTrackingRow): string {
     if (row.is_pending) return 'Pending';
-    return row.job_status === 'return' ? 'Returned' : 'Delivered';
+    return row.job_status === 'return' ? 'Returned' : 'Picked up';
   }
 
   function confirmLabel(row: DeliveryTrackingRow): string {
-    return row.job_status === 'return' ? 'Mark returned' : 'Mark delivered';
+    return row.job_status === 'return' ? 'Mark returned' : 'Mark picked up';
   }
 
   function openWorkshop(row: DeliveryTrackingRow) {
@@ -140,19 +140,20 @@
               transport_id: transport.id,
               transport_status: 'confirmed',
               assigned_to_name: transport.assigned_to_name ?? r.assigned_to_name,
+              assigned_at: transport.created_at ?? r.assigned_at,
               schedule: transport.schedule ?? r.schedule,
               is_pending: false
             }
           : r
       );
       toastSuccess(
-        row.job_status === 'return' ? 'Marked as returned' : 'Marked as delivered',
-        'Delivery updated'
+        row.job_status === 'return' ? 'Marked as returned' : 'Marked as picked up',
+        'Updated'
       );
     } catch (err) {
-      console.error('Failed to confirm delivery:', err);
+      console.error('Failed to confirm pickup/return:', err);
       rows = rows.map((r) => (r.workshop.id === previous.workshop.id ? previous : r));
-      toastError('Failed to update delivery. Please try again.');
+      toastError('Failed to update. Please try again.');
     } finally {
       confirmingId = null;
     }
@@ -169,7 +170,7 @@
 )}
   {#if columnRows.length === 0}
     <div
-      class="rounded-xl border border-dashed py-12 text-center text-sm
+      class="rounded-xl border border-dashed py-8 text-center text-xs
         {variant === 'return'
         ? 'border-violet-200 bg-violet-50/50 text-violet-600'
         : 'border-sky-200 bg-sky-50/50 text-sky-600'}"
@@ -177,14 +178,13 @@
       {emptyMessage}
     </div>
   {:else}
-    <ul class="space-y-4">
+    <ul class="grid grid-cols-2 gap-2 md:grid-cols-1 md:gap-3">
       {#each columnRows as row (row.workshop.id)}
         {@const photos = row.workshop.photo_urls ?? []}
         {@const heroPhoto = photos[0]}
-        {@const extraPhotos = photos.slice(1, 4)}
-        <li>
+        <li class="min-w-0">
           <div
-            class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md active:scale-[0.99] transition-transform"
+            class="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm active:scale-[0.99] transition-transform md:rounded-xl md:shadow-md"
             role="button"
             tabindex="0"
             onclick={() => openWorkshop(row)}
@@ -196,7 +196,7 @@
             }}
           >
             <!-- Hero image -->
-            <div class="relative aspect-[4/3] bg-gray-100">
+            <div class="relative aspect-square bg-gray-100 md:aspect-[4/3]">
               {#if heroPhoto}
                 <button
                   type="button"
@@ -208,94 +208,78 @@
                 </button>
                 {#if photos.length > 1}
                   <span
-                    class="pointer-events-none absolute right-2 top-2 rounded-md bg-black/65 px-2 py-1 text-xs font-semibold text-white"
+                    class="pointer-events-none absolute right-1 top-1 rounded bg-black/65 px-1.5 py-0.5 text-[10px] font-semibold text-white md:right-2 md:top-2 md:rounded-md md:px-2 md:py-1 md:text-xs"
                   >
-                    {photos.length} photos
+                    {photos.length}
                   </span>
                 {/if}
               {:else}
                 <div class="flex h-full w-full items-center justify-center bg-gray-100">
-                  <span class="text-sm font-medium text-gray-400">No photo</span>
+                  <span class="text-[10px] font-medium text-gray-400 md:text-sm">No photo</span>
                 </div>
               {/if}
             </div>
 
-            <!-- Secondary thumbs -->
-            {#if extraPhotos.length > 0}
-              <div class="flex gap-2 overflow-x-auto border-b border-gray-100 bg-gray-50 px-3 py-2.5">
-                {#each extraPhotos as photoUrl, index (photoUrl)}
-                  <button
-                    type="button"
-                    class="h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-lg border-0 bg-transparent p-0 ring-1 ring-gray-200"
-                    onclick={(e) => openPhotoViewer(photos, index + 1, e)}
-                    aria-label="View photo {index + 2} of {photos.length}"
-                  >
-                    <img src={photoUrl} alt="" class="h-full w-full object-cover" />
-                  </button>
-                {/each}
-                {#if photos.length > 4}
-                  <button
-                    type="button"
-                    class="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-sm font-semibold text-gray-700"
-                    onclick={(e) => openPhotoViewer(photos, 4, e)}
-                    aria-label="View {photos.length - 4} more photos"
-                  >
-                    +{photos.length - 4}
-                  </button>
-                {/if}
-              </div>
-            {/if}
-
             <!-- Card body -->
-            <div class="p-4">
+            <div class="flex flex-1 flex-col p-2 md:p-4">
               <span
-                class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold
+                class="inline-flex w-fit items-center rounded px-1.5 py-0.5 text-[10px] font-semibold md:rounded-md md:px-2 md:text-xs
                   {row.is_pending ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}"
               >
                 {trackingLabel(row)}
               </span>
 
-              <p class="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+              <p class="mt-1 truncate text-[10px] font-medium uppercase tracking-wide text-gray-500 md:mt-2 md:text-xs">
                 {row.workshop.order_id || 'No order ID'}
               </p>
-              <h2 class="mt-0.5 text-lg font-semibold leading-snug text-gray-900">
+              <h2 class="mt-0.5 line-clamp-2 text-xs font-semibold leading-snug text-gray-900 md:text-lg">
                 {row.workshop.customer_name || 'Unknown customer'}
               </h2>
-              <p class="mt-1 text-sm text-gray-700">
+              <p class="mt-0.5 line-clamp-2 text-[11px] leading-snug text-gray-700 md:mt-1 md:text-sm">
                 {row.workshop.product_name || '—'}
                 {#if row.workshop.make_model}
-                  <span class="text-gray-500">· {row.workshop.make_model}</span>
+                  <span class="text-gray-500"> · {row.workshop.make_model}</span>
                 {/if}
               </p>
 
-              <dl class="mt-3 grid grid-cols-1 gap-1.5 text-sm">
-                <div class="flex gap-2">
-                  <dt class="w-20 shrink-0 text-gray-500">Site</dt>
-                  <dd class="min-w-0 break-words text-gray-800">
-                    {row.workshop.site_location || '—'}
-                  </dd>
+              <dl class="mt-1.5 space-y-0.5 text-[10px] leading-snug text-gray-600 md:mt-3 md:space-y-1.5 md:text-sm">
+                <div class="truncate">
+                  <span class="text-gray-400">Site </span>
+                  <span class="text-gray-800">{row.workshop.site_location || '—'}</span>
                 </div>
-                <div class="flex gap-2">
-                  <dt class="w-20 shrink-0 text-gray-500">Assigned</dt>
-                  <dd class="min-w-0 break-words text-gray-800">{row.assigned_to_name || '—'}</dd>
+                <div class="truncate">
+                  <span class="text-gray-400">Asgn </span>
+                  <span class="text-gray-800">{row.assigned_to_name || '—'}</span>
                 </div>
-                <div class="flex gap-2">
-                  <dt class="w-20 shrink-0 text-gray-500">Schedule</dt>
-                  <dd class="min-w-0 text-gray-800">{formatSchedule(row.schedule)}</dd>
+                <div class="truncate">
+                  <span class="text-gray-400">Date </span>
+                  <span class="text-gray-800">{formatDateShort(row.assigned_at)}</span>
+                </div>
+                <div class="truncate">
+                  <span class="text-gray-400">Sched </span>
+                  <span class="text-gray-800">{formatDateShort(row.schedule)}</span>
                 </div>
               </dl>
 
               {#if row.is_pending}
                 <button
                   type="button"
-                  class="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold text-white disabled:opacity-60
+                  class="mt-auto w-full rounded-md px-2 py-2 text-[11px] font-semibold leading-tight text-white disabled:opacity-60 md:mt-4 md:rounded-lg md:px-4 md:py-3 md:text-sm
                     {variant === 'return'
                     ? 'bg-violet-600 hover:bg-violet-700'
                     : 'bg-green-600 hover:bg-green-700'}"
                   disabled={confirmingId === row.workshop.id}
                   onclick={(e) => handleConfirm(row, e)}
                 >
-                  {confirmingId === row.workshop.id ? 'Updating…' : confirmLabel(row)}
+                  {#if confirmingId === row.workshop.id}
+                    …
+                  {:else if variant === 'return'}
+                    <span class="md:hidden">Returned</span>
+                    <span class="hidden md:inline">{confirmLabel(row)}</span>
+                  {:else}
+                    <span class="md:hidden">Picked up</span>
+                    <span class="hidden md:inline">{confirmLabel(row)}</span>
+                  {/if}
                 </button>
               {/if}
             </div>
@@ -357,6 +341,40 @@
           </button>
         {/each}
       </div>
+
+      <!-- Mobile: Pickup / Return tabs (sticky with header) -->
+      <div
+        class="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 md:hidden"
+        role="tablist"
+        aria-label="Pickup or return"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'pickup'}
+          class="rounded-lg px-3 py-3 text-sm font-semibold transition
+            {activeTab === 'pickup'
+            ? 'bg-sky-600 text-white shadow'
+            : 'bg-transparent text-gray-600'}"
+          onclick={() => (activeTab = 'pickup')}
+        >
+          Pickup
+          <span class="ml-1 opacity-80">({pickupRows.length})</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'return'}
+          class="rounded-lg px-3 py-3 text-sm font-semibold transition
+            {activeTab === 'return'
+            ? 'bg-violet-600 text-white shadow'
+            : 'bg-transparent text-gray-600'}"
+          onclick={() => (activeTab = 'return')}
+        >
+          Return
+          <span class="ml-1 opacity-80">({returnRows.length})</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -375,52 +393,16 @@
         </button>
       </div>
     {:else}
-      <!-- Mobile tab switcher -->
-      <div class="mb-4 grid grid-cols-2 gap-2 md:hidden">
-        <button
-          type="button"
-          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition
-            {activeTab === 'pickup'
-            ? 'bg-sky-600 text-white shadow-sm'
-            : 'border border-sky-200 bg-sky-50 text-sky-800'}"
-          onclick={() => (activeTab = 'pickup')}
-        >
-          Delivery ({pickupRows.length})
-        </button>
-        <button
-          type="button"
-          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition
-            {activeTab === 'return'
-            ? 'bg-violet-600 text-white shadow-sm'
-            : 'border border-violet-200 bg-violet-50 text-violet-800'}"
-          onclick={() => (activeTab = 'return')}
-        >
-          Return ({returnRows.length})
-        </button>
-      </div>
-
       <!-- Mobile: single active column -->
       <div class="md:hidden">
         {#if activeTab === 'pickup'}
           <section class="overflow-hidden rounded-2xl border border-sky-200 bg-sky-50">
-            <div class="bg-sky-600 px-4 py-3">
-              <h2 class="text-sm font-semibold text-white">
-                Delivery
-                <span class="ml-1 font-normal text-sky-100">({pickupRows.length})</span>
-              </h2>
-            </div>
             <div class="p-3">
               {@render cardList(pickupRows, 'No pickups', 'pickup')}
             </div>
           </section>
         {:else}
           <section class="overflow-hidden rounded-2xl border border-violet-200 bg-violet-50">
-            <div class="bg-violet-600 px-4 py-3">
-              <h2 class="text-sm font-semibold text-white">
-                Return
-                <span class="ml-1 font-normal text-violet-100">({returnRows.length})</span>
-              </h2>
-            </div>
             <div class="p-3">
               {@render cardList(returnRows, 'No returns', 'return')}
             </div>
@@ -433,7 +415,7 @@
         <section class="min-w-0 overflow-hidden rounded-2xl border border-sky-200 bg-sky-50">
           <div class="sticky top-[8.5rem] z-10 bg-sky-600 px-4 py-3">
             <h2 class="text-sm font-semibold text-white">
-              Delivery
+              Pickup
               <span class="ml-1 font-normal text-sky-100">({pickupRows.length})</span>
             </h2>
           </div>

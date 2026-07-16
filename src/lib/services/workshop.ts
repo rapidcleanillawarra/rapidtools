@@ -187,6 +187,7 @@ export interface DeliveryTrackingRow {
   transport_id: string | null;
   transport_status: 'new' | 'confirmed' | null;
   assigned_to_name: string | null;
+  assigned_at: string | null;
   schedule: string | null;
   is_pending: boolean;
 }
@@ -925,6 +926,7 @@ export async function getDeliveryTrackingList(): Promise<DeliveryTrackingRow[]> 
         transport_status: 'new' | 'confirmed';
         assigned_to_name: string | null;
         schedule: string | null;
+        created_at: string;
       }
     >();
 
@@ -935,7 +937,8 @@ export async function getDeliveryTrackingList(): Promise<DeliveryTrackingRow[]> 
         id: row.id,
         transport_status: row.transport_status as 'new' | 'confirmed',
         assigned_to_name: row.assigned_to_name ?? null,
-        schedule: row.schedule ?? null
+        schedule: row.schedule ?? null,
+        created_at: row.created_at
       });
     }
 
@@ -950,6 +953,7 @@ export async function getDeliveryTrackingList(): Promise<DeliveryTrackingRow[]> 
           transport_id: transport?.id ?? null,
           transport_status,
           assigned_to_name: transport?.assigned_to_name ?? null,
+          assigned_at: transport?.created_at ?? null,
           schedule: transport?.schedule ?? null,
           is_pending: transport_status !== 'confirmed'
         };

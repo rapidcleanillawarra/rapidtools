@@ -376,6 +376,36 @@ export async function notifyPickupToTeams(
   }
 }
 
+const WORKSHOP_FORM_PUBLIC_BASE =
+  'https://rapidcleanillawarra.github.io/rapidtools/workshop/form';
+
+/**
+ * Notify Teams when a pickup job has been collected (Mark picked up on deliveries page).
+ * Body: linked workshop id/order + "has been picked up by {name}".
+ */
+export async function notifyWorkshopPickedUpToTeams(
+  workshop: WorkshopRecord,
+  pickedUpBy: string
+): Promise<boolean> {
+  try {
+    const link = `${WORKSHOP_FORM_PUBLIC_BASE}?workshop_id=${encodeURIComponent(workshop.id)}`;
+    const label = escapeHtml(workshop.order_id?.trim() || workshop.id);
+    const name = escapeHtml(pickedUpBy.trim() || 'Unknown User');
+    const body = `<p><a href="${link}">${label}</a> has been picked up by ${name}</p>`;
+    const payload = { body, action: 'pickup_deliveries' };
+
+    const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Notify Teams via Power Automate when a workshop is marked as completed.
  * Returns true on success, false on failure. Does not throw.

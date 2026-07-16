@@ -6,6 +6,7 @@
     getDeliveryTrackingList,
     confirmDeliveryTransport,
     updateWorkshop,
+    notifyWorkshopPickedUpToTeams,
     type DeliveryTrackingRow
   } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
@@ -233,6 +234,10 @@
         });
 
         toastSuccess('Marked as picked up · moved to To be Quoted', 'Updated');
+
+        notifyWorkshopPickedUpToTeams(row.workshop, userName).then((ok) => {
+          if (!ok) toastError('Teams notification failed. Status was updated.');
+        });
       } else {
         rows = rows.map((r) =>
           r.workshop.id === row.workshop.id

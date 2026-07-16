@@ -414,7 +414,7 @@
         </div>
         <button
           type="button"
-          class="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          class="inline-flex shrink-0 items-center justify-center rounded-md border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           onclick={loadDeliveries}
           disabled={loading}
           aria-label="Refresh deliveries"
@@ -423,22 +423,22 @@
         </button>
       </div>
 
-      <div class="mt-3">
+      <div class="mt-2">
         <label class="sr-only" for="delivery-search">Search</label>
         <input
           id="delivery-search"
           type="search"
           bind:value={searchTerm}
           placeholder="Search customer, product, order, site…"
-          class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          class="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
       </div>
 
-      <div class="mt-3 flex flex-wrap items-center gap-2">
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
         {#each trackingChips as chip (chip.key)}
           <button
             type="button"
-            class="rounded-full px-3 py-1.5 text-sm font-medium transition
+            class="rounded-full px-2.5 py-1 text-xs font-medium transition
               {trackingFilter === chip.key
               ? 'bg-gray-900 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}"
@@ -450,7 +450,7 @@
 
         <button
           type="button"
-          class="ml-auto inline-flex items-center gap-1.5 rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          class="ml-auto inline-flex items-center gap-1 rounded-full border border-gray-300 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
           onclick={toggleSortDays}
           aria-label={sortDaysDir === 'desc'
             ? 'Sorted by most days pending. Tap to show fewest days first.'
@@ -463,7 +463,7 @@
 
       <!-- Mobile: Pickup / Return tabs (sticky with header) -->
       <div
-        class="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 md:hidden"
+        class="mt-2 grid grid-cols-2 gap-0.5 rounded-lg bg-gray-100 p-0.5 md:hidden"
         role="tablist"
         aria-label="Pickup or return"
       >
@@ -471,27 +471,27 @@
           type="button"
           role="tab"
           aria-selected={activeTab === 'pickup'}
-          class="rounded-lg px-3 py-3 text-sm font-semibold transition
+          class="rounded-md px-2 py-1.5 text-xs font-semibold transition
             {activeTab === 'pickup'
-            ? 'bg-sky-600 text-white shadow'
+            ? 'bg-sky-600 text-white shadow-sm'
             : 'bg-transparent text-gray-600'}"
           onclick={() => (activeTab = 'pickup')}
         >
           Pickup
-          <span class="ml-1 opacity-80">({pickupRows.length})</span>
+          <span class="ml-0.5 opacity-80">({pickupRows.length})</span>
         </button>
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === 'return'}
-          class="rounded-lg px-3 py-3 text-sm font-semibold transition
+          class="rounded-md px-2 py-1.5 text-xs font-semibold transition
             {activeTab === 'return'
-            ? 'bg-violet-600 text-white shadow'
+            ? 'bg-violet-600 text-white shadow-sm'
             : 'bg-transparent text-gray-600'}"
           onclick={() => (activeTab = 'return')}
         >
           Return
-          <span class="ml-1 opacity-80">({returnRows.length})</span>
+          <span class="ml-0.5 opacity-80">({returnRows.length})</span>
         </button>
       </div>
     </div>
@@ -505,7 +505,7 @@
         <p class="mb-3 text-sm text-red-600">{error}</p>
         <button
           type="button"
-          class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white"
+          class="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white"
           onclick={loadDeliveries}
         >
           Try again

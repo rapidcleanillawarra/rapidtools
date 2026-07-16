@@ -11,6 +11,7 @@
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
 
   type TrackingFilter = 'pending' | 'done' | 'all';
+  type ColumnVariant = 'pickup' | 'return';
 
   const trackingChips: { key: TrackingFilter; label: string }[] = [
     { key: 'pending', label: 'Pending' },
@@ -18,16 +19,17 @@
     { key: 'all', label: 'All' }
   ];
 
-  let rows = $state<DeliveryTrackingRow[]>([]);
+  let rows = $state.raw<DeliveryTrackingRow[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let searchTerm = $state('');
   let trackingFilter = $state<TrackingFilter>('pending');
   let confirmingId = $state<string | null>(null);
+  let activeTab = $state<ColumnVariant>('pickup');
 
   let showPhotoViewer = $state(false);
   let currentPhotoIndex = $state(0);
-  let currentPhotoUrls = $state<string[]>([]);
+  let currentPhotoUrls = $state.raw<string[]>([]);
 
   let pendingCount = $derived(rows.filter((r) => r.is_pending).length);
 
@@ -155,21 +157,34 @@
       confirmingId = null;
     }
   }
-
   onMount(() => {
     loadDeliveries();
   });
 </script>
 
-{#snippet cardList(columnRows: DeliveryTrackingRow[], emptyMessage: string)}
+{#snippet cardList(
+  columnRows: DeliveryTrackingRow[],
+  emptyMessage: string,
+  variant: ColumnVariant
+)}
   {#if columnRows.length === 0}
-    <div class="py-10 text-center text-gray-500 text-sm">{emptyMessage}</div>
+    <div
+      class="rounded-xl border border-dashed py-12 text-center text-sm
+        {variant === 'return'
+        ? 'border-violet-200 bg-violet-50/50 text-violet-600'
+        : 'border-sky-200 bg-sky-50/50 text-sky-600'}"
+    >
+      {emptyMessage}
+    </div>
   {:else}
-    <ul class="space-y-3">
+    <ul class="space-y-4">
       {#each columnRows as row (row.workshop.id)}
+        {@const photos = row.workshop.photo_urls ?? []}
+        {@const heroPhoto = photos[0]}
+        {@const extraPhotos = photos.slice(1, 4)}
         <li>
           <div
-            class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm active:bg-gray-50"
+            class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md active:scale-[0.99] transition-transform"
             role="button"
             tabindex="0"
             onclick={() => openWorkshop(row)}
@@ -180,86 +195,110 @@
               }
             }}
           >
-            <div class="flex flex-wrap items-center gap-2 mb-2">
-              <span
-                class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold
-                  {row.job_status === 'return'
-                  ? 'bg-purple-100 text-purple-800'
-                  : 'bg-sky-100 text-sky-800'}"
-              >
-                {row.job_status === 'return' ? 'Return' : 'Pickup'}
-              </span>
+            <!-- Hero image -->
+            <div class="relative aspect-[4/3] bg-gray-100">
+              {#if heroPhoto}
+                <button
+                  type="button"
+                  class="absolute inset-0 block h-full w-full cursor-pointer border-0 bg-transparent p-0"
+                  onclick={(e) => openPhotoViewer(photos, 0, e)}
+                  aria-label="View photo 1 of {photos.length}"
+                >
+                  <img src={heroPhoto} alt="" class="h-full w-full object-cover" />
+                </button>
+                {#if photos.length > 1}
+                  <span
+                    class="pointer-events-none absolute right-2 top-2 rounded-md bg-black/65 px-2 py-1 text-xs font-semibold text-white"
+                  >
+                    {photos.length} photos
+                  </span>
+                {/if}
+              {:else}
+                <div class="flex h-full w-full items-center justify-center bg-gray-100">
+                  <span class="text-sm font-medium text-gray-400">No photo</span>
+                </div>
+              {/if}
+            </div>
+
+            <!-- Secondary thumbs -->
+            {#if extraPhotos.length > 0}
+              <div class="flex gap-2 overflow-x-auto border-b border-gray-100 bg-gray-50 px-3 py-2.5">
+                {#each extraPhotos as photoUrl, index (photoUrl)}
+                  <button
+                    type="button"
+                    class="h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-lg border-0 bg-transparent p-0 ring-1 ring-gray-200"
+                    onclick={(e) => openPhotoViewer(photos, index + 1, e)}
+                    aria-label="View photo {index + 2} of {photos.length}"
+                  >
+                    <img src={photoUrl} alt="" class="h-full w-full object-cover" />
+                  </button>
+                {/each}
+                {#if photos.length > 4}
+                  <button
+                    type="button"
+                    class="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-gray-200 text-sm font-semibold text-gray-700"
+                    onclick={(e) => openPhotoViewer(photos, 4, e)}
+                    aria-label="View {photos.length - 4} more photos"
+                  >
+                    +{photos.length - 4}
+                  </button>
+                {/if}
+              </div>
+            {/if}
+
+            <!-- Card body -->
+            <div class="p-4">
               <span
                 class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold
                   {row.is_pending ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}"
               >
                 {trackingLabel(row)}
               </span>
-            </div>
 
-            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide">
-              {row.workshop.order_id || 'No order ID'}
-            </p>
-            <h2 class="mt-0.5 text-base font-semibold text-gray-900 leading-snug">
-              {row.workshop.customer_name || 'Unknown customer'}
-            </h2>
-            <p class="mt-1 text-sm text-gray-700">
-              {row.workshop.product_name || '—'}
-              {#if row.workshop.make_model}
-                <span class="text-gray-500">· {row.workshop.make_model}</span>
-              {/if}
-            </p>
-
-            {#if row.workshop.photo_urls?.length}
-              <div class="mt-2 flex items-center gap-1.5">
-                {#each row.workshop.photo_urls.slice(0, 3) as photoUrl, index (photoUrl)}
-                  <button
-                    type="button"
-                    class="h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-md border-0 bg-transparent p-0"
-                    onclick={(e) => openPhotoViewer(row.workshop.photo_urls, index, e)}
-                    aria-label="View photo {index + 1} of {row.workshop.photo_urls.length}"
-                  >
-                    <img src={photoUrl} alt="" class="h-full w-full rounded-md object-cover" />
-                  </button>
-                {/each}
-                {#if row.workshop.photo_urls.length > 3}
-                  <button
-                    type="button"
-                    class="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-gray-100 text-xs font-medium text-gray-600"
-                    onclick={(e) => openPhotoViewer(row.workshop.photo_urls, 3, e)}
-                    aria-label="View {row.workshop.photo_urls.length - 3} more photos"
-                  >
-                    +{row.workshop.photo_urls.length - 3}
-                  </button>
+              <p class="mt-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                {row.workshop.order_id || 'No order ID'}
+              </p>
+              <h2 class="mt-0.5 text-lg font-semibold leading-snug text-gray-900">
+                {row.workshop.customer_name || 'Unknown customer'}
+              </h2>
+              <p class="mt-1 text-sm text-gray-700">
+                {row.workshop.product_name || '—'}
+                {#if row.workshop.make_model}
+                  <span class="text-gray-500">· {row.workshop.make_model}</span>
                 {/if}
-              </div>
-            {/if}
+              </p>
 
-            <dl class="mt-3 grid grid-cols-1 gap-1.5 text-sm">
-              <div class="flex gap-2">
-                <dt class="shrink-0 text-gray-500 w-20">Site</dt>
-                <dd class="text-gray-800 min-w-0 break-words">{row.workshop.site_location || '—'}</dd>
-              </div>
-              <div class="flex gap-2">
-                <dt class="shrink-0 text-gray-500 w-20">Assigned</dt>
-                <dd class="text-gray-800 min-w-0 break-words">{row.assigned_to_name || '—'}</dd>
-              </div>
-              <div class="flex gap-2">
-                <dt class="shrink-0 text-gray-500 w-20">Schedule</dt>
-                <dd class="text-gray-800 min-w-0">{formatSchedule(row.schedule)}</dd>
-              </div>
-            </dl>
+              <dl class="mt-3 grid grid-cols-1 gap-1.5 text-sm">
+                <div class="flex gap-2">
+                  <dt class="w-20 shrink-0 text-gray-500">Site</dt>
+                  <dd class="min-w-0 break-words text-gray-800">
+                    {row.workshop.site_location || '—'}
+                  </dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="w-20 shrink-0 text-gray-500">Assigned</dt>
+                  <dd class="min-w-0 break-words text-gray-800">{row.assigned_to_name || '—'}</dd>
+                </div>
+                <div class="flex gap-2">
+                  <dt class="w-20 shrink-0 text-gray-500">Schedule</dt>
+                  <dd class="min-w-0 text-gray-800">{formatSchedule(row.schedule)}</dd>
+                </div>
+              </dl>
 
-            {#if row.is_pending}
-              <button
-                type="button"
-                class="mt-4 w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                disabled={confirmingId === row.workshop.id}
-                onclick={(e) => handleConfirm(row, e)}
-              >
-                {confirmingId === row.workshop.id ? 'Updating…' : confirmLabel(row)}
-              </button>
-            {/if}
+              {#if row.is_pending}
+                <button
+                  type="button"
+                  class="mt-4 w-full rounded-lg px-4 py-3 text-sm font-semibold text-white disabled:opacity-60
+                    {variant === 'return'
+                    ? 'bg-violet-600 hover:bg-violet-700'
+                    : 'bg-green-600 hover:bg-green-700'}"
+                  disabled={confirmingId === row.workshop.id}
+                  onclick={(e) => handleConfirm(row, e)}
+                >
+                  {confirmingId === row.workshop.id ? 'Updating…' : confirmLabel(row)}
+                </button>
+              {/if}
+            </div>
           </div>
         </li>
       {/each}
@@ -272,19 +311,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 flex flex-col">
-  <header class="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
-    <div class="px-4 pt-4 pb-3">
+<div class="flex min-h-screen flex-col bg-gray-50">
+  <header class="sticky top-0 z-20 border-b border-gray-200 bg-white shadow-sm">
+    <div class="px-4 pb-3 pt-4">
       <div class="flex items-center justify-between gap-3">
         <div>
           <h1 class="text-xl font-bold text-gray-900">Deliveries</h1>
-          <p class="text-sm text-gray-500 mt-0.5">
+          <p class="mt-0.5 text-sm text-gray-500">
             {pendingCount} pending · {rows.length} total
           </p>
         </div>
         <button
           type="button"
-          class="shrink-0 inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          class="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           onclick={loadDeliveries}
           disabled={loading}
           aria-label="Refresh deliveries"
@@ -323,10 +362,10 @@
 
   <main class="flex-1 px-4 py-4 pb-8">
     {#if loading && rows.length === 0}
-      <div class="py-16 text-center text-gray-500 text-sm">Loading deliveries…</div>
+      <div class="py-16 text-center text-sm text-gray-500">Loading deliveries…</div>
     {:else if error && rows.length === 0}
       <div class="py-16 text-center">
-        <p class="text-red-600 text-sm mb-3">{error}</p>
+        <p class="mb-3 text-sm text-red-600">{error}</p>
         <button
           type="button"
           class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white"
@@ -336,29 +375,83 @@
         </button>
       </div>
     {:else}
-      <div class="grid grid-cols-2 gap-4 items-start">
-        <section class="min-w-0">
-          <div
-            class="sticky top-[8.5rem] z-10 -mx-1 mb-3 border-b border-gray-200 bg-gray-50/95 px-1 py-2 backdrop-blur-sm"
-          >
-            <h2 class="text-sm font-semibold text-gray-900">
+      <!-- Mobile tab switcher -->
+      <div class="mb-4 grid grid-cols-2 gap-2 md:hidden">
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition
+            {activeTab === 'pickup'
+            ? 'bg-sky-600 text-white shadow-sm'
+            : 'border border-sky-200 bg-sky-50 text-sky-800'}"
+          onclick={() => (activeTab = 'pickup')}
+        >
+          Delivery ({pickupRows.length})
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition
+            {activeTab === 'return'
+            ? 'bg-violet-600 text-white shadow-sm'
+            : 'border border-violet-200 bg-violet-50 text-violet-800'}"
+          onclick={() => (activeTab = 'return')}
+        >
+          Return ({returnRows.length})
+        </button>
+      </div>
+
+      <!-- Mobile: single active column -->
+      <div class="md:hidden">
+        {#if activeTab === 'pickup'}
+          <section class="overflow-hidden rounded-2xl border border-sky-200 bg-sky-50">
+            <div class="bg-sky-600 px-4 py-3">
+              <h2 class="text-sm font-semibold text-white">
+                Delivery
+                <span class="ml-1 font-normal text-sky-100">({pickupRows.length})</span>
+              </h2>
+            </div>
+            <div class="p-3">
+              {@render cardList(pickupRows, 'No pickups', 'pickup')}
+            </div>
+          </section>
+        {:else}
+          <section class="overflow-hidden rounded-2xl border border-violet-200 bg-violet-50">
+            <div class="bg-violet-600 px-4 py-3">
+              <h2 class="text-sm font-semibold text-white">
+                Return
+                <span class="ml-1 font-normal text-violet-100">({returnRows.length})</span>
+              </h2>
+            </div>
+            <div class="p-3">
+              {@render cardList(returnRows, 'No returns', 'return')}
+            </div>
+          </section>
+        {/if}
+      </div>
+
+      <!-- Desktop: two side-by-side panels -->
+      <div class="hidden items-start gap-4 md:grid md:grid-cols-2">
+        <section class="min-w-0 overflow-hidden rounded-2xl border border-sky-200 bg-sky-50">
+          <div class="sticky top-[8.5rem] z-10 bg-sky-600 px-4 py-3">
+            <h2 class="text-sm font-semibold text-white">
               Delivery
-              <span class="ml-1 font-normal text-gray-500">({pickupRows.length})</span>
+              <span class="ml-1 font-normal text-sky-100">({pickupRows.length})</span>
             </h2>
           </div>
-          {@render cardList(pickupRows, 'No pickups')}
+          <div class="p-3">
+            {@render cardList(pickupRows, 'No pickups', 'pickup')}
+          </div>
         </section>
 
-        <section class="min-w-0">
-          <div
-            class="sticky top-[8.5rem] z-10 -mx-1 mb-3 border-b border-gray-200 bg-gray-50/95 px-1 py-2 backdrop-blur-sm"
-          >
-            <h2 class="text-sm font-semibold text-gray-900">
+        <section class="min-w-0 overflow-hidden rounded-2xl border border-violet-200 bg-violet-50">
+          <div class="sticky top-[8.5rem] z-10 bg-violet-600 px-4 py-3">
+            <h2 class="text-sm font-semibold text-white">
               Return
-              <span class="ml-1 font-normal text-gray-500">({returnRows.length})</span>
+              <span class="ml-1 font-normal text-violet-100">({returnRows.length})</span>
             </h2>
           </div>
-          {@render cardList(returnRows, 'No returns')}
+          <div class="p-3">
+            {@render cardList(returnRows, 'No returns', 'return')}
+          </div>
         </section>
       </div>
     {/if}

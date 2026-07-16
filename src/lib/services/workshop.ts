@@ -180,6 +180,17 @@ export interface WorkshopTransportListRow {
   created_at: string;
 }
 
+/** Delivery tracker row: active pickup/return workshop + latest matching transport */
+export interface DeliveryTrackingRow {
+  workshop: WorkshopRecord;
+  job_status: 'pickup' | 'return';
+  transport_id: string | null;
+  transport_status: 'new' | 'confirmed' | null;
+  assigned_to_name: string | null;
+  schedule: string | null;
+  is_pending: boolean;
+}
+
 /** workshop_status_history table row */
 export interface WorkshopStatusHistoryRow {
   id: string;
@@ -861,6 +872,133 @@ export async function upsertWorkshopTransport(params: {
     return data as WorkshopTransportRecord;
   } catch (error) {
     console.error('Error upserting workshop transport:', error);
+    throw error;
+  }
+}
+
+const DELIVERY_TRACKING_SELECT: string[] = [
+  'id',
+  'status',
+  'created_at',
+  'updated_at',
+  'customer_name',
+  'order_id',
+  'clients_work_order',
+  'product_name',
+  'make_model',
+  'photo_urls',
+  'site_location',
+  'fault_description',
+  'contact_number'
+];
+
+/**
+ * Active pickup/return workshops with latest matching transport for delivery tracking.
+ * Pending = transport missing or transport_status === 'new'; Done = transport_status === 'confirmed'.
+ */
+export async function getDeliveryTrackingList(): Promise<DeliveryTrackingRow[]> {
+  try {
+    const [pickupJobs, returnJobs] = await Promise.all([
+      getWorkshops({ status: 'pickup', select: DELIVERY_TRACKING_SELECT }),
+      getWorkshops({ status: 'return', select: DELIVERY_TRACKING_SELECT })
+    ]);
+
+    const workshops = [...pickupJobs, ...returnJobs];
+    if (workshops.length === 0) return [];
+
+    const workshopIds = workshops.map((w) => w.id);
+    const { data: transportRows, error } = await supabase
+      .from('workshop_transport')
+      .select(
+        'id, workshop_id, job_status, transport_status, assigned_to_name, schedule, created_at'
+      )
+      .in('workshop_id', workshopIds)
+      .in('job_status', ['pickup', 'return'])
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const latestByKey = new Map<
+      string,
+      {
+        id: string;
+        transport_status: 'new' | 'confirmed';
+        assigned_to_name: string | null;
+        schedule: string | null;
+      }
+    >();
+
+    for (const row of transportRows ?? []) {
+      const key = `${row.workshop_id}:${row.job_status}`;
+      if (latestByKey.has(key)) continue;
+      latestByKey.set(key, {
+        id: row.id,
+        transport_status: row.transport_status as 'new' | 'confirmed',
+        assigned_to_name: row.assigned_to_name ?? null,
+        schedule: row.schedule ?? null
+      });
+    }
+
+    return workshops
+      .map((workshop) => {
+        const job_status = workshop.status as 'pickup' | 'return';
+        const transport = latestByKey.get(`${workshop.id}:${job_status}`) ?? null;
+        const transport_status = transport?.transport_status ?? null;
+        return {
+          workshop,
+          job_status,
+          transport_id: transport?.id ?? null,
+          transport_status,
+          assigned_to_name: transport?.assigned_to_name ?? null,
+          schedule: transport?.schedule ?? null,
+          is_pending: transport_status !== 'confirmed'
+        };
+      })
+      .sort((a, b) => {
+        if (a.is_pending !== b.is_pending) return a.is_pending ? -1 : 1;
+        return (
+          new Date(b.workshop.updated_at || b.workshop.created_at).getTime() -
+          new Date(a.workshop.updated_at || a.workshop.created_at).getTime()
+        );
+      });
+  } catch (error) {
+    console.error('Error fetching delivery tracking list:', error);
+    throw error;
+  }
+}
+
+/**
+ * Mark a pickup/return transport as confirmed (delivered or returned).
+ * Preserves existing assignee/schedule when a transport row already exists.
+ */
+export async function confirmDeliveryTransport(
+  workshopId: string,
+  jobStatus: 'pickup' | 'return'
+): Promise<WorkshopTransportRecord> {
+  try {
+    const existing = await getTransportByWorkshopId(workshopId, jobStatus);
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('workshop_transport')
+        .update({
+          transport_status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as WorkshopTransportRecord;
+    }
+
+    return await upsertWorkshopTransport({
+      workshopId,
+      jobStatus,
+      transportStatus: 'confirmed'
+    });
+  } catch (error) {
+    console.error('Error confirming delivery transport:', error);
     throw error;
   }
 }

@@ -741,6 +741,11 @@
 								on:click={closeSidebar}>Workshop Job Status</a
 							>
 							<a
+								href="{base}/workshop/deliveries"
+								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
+								on:click={closeSidebar}>Deliveries</a
+							>
+							<a
 								href="{base}/workshop/preventative_maintenance?form=carpet_extractor"
 								class="block rounded-lg px-4 py-2 text-sm text-gray-300 transition hover:bg-gray-800 hover:text-yellow-400"
 								on:click={closeSidebar}>PMIS</a

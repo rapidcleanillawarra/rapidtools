@@ -32,6 +32,13 @@
 	// Promax page: no header/sidebar, standalone content
 	$: isPromaxPage = $page.url.pathname === base + '/promax' || $page.url.pathname.startsWith(base + '/promax/');
 
+	// Workshop deliveries: mobile tracker, no header/sidebar
+	$: isDeliveriesPage =
+		$page.url.pathname === base + '/workshop/deliveries' ||
+		$page.url.pathname.startsWith(base + '/workshop/deliveries/');
+
+	$: hideAppChrome = isPrintPage || isPromaxPage || isDeliveriesPage;
+
 	// Check if we're on a protected route
 	$: isProtectedRoute = $page.url.pathname.startsWith(base + '/product-request') ||
 						 $page.url.pathname.startsWith(base + '/dashboard') ||
@@ -47,8 +54,8 @@
 		goto(base + '/');
 	}
 
-	// Calculate sidebar width - only apply on desktop, not on print or promax pages
-	$: sidebarWidth = (isPrintPage || isPromaxPage) ? '0' : (isDesktop ? (sidebarMinimized ? '80px' : '280px') : '0');
+	// Calculate sidebar width - only apply on desktop, not on chrome-hidden pages
+	$: sidebarWidth = hideAppChrome ? '0' : (isDesktop ? (sidebarMinimized ? '80px' : '280px') : '0');
 
 	onMount(() => {
 		mounted = true;
@@ -80,7 +87,7 @@
 </script>
 
 {#if mounted || !browser}
-	{#if !isPrintPage && !isPromaxPage}
+	{#if !hideAppChrome}
 		<Header />
 	{/if}
 	<main class="transition-all duration-300" style:margin-left={sidebarWidth}>

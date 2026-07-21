@@ -2,20 +2,17 @@ import { redirect } from '@sveltejs/kit';
 import type { LayoutLoad } from './$types';
 import { browser } from '$app/environment';
 import { base } from '$app/paths';
-import { get } from 'svelte/store';
-import { currentUser, isLoadingAuth } from '$lib/firebase';
+import { waitForAuth } from '$lib/firebase';
 
 export const ssr = false;
 
 export const load: LayoutLoad = async ({ parent }) => {
   // Wait for parent layout data
   const parentData = await parent();
-  
-  if (browser) {
-    const user = get(currentUser);
-    const loading = get(isLoadingAuth);
 
-    if (!loading && !user) {
+  if (browser) {
+    const user = await waitForAuth();
+    if (!user) {
       throw redirect(302, base + '/');
     }
   }
@@ -23,4 +20,4 @@ export const load: LayoutLoad = async ({ parent }) => {
   return {
     ...parentData
   };
-}; 
+};

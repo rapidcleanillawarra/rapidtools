@@ -3,34 +3,41 @@
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
   import { currentUser, isLoadingAuth } from '$lib/firebase';
-  import { onMount } from 'svelte';
+  import type { User } from 'firebase/auth';
+  import { onDestroy } from 'svelte';
 
-  let mounted = false;
   let isLoading = true;
+  let user: User | null = null;
+  let redirectStarted = false;
 
-  const unsubAuth = isLoadingAuth.subscribe(loading => {
+  const unsubAuth = isLoadingAuth.subscribe((loading) => {
     isLoading = loading;
   });
 
-  const unsubUser = currentUser.subscribe(user => {
-    if (mounted && browser && !user && !isLoading) {
-      goto(base + '/');
-    }
+  const unsubUser = currentUser.subscribe((value) => {
+    user = value;
   });
 
-  onMount(() => {
-    mounted = true;
-    return () => {
-      unsubAuth();
-      unsubUser();
-    };
+  // Redirect when auth finishes with no user (covers load race + mid-session logout)
+  $: if (browser && !isLoading && !user && !redirectStarted) {
+    redirectStarted = true;
+    goto(base + '/', { replaceState: true });
+  }
+
+  onDestroy(() => {
+    unsubAuth();
+    unsubUser();
   });
 </script>
 
-{#if isLoading && !mounted}
+{#if isLoading}
   <div class="flex items-center justify-center min-h-screen">
     <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
   </div>
-{:else}
+{:else if user}
   <slot />
-{/if} 
+{:else}
+  <div class="flex items-center justify-center min-h-screen">
+    <p>Redirecting...</p>
+  </div>
+{/if}

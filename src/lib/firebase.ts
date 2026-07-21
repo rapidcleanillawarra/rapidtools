@@ -8,7 +8,7 @@ import {
     type User 
 } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
-import { writable, type Writable } from 'svelte/store';
+import { get, writable, type Writable } from 'svelte/store';
 
 // Get Firebase config from .env variables
 const firebaseConfig = {
@@ -56,6 +56,22 @@ onAuthStateChanged(auth, (user) => {
   currentUser.set(null);
   isLoadingAuth.set(false);
 });
+
+/** Resolves with the current user once Firebase auth has finished initializing. */
+export function waitForAuth(): Promise<User | null> {
+  if (!get(isLoadingAuth)) {
+    return Promise.resolve(get(currentUser));
+  }
+
+  return new Promise((resolve) => {
+    const unsubscribe = isLoadingAuth.subscribe((loading) => {
+      if (!loading) {
+        unsubscribe();
+        resolve(get(currentUser));
+      }
+    });
+  });
+}
 
 // Login function
 export async function loginWithEmailPassword(email: string, password: string): Promise<void> {

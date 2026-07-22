@@ -215,9 +215,14 @@
     PercentDiscount?: string;
   };
   const loadFromOrder = async () => {
-    const id = orderId.trim();
-    if (!id) {
-      orderError = 'Enter an order ID';
+    const orderIds = [...new Set(
+      orderId
+        .split(/[\s,;]+/)
+        .map((id) => id.trim())
+        .filter(Boolean)
+    )];
+    if (!orderIds.length) {
+      orderError = 'Enter one or more order IDs';
       return;
     }
     orderError = '';
@@ -225,7 +230,7 @@
     try {
       const payload = {
         Filter: {
-          OrderID: [id],
+          OrderID: orderIds,
           OutputSelector: [
             'OrderLine',
             'OrderLine.SKU',
@@ -244,12 +249,16 @@
       const data = await response.json();
       console.log('Load from order response', data);
       if (data?.Ack !== 'Success' || !Array.isArray(data?.Order) || data.Order.length === 0) {
-        orderError = data?.Ack === 'Success' ? 'Order not found' : 'Failed to load order. Please try again.';
+        orderError = data?.Ack === 'Success' ? 'Order(s) not found' : 'Failed to load order(s). Please try again.';
         return;
       }
-      const orderLines: OrderLineResponse[] = data.Order[0]?.OrderLine ?? [];
+      const orderLines: OrderLineResponse[] = (data.Order ?? []).flatMap((order: { OrderLine?: OrderLineResponse | OrderLineResponse[] }) => {
+        const lines = order?.OrderLine;
+        if (!lines) return [];
+        return Array.isArray(lines) ? lines : [lines];
+      });
       if (!orderLines.length) {
-        orderError = 'Order has no lines';
+        orderError = 'Order(s) have no lines';
         return;
       }
       rows = orderLines.map((line) => ({
@@ -263,7 +272,7 @@
       }));
     } catch (error) {
       console.error('Failed to load order', error);
-      orderError = 'Unable to load order. Please try again.';
+      orderError = 'Unable to load order(s). Please try again.';
     } finally {
       loadingOrder = false;
     }
@@ -446,12 +455,12 @@
 
     <div class="flex flex-wrap items-center gap-3">
       <div class="flex items-center gap-2">
-        <label for="order-id" class="text-sm font-medium text-gray-700 sr-only">Order ID</label>
+        <label for="order-id" class="text-sm font-medium text-gray-700 sr-only">Order IDs</label>
         <input
           id="order-id"
           type="text"
           class="rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Order ID (e.g. 26-0012347)"
+          placeholder="Order IDs (e.g. 26-0012347, 26-0012348)"
           bind:value={orderId}
           on:keydown={(e) => e.key === 'Enter' && loadFromOrder()}
         />
@@ -461,7 +470,7 @@
           on:click={loadFromOrder}
           disabled={loadingOrder}
         >
-          {loadingOrder ? 'Loading…' : 'Load from order'}
+          {loadingOrder ? 'Loading…' : 'Load from order(s)'}
         </button>
       </div>
       <button

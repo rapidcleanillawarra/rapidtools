@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { SheetHeader, SheetRow } from './types';
+import { formatPartsSummary, parseServiceValues } from './utils';
 
 /** A4 landscape (mm). */
 const PAGE_W = 297;
@@ -8,13 +9,14 @@ const MARGIN = 8;
 const HEADER_H = 22;
 const META_H = 12;
 const COL_HEADER_H = 9;
-const ROW_H = 18;
+/** Minimum row height for blank writing space. */
+const ROW_H_MIN = 20;
 const FOOTER_H = 8;
+const NOTES_FONT_SIZE = 6.5;
 
 const CONTENT_TOP = MARGIN + HEADER_H + META_H;
 const CONTENT_BOTTOM = PAGE_H - MARGIN - FOOTER_H;
 const TABLE_BODY_H = CONTENT_BOTTOM - CONTENT_TOP - COL_HEADER_H;
-const ROWS_PER_PAGE = Math.max(1, Math.floor(TABLE_BODY_H / ROW_H));
 
 type PrintMeta = {
 	company: string;
@@ -33,18 +35,31 @@ type PrintRow = {
 	sku: string;
 	size: string;
 	location: string;
+	results: string;
+	service: string;
+	notes: string;
+	workshopId: string;
+	parts: string;
 };
+
+type PrintMode = 'fillable' | 'completed';
 
 /** Column x positions and widths (mm) for the landscape writing form. */
 const COLS = {
 	num: { x: MARGIN, w: 8, label: '#' },
-	equipment: { x: MARGIN + 8, w: 72, label: 'Equipment' },
-	result: { x: MARGIN + 80, w: 28, label: 'Result' },
-	service: { x: MARGIN + 108, w: 36, label: 'Service' },
-	workshop: { x: MARGIN + 144, w: 28, label: 'Workshop ID' },
-	parts: { x: MARGIN + 172, w: 48, label: 'Parts / materials' },
-	notes: { x: MARGIN + 220, w: PAGE_W - MARGIN - (MARGIN + 220), label: 'Notes' }
+	equipment: { x: MARGIN + 8, w: 64, label: 'Equipment' },
+	result: { x: MARGIN + 72, w: 26, label: 'Result' },
+	service: { x: MARGIN + 98, w: 32, label: 'Service' },
+	workshop: { x: MARGIN + 130, w: 24, label: 'Workshop ID' },
+	parts: { x: MARGIN + 154, w: 40, label: 'Parts / materials' },
+	notes: { x: MARGIN + 194, w: PAGE_W - MARGIN - (MARGIN + 194), label: 'Notes' }
 } as const;
+
+const SERVICE_PRINT_OPTIONS = [
+	{ label: 'Service', value: 'Service' },
+	{ label: 'Test & Tag', value: 'Test and Tag' },
+	{ label: 'Tag', value: 'Tag' }
+] as const;
 
 export type PrintSheetOptions = {
 	printTitle?: string;
@@ -56,7 +71,7 @@ async function fetchImageDataUrl(url: string): Promise<string | null> {
 		const res = await fetch(url);
 		if (!res.ok) return null;
 		const blob = await res.blob();
-		return await new Promise<string>((resolve, reject) => {
+		return await new Promise((resolve, reject) => {
 			const reader = new FileReader();
 			reader.onload = () => resolve(reader.result as string);
 			reader.onerror = () => reject(reader.error);
@@ -115,7 +130,12 @@ function toPrintRows(rows: SheetRow[]): PrintRow[] {
 		serialNumber: row.serialNumber?.trim() || '',
 		sku: row.sku?.trim() || '',
 		size: row.size?.trim() || '',
-		location: row.location?.trim() || ''
+		location: row.location?.trim() || '',
+		results: row.results?.trim().toLowerCase() || '',
+		service: row.service?.trim() || '',
+		notes: row.notes?.trim() || '',
+		workshopId: row.workshopId?.trim() || '',
+		parts: formatPartsSummary(row.parts ?? '')
 	}));
 }
 
@@ -129,10 +149,17 @@ function toPrintMeta(header: SheetHeader): PrintMeta {
 	};
 }
 
-function drawCheckbox(doc: jsPDF, x: number, y: number, size = 3.2): void {
+function drawCheckbox(doc: jsPDF, x: number, y: number, size = 3.2, checked = false): void {
 	doc.setDrawColor(55, 65, 81);
 	doc.setLineWidth(0.25);
 	doc.rect(x, y, size, size);
+
+	if (checked) {
+		doc.setLineWidth(0.45);
+		doc.setDrawColor(17, 24, 39);
+		doc.line(x + 0.6, y + size * 0.55, x + size * 0.4, y + size - 0.6);
+		doc.line(x + size * 0.4, y + size - 0.6, x + size - 0.5, y + 0.5);
+	}
 }
 
 function drawWritingLines(
@@ -153,12 +180,7 @@ function drawWritingLines(
 	}
 }
 
-function fitText(
-	doc: jsPDF,
-	text: string,
-	maxWidth: number,
-	fontSize: number
-): string {
+function fitText(doc: jsPDF, text: string, maxWidth: number, fontSize: number): string {
 	if (!text) return '';
 	doc.setFontSize(fontSize);
 	if (doc.getTextWidth(text) <= maxWidth) return text;
@@ -207,9 +229,6 @@ function drawMeta(doc: jsPDF, meta: PrintMeta, pageIndex: number, pageCount: num
 	doc.setLineWidth(0.2);
 	doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, META_H, 'FD');
 
-	doc.setTextColor(107, 114, 128);
-	doc.setFont('helvetica', 'bold');
-	doc.setFontSize(6.5);
 	const fields = [
 		{ label: 'SHEET', value: meta.sheetName || '—' },
 		{ label: 'FREQUENCY', value: meta.frequency || '—' },
@@ -294,32 +313,104 @@ function drawEquipmentCell(doc: jsPDF, row: PrintRow, x: number, y: number, w: n
 	}
 }
 
-function drawResultCell(doc: jsPDF, x: number, y: number, w: number): void {
+function drawResultCell(
+	doc: jsPDF,
+	x: number,
+	y: number,
+	w: number,
+	rowH: number,
+	result: string,
+	mode: PrintMode
+): void {
 	const box = 3.2;
-	const midY = y + ROW_H / 2 - box / 2;
+	const midY = y + rowH / 2 - box / 2;
 	doc.setFont('helvetica', 'normal');
 	doc.setFontSize(7);
 	doc.setTextColor(55, 65, 81);
 
-	drawCheckbox(doc, x + 3, midY, box);
+	const fill = mode === 'completed';
+	drawCheckbox(doc, x + 3, midY, box, fill && result === 'pass');
 	doc.text('Pass', x + 7.5, midY + 2.5);
 
-	drawCheckbox(doc, x + 15.5, midY, box);
+	drawCheckbox(doc, x + 15.5, midY, box, fill && result === 'fail');
 	doc.text('Fail', x + 20, midY + 2.5);
 
 	void w;
 }
 
-function drawServiceCell(doc: jsPDF, x: number, y: number): void {
-	const options = ['Service', 'Test & Tag', 'Tag'];
+function drawServiceCell(
+	doc: jsPDF,
+	x: number,
+	y: number,
+	service: string,
+	mode: PrintMode
+): void {
+	const selected = new Set(parseServiceValues(service));
 	doc.setFont('helvetica', 'normal');
 	doc.setFontSize(6.5);
 	doc.setTextColor(55, 65, 81);
 
-	options.forEach((label, i) => {
+	SERVICE_PRINT_OPTIONS.forEach((option, i) => {
 		const ly = y + 3.8 + i * 4.5;
-		drawCheckbox(doc, x + 2, ly - 2.2, 2.8);
-		doc.text(label, x + 6.5, ly);
+		const checked = mode === 'completed' && selected.has(option.value);
+		drawCheckbox(doc, x + 2, ly - 2.2, 2.8, checked);
+		doc.text(option.label, x + 6.5, ly);
+	});
+}
+
+function notesLineHeight(fontSize = NOTES_FONT_SIZE): number {
+	return fontSize * 0.42;
+}
+
+/** Height needed to show full notes / parts text. */
+function measureRowHeight(doc: jsPDF, row: PrintRow | null): number {
+	if (!row) return ROW_H_MIN;
+
+	const padX = 1.5;
+	const padY = 2.5;
+	doc.setFont('helvetica', 'normal');
+	doc.setFontSize(NOTES_FONT_SIZE);
+
+	let textH = ROW_H_MIN;
+	if (row.notes) {
+		const lines = doc.splitTextToSize(row.notes, COLS.notes.w - padX * 2) as string[];
+		textH = Math.max(textH, padY * 2 + lines.length * notesLineHeight());
+	}
+	if (row.parts) {
+		const lines = doc.splitTextToSize(row.parts, COLS.parts.w - padX * 2) as string[];
+		textH = Math.max(textH, padY * 2 + lines.length * notesLineHeight());
+	}
+
+	return Math.max(ROW_H_MIN, Math.min(TABLE_BODY_H, textH + 1));
+}
+
+function drawWrappedText(
+	doc: jsPDF,
+	text: string,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	fontSize = NOTES_FONT_SIZE
+): void {
+	if (!text) return;
+
+	const padX = 1.5;
+	const padY = 2.5;
+	const maxW = w - padX * 2;
+	const maxH = h - padY * 2;
+
+	doc.setFont('helvetica', 'normal');
+	doc.setFontSize(fontSize);
+	doc.setTextColor(17, 24, 39);
+
+	const lines = doc.splitTextToSize(text, maxW) as string[];
+	const lineHeight = notesLineHeight(fontSize);
+	const maxLines = Math.max(1, Math.floor(maxH / lineHeight));
+	const visible = lines.slice(0, maxLines);
+
+	visible.forEach((line, i) => {
+		doc.text(line, x + padX, y + padY + (i + 1) * lineHeight);
 	});
 }
 
@@ -328,42 +419,114 @@ function drawDataRow(
 	row: PrintRow | null,
 	rowIndex: number,
 	y: number,
-	zebra: boolean
+	rowH: number,
+	zebra: boolean,
+	mode: PrintMode
 ): void {
 	if (zebra) {
 		doc.setFillColor(249, 250, 251);
-		doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, ROW_H, 'F');
+		doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH, 'F');
 	}
 
 	doc.setDrawColor(209, 213, 219);
 	doc.setLineWidth(0.25);
-	doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, ROW_H);
+	doc.rect(MARGIN, y, PAGE_W - MARGIN * 2, rowH);
 
 	(Object.keys(COLS) as (keyof typeof COLS)[]).forEach((key) => {
 		const col = COLS[key];
-		doc.line(col.x, y, col.x, y + ROW_H);
+		doc.line(col.x, y, col.x, y + rowH);
 	});
-	doc.line(PAGE_W - MARGIN, y, PAGE_W - MARGIN, y + ROW_H);
+	doc.line(PAGE_W - MARGIN, y, PAGE_W - MARGIN, y + rowH);
 
-	// Row number
 	doc.setFont('helvetica', 'bold');
 	doc.setFontSize(8);
 	doc.setTextColor(107, 114, 128);
-	doc.text(String(rowIndex + 1), COLS.num.x + COLS.num.w / 2, y + ROW_H / 2 + 1, {
+	doc.text(String(rowIndex + 1), COLS.num.x + COLS.num.w / 2, y + rowH / 2 + 1, {
 		align: 'center'
 	});
 
 	if (row) {
 		drawEquipmentCell(doc, row, COLS.equipment.x, y, COLS.equipment.w);
 	} else {
-		drawWritingLines(doc, COLS.equipment.x, y, COLS.equipment.w, ROW_H, 2);
+		drawWritingLines(doc, COLS.equipment.x, y, COLS.equipment.w, rowH, 2);
 	}
 
-	drawResultCell(doc, COLS.result.x, y, COLS.result.w);
-	drawServiceCell(doc, COLS.service.x, y);
-	drawWritingLines(doc, COLS.workshop.x, y, COLS.workshop.w, ROW_H, 1);
-	drawWritingLines(doc, COLS.parts.x, y, COLS.parts.w, ROW_H, 2);
-	drawWritingLines(doc, COLS.notes.x, y, COLS.notes.w, ROW_H, 2);
+	drawResultCell(doc, COLS.result.x, y, COLS.result.w, rowH, row?.results ?? '', mode);
+	drawServiceCell(doc, COLS.service.x, y, row?.service ?? '', mode);
+
+	if (row?.workshopId) {
+		drawWrappedText(doc, row.workshopId, COLS.workshop.x, y, COLS.workshop.w, rowH, 7);
+	} else if (mode === 'fillable') {
+		drawWritingLines(doc, COLS.workshop.x, y, COLS.workshop.w, rowH, 1);
+	}
+
+	if (row?.parts) {
+		drawWrappedText(doc, row.parts, COLS.parts.x, y, COLS.parts.w, rowH, 6.5);
+	} else if (mode === 'fillable') {
+		drawWritingLines(doc, COLS.parts.x, y, COLS.parts.w, rowH, 2);
+	}
+
+	if (row?.notes) {
+		drawWrappedText(doc, row.notes, COLS.notes.x, y, COLS.notes.w, rowH, NOTES_FONT_SIZE);
+	} else if (mode === 'fillable') {
+		drawWritingLines(doc, COLS.notes.x, y, COLS.notes.w, rowH, 3);
+	}
+}
+
+/** Paginate rows with variable heights so long notes stay on one page when possible. */
+function paginateRows(
+	doc: jsPDF,
+	rows: PrintRow[],
+	mode: PrintMode
+): { row: PrintRow | null; index: number; height: number }[][] {
+	const pages: { row: PrintRow | null; index: number; height: number }[][] = [];
+	let current: { row: PrintRow | null; index: number; height: number }[] = [];
+	let used = 0;
+
+	const pushPage = () => {
+		if (current.length === 0) return;
+		pages.push(current);
+		current = [];
+		used = 0;
+	};
+
+	const items =
+		rows.length > 0
+			? rows.map((row, index) => ({ row, index, height: measureRowHeight(doc, row) }))
+			: mode === 'fillable'
+				? [{ row: null as PrintRow | null, index: 0, height: ROW_H_MIN }]
+				: [];
+
+	for (const item of items) {
+		const height = Math.min(item.height, TABLE_BODY_H);
+		if (used > 0 && used + height > TABLE_BODY_H) {
+			pushPage();
+		}
+		current.push({ ...item, height });
+		used += height;
+	}
+
+	// Fill remaining space on fillable sheets with blank writing rows.
+	if (mode === 'fillable') {
+		let blankIndex = items.length;
+		while (TABLE_BODY_H - used >= ROW_H_MIN && (current.length > 0 || blankIndex === 0)) {
+			if (current.length === 0 && blankIndex === 0 && items.length === 0) {
+				current.push({ row: null, index: 0, height: ROW_H_MIN });
+				used += ROW_H_MIN;
+				blankIndex = 1;
+				continue;
+			}
+			current.push({ row: null, index: blankIndex, height: ROW_H_MIN });
+			blankIndex += 1;
+			used += ROW_H_MIN;
+		}
+	}
+
+	pushPage();
+	if (pages.length === 0) {
+		pages.push([{ row: null, index: 0, height: ROW_H_MIN }]);
+	}
+	return pages;
 }
 
 function drawFooter(doc: jsPDF): void {
@@ -395,13 +558,10 @@ function openPdfForPrint(doc: jsPDF, printTitle: string): void {
 	setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-/**
- * Build a landscape A4 fillable sheet with equipment pre-filled and blank
- * writing space for results, service, parts, workshop ID, and notes.
- */
-export async function printFillableSheet(
+async function printLandscapeSheet(
 	header: SheetHeader,
 	rows: SheetRow[],
+	mode: PrintMode,
 	options?: PrintSheetOptions
 ): Promise<void> {
 	const printTitle =
@@ -413,14 +573,15 @@ export async function printFillableSheet(
 	const printRows = toPrintRows(rows);
 	const logoDataUrl = options?.logoUrl ? await loadLogoPngDataUrl(options.logoUrl) : null;
 
-	const pageCount = Math.max(1, Math.ceil(Math.max(printRows.length, 1) / ROWS_PER_PAGE));
-
 	const doc = new jsPDF({
 		orientation: 'landscape',
 		unit: 'mm',
 		format: 'a4',
 		compress: true
 	});
+
+	const pages = paginateRows(doc, printRows, mode);
+	const pageCount = pages.length;
 
 	for (let pageIndex = 0; pageIndex < pageCount; pageIndex++) {
 		if (pageIndex > 0) doc.addPage();
@@ -431,16 +592,38 @@ export async function printFillableSheet(
 		const colHeaderY = CONTENT_TOP;
 		drawColumnHeaders(doc, colHeaderY);
 
-		const start = pageIndex * ROWS_PER_PAGE;
-		for (let i = 0; i < ROWS_PER_PAGE; i++) {
-			const dataIndex = start + i;
-			const row = dataIndex < printRows.length ? printRows[dataIndex] : null;
-			const y = colHeaderY + COL_HEADER_H + i * ROW_H;
-			drawDataRow(doc, row, dataIndex, y, i % 2 === 1);
-		}
+		let y = colHeaderY + COL_HEADER_H;
+		pages[pageIndex].forEach((item, i) => {
+			drawDataRow(doc, item.row, item.index, y, item.height, i % 2 === 1, mode);
+			y += item.height;
+		});
 
 		drawFooter(doc);
 	}
 
 	openPdfForPrint(doc, printTitle);
+}
+
+/**
+ * Landscape A4 sheet with equipment pre-filled and blank writing space
+ * for results, service, parts, workshop ID, and notes.
+ */
+export async function printFillableSheet(
+	header: SheetHeader,
+	rows: SheetRow[],
+	options?: PrintSheetOptions
+): Promise<void> {
+	await printLandscapeSheet(header, rows, 'fillable', options);
+}
+
+/**
+ * Same landscape layout as the fillable sheet, with results / service / parts /
+ * workshop ID / notes filled from the current page values.
+ */
+export async function printCompletedSheet(
+	header: SheetHeader,
+	rows: SheetRow[],
+	options?: PrintSheetOptions
+): Promise<void> {
+	await printLandscapeSheet(header, rows, 'completed', options);
 }

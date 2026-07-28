@@ -42,7 +42,7 @@
 	import ServiceSelect from './ServiceSelect.svelte';
 	import PartsEditor from './PartsEditor.svelte';
 	import { toastError, toastInfo, toastSuccess } from '$lib/utils/toast';
-	import { printFillableSheet } from './print_utils';
+	import { printCompletedSheet, printFillableSheet } from './print_utils';
 
 	type ServiceTextColumnKey = Extract<TextPasteColumnKey, SheetColumnKey>;
 
@@ -63,6 +63,7 @@
 	let sortDirection: 'asc' | 'desc' = 'asc';
 	let isTableLoading = false;
 	let isSaving = false;
+	let isPrinting = false;
 	let isPrintingFillable = false;
 
 	let originalRows: SheetRow[] = [];
@@ -360,8 +361,28 @@
 		}
 	}
 
-	function handlePrint() {
-		window.print();
+	async function handlePrint() {
+		if (isPrinting) return;
+
+		isPrinting = true;
+		try {
+			const title =
+				[$sheetHeader.company, $sheetHeader.sheetName || defaultSheetName()]
+					.filter(Boolean)
+					.join(' — ') || 'Service Test & Tag Sheet';
+			await printCompletedSheet($sheetHeader, displayedRows, {
+				printTitle: title,
+				logoUrl: LOGO_PRINT_FALLBACK
+			});
+		} catch (error) {
+			console.error('Failed to print sheet:', error);
+			toastError(
+				error instanceof Error ? error.message : 'Failed to prepare print',
+				'Print'
+			);
+		} finally {
+			isPrinting = false;
+		}
 	}
 
 	async function handlePrintFillable() {
@@ -410,6 +431,27 @@
 			console.error('Error in handlePaste:', error);
 			toastError('Failed to paste data', 'Error');
 		}
+	}
+
+	/** Grow notes textareas so full content is visible (no internal scroll clip). */
+	function autosizeNotesTextarea(node: HTMLTextAreaElement, _value: string) {
+		function resize() {
+			node.style.height = 'auto';
+			node.style.height = `${Math.max(node.scrollHeight, 96)}px`;
+		}
+
+		resize();
+		queueMicrotask(resize);
+		node.addEventListener('input', resize);
+
+		return {
+			update() {
+				resize();
+			},
+			destroy() {
+				node.removeEventListener('input', resize);
+			}
+		};
 	}
 </script>
 
@@ -472,7 +514,9 @@
 					New Sheet
 				</button>
 			{/if}
-			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint}>Print</button>
+			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint} disabled={isPrinting || isTableLoading}>
+				{isPrinting ? 'Preparing…' : 'Print'}
+			</button>
 			<button
 				type="button"
 				class="sheet-toolbar-btn"
@@ -549,7 +593,7 @@
 						<tr>
 							<th scope="col" class="sheet-row-num-col">#</th>
 							{#each SHEET_COLUMNS as col (col.key)}
-								<th scope="col">
+								<th scope="col" class:sheet-notes-col={col.key === 'notes'}>
 									<button type="button" class="sheet-sort-btn" on:click={() => handleSort(col.key)}>
 										{col.label}
 										<span class="sheet-sort-icon"
@@ -579,6 +623,7 @@
 										<td
 											class="sheet-cell"
 											class:sheet-cell--equipment-info={col.key === 'equipmentInfo'}
+											class:sheet-notes-col={col.key === 'notes'}
 										>
 											{#if col.key === 'equipmentInfo'}
 												<EquipmentInfoCard
@@ -590,15 +635,19 @@
 													on:paste={(e) => handlePaste(e.detail.event, row.id, e.detail.field)}
 												/>
 											{:else if col.key === 'notes'}
-												<textarea
-													value={row[col.key]}
-													on:input={(e) =>
-														updateRow(row.id, col.key, (e.target as HTMLTextAreaElement).value)}
-													on:paste={(e) => handlePaste(e, row.id, 'notes')}
-													rows="2"
-													class="sheet-cell-input sheet-cell-textarea"
-													placeholder="Notes"
-												></textarea>
+												<div class="sheet-notes-cell">
+													<textarea
+														value={row.notes}
+														use:autosizeNotesTextarea={row.notes}
+														on:input={(e) =>
+															updateRow(row.id, 'notes', (e.target as HTMLTextAreaElement).value)}
+														on:paste={(e) => handlePaste(e, row.id, 'notes')}
+														rows="5"
+														class="sheet-cell-input sheet-cell-textarea"
+														placeholder="Notes"
+														aria-label="Notes"
+													></textarea>
+												</div>
 											{:else if col.key === 'results'}
 												<ResultSelect
 													value={row.results}
@@ -1302,9 +1351,25 @@
 		font-weight: 500;
 	}
 
+	.sheet-notes-col {
+		min-width: 18rem;
+		width: 22%;
+	}
+
+	.sheet-notes-cell {
+		min-width: 18rem;
+		width: 100%;
+	}
+
 	.sheet-cell-textarea {
-		min-height: 2.5rem;
-		line-height: 1.35;
+		min-height: 6rem;
+		min-width: 18rem;
+		width: 100%;
+		line-height: 1.45;
+		overflow: hidden;
+		white-space: pre-wrap;
+		word-break: break-word;
+		field-sizing: content;
 	}
 
 	.sheet-checkbox {
@@ -1484,6 +1549,17 @@
 
 		.sheet-table-wrap {
 			overflow: visible;
+		}
+
+		.sheet-table,
+		.sheet-cell {
+			overflow: visible;
+		}
+
+		.sheet-notes-col,
+		.sheet-notes-cell {
+			min-width: 12rem;
+			width: 24%;
 		}
 
 		.sheet-actions-col,

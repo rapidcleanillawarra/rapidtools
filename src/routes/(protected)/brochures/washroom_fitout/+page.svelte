@@ -193,7 +193,7 @@
 	</section>
 
 	<!-- ========== PAGE 2 · PRODUCT BENEFITS ========== -->
-	<section class="page" aria-label="Page 2: Program details and product benefits">
+	<section class="page page-benefits" aria-label="Page 2: Program details and product benefits">
 		<div class="brand-bar">
 			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
@@ -212,7 +212,7 @@
 							<span class="badge">Soap</span>
 							<img class="thumb-img" src={images.product_soap} alt="GOJO 2L Soap Dispensers" />
 						</div>
-						<div>
+						<div class="system-body">
 							<strong>GOJO 2L Soap Dispensers</strong>
 							<p>
 								Reliable high-capacity soap dispensing for club change rooms, public toilets and
@@ -226,7 +226,7 @@
 							<span class="badge">Toilet</span>
 							<img class="thumb-img" src={images.product_toilet} alt="ESG Slim 3-Roll Toilet Paper" />
 						</div>
-						<div>
+						<div class="system-body">
 							<strong>ESG Slim 3-Roll Toilet Paper</strong>
 							<p>
 								High-capacity controlled-use dispensing. ESG material notes up to 4,800 sheets of
@@ -240,7 +240,7 @@
 							<span class="badge">Towel</span>
 							<img class="thumb-img" src={images.product_towel} alt="ESG Auto-Cut Roll Towel" />
 						</div>
-						<div>
+						<div class="system-body">
 							<strong>ESG Auto-Cut Roll Towel</strong>
 							<p>
 								Holds up to 243m roll towel, requires no batteries and uses a translucent window to
@@ -803,6 +803,138 @@
 		font-size: 9pt;
 		line-height: 1.4;
 		color: var(--dark);
+	}
+
+	/* ---------- Page 2 · Product Benefits (fill A4) ---------- */
+	.page-benefits .section-num {
+		margin-bottom: 2mm;
+	}
+
+	.page-benefits h2 {
+		margin: 0 0 2mm;
+	}
+
+	.page-benefits .subtitle {
+		margin: 0 0 4mm;
+		font-size: 12.5pt;
+		line-height: 1.3;
+	}
+
+	.page-benefits .systems-layout {
+		flex: 1;
+		min-height: 0;
+		margin-top: 0;
+		gap: 6mm;
+		align-items: stretch;
+		grid-template-columns: 1.15fr 0.85fr;
+	}
+
+	.page-benefits .system-list {
+		height: 100%;
+		gap: 4mm;
+		min-height: 0;
+	}
+
+	.page-benefits .system-item {
+		flex: 1;
+		min-height: 0;
+		grid-template-columns: 46mm 1fr;
+		gap: 5mm;
+		padding: 5mm 5.5mm;
+		align-items: stretch;
+	}
+
+	.page-benefits .system-item .thumb {
+		height: 100%;
+		min-height: 42mm;
+		border-radius: 10px;
+	}
+
+	.page-benefits .system-item .thumb .thumb-img {
+		object-fit: contain;
+		padding: 2.5mm;
+	}
+
+	.page-benefits .system-item .badge {
+		z-index: 1;
+		font-size: 6.5pt;
+		letter-spacing: 0.6pt;
+		padding: 1.2mm 2.2mm;
+		border-radius: 4px;
+		box-shadow: 0 1px 3px rgba(47, 111, 47, 0.2);
+	}
+
+	.page-benefits .system-body {
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		min-width: 0;
+		padding: 1mm 0;
+	}
+
+	.page-benefits .system-item strong {
+		font-size: 12pt;
+		margin-bottom: 2mm;
+		line-height: 1.2;
+	}
+
+	.page-benefits .system-item p {
+		font-size: 9.5pt;
+		line-height: 1.45;
+	}
+
+	.page-benefits .benefits-panel {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		padding: 6mm 6.5mm;
+		background:
+			linear-gradient(180deg, #f7fbf3 0%, var(--cream) 100%);
+		border-left: 3.5px solid var(--rapid-green);
+		min-height: 0;
+	}
+
+	.page-benefits .benefits-panel h3 {
+		margin: 0 0 3mm;
+		font-size: 13.5pt;
+		flex-shrink: 0;
+	}
+
+	.page-benefits .benefits {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+		gap: 0;
+		min-height: 0;
+	}
+
+	.page-benefits .benefit {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		padding: 3.5mm 0;
+		border-bottom: 1px solid var(--border);
+	}
+
+	.page-benefits .benefit:last-child {
+		border-bottom: none;
+		padding-bottom: 0;
+	}
+
+	.page-benefits .benefit:first-child {
+		padding-top: 1mm;
+	}
+
+	.page-benefits .benefit h4 {
+		font-size: 11pt;
+		margin: 0 0 1.5mm;
+	}
+
+	.page-benefits .benefit p {
+		font-size: 9.5pt;
+		line-height: 1.45;
 	}
 
 	/* ---------- Recognition Panel ---------- */

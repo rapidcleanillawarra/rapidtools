@@ -33,6 +33,12 @@
 			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/third_brochure.png'
 		},
 		{
+			key: 'next_steps_image',
+			label: 'Page 5 · Next steps image',
+			defaultUrl: '',
+			hint: 'Right-side photo behind the Next Steps content.'
+		},
+		{
 			key: 'back_cover_hero',
 			label: 'Back cover background',
 			defaultUrl:
@@ -436,35 +442,140 @@
 	</section>
 
 	<!-- ========== PAGE 5 · NEXT STEPS ========== -->
-	<section class="page" aria-label="Page 5: Next steps">
+	<section class="page page-next" aria-label="Page 5: Next steps">
 		<div class="brand-bar">
 			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
 		</div>
-		<div class="corner-accent"></div>
 
-		<div class="page-inner" style="justify-content: center;">
-			<div class="section-num"><span>05</span> Next Steps</div>
-			<div class="cta" style="margin-top: 0;">
-				<h2>Book a site assessment</h2>
-				<p>
+		<div
+			class={['next-hero', { 'has-image': Boolean(images.next_steps_image) }]}
+			style={images.next_steps_image
+				? `background-image: url('${images.next_steps_image}')`
+				: undefined}
+			role="img"
+			aria-label="Site assessment and equipment servicing"
+		>
+			{#if !images.next_steps_image}
+				<span class="next-hero-placeholder">Image placeholder</span>
+			{/if}
+		</div>
+
+		<div class="page-inner next-inner">
+			<div class="next-content">
+				<div class="section-num"><span>05</span> Next Steps</div>
+				<h2 class="next-headline">
+					<span class="next-headline-dark">Book a site</span>
+					<span class="next-headline-green">assessment</span>
+				</h2>
+				<p class="next-lead">
 					Let RapidClean Illawarra review your cleaning equipment fleet and build a practical
 					preventative maintenance plan for your facility.
 				</p>
-				<div class="cta-contact">
-					<div class="item">
-						<span class="label">Phone</span>
-						<span class="value">02 4227 2833</span>
+
+				<ul class="next-benefits">
+					<li>
+						<span class="next-benefit-icon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4">
+								<path
+									d="M5 13l4 4L19 7"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<div>
+							<strong>Reduce downtime</strong>
+							<span>Keep your equipment running at its best.</span>
+						</div>
+					</li>
+					<li>
+						<span class="next-benefit-icon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path
+									d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<div>
+							<strong>Extend equipment life</strong>
+							<span>Proactive maintenance prevents costly repairs.</span>
+						</div>
+					</li>
+					<li>
+						<span class="next-benefit-icon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path
+									d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<div>
+							<strong>Improve performance</strong>
+							<span>Reliable, efficient cleaning when you need it most.</span>
+						</div>
+					</li>
+				</ul>
+			</div>
+
+			<div class="next-cta-card">
+				<div class="next-cta-contacts">
+					<div class="next-cta-item">
+						<span class="next-cta-icon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path
+									d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<div>
+							<span class="label">Phone</span>
+							<span class="value">02 4227 2833</span>
+						</div>
 					</div>
-					<div class="item">
-						<span class="label">Email</span>
-						<span class="value">orders@rapidcleanillawarra.com.au</span>
+					<div class="next-cta-item">
+						<span class="next-cta-icon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path
+									d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+								<polyline points="22,6 12,13 2,6" stroke-linecap="round" stroke-linejoin="round" />
+							</svg>
+						</span>
+						<div>
+							<span class="label">Email</span>
+							<span class="value">orders@rapidcleanillawarra.com.au</span>
+						</div>
 					</div>
-					<div class="item">
-						<span class="label">Web</span>
-						<span class="value">rapidsupplies.com.au</span>
+					<div class="next-cta-item">
+						<span class="next-cta-icon" aria-hidden="true">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<circle cx="12" cy="12" r="10" />
+								<path d="M2 12h20" stroke-linecap="round" />
+								<path
+									d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<div>
+							<span class="label">Web</span>
+							<span class="value">rapidsupplies.com.au</span>
+						</div>
 					</div>
 				</div>
+				<p class="next-cta-tagline">
+					Let's keep your equipment performing at its best. Contact us today to get started.
+				</p>
 			</div>
 		</div>
 
@@ -1093,87 +1204,243 @@
 		line-height: 1.4;
 	}
 
-	/* ---------- CTA ---------- */
-	.cta {
-		position: relative;
-		background:
-			radial-gradient(circle at 90% 10%, rgba(255, 255, 255, 0.15), transparent 50%),
-			linear-gradient(135deg, var(--deep-green) 0%, var(--rapid-green) 100%);
-		color: white;
-		padding: 9mm 10mm;
-		border-radius: 16px;
-		margin-top: 7mm;
-		overflow: hidden;
-		box-shadow: 0 6px 20px rgba(47, 111, 47, 0.25);
-	}
-
-	.cta::before {
-		content: '';
+	/* ---------- Page 5 · Next Steps ---------- */
+	.page-next .next-hero {
 		position: absolute;
-		top: -20mm;
-		right: -20mm;
-		width: 60mm;
-		height: 60mm;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.06);
-	}
-
-	.cta::after {
-		content: '';
-		position: absolute;
-		bottom: -25mm;
-		left: -10mm;
-		width: 50mm;
-		height: 50mm;
-		border-radius: 50%;
-		background: rgba(255, 255, 255, 0.05);
-	}
-
-	.cta h2,
-	.cta p {
-		color: white;
-		position: relative;
+		top: 24mm;
+		right: 0;
+		bottom: 14mm;
+		width: 55%;
 		z-index: 1;
-	}
-
-	.cta h2 {
-		margin: 0 0 3mm;
-		font-size: 22pt;
-	}
-
-	.cta p {
-		font-size: 10.5pt;
-		margin-bottom: 3mm;
-		max-width: 145mm;
-	}
-
-	.cta-contact {
+		background-color: #e8efe4;
+		background-size: cover;
+		background-position: center right;
+		background-repeat: no-repeat;
 		display: flex;
-		gap: 8mm;
-		flex-wrap: wrap;
-		margin-top: 4mm;
-		font-size: 10pt;
-		position: relative;
-		z-index: 1;
+		align-items: center;
+		justify-content: center;
 	}
 
-	.cta-contact .item {
+	.page-next .next-hero::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(
+			90deg,
+			rgba(255, 255, 255, 1) 0%,
+			rgba(255, 255, 255, 0.55) 8%,
+			rgba(255, 255, 255, 0.15) 18%,
+			transparent 28%
+		);
+		pointer-events: none;
+	}
+
+	.page-next .next-hero.has-image {
+		background-color: transparent;
+	}
+
+	.page-next .next-hero-placeholder {
+		position: relative;
+		z-index: 1;
+		color: rgba(47, 111, 47, 0.45);
+		font-size: 11pt;
+		font-weight: 600;
+		letter-spacing: 0.4pt;
+	}
+
+	.page-next .next-inner {
+		padding-bottom: 18mm;
+		z-index: 2;
+	}
+
+	.page-next .next-content {
+		max-width: 100mm;
+		position: relative;
+		z-index: 2;
+	}
+
+	.page-next .next-headline {
+		margin: 0 0 4mm;
+		font-size: 28pt;
+		line-height: 1.05;
+		letter-spacing: -0.4pt;
+		font-weight: 800;
 		display: flex;
 		flex-direction: column;
-		gap: 1mm;
+		gap: 0;
 	}
 
-	.cta-contact .label {
-		font-size: 8pt;
-		letter-spacing: 1.5pt;
+	.page-next .next-headline-dark {
+		color: var(--ink);
+	}
+
+	.page-next .next-headline-green {
+		color: var(--deep-green);
+	}
+
+	.page-next .next-headline::after {
+		content: '';
+		display: block;
+		width: 14mm;
+		height: 1.2mm;
+		margin-top: 3.5mm;
+		background: var(--rapid-green);
+		border-radius: 1mm;
+	}
+
+	.page-next .next-lead {
+		max-width: 95mm;
+		font-size: 10.5pt;
+		line-height: 1.45;
+		margin: 0 0 6mm;
+		color: var(--dark);
+	}
+
+	.page-next .next-benefits {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 4.5mm;
+	}
+
+	.page-next .next-benefits li {
+		display: flex;
+		align-items: flex-start;
+		gap: 3.5mm;
+		padding-left: 0;
+		margin: 0;
+	}
+
+	.page-next .next-benefits li::before {
+		display: none;
+	}
+
+	.page-next .next-benefit-icon {
+		flex-shrink: 0;
+		width: 10.5mm;
+		height: 10.5mm;
+		border-radius: 50%;
+		background: linear-gradient(135deg, var(--rapid-green) 0%, var(--deep-green) 100%);
+		color: white;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		box-shadow: 0 2px 6px rgba(47, 111, 47, 0.22);
+	}
+
+	.page-next .next-benefit-icon svg {
+		width: 5.2mm;
+		height: 5.2mm;
+	}
+
+	.page-next .next-benefits strong {
+		display: block;
+		font-size: 11.5pt;
+		color: var(--ink);
+		font-weight: 700;
+		margin-bottom: 0.6mm;
+		line-height: 1.2;
+	}
+
+	.page-next .next-benefits li span:not(.next-benefit-icon) {
+		display: block;
+		font-size: 9.8pt;
+		color: var(--dark);
+		line-height: 1.35;
+	}
+
+	.page-next .next-cta-card {
+		margin-top: auto;
+		position: relative;
+		z-index: 2;
+		background: linear-gradient(135deg, var(--deep-green) 0%, var(--rapid-green) 100%);
+		color: white;
+		border-radius: 14px;
+		padding: 5.5mm 6mm 5mm;
+		box-shadow: 0 4px 14px rgba(47, 111, 47, 0.22);
+	}
+
+	.page-next .next-cta-contacts {
+		display: grid;
+		grid-template-columns: 0.85fr 1.5fr 0.95fr;
+		gap: 0;
+	}
+
+	.page-next .next-cta-item {
+		display: flex;
+		align-items: flex-start;
+		gap: 2.5mm;
+		padding: 0 3.5mm;
+		min-width: 0;
+	}
+
+	.page-next .next-cta-item:first-child {
+		padding-left: 1mm;
+	}
+
+	.page-next .next-cta-item:not(:first-child) {
+		border-left: 0.5px solid rgba(255, 255, 255, 0.35);
+	}
+
+	.page-next .next-cta-item:nth-child(2) .value {
+		white-space: nowrap;
+		font-size: 8.8pt;
+	}
+
+	.page-next .next-cta-icon {
+		flex-shrink: 0;
+		width: 5mm;
+		height: 5mm;
+		margin-top: 0.5mm;
+		color: rgba(255, 255, 255, 0.95);
+	}
+
+	.page-next .next-cta-icon svg {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+
+	.page-next .next-cta-item .label {
+		display: block;
+		font-size: 7.5pt;
+		letter-spacing: 1.4pt;
 		text-transform: uppercase;
 		opacity: 0.8;
 		font-weight: 600;
+		margin-bottom: 0.8mm;
 	}
 
-	.cta-contact .value {
-		font-size: 11pt;
+	.page-next .next-cta-item .value {
+		display: block;
+		font-size: 9.5pt;
 		font-weight: 700;
+		line-height: 1.25;
+		word-break: break-word;
+		color: white;
+	}
+
+	.page-next .next-cta-tagline {
+		margin: 4mm 0 0;
+		padding: 3.5mm 0 0 3.5mm;
+		border-top: 0.5px solid rgba(255, 255, 255, 0.35);
+		position: relative;
+		font-size: 9.8pt;
+		line-height: 1.4;
+		color: white;
+	}
+
+	.page-next .next-cta-tagline::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		top: 3.5mm;
+		bottom: 0;
+		width: 1.2mm;
+		background: white;
+		border-radius: 1mm;
 	}
 
 	/* ---------- Section Header ---------- */

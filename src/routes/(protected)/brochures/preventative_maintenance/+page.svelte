@@ -28,11 +28,6 @@
 			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/preventative_maintenance_1.png'
 		},
 		{
-			key: 'challenge_image',
-			label: 'Page 2 · Challenge image',
-			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/second_brochure.png'
-		},
-		{
 			key: 'approach_image',
 			label: 'Page 3 · Approach image',
 			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/third_brochure.png'
@@ -147,6 +142,7 @@
 			</div>
 			<ul>
 				<li>Reduce reactive breakdown repairs</li>
+				<li>Improve infection control standards</li>
 				<li>Improve equipment safety and compliance visibility</li>
 				<li>Support cleaning team productivity and retention</li>
 				<li>Plan replacement cycles before machines fail</li>
@@ -167,7 +163,7 @@
 	</section>
 
 	<!-- ========== PAGE 2 · THE CHALLENGE ========== -->
-	<section class="page" aria-label="Page 2: The challenge">
+	<section class="page page-challenge" aria-label="Page 2: The challenge">
 		<div class="brand-bar">
 			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
@@ -183,28 +179,15 @@
 				schedule and no replacement plan.
 			</p>
 
-			<div class="grid-2">
-				<div>
-					<h3>Common issues we find on site</h3>
-					<ul>
-						<li>Machines used beyond economical repair life</li>
-						<li>Equipment repaired only after breakdown</li>
-						<li>HEPA filters, batteries, brushes and wear parts overlooked</li>
-						<li>Electrical test and tag gaps</li>
-						<li>Cleaning teams working harder than necessary</li>
-						<li>Limited visibility over future costs</li>
-					</ul>
-				</div>
-				<div class="image-card">
-					<img
-						src={images.challenge_image}
-						alt="Service coordination for scheduled maintenance, repairs and compliance follow-up"
-					/>
-					<div class="caption">
-						Service coordination for scheduled maintenance, repairs and compliance follow-up
-					</div>
-				</div>
-			</div>
+			<h3>Common issues we find on site</h3>
+			<ul class="bullet-grid-2">
+				<li>Machines used beyond economical repair life</li>
+				<li>Equipment repaired only after breakdown</li>
+				<li>HEPA filters, batteries, brushes and wear parts overlooked</li>
+				<li>Electrical test and tag gaps</li>
+				<li>Cleaning teams working harder than necessary</li>
+				<li>Limited visibility over future costs</li>
+			</ul>
 
 			<div class="callout">
 				<h3>Health, safety and staff retention</h3>
@@ -232,7 +215,7 @@
 	</section>
 
 	<!-- ========== PAGE 3 · OUR APPROACH ========== -->
-	<section class="page" aria-label="Page 3: Our approach">
+	<section class="page page-approach" aria-label="Page 3: Our approach">
 		<div class="brand-bar">
 			<img class="site-logo" src={images.logo} alt="RapidClean Illawarra" />
 			<span class="brand-tag">{brandTag}</span>
@@ -247,16 +230,12 @@
 				From there, we create a practical servicing and replacement plan.
 			</p>
 
-			<div class="image-card team-hero wide cover">
+			<figure class="approach-visual">
 				<img
 					src={images.approach_image}
 					alt="Our preventative maintenance model for cleaning equipment"
 				/>
-				<div class="caption">
-					From site assessment and asset registers through scheduled servicing and replacement
-					planning
-				</div>
-			</div>
+			</figure>
 
 			<div class="process process-grid">
 				<div class="step">
@@ -820,67 +799,68 @@
 		font-weight: 400;
 	}
 
-	/* ---------- Image Card ---------- */
-	.image-card {
-		position: relative;
-		min-height: 100mm;
-		background:
-			radial-gradient(circle at 80% 20%, rgba(120, 190, 32, 0.18), transparent 60%),
-			linear-gradient(135deg, #f3faec 0%, #e2efd4 100%);
-		overflow: hidden;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		box-shadow: 0 4px 14px rgba(47, 111, 47, 0.08);
+	/* ---------- Page 3 · Full-width approach image ---------- */
+	.page-approach .page-inner {
+		padding-bottom: 18mm;
 	}
 
-	.image-card > img {
+	.page-approach h2 {
+		margin-bottom: 2.5mm;
+		font-size: 20pt;
+	}
+
+	.page-approach .page-inner > p {
+		margin-bottom: 2mm;
+		font-size: 10pt;
+	}
+
+	.page-approach .approach-visual {
 		position: relative;
+		margin: 1mm calc(-1 * var(--gutter)) 2.5mm;
+		width: calc(100% + 2 * var(--gutter));
+		line-height: 0;
+		background: var(--white);
+	}
+
+	.page-approach .approach-visual img {
 		width: 100%;
-		height: 100%;
-		object-fit: contain;
-		padding: 6mm 4mm;
-		background: #fff;
-		box-sizing: border-box;
+		height: auto;
 		display: block;
-		z-index: 1;
+		object-fit: contain;
 	}
 
-	.image-card.cover > img {
-		object-fit: fill;
-		padding: 0 0;
+	.page-approach .process-grid {
+		gap: 2mm;
+		margin-top: 0;
 	}
 
-	.image-card.wide {
-		min-height: 52mm;
-		margin-top: 2mm;
+	.page-approach .process-grid .step {
+		display: block;
+		padding: 2.5mm 3mm;
 	}
 
-	.image-card .caption {
+	.page-approach .process-grid .step::before {
 		display: none;
-		position: absolute;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		z-index: 3;
-		background: linear-gradient(180deg, rgba(17, 24, 31, 0) 0%, rgba(17, 24, 31, 0.92) 70%);
-		color: white;
-		font-size: 8.8pt;
-		line-height: 1.35;
-		padding: 14mm 5mm 4mm;
-		font-weight: 600;
-		letter-spacing: 0.2pt;
+		content: none;
 	}
 
-	.team-hero {
-		background:
-			radial-gradient(circle at 20% 80%, rgba(120, 190, 32, 0.22), transparent 55%),
-			linear-gradient(135deg, #f8fff4 0%, #e0efd2 100%);
+	.page-approach .process-grid .step h3 {
+		font-size: 9.5pt;
+		margin: 0 0 0.8mm;
+	}
+
+	.page-approach .process-grid .step p {
+		font-size: 8pt;
+		line-height: 1.3;
 	}
 
 	/* ---------- Page 1 · Full-width bottom image ---------- */
 	.page-intro .page-inner {
-		padding-bottom: 100mm;
+		padding-bottom: 124mm;
+	}
+
+	.page-intro .page-inner ul {
+		margin-bottom: 6mm;
 	}
 
 	.page-full-image {
@@ -890,14 +870,59 @@
 		width: 100%;
 		margin: 0;
 		z-index: 2;
+		line-height: 0;
+		padding-top: 5mm;
+		background: var(--white);
 	}
 
 	.page-full-image img {
 		width: 100%;
 		height: auto;
-		max-height: 85mm;
-		object-fit: cover;
 		display: block;
+	}
+
+	/* ---------- Page 2 · Challenge full-width visual ---------- */
+	.page-challenge .page-inner {
+		padding-bottom: 18mm;
+	}
+
+	.page-challenge h2 {
+		margin-bottom: 3mm;
+	}
+
+	.page-challenge .page-inner > p {
+		margin-bottom: 3mm;
+	}
+
+	.page-challenge h3 {
+		margin: 3mm 0 1.5mm;
+	}
+
+	.page-challenge .bullet-grid-2 {
+		margin: 0 0 4mm;
+		gap: 1.6mm 8mm;
+	}
+
+	.page-challenge .bullet-grid-2 li {
+		font-size: 9.8pt;
+	}
+
+	.page-challenge .callout {
+		margin: 4mm 0;
+		padding: 4.5mm 6mm;
+	}
+
+	.page-challenge .callout h3 {
+		margin: 0 0 1.5mm;
+	}
+
+	.page-challenge .page-inner > h3:last-of-type {
+		margin-top: 3mm;
+	}
+
+	.page-challenge .page-inner > p:last-child {
+		margin-bottom: 0;
+		font-size: 10pt;
 	}
 
 	/* ---------- Callout ---------- */
@@ -921,12 +946,6 @@
 	}
 
 	/* ---------- Grids ---------- */
-	.grid-2 {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 8mm;
-	}
-
 	.grid-3 {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);

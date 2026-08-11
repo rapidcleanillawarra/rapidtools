@@ -16,6 +16,7 @@
 		deleteClick: { workshop: WorkshopRecord };
 		dragstart: { workshop: WorkshopRecord; event: DragEvent };
 		completed: { workshop: WorkshopRecord };
+		assignTech: { workshop: WorkshopRecord };
 	}>();
 
 	function formatDate(dateString: string) {
@@ -102,8 +103,17 @@
 		dispatch('completed', { workshop });
 	}
 
+	function handleAssignTechClick(event: Event) {
+		event.stopPropagation();
+		dispatch('assignTech', { workshop });
+	}
+
 	function showCompletedButton(status: string): boolean {
 		return ['repaired', 'pickup_from_workshop', 'return'].includes(status);
+	}
+
+	function showAssignTechButton(status: string): boolean {
+		return ['to_be_quoted', 'booked_in_for_repair_service'].includes(status);
 	}
 </script>
 
@@ -403,6 +413,26 @@
 			</svg>
 			Print Tag
 		</a>
+
+		{#if showAssignTechButton(workshop.status)}
+			<button
+				type="button"
+				class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+				on:click={handleAssignTechClick}
+				title="Assign tech"
+				aria-label="Assign technician to workshop"
+			>
+				<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+					/>
+				</svg>
+				Assign Tech
+			</button>
+		{/if}
 
 		<!-- X delete button positioned in upper right corner -->
 		<button

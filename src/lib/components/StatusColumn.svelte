@@ -138,6 +138,7 @@
             on:deleteClick
             on:dragstart
             on:completed
+            on:assignTech
           />
         {/each}
       </div>

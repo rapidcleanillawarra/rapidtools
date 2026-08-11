@@ -11,6 +11,7 @@
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
   import StatusColumn from '$lib/components/StatusColumn.svelte';
   import PickupReturnTransportModal from './components/PickupReturnTransportModal.svelte';
+  import AssignTechModal from './components/AssignTechModal.svelte';
 
   const BOARD_STATUSES = [
     { key: 'new', title: 'New' },
@@ -73,6 +74,10 @@
   let workshopForTransport: WorkshopRecord | null = null;
   let nextStatusForTransport: 'pickup' | 'return' | null = null;
   let pickupReturnSubmitting = false;
+
+  // Assign Tech modal state
+  let showAssignTechModal = false;
+  let workshopForAssignTech: WorkshopRecord | null = null;
 
   // Drag states
   let draggedWorkshopId: string | null = null;
@@ -332,6 +337,16 @@
 
   function handleCardDeleteClick(event: CustomEvent<{ workshop: WorkshopRecord }>) {
     openDeleteModal(event.detail.workshop);
+  }
+
+  function handleAssignTechClick(event: CustomEvent<{ workshop: WorkshopRecord }>) {
+    workshopForAssignTech = event.detail.workshop;
+    showAssignTechModal = true;
+  }
+
+  function closeAssignTechModal() {
+    showAssignTechModal = false;
+    workshopForAssignTech = null;
   }
 
   function setRecentlyMovedWorkshop(workshopId: string) {
@@ -645,6 +660,7 @@
                     on:dragstart={handleWorkshopDragStart}
                     on:drop={handleWorkshopDrop}
                     on:completed={handleWorkshopCompleted}
+                    on:assignTech={handleAssignTechClick}
                   />
                 {/if}
               {/each}
@@ -692,6 +708,13 @@
   submitting={pickupReturnSubmitting}
   on:confirm={handlePickupReturnConfirm}
   on:cancel={closePickupReturnModal}
+/>
+
+<!-- Assign Tech modal: list users from users table -->
+<AssignTechModal
+  show={showAssignTechModal}
+  workshopLabel={workshopForAssignTech?.customer_name || workshopForAssignTech?.order_id || ''}
+  on:cancel={closeAssignTechModal}
 />
 
 <style>

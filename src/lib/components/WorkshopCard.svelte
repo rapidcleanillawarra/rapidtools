@@ -115,6 +115,17 @@
 	function showAssignTechButton(status: string): boolean {
 		return ['to_be_quoted', 'booked_in_for_repair_service'].includes(status);
 	}
+
+	function getLocationPillClass(location: string | null | undefined): string {
+		switch (location) {
+			case 'Site':
+				return 'bg-amber-100 text-amber-800';
+			case 'Workshop':
+				return 'bg-sky-100 text-sky-800';
+			default:
+				return 'bg-gray-100 text-gray-600';
+		}
+	}
 </script>
 
 {#if viewMode === 'table'}
@@ -378,6 +389,20 @@
 		<div class="mb-2 text-xs text-gray-500">
 			<div>WO: {workshop.clients_work_order || 'N/A'}</div>
 			<div>{formatDateShort(workshop.created_at)}</div>
+			{#if workshop.location_of_machine}
+				<div class="mt-1.5">
+					<span
+						class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide {getLocationPillClass(
+							workshop.location_of_machine
+						)}"
+					>
+						{workshop.location_of_machine}
+					</span>
+				</div>
+			{/if}
+			{#if viewMode === 'board' && workshop.assigned_tech_name}
+				<div class="mt-1 truncate text-blue-600">Tech: {workshop.assigned_tech_name}</div>
+			{/if}
 		</div>
 
 		<!-- Completed button for specific statuses -->

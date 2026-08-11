@@ -1,51 +1,115 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { beforeUpdate, createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabase';
 
   export let show: boolean = false;
   /** Optional label shown under the title (e.g. customer name) */
   export let workshopLabel: string = '';
+  /** Preselect current assignment email when opening */
+  export let initialAssignedTo: string = '';
+  export let submitting: boolean = false;
 
   type UserOption = { email: string; full_name: string };
 
+  const PRIORITY_EMAIL = 'service@rapidcleanillawarra.com.au';
+
   let users: UserOption[] = [];
   let usersLoading = false;
+  let usersError: string | null = null;
   let searchQuery = '';
   let selectedEmail = '';
+  let loadSeq = 0;
+  let wasShown = false;
 
   const dispatch = createEventDispatcher<{
     cancel: void;
+    confirm: { assignedTo: string; assignedToName: string };
   }>();
 
-  $: filteredUsers = (() => {
-    if (!searchQuery.trim()) return users;
-    const q = searchQuery.trim().toLowerCase();
-    return users.filter(
-      (u) =>
-        (u.full_name ?? '').toLowerCase().includes(q) ||
-        (u.email ?? '').toLowerCase().includes(q)
+  $: filteredUsers = !searchQuery.trim()
+    ? users
+    : users.filter((u) => {
+        const q = searchQuery.trim().toLowerCase();
+        return (
+          (u.full_name ?? '').toLowerCase().includes(q) ||
+          (u.email ?? '').toLowerCase().includes(q)
+        );
+      });
+
+  $: canSave = Boolean(selectedEmail) && !submitting;
+
+  beforeUpdate(() => {
+    if (show && !wasShown) {
+      searchQuery = '';
+      selectedEmail = initialAssignedTo || '';
+      users = [];
+      usersError = null;
+      fetchUsers();
+    }
+    wasShown = show;
+  });
+
+  function sortUsers(list: UserOption[]): UserOption[] {
+    const priority: UserOption[] = [];
+    const rest: UserOption[] = [];
+    for (const user of list) {
+      if ((user.email ?? '').toLowerCase() === PRIORITY_EMAIL) {
+        priority.push(user);
+      } else {
+        rest.push(user);
+      }
+    }
+    rest.sort((a, b) =>
+      (a.full_name ?? '').localeCompare(b.full_name ?? '', undefined, { sensitivity: 'base' })
     );
-  })();
+    return [...priority, ...rest];
+  }
 
   async function fetchUsers() {
+    const seq = ++loadSeq;
+    usersLoading = true;
+    usersError = null;
+
     try {
-      usersLoading = true;
-      const { data, error } = await supabase
+      const response = await supabase
         .from('users')
         .select('email, full_name')
         .order('full_name', { ascending: true });
-      if (error) throw error;
-      users = data ?? [];
+
+      if (seq !== loadSeq) return;
+
+      if (response.error) throw response.error;
+
+      users = sortUsers(response.data ?? []);
+      if (initialAssignedTo) {
+        selectedEmail = initialAssignedTo;
+      }
     } catch (e) {
-      console.error('Failed to fetch users:', e);
+      console.error('[AssignTech] Failed to fetch users:', e);
+      if (seq !== loadSeq) return;
       users = [];
+      usersError =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : e instanceof Error
+            ? e.message
+            : 'Failed to load users';
     } finally {
-      usersLoading = false;
+      if (seq === loadSeq) usersLoading = false;
     }
   }
 
   function selectUser(user: UserOption) {
     selectedEmail = user.email;
+  }
+
+  function handleConfirm() {
+    if (!canSave) return;
+    const user = users.find((u) => u.email === selectedEmail);
+    dispatch('confirm', {
+      assignedTo: selectedEmail,
+      assignedToName: user?.full_name ?? ''
+    });
   }
 
   function handleCancel() {
@@ -57,19 +121,11 @@
       handleCancel();
     }
   }
-
-  let prevShow = false;
-  $: if (show && !prevShow) {
-    searchQuery = '';
-    selectedEmail = '';
-    fetchUsers();
-  }
-  $: prevShow = show;
 </script>
 
 {#if show}
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
     data-backdrop="true"
     on:click={handleBackdropClick}
     on:keydown={(e) => e.key === 'Escape' && handleCancel()}
@@ -79,9 +135,12 @@
     tabindex="-1"
   >
     <div
-      class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
+      class="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+      role="document"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
     >
-      <div class="px-6 py-4 border-b border-gray-200">
+      <div class="flex-shrink-0 border-b border-gray-200 px-6 py-4">
         <h2 id="assign-tech-modal-title" class="text-lg font-semibold text-gray-900">
           Assign Tech
         </h2>
@@ -94,22 +153,26 @@
         </p>
       </div>
 
-      <div class="px-6 py-4 space-y-4 overflow-hidden flex flex-col min-h-0 flex-1">
+      <div class="space-y-4 overflow-y-auto px-6 py-4">
         <div>
-          <label for="assign-tech-search" class="block text-sm font-medium text-gray-700 mb-1">
+          <label for="assign-tech-search" class="mb-1 block text-sm font-medium text-gray-700">
             Search
           </label>
           <input
             id="assign-tech-search"
             type="text"
             bind:value={searchQuery}
-            class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Search by name or email..."
           />
         </div>
 
+        {#if usersError}
+          <p class="text-sm text-red-600">{usersError}</p>
+        {/if}
+
         <ul
-          class="flex-1 min-h-0 max-h-80 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100"
+          class="h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white"
           role="listbox"
           aria-label="Technicians"
         >
@@ -124,13 +187,16 @@
               <li>
                 <button
                   type="button"
-                  class="w-full text-left px-4 py-3 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email === selectedEmail ? 'bg-blue-50 text-blue-800' : ''}"
+                  class="w-full px-4 py-3 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email ===
+                  selectedEmail
+                    ? 'bg-blue-50 text-blue-800'
+                    : ''}"
                   role="option"
                   aria-selected={user.email === selectedEmail}
                   on:click={() => selectUser(user)}
                 >
-                  <span class="font-medium block">{user.full_name}</span>
-                  <span class="text-gray-500 text-xs">{user.email}</span>
+                  <span class="block font-medium">{user.full_name}</span>
+                  <span class="text-xs text-gray-500">{user.email}</span>
                 </button>
               </li>
             {/each}
@@ -138,13 +204,39 @@
         </ul>
       </div>
 
-      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-lg">
+      <div
+        class="flex flex-shrink-0 justify-end gap-3 rounded-b-lg border-t border-gray-200 bg-gray-50 px-6 py-4"
+      >
         <button
           type="button"
-          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           on:click={handleCancel}
+          disabled={submitting}
         >
-          Close
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="min-w-[100px] rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!canSave}
+          on:click={handleConfirm}
+        >
+          {#if submitting}
+            <span class="inline-flex items-center">
+              <svg class="mr-2 -ml-1 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Saving...
+            </span>
+          {:else}
+            Save
+          {/if}
         </button>
       </div>
     </div>

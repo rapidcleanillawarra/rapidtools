@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, type WorkshopRecord } from '$lib/services/workshop';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, assignWorkshopTech, type WorkshopRecord } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
@@ -50,7 +50,10 @@
     'history',
     'fault_description',
     'contact_number',
-    'optional_contacts'
+    'optional_contacts',
+    'assigned_tech',
+    'assigned_tech_name',
+    'location_of_machine'
   ];
 
   const STATUS_VISIBILITY_KEY = 'workshop-status-visibility';
@@ -78,6 +81,7 @@
   // Assign Tech modal state
   let showAssignTechModal = false;
   let workshopForAssignTech: WorkshopRecord | null = null;
+  let assignTechSubmitting = false;
 
   // Drag states
   let draggedWorkshopId: string | null = null;
@@ -347,6 +351,34 @@
   function closeAssignTechModal() {
     showAssignTechModal = false;
     workshopForAssignTech = null;
+  }
+
+  async function handleAssignTechConfirm(event: CustomEvent<{ assignedTo: string; assignedToName: string }>) {
+    const workshop = workshopForAssignTech;
+    if (!workshop) return;
+
+    const { assignedTo, assignedToName } = event.detail;
+
+    try {
+      assignTechSubmitting = true;
+      await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null);
+      workshops = workshops.map((w) =>
+        w.id === workshop.id
+          ? {
+              ...w,
+              assigned_tech: assignedTo || null,
+              assigned_tech_name: assignedToName || null
+            }
+          : w
+      );
+      closeAssignTechModal();
+      toastSuccess('Technician assigned successfully.');
+    } catch (err) {
+      console.error('[WORKSHOP_BOARD] Failed to assign tech:', err);
+      toastError('Failed to assign technician. Please try again.');
+    } finally {
+      assignTechSubmitting = false;
+    }
   }
 
   function setRecentlyMovedWorkshop(workshopId: string) {
@@ -714,6 +746,9 @@
 <AssignTechModal
   show={showAssignTechModal}
   workshopLabel={workshopForAssignTech?.customer_name || workshopForAssignTech?.order_id || ''}
+  initialAssignedTo={workshopForAssignTech?.assigned_tech || ''}
+  submitting={assignTechSubmitting}
+  on:confirm={handleAssignTechConfirm}
   on:cancel={closeAssignTechModal}
 />
 

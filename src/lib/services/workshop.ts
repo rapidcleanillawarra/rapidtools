@@ -143,6 +143,10 @@ export interface WorkshopRecord {
     status: string;
     isCreation?: boolean;
   }> | any;
+
+  // Assigned technician (workshop board)
+  assigned_tech: string | null;
+  assigned_tech_name: string | null;
 }
 
 export interface WorkshopPhoto {
@@ -1114,6 +1118,33 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
     }
   } catch (error) {
     console.error('Error updating workshop status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Assign a technician to a workshop row
+ */
+export async function assignWorkshopTech(
+  workshopId: string,
+  assignedTech: string | null,
+  assignedTechName: string | null
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('workshop')
+      .update({
+        assigned_tech: assignedTech,
+        assigned_tech_name: assignedTechName,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', workshopId);
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error('Error assigning workshop tech:', error);
     throw error;
   }
 }

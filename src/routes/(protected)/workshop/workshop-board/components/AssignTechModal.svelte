@@ -1,6 +1,10 @@
 <script lang="ts">
   import { beforeUpdate, createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabase';
+  import {
+    sydneyInputToUtcIso,
+    utcIsoToSydneyInput
+  } from '../../../orders-past-due-accounts/utils/dueDate';
 
   export let show: boolean = false;
   /** Optional label shown under the title (e.g. customer name) */
@@ -29,33 +33,7 @@
     confirm: { assignedTo: string; assignedToName: string; schedule: string };
   }>();
 
-  function isoToDatetimeLocal(iso: string): string {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return '';
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const h = String(d.getHours()).padStart(2, '0');
-      const min = String(d.getMinutes()).padStart(2, '0');
-      return `${y}-${m}-${day}T${h}:${min}`;
-    } catch {
-      return '';
-    }
-  }
-
-  function datetimeLocalToIso(local: string): string {
-    if (!local) return '';
-    try {
-      const d = new Date(local);
-      return isNaN(d.getTime()) ? '' : d.toISOString();
-    } catch {
-      return '';
-    }
-  }
-
-  $: scheduleLocal = schedule ? isoToDatetimeLocal(schedule) : '';
+  $: scheduleLocal = schedule ? utcIsoToSydneyInput(schedule) : '';
 
   $: filteredUsers = !searchQuery.trim()
     ? users
@@ -145,7 +123,7 @@
 
   function handleScheduleInput(e: Event) {
     const value = (e.target as HTMLInputElement).value;
-    schedule = datetimeLocalToIso(value);
+    schedule = sydneyInputToUtcIso(value) ?? '';
   }
 
   function handleConfirm() {
@@ -281,6 +259,7 @@
             class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="Select date and time"
           />
+          <p class="mt-1 text-xs text-gray-400">Times are Australia/Sydney</p>
           {#if scheduleRequired && !schedule.trim()}
             <p class="mt-1 text-sm text-red-600">Schedule is required when assigning a technician.</p>
           {/if}

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	import type { WorkshopRecord } from '$lib/services/workshop';
+	import { formatSydneyDisplay } from '../../routes/(protected)/orders-past-due-accounts/utils/dueDate';
 
 	export let workshop: WorkshopRecord;
 	export let viewMode: 'table' | 'board' = 'table';
@@ -18,16 +19,6 @@
 		completed: { workshop: WorkshopRecord };
 		assignTech: { workshop: WorkshopRecord };
 	}>();
-
-	function formatDate(dateString: string) {
-		return new Date(dateString).toLocaleDateString('en-AU', {
-			day: '2-digit',
-			month: '2-digit',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit'
-		});
-	}
 
 	function formatDateShort(dateString: string) {
 		return new Date(dateString).toLocaleDateString('en-AU', {
@@ -155,7 +146,7 @@
 			{#if workshop.photo_urls && workshop.photo_urls.length > 0}
 				{#if showImages}
 					<div class="flex items-center space-x-1">
-						{#each workshop.photo_urls.slice(0, 3) as photoUrl, index}
+						{#each workshop.photo_urls.slice(0, 3) as photoUrl, index (photoUrl)}
 							<div class="group relative">
 								<!-- Photo thumbnail -->
 								<button
@@ -404,7 +395,7 @@
 				<div class="mt-1 truncate text-blue-600">Tech: {workshop.assigned_tech_name}</div>
 				{#if workshop.tech_schedule}
 					<div class="mt-0.5 truncate text-blue-500">
-						Sched: {formatDate(workshop.tech_schedule)}
+						Sched: {formatSydneyDisplay(workshop.tech_schedule)}
 					</div>
 				{/if}
 			{/if}
@@ -425,7 +416,7 @@
 
 		<!-- Print Tag button -->
 		<a
-			href="{base}/workshop-tag/print?id={workshop.id}"
+			href="{resolve('/workshop-tag/print')}?id={workshop.id}"
 			target="_blank"
 			rel="noopener noreferrer"
 			class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1"

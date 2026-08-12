@@ -315,7 +315,8 @@ function buildPickupHtmlBody(
     try {
       const scheduleDate = new Date(options.schedule);
       if (!isNaN(scheduleDate.getTime())) {
-        const formatted = scheduleDate.toLocaleString(undefined, {
+        const formatted = scheduleDate.toLocaleString('en-AU', {
+          timeZone: 'Australia/Sydney',
           dateStyle: 'medium',
           timeStyle: 'short'
         });

@@ -1,6 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { supabase } from '$lib/supabase';
+  import {
+    sydneyInputToUtcIso,
+    utcIsoToSydneyInput
+  } from '../../../orders-past-due-accounts/utils/dueDate';
 
   /** Workshop job status: pickup or return */
   export let jobStatus: 'pickup' | 'return' = 'pickup';
@@ -44,33 +48,7 @@
 
   $: assignedInputValue = dropdownOpen ? searchQuery : (assignedTo ? selectedUserLabel : '');
 
-  function isoToDatetimeLocal(iso: string): string {
-    if (!iso) return '';
-    try {
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return '';
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      const h = String(d.getHours()).padStart(2, '0');
-      const min = String(d.getMinutes()).padStart(2, '0');
-      return `${y}-${m}-${day}T${h}:${min}`;
-    } catch {
-      return '';
-    }
-  }
-
-  function datetimeLocalToIso(local: string): string {
-    if (!local) return '';
-    try {
-      const d = new Date(local);
-      return isNaN(d.getTime()) ? '' : d.toISOString();
-    } catch {
-      return '';
-    }
-  }
-
-  $: scheduleLocal = schedule ? isoToDatetimeLocal(schedule) : '';
+  $: scheduleLocal = schedule ? utcIsoToSydneyInput(schedule) : '';
 
   async function fetchUsers() {
     try {
@@ -117,7 +95,7 @@
 
   function handleScheduleInput(e: Event) {
     const value = (e.target as HTMLInputElement).value;
-    schedule = datetimeLocalToIso(value);
+    schedule = sydneyInputToUtcIso(value) ?? '';
   }
 
   function handleConfirm() {
@@ -270,6 +248,7 @@
             class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Select date and time"
           />
+          <p class="mt-1 text-xs text-gray-400">Times are Australia/Sydney</p>
         </div>
       </div>
 

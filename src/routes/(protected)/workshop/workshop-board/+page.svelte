@@ -9,6 +9,7 @@
 
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import StatusColumn from '$lib/components/StatusColumn.svelte';
   import PickupReturnTransportModal from './components/PickupReturnTransportModal.svelte';
   import AssignTechModal from './components/AssignTechModal.svelte';
@@ -82,6 +83,9 @@
   let showAssignTechModal = false;
   let workshopForAssignTech: WorkshopRecord | null = null;
   let assignTechSubmitting = false;
+
+  // Column status toggles modal
+  let showColumnTogglesModal = false;
 
   // Drag states
   let draggedWorkshopId: string | null = null;
@@ -545,64 +549,55 @@
 </svelte:head>
 
 <div class="min-h-screen bg-gray-50">
-  <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Header -->
-    <div class="mb-8">
-      <div class="flex justify-between items-center mb-4">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">Workshop Board</h1>
-          <p class="text-gray-600">Kanban-style workshop job management</p>
+  <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <!-- Compact toolbar: title, search, actions -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 mb-3">
+      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div class="shrink-0">
+          <h1 class="text-xl font-bold text-gray-900 leading-tight">Workshop Board</h1>
         </div>
-        <!-- Action Buttons -->
-        <div class="flex items-center gap-3">
-          <a
-            href="{base}/workshop/form?workshop_id="
-            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Create Workshop
-          </a>
-        </div>
-      </div>
-    </div>
 
-    {#if error}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <div class="flex">
-          <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <span class="text-red-800">{error}</span>
-        </div>
-      </div>
-    {/if}
-
-    <!-- Search Filter -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div class="max-w-md">
-          <label for="search-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Workshops</label>
+        <div class="flex-1 min-w-0 lg:max-w-md xl:max-w-lg">
+          <label for="search-filter" class="sr-only">Search Workshops</label>
           <input
             id="search-filter"
             type="text"
             bind:value={searchFilter}
             placeholder="Search customer, company, machine, order ID, work order..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+            class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
           />
         </div>
-        <!-- Action Buttons -->
-        <div class="flex items-center gap-3">
+
+        <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
+          <button
+            type="button"
+            onclick={() => (showColumnTogglesModal = !showColumnTogglesModal)}
+            class="inline-flex items-center px-3 py-1.5 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 6h16M4 12h10M4 18h14"
+              />
+            </svg>
+            Columns ({visibleStatusCount}/{BOARD_STATUS_KEYS.length})
+          </button>
+          <a
+            href="{base}/workshop/form?workshop_id="
+            class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          >
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Create Workshop
+          </a>
           <a
             href="{base}/workshop/completed"
-            class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+            class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
           >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -614,9 +609,9 @@
           </a>
           <a
             href="{base}/workshop/scrapped"
-            class="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+            class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
           >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -630,36 +625,20 @@
       </div>
     </div>
 
-    <!-- Status Pills -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-      <div class="flex flex-wrap gap-2">
-        <button
-          on:click={showAllStatusColumns}
-          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {showAllStatuses
-            ? 'bg-blue-100 text-blue-800 border border-blue-200'
-            : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
-        >
-          Show All
-        </button>
-        <button
-          on:click={hideAllStatusColumns}
-          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
-        >
-          Hide All
-        </button>
-
-        {#each BOARD_STATUSES as status (status.key)}
-          <button
-            on:click={() => toggleStatusVisibility(status.key)}
-            class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses[status.key]
-              ? 'bg-blue-100 text-blue-800 border border-blue-200'
-              : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
-          >
-            {status.title} ({workshopsByStatus[status.key].length})
-          </button>
-        {/each}
+    {#if error}
+      <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+        <div class="flex">
+          <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <span class="text-red-800">{error}</span>
+        </div>
       </div>
-    </div>
+    {/if}
 
     <!-- Board View -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -774,6 +753,46 @@
   on:confirm={handleAssignTechConfirm}
   on:cancel={closeAssignTechModal}
 />
+
+<!-- Column status toggles modal -->
+<Modal
+  show={showColumnTogglesModal}
+  size="xl"
+  allowClose={true}
+  on:close={() => (showColumnTogglesModal = false)}
+>
+  <svelte:fragment slot="header">Visible Columns</svelte:fragment>
+  <div slot="body" class="flex flex-wrap gap-1.5">
+    <button
+      type="button"
+      onclick={showAllStatusColumns}
+      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {showAllStatuses
+        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+    >
+      Show All
+    </button>
+    <button
+      type="button"
+      onclick={hideAllStatusColumns}
+      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
+    >
+      Hide All
+    </button>
+
+    {#each BOARD_STATUSES as status (status.key)}
+      <button
+        type="button"
+        onclick={() => toggleStatusVisibility(status.key)}
+        class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses[status.key]
+          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+          : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+      >
+        {status.title} ({workshopsByStatus[status.key].length})
+      </button>
+    {/each}
+  </div>
+</Modal>
 
 <style>
   /* Custom scrollbar styles for webkit browsers */

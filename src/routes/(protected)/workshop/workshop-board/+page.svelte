@@ -372,7 +372,11 @@
           : w
       );
       closeAssignTechModal();
-      toastSuccess('Technician assigned successfully.');
+      toastSuccess(
+        assignedTo
+          ? 'Technician assigned successfully.'
+          : 'Technician assignment removed.'
+      );
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to assign tech:', err);
       toastError('Failed to assign technician. Please try again.');

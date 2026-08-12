@@ -36,7 +36,7 @@
         );
       });
 
-  $: canSave = Boolean(selectedEmail) && !submitting;
+  $: canSave = !submitting && selectedEmail !== (initialAssignedTo || '');
 
   beforeUpdate(() => {
     if (show && !wasShown) {
@@ -101,6 +101,10 @@
 
   function selectUser(user: UserOption) {
     selectedEmail = user.email;
+  }
+
+  function clearSelection() {
+    selectedEmail = '';
   }
 
   function handleConfirm() {
@@ -178,28 +182,44 @@
         >
           {#if usersLoading}
             <li class="px-4 py-3 text-sm text-gray-500">Loading users...</li>
-          {:else if filteredUsers.length === 0}
-            <li class="px-4 py-3 text-sm text-gray-500">
-              {searchQuery ? 'No users match your search.' : 'No users found.'}
-            </li>
           {:else}
-            {#each filteredUsers as user (user.email)}
-              <li>
-                <button
-                  type="button"
-                  class="w-full px-4 py-3 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email ===
-                  selectedEmail
-                    ? 'bg-blue-50 text-blue-800'
-                    : ''}"
-                  role="option"
-                  aria-selected={user.email === selectedEmail}
-                  on:click={() => selectUser(user)}
-                >
-                  <span class="block font-medium">{user.full_name}</span>
-                  <span class="text-xs text-gray-500">{user.email}</span>
-                </button>
+            <li>
+              <button
+                type="button"
+                class="w-full px-4 py-3 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {!selectedEmail
+                  ? 'bg-blue-50 text-blue-800'
+                  : ''}"
+                role="option"
+                aria-selected={!selectedEmail}
+                on:click={clearSelection}
+              >
+                <span class="block font-medium">Unassigned</span>
+                <span class="text-xs text-gray-500">Remove technician assignment</span>
+              </button>
+            </li>
+            {#if filteredUsers.length === 0}
+              <li class="px-4 py-3 text-sm text-gray-500">
+                {searchQuery ? 'No users match your search.' : 'No users found.'}
               </li>
-            {/each}
+            {:else}
+              {#each filteredUsers as user (user.email)}
+                <li>
+                  <button
+                    type="button"
+                    class="w-full px-4 py-3 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email ===
+                    selectedEmail
+                      ? 'bg-blue-50 text-blue-800'
+                      : ''}"
+                    role="option"
+                    aria-selected={user.email === selectedEmail}
+                    on:click={() => selectUser(user)}
+                  >
+                    <span class="block font-medium">{user.full_name}</span>
+                    <span class="text-xs text-gray-500">{user.email}</span>
+                  </button>
+                </li>
+              {/each}
+            {/if}
           {/if}
         </ul>
       </div>

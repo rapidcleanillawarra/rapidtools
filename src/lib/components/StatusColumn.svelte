@@ -3,46 +3,103 @@
   import type { WorkshopRecord } from '$lib/services/workshop';
   import { createEventDispatcher } from 'svelte';
 
-  export let status: string;
-  export let title: string;
-  export let workshops: WorkshopRecord[] = [];
-  export let draggedWorkshopId: string | null = null;
-  export let recentlyMovedWorkshopId: string | null = null;
-  export let showImages: boolean = true;
+  interface Props {
+    status: string;
+    title: string;
+    workshops?: WorkshopRecord[];
+    draggedWorkshopId?: string | null;
+    recentlyMovedWorkshopId?: string | null;
+    showImages?: boolean;
+  }
+
+  let {
+    status,
+    title,
+    workshops = [],
+    draggedWorkshopId = null,
+    recentlyMovedWorkshopId = null,
+    showImages = true
+  }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     drop: { workshopId: string; newStatus: string };
     completed: { workshop: WorkshopRecord };
   }>();
 
-  let isDragOver = false;
+  let isDragOver = $state(false);
 
   function getColumnColor(status: string) {
     switch (status) {
       case 'new': return 'bg-yellow-50';
+      case 'pickup': return 'bg-sky-50';
       case 'to_be_quoted': return 'bg-orange-50';
       case 'docket_ready': return 'bg-blue-50';
       case 'quoted': return 'bg-green-50';
-      case 'repaired': return 'bg-teal-50';
       case 'waiting_approval_po': return 'bg-purple-50';
-      case 'waiting_for_parts': return 'bg-gray-50';
+      case 'waiting_for_parts': return 'bg-amber-50';
       case 'booked_in_for_repair_service': return 'bg-indigo-50';
+      case 'repaired': return 'bg-teal-50';
+      case 'pickup_from_workshop': return 'bg-cyan-50';
+      case 'return': return 'bg-lime-50';
       case 'pending_jobs': return 'bg-red-50';
+      case 'warranty_claim': return 'bg-rose-50';
       default: return 'bg-gray-50';
+    }
+  }
+
+  function getTopBorderColor(status: string) {
+    switch (status) {
+      case 'new': return 'border-t-2 border-t-yellow-300';
+      case 'pickup': return 'border-t-2 border-t-sky-300';
+      case 'to_be_quoted': return 'border-t-2 border-t-orange-300';
+      case 'docket_ready': return 'border-t-2 border-t-blue-300';
+      case 'quoted': return 'border-t-2 border-t-green-300';
+      case 'waiting_approval_po': return 'border-t-2 border-t-purple-300';
+      case 'waiting_for_parts': return 'border-t-2 border-t-amber-300';
+      case 'booked_in_for_repair_service': return 'border-t-2 border-t-indigo-300';
+      case 'repaired': return 'border-t-2 border-t-teal-300';
+      case 'pickup_from_workshop': return 'border-t-2 border-t-cyan-300';
+      case 'return': return 'border-t-2 border-t-lime-300';
+      case 'pending_jobs': return 'border-t-2 border-t-red-300';
+      case 'warranty_claim': return 'border-t-2 border-t-rose-300';
+      default: return 'border-t-2 border-t-gray-300';
+    }
+  }
+
+  function getHeaderBorderColor(status: string) {
+    switch (status) {
+      case 'new': return 'border-b-yellow-200';
+      case 'pickup': return 'border-b-sky-200';
+      case 'to_be_quoted': return 'border-b-orange-200';
+      case 'docket_ready': return 'border-b-blue-200';
+      case 'quoted': return 'border-b-green-200';
+      case 'waiting_approval_po': return 'border-b-purple-200';
+      case 'waiting_for_parts': return 'border-b-amber-200';
+      case 'booked_in_for_repair_service': return 'border-b-indigo-200';
+      case 'repaired': return 'border-b-teal-200';
+      case 'pickup_from_workshop': return 'border-b-cyan-200';
+      case 'return': return 'border-b-lime-200';
+      case 'pending_jobs': return 'border-b-red-200';
+      case 'warranty_claim': return 'border-b-rose-200';
+      default: return 'border-b-gray-200';
     }
   }
 
   function getBadgeColor(status: string) {
     switch (status) {
       case 'new': return 'bg-yellow-100 text-yellow-800';
+      case 'pickup': return 'bg-sky-100 text-sky-800';
       case 'to_be_quoted': return 'bg-orange-100 text-orange-800';
       case 'docket_ready': return 'bg-blue-100 text-blue-800';
       case 'quoted': return 'bg-green-100 text-green-800';
-      case 'repaired': return 'bg-teal-100 text-teal-800';
       case 'waiting_approval_po': return 'bg-purple-100 text-purple-800';
-      case 'waiting_for_parts': return 'bg-gray-100 text-gray-800';
+      case 'waiting_for_parts': return 'bg-amber-100 text-amber-800';
       case 'booked_in_for_repair_service': return 'bg-indigo-100 text-indigo-800';
+      case 'repaired': return 'bg-teal-100 text-teal-800';
+      case 'pickup_from_workshop': return 'bg-cyan-100 text-cyan-800';
+      case 'return': return 'bg-lime-100 text-lime-800';
       case 'pending_jobs': return 'bg-red-100 text-red-800';
+      case 'warranty_claim': return 'bg-rose-100 text-rose-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   }
@@ -94,20 +151,19 @@
 </script>
 
 <div
-  class="bg-white rounded-lg border border-gray-200 snap-start flex flex-col w-72 flex-shrink-0 min-h-96 max-h-[70vh] transition-all duration-200"
-  class:bg-blue-50={isDragOver}
+  class="{isDragOver ? 'bg-blue-50' : getColumnColor(status)} {getTopBorderColor(status)} rounded-lg border border-gray-200 snap-start flex flex-col w-72 flex-shrink-0 min-h-96 max-h-[70vh] transition-all duration-200"
   class:border-blue-300={isDragOver}
   class:ring-2={isDragOver}
   class:ring-blue-200={isDragOver}
   role="region"
   aria-label="{title} status column"
-  on:dragover={handleDragOver}
-  on:dragenter={handleDragEnter}
-  on:dragleave={handleDragLeave}
-  on:drop={handleDrop}
+  ondragover={handleDragOver}
+  ondragenter={handleDragEnter}
+  ondragleave={handleDragLeave}
+  ondrop={handleDrop}
 >
   <!-- Header - Fixed, non-scrollable -->
-  <div class="flex items-center justify-between p-4 pb-3 border-b border-gray-100 flex-shrink-0">
+  <div class="flex items-center justify-between p-4 pb-3 border-b {getHeaderBorderColor(status)} flex-shrink-0">
     <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">{title}</h3>
     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {getBadgeColor(status)}">
       {workshops.length}

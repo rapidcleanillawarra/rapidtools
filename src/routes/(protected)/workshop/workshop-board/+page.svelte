@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, assignWorkshopTech, type WorkshopRecord } from '$lib/services/workshop';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, getTechSchedulesByWorkshopIds, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, assignWorkshopTech, type WorkshopRecord } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
@@ -168,7 +168,12 @@
     try {
       loading = true;
       error = null;
-      workshops = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'], select: BOARD_SELECT });
+      const rows = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'], select: BOARD_SELECT });
+      const schedules = await getTechSchedulesByWorkshopIds(rows.map((w) => w.id));
+      workshops = rows.map((w) => ({
+        ...w,
+        tech_schedule: schedules.get(w.id) ?? null
+      }));
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to load workshops:', err);
       error = err instanceof Error ? err.message : 'Failed to load workshops';
@@ -353,21 +358,34 @@
     workshopForAssignTech = null;
   }
 
-  async function handleAssignTechConfirm(event: CustomEvent<{ assignedTo: string; assignedToName: string }>) {
+  async function handleAssignTechConfirm(
+    event: CustomEvent<{ assignedTo: string; assignedToName: string; schedule: string }>
+  ) {
     const workshop = workshopForAssignTech;
     if (!workshop) return;
 
-    const { assignedTo, assignedToName } = event.detail;
+    const { assignedTo, assignedToName, schedule } = event.detail;
+    const user = $currentUser;
+    const profile = $userProfile;
+    const assignedByName = user
+      ? (profile ? `${profile.firstName} ${profile.lastName}`.trim() : user.displayName || user.email?.split('@')[0] || 'Unknown User')
+      : 'Unknown User';
+    const assignedBy = user?.email ?? null;
 
     try {
       assignTechSubmitting = true;
-      await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null);
+      await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null, {
+        schedule: schedule || null,
+        assignedBy,
+        assignedByName: assignedByName || null
+      });
       workshops = workshops.map((w) =>
         w.id === workshop.id
           ? {
               ...w,
               assigned_tech: assignedTo || null,
-              assigned_tech_name: assignedToName || null
+              assigned_tech_name: assignedToName || null,
+              tech_schedule: schedule || null
             }
           : w
       );
@@ -746,11 +764,12 @@
   on:cancel={closePickupReturnModal}
 />
 
-<!-- Assign Tech modal: list users from users table -->
+<!-- Assign Tech modal: list users + schedule -->
 <AssignTechModal
   show={showAssignTechModal}
   workshopLabel={workshopForAssignTech?.customer_name || workshopForAssignTech?.order_id || ''}
   initialAssignedTo={workshopForAssignTech?.assigned_tech || ''}
+  initialSchedule={workshopForAssignTech?.tech_schedule || ''}
   submitting={assignTechSubmitting}
   on:confirm={handleAssignTechConfirm}
   on:cancel={closeAssignTechModal}

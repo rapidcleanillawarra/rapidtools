@@ -147,6 +147,8 @@ export interface WorkshopRecord {
   // Assigned technician (workshop board)
   assigned_tech: string | null;
   assigned_tech_name: string | null;
+  /** From workshop_tech_schedule (board enrichment; not a workshop column) */
+  tech_schedule?: string | null;
 }
 
 export interface WorkshopPhoto {
@@ -166,6 +168,19 @@ export interface WorkshopTransportRecord {
   assigned_to: string | null;
   assigned_to_name: string | null;
   transport_status: 'new' | 'confirmed';
+  schedule: string | null;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** workshop_tech_schedule table record (assign tech + schedule) */
+export interface WorkshopTechScheduleRecord {
+  id: string;
+  workshop_id: string;
+  assigned_tech: string | null;
+  assigned_tech_name: string | null;
   schedule: string | null;
   assigned_by: string | null;
   assigned_by_name: string | null;
@@ -1123,12 +1138,112 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
 }
 
 /**
- * Assign a technician to a workshop row
+ * Get tech schedule row for a workshop (one row per workshop).
+ */
+export async function getTechScheduleByWorkshopId(
+  workshopId: string
+): Promise<WorkshopTechScheduleRecord | null> {
+  try {
+    const { data, error } = await supabase
+      .from('workshop_tech_schedule')
+      .select('*')
+      .eq('workshop_id', workshopId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data as WorkshopTechScheduleRecord) ?? null;
+  } catch (error) {
+    console.error('Error fetching workshop tech schedule:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get tech schedules for many workshops (map of workshop_id → schedule ISO string).
+ */
+export async function getTechSchedulesByWorkshopIds(
+  workshopIds: string[]
+): Promise<Map<string, string | null>> {
+  const result = new Map<string, string | null>();
+  if (workshopIds.length === 0) return result;
+
+  try {
+    const { data, error } = await supabase
+      .from('workshop_tech_schedule')
+      .select('workshop_id, schedule')
+      .in('workshop_id', workshopIds);
+
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      result.set(row.workshop_id, row.schedule ?? null);
+    }
+    return result;
+  } catch (error) {
+    console.error('Error fetching workshop tech schedules:', error);
+    throw error;
+  }
+}
+
+/**
+ * Insert or update workshop_tech_schedule for a workshop.
+ */
+export async function upsertWorkshopTechSchedule(params: {
+  workshopId: string;
+  assignedTech?: string | null;
+  assignedTechName?: string | null;
+  schedule?: string | null;
+  assignedBy?: string | null;
+  assignedByName?: string | null;
+}): Promise<WorkshopTechScheduleRecord> {
+  try {
+    const existing = await getTechScheduleByWorkshopId(params.workshopId);
+    const payload = {
+      workshop_id: params.workshopId,
+      assigned_tech: params.assignedTech ?? null,
+      assigned_tech_name: params.assignedTechName ?? null,
+      schedule: params.schedule ?? null,
+      assigned_by: params.assignedBy ?? null,
+      assigned_by_name: params.assignedByName ?? null,
+      updated_at: new Date().toISOString()
+    };
+
+    if (existing) {
+      const { data, error } = await supabase
+        .from('workshop_tech_schedule')
+        .update(payload)
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as WorkshopTechScheduleRecord;
+    }
+
+    const { data, error } = await supabase
+      .from('workshop_tech_schedule')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as WorkshopTechScheduleRecord;
+  } catch (error) {
+    console.error('Error upserting workshop tech schedule:', error);
+    throw error;
+  }
+}
+
+/**
+ * Assign a technician to a workshop row and upsert their schedule.
  */
 export async function assignWorkshopTech(
   workshopId: string,
   assignedTech: string | null,
-  assignedTechName: string | null
+  assignedTechName: string | null,
+  options?: {
+    schedule?: string | null;
+    assignedBy?: string | null;
+    assignedByName?: string | null;
+  }
 ): Promise<void> {
   try {
     const { error } = await supabase
@@ -1143,6 +1258,15 @@ export async function assignWorkshopTech(
     if (error) {
       throw error;
     }
+
+    await upsertWorkshopTechSchedule({
+      workshopId,
+      assignedTech,
+      assignedTechName,
+      schedule: options?.schedule ?? null,
+      assignedBy: options?.assignedBy ?? null,
+      assignedByName: options?.assignedByName ?? null
+    });
   } catch (error) {
     console.error('Error assigning workshop tech:', error);
     throw error;

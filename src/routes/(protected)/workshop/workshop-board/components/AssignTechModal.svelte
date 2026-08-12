@@ -7,6 +7,8 @@
   export let workshopLabel: string = '';
   /** Preselect current assignment email when opening */
   export let initialAssignedTo: string = '';
+  /** Optional ISO datetime string to prefill schedule when opening */
+  export let initialSchedule: string = '';
   export let submitting: boolean = false;
 
   type UserOption = { email: string; full_name: string };
@@ -18,13 +20,42 @@
   let usersError: string | null = null;
   let searchQuery = '';
   let selectedEmail = '';
+  let schedule = '';
   let loadSeq = 0;
   let wasShown = false;
 
   const dispatch = createEventDispatcher<{
     cancel: void;
-    confirm: { assignedTo: string; assignedToName: string };
+    confirm: { assignedTo: string; assignedToName: string; schedule: string };
   }>();
+
+  function isoToDatetimeLocal(iso: string): string {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const h = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${y}-${m}-${day}T${h}:${min}`;
+    } catch {
+      return '';
+    }
+  }
+
+  function datetimeLocalToIso(local: string): string {
+    if (!local) return '';
+    try {
+      const d = new Date(local);
+      return isNaN(d.getTime()) ? '' : d.toISOString();
+    } catch {
+      return '';
+    }
+  }
+
+  $: scheduleLocal = schedule ? isoToDatetimeLocal(schedule) : '';
 
   $: filteredUsers = !searchQuery.trim()
     ? users
@@ -36,12 +67,17 @@
         );
       });
 
-  $: canSave = !submitting && selectedEmail !== (initialAssignedTo || '');
+  $: techChanged = selectedEmail !== (initialAssignedTo || '');
+  $: scheduleChanged = (schedule || '') !== (initialSchedule || '');
+  $: scheduleRequired = !!selectedEmail;
+  $: scheduleValid = !scheduleRequired || !!schedule.trim();
+  $: canSave = !submitting && scheduleValid && (techChanged || scheduleChanged);
 
   beforeUpdate(() => {
     if (show && !wasShown) {
       searchQuery = '';
       selectedEmail = initialAssignedTo || '';
+      schedule = initialSchedule || '';
       users = [];
       usersError = null;
       fetchUsers();
@@ -107,12 +143,20 @@
     selectedEmail = '';
   }
 
+  function handleScheduleInput(e: Event) {
+    const value = (e.target as HTMLInputElement).value;
+    schedule = datetimeLocalToIso(value);
+  }
+
   function handleConfirm() {
     if (!canSave) return;
     const user = users.find((u) => u.email === selectedEmail);
+    const assignedTo = selectedEmail;
     dispatch('confirm', {
-      assignedTo: selectedEmail,
-      assignedToName: user?.full_name ?? ''
+      assignedTo,
+      assignedToName: user?.full_name ?? '',
+      // Schedule is required when assigning a tech; clear it when unassigning
+      schedule: assignedTo ? schedule.trim() : ''
     });
   }
 
@@ -138,6 +182,7 @@
     aria-labelledby="assign-tech-modal-title"
     tabindex="-1"
   >
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
       class="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-xl"
       role="document"
@@ -222,6 +267,24 @@
             {/if}
           {/if}
         </ul>
+
+        <div>
+          <label for="assign-tech-schedule" class="mb-1 block text-sm font-medium text-gray-700">
+            Schedule{#if scheduleRequired}<span class="text-red-600"> *</span>{/if}
+          </label>
+          <input
+            id="assign-tech-schedule"
+            type="datetime-local"
+            value={scheduleLocal}
+            on:input={handleScheduleInput}
+            required={scheduleRequired}
+            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Select date and time"
+          />
+          {#if scheduleRequired && !schedule.trim()}
+            <p class="mt-1 text-sm text-red-600">Schedule is required when assigning a technician.</p>
+          {/if}
+        </div>
       </div>
 
       <div

@@ -43,7 +43,7 @@ async function inlineImagesForCapture(clone: HTMLElement, logoFallbackUrl: strin
 }
 
 /** Replace form controls with static text so html2canvas matches on-screen values. */
-function prepareCloneForCapture(root: HTMLElement): void {
+function prepareCloneForCapture(root: HTMLElement, blank = false): void {
 	// html2canvas ignores @media print — strip interactive combobox chrome from the clone
 	root
 		.querySelectorAll<HTMLElement>(
@@ -51,9 +51,29 @@ function prepareCloneForCapture(root: HTMLElement): void {
 		)
 		.forEach((el) => el.remove());
 
+	if (blank) {
+		// Empty status marks (✓ / ✗) and clear pass/fail classes
+		root
+			.querySelectorAll<HTMLElement>(
+				'.status-checkbox span[aria-hidden="true"], .status-checkbox .status-pass, .status-checkbox .status-fail'
+			)
+			.forEach((el) => {
+				el.textContent = '';
+				el.classList.remove('status-pass', 'status-fail');
+			});
+
+		// Uncheck every checkbox / radio so the blank form has no selections
+		root
+			.querySelectorAll<HTMLInputElement>('input[type="checkbox"], input[type="radio"]')
+			.forEach((input) => {
+				input.checked = false;
+				input.removeAttribute('checked');
+			});
+	}
+
 	root.querySelectorAll<HTMLInputElement>('input.field').forEach((input) => {
 		const span = document.createElement('span');
-		span.textContent = input.value;
+		span.textContent = blank ? '' : input.value;
 		span.className = input.className;
 		span.style.display = 'block';
 		span.style.width = '100%';
@@ -67,7 +87,7 @@ function prepareCloneForCapture(root: HTMLElement): void {
 
 	root.querySelectorAll<HTMLTextAreaElement>('textarea').forEach((textarea) => {
 		const div = document.createElement('div');
-		div.textContent = textarea.value;
+		div.textContent = blank ? '' : textarea.value;
 		div.className = textarea.className;
 		div.style.whiteSpace = 'pre-wrap';
 		div.style.width = '100%';
@@ -82,15 +102,17 @@ function prepareCloneForCapture(root: HTMLElement): void {
 		input.style.display = 'none';
 	});
 
-	root.querySelectorAll<HTMLElement>('.status-checkbox .status-pass').forEach((el) => {
-		el.style.color = '#16a34a';
-		el.style.fontWeight = '700';
-	});
+	if (!blank) {
+		root.querySelectorAll<HTMLElement>('.status-checkbox .status-pass').forEach((el) => {
+			el.style.color = '#16a34a';
+			el.style.fontWeight = '700';
+		});
 
-	root.querySelectorAll<HTMLElement>('.status-checkbox .status-fail').forEach((el) => {
-		el.style.color = '#dc2626';
-		el.style.fontWeight = '700';
-	});
+		root.querySelectorAll<HTMLElement>('.status-checkbox .status-fail').forEach((el) => {
+			el.style.color = '#dc2626';
+			el.style.fontWeight = '700';
+		});
+	}
 
 	root.querySelectorAll<HTMLInputElement>('.checkbox-row input[type="checkbox"]').forEach((input) => {
 		input.style.width = '14px';
@@ -247,10 +269,12 @@ function openPrintWindow(imageDataUrls: string[], printTitle: string): void {
 export async function printSheetElement(
 	sheetEl: HTMLElement,
 	logoFallbackUrl: string,
-	options?: { pageClassName?: string; printTitle?: string }
+	options?: { pageClassName?: string; printTitle?: string; blank?: boolean }
 ): Promise<void> {
 	const pageClassName = options?.pageClassName ?? 'pmis-page';
-	const printTitle = options?.printTitle ?? 'PMIS — Print';
+	const blank = options?.blank ?? false;
+	const printTitle =
+		options?.printTitle ?? (blank ? 'PMIS — Print Blank' : 'PMIS — Print');
 	const pageEl = sheetEl.closest(`.${pageClassName}`) ?? sheetEl;
 	const pageStyles = window.getComputedStyle(pageEl);
 
@@ -267,7 +291,7 @@ export async function printSheetElement(
 	document.body.appendChild(wrapper);
 
 	try {
-		prepareCloneForCapture(clone);
+		prepareCloneForCapture(clone, blank);
 		await inlineImagesForCapture(clone, logoFallbackUrl);
 
 		const printTables = collectPrintBlocks(clone);

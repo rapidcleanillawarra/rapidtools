@@ -351,7 +351,7 @@
 		}
 	}
 
-	async function printForm() {
+	async function printForm(blank = false) {
 		if (!sheetEl || printing) return;
 		printing = true;
 		printError = '';
@@ -359,12 +359,14 @@
 			if (type === 'carpet_extractor') {
 				await printSheetElement(sheetEl, LOGO_PRINT_FALLBACK, {
 					pageClassName: 'pmis-page',
-					printTitle: 'PMIS — Print'
+					printTitle: blank ? 'PMIS — Print Blank' : 'PMIS — Print',
+					blank
 				});
 			} else {
 				await printSheetElement(sheetEl, LOGO_PRINT_FALLBACK, {
 					pageClassName: 'pm-floor-scrubber-page',
-					printTitle: 'Floor Scrubber PM — Print'
+					printTitle: blank ? 'Floor Scrubber PM — Print Blank' : 'Floor Scrubber PM — Print',
+					blank
 				});
 			}
 		} catch (err) {
@@ -914,8 +916,11 @@
 			<button type="button" class="btn-save" onclick={saveForm} disabled={saving || printing}>
 				{saving ? 'Saving…' : savedId ? 'Update' : 'Save'}
 			</button>
-			<button type="button" class="btn-primary" onclick={printForm} disabled={printing || saving}>
+			<button type="button" class="btn-primary" onclick={() => printForm()} disabled={printing || saving}>
 				{printing ? 'Preparing…' : 'Print'}
+			</button>
+			<button type="button" class="btn-secondary" onclick={() => printForm(true)} disabled={printing || saving}>
+				Print Blank
 			</button>
 			<button
 				type="button"

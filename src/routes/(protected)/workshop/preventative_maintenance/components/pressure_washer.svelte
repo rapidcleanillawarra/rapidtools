@@ -388,14 +388,15 @@
 		}
 	}
 
-	async function printForm() {
+	async function printForm(blank = false) {
 		if (!sheetEl || printing) return;
 		printing = true;
 		printError = '';
 		try {
 			await printSheetElement(sheetEl, LOGO_PRINT_FALLBACK, {
 				pageClassName: 'ims-page',
-				printTitle: 'IMS HD/HDS — Print'
+				printTitle: blank ? 'IMS HD/HDS — Print Blank' : 'IMS HD/HDS — Print',
+				blank
 			});
 		} catch (err) {
 			printError = err instanceof Error ? err.message : 'Failed to print form';
@@ -504,8 +505,11 @@
 			<button type="button" class="btn-save" onclick={saveForm} disabled={saving || printing}>
 				{saving ? 'Saving…' : savedId ? 'Update' : 'Save'}
 			</button>
-			<button type="button" class="btn-primary" onclick={printForm} disabled={printing || saving}>
+			<button type="button" class="btn-primary" onclick={() => printForm()} disabled={printing || saving}>
 				{printing ? 'Preparing…' : 'Print'}
+			</button>
+			<button type="button" class="btn-secondary" onclick={() => printForm(true)} disabled={printing || saving}>
+				Print Blank
 			</button>
 			<button
 				type="button"

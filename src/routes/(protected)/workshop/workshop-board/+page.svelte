@@ -45,6 +45,7 @@
     'clients_work_order',
     'product_name',
     'make_model',
+    'serial_number',
     'photo_urls',
     'customer_data',
     'site_location',
@@ -147,6 +148,7 @@
     const companyName = workshop.customer_data?.BillingAddress?.BillCompany?.toLowerCase() ?? '';
     const machineMake = workshop.make_model?.toLowerCase() ?? '';
     const machineProduct = workshop.product_name?.toLowerCase() ?? '';
+    const serialNumber = workshop.serial_number?.toLowerCase() ?? '';
 
     return (
       customerName.includes(term) ||
@@ -154,7 +156,8 @@
       workOrder.includes(term) ||
       companyName.includes(term) ||
       machineMake.includes(term) ||
-      machineProduct.includes(term)
+      machineProduct.includes(term) ||
+      serialNumber.includes(term)
     );
   }
 
@@ -569,7 +572,7 @@
             id="search-filter"
             type="text"
             bind:value={searchFilter}
-            placeholder="Search customer, company, machine, order ID, work order..."
+            placeholder="Search customer, company, machine, serial, order ID, work order..."
             class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
           />
         </div>

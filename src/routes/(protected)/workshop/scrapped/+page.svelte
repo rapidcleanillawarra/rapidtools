@@ -12,7 +12,7 @@
   let error: string | null = null;
 
   // Sorting
-  type SortField = 'customer_name' | 'product_name' | 'order_id' | 'created_at' | 'updated_at';
+  type SortField = 'customer_name' | 'product_name' | 'serial_number' | 'order_id' | 'created_at' | 'updated_at';
   let sortField: SortField = 'updated_at';
   let sortDirection: 'asc' | 'desc' = 'desc';
 
@@ -92,7 +92,8 @@
       workshop.product_name?.toLowerCase().includes(searchLower) ||
       workshop.clients_work_order?.toLowerCase().includes(searchLower) ||
       workshop.order_id?.toLowerCase().includes(searchLower) ||
-      workshop.make_model?.toLowerCase().includes(searchLower)
+      workshop.make_model?.toLowerCase().includes(searchLower) ||
+      workshop.serial_number?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -180,7 +181,7 @@
             id="search-scrapped"
             type="text"
             bind:value={searchTerm}
-            placeholder="Search customer, product, order ID..."
+            placeholder="Search customer, product, serial, order ID..."
             class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
           />
         </div>
@@ -231,6 +232,13 @@
                 <th
                   scope="col"
                   class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  on:click={() => handleSort('serial_number')}
+                >
+                  Serial No. {getSortIcon('serial_number')}
+                </th>
+                <th
+                  scope="col"
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   on:click={() => handleSort('order_id')}
                 >
                   Order ID {getSortIcon('order_id')}
@@ -271,6 +279,9 @@
                     {#if workshop.make_model}
                       <div class="text-sm text-gray-500">{workshop.make_model}</div>
                     {/if}
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {workshop.serial_number || 'N/A'}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     {#if workshop.order_id}

@@ -213,6 +213,9 @@
 			<div class="text-sm text-gray-500">
 				{workshop.make_model}
 			</div>
+			{#if workshop.serial_number}
+				<div class="text-sm text-gray-500">S/N: {workshop.serial_number}</div>
+			{/if}
 		</td>
 		<td class="whitespace-normal px-4 py-4">
 			<div class="text-sm font-medium text-gray-900">
@@ -374,6 +377,9 @@
 						Machine: N/A
 					{/if}
 				</p>
+				{#if workshop.serial_number}
+					<p class="truncate text-xs text-gray-400">S/N: {workshop.serial_number}</p>
+				{/if}
 			</div>
 		</div>
 

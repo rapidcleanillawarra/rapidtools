@@ -5,6 +5,7 @@
     sydneyInputToUtcIso,
     utcIsoToSydneyInput
   } from '../../../orders-past-due-accounts/utils/dueDate';
+  import { WORKSHOP_TECH_JOB_TYPES } from '$lib/services/workshop';
 
   export let show: boolean = false;
   /** Optional label shown under the title (e.g. customer name) */
@@ -13,6 +14,8 @@
   export let initialAssignedTo: string = '';
   /** Optional ISO datetime string to prefill schedule when opening */
   export let initialSchedule: string = '';
+  /** Prefill job type when opening */
+  export let initialJobType: string = '';
   export let submitting: boolean = false;
 
   type UserOption = { email: string; full_name: string };
@@ -25,12 +28,13 @@
   let searchQuery = '';
   let selectedEmail = '';
   let schedule = '';
+  let jobType = '';
   let loadSeq = 0;
   let wasShown = false;
 
   const dispatch = createEventDispatcher<{
     cancel: void;
-    confirm: { assignedTo: string; assignedToName: string; schedule: string };
+    confirm: { assignedTo: string; assignedToName: string; schedule: string; jobType: string };
   }>();
 
   $: scheduleLocal = schedule ? utcIsoToSydneyInput(schedule) : '';
@@ -47,15 +51,23 @@
 
   $: techChanged = selectedEmail !== (initialAssignedTo || '');
   $: scheduleChanged = (schedule || '') !== (initialSchedule || '');
+  $: jobTypeChanged = (jobType || '') !== (initialJobType || '');
   $: scheduleRequired = !!selectedEmail;
   $: scheduleValid = !scheduleRequired || !!schedule.trim();
-  $: canSave = !submitting && scheduleValid && (techChanged || scheduleChanged);
+  $: jobTypeRequired = !!selectedEmail;
+  $: jobTypeValid = !jobTypeRequired || !!jobType.trim();
+  $: canSave =
+    !submitting &&
+    scheduleValid &&
+    jobTypeValid &&
+    (techChanged || scheduleChanged || jobTypeChanged);
 
   beforeUpdate(() => {
     if (show && !wasShown) {
       searchQuery = '';
       selectedEmail = initialAssignedTo || '';
       schedule = initialSchedule || '';
+      jobType = initialJobType || '';
       users = [];
       usersError = null;
       fetchUsers();
@@ -133,8 +145,9 @@
     dispatch('confirm', {
       assignedTo,
       assignedToName: user?.full_name ?? '',
-      // Schedule is required when assigning a tech; clear it when unassigning
-      schedule: assignedTo ? schedule.trim() : ''
+      // Schedule/job type required when assigning a tech; clear when unassigning
+      schedule: assignedTo ? schedule.trim() : '',
+      jobType: assignedTo ? jobType.trim() : ''
     });
   }
 
@@ -262,6 +275,28 @@
           <p class="mt-1 text-xs text-gray-400">Times are Australia/Sydney</p>
           {#if scheduleRequired && !schedule.trim()}
             <p class="mt-1 text-sm text-red-600">Schedule is required when assigning a technician.</p>
+          {/if}
+        </div>
+
+        <div>
+          <label for="assign-tech-job-type" class="mb-1 block text-sm font-medium text-gray-700">
+            Job type{#if jobTypeRequired}<span class="text-red-600"> *</span>{/if}
+          </label>
+          <select
+            id="assign-tech-job-type"
+            bind:value={jobType}
+            required={jobTypeRequired}
+            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Select job type...</option>
+            {#each WORKSHOP_TECH_JOB_TYPES as type (type)}
+              <option value={type}>{type}</option>
+            {/each}
+          </select>
+          {#if jobTypeRequired && !jobType.trim()}
+            <p class="mt-1 text-sm text-red-600">
+              Job type is required when assigning a technician.
+            </p>
           {/if}
         </div>
       </div>

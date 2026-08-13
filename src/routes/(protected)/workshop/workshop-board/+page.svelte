@@ -174,10 +174,14 @@
       error = null;
       const rows = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'], select: BOARD_SELECT });
       const schedules = await getTechSchedulesByWorkshopIds(rows.map((w) => w.id));
-      workshops = rows.map((w) => ({
-        ...w,
-        tech_schedule: schedules.get(w.id) ?? null
-      }));
+      workshops = rows.map((w) => {
+        const tech = schedules.get(w.id);
+        return {
+          ...w,
+          tech_schedule: tech?.schedule ?? null,
+          tech_job_type: tech?.job_type ?? null
+        };
+      });
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to load workshops:', err);
       error = err instanceof Error ? err.message : 'Failed to load workshops';
@@ -363,12 +367,12 @@
   }
 
   async function handleAssignTechConfirm(
-    event: CustomEvent<{ assignedTo: string; assignedToName: string; schedule: string }>
+    event: CustomEvent<{ assignedTo: string; assignedToName: string; schedule: string; jobType: string }>
   ) {
     const workshop = workshopForAssignTech;
     if (!workshop) return;
 
-    const { assignedTo, assignedToName, schedule } = event.detail;
+    const { assignedTo, assignedToName, schedule, jobType } = event.detail;
     const user = $currentUser;
     const profile = $userProfile;
     const assignedByName = user
@@ -380,6 +384,7 @@
       assignTechSubmitting = true;
       await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null, {
         schedule: schedule || null,
+        jobType: jobType || null,
         assignedBy,
         assignedByName: assignedByName || null
       });
@@ -389,7 +394,8 @@
               ...w,
               assigned_tech: assignedTo || null,
               assigned_tech_name: assignedToName || null,
-              tech_schedule: schedule || null
+              tech_schedule: schedule || null,
+              tech_job_type: jobType || null
             }
           : w
       );
@@ -743,12 +749,13 @@
   on:cancel={closePickupReturnModal}
 />
 
-<!-- Assign Tech modal: list users + schedule -->
+<!-- Assign Tech modal: list users + schedule + job type -->
 <AssignTechModal
   show={showAssignTechModal}
   workshopLabel={workshopForAssignTech?.customer_name || workshopForAssignTech?.order_id || ''}
   initialAssignedTo={workshopForAssignTech?.assigned_tech || ''}
   initialSchedule={workshopForAssignTech?.tech_schedule || ''}
+  initialJobType={workshopForAssignTech?.tech_job_type || ''}
   submitting={assignTechSubmitting}
   on:confirm={handleAssignTechConfirm}
   on:cancel={closeAssignTechModal}

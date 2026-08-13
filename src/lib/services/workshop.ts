@@ -149,6 +149,7 @@ export interface WorkshopRecord {
   assigned_tech_name: string | null;
   /** From workshop_tech_schedule (board enrichment; not a workshop column) */
   tech_schedule?: string | null;
+  tech_job_type?: string | null;
 }
 
 export interface WorkshopPhoto {
@@ -175,6 +176,10 @@ export interface WorkshopTransportRecord {
   updated_at: string;
 }
 
+/** Allowed job types for workshop tech assignment */
+export const WORKSHOP_TECH_JOB_TYPES = ['Quote', 'Repair', 'Service', 'Warranty'] as const;
+export type WorkshopTechJobType = (typeof WORKSHOP_TECH_JOB_TYPES)[number];
+
 /** workshop_tech_schedule table record (assign tech + schedule) */
 export interface WorkshopTechScheduleRecord {
   id: string;
@@ -182,11 +187,18 @@ export interface WorkshopTechScheduleRecord {
   assigned_tech: string | null;
   assigned_tech_name: string | null;
   schedule: string | null;
+  job_type: string | null;
   assigned_by: string | null;
   assigned_by_name: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** Board enrichment row from workshop_tech_schedule */
+export type WorkshopTechScheduleSummary = {
+  schedule: string | null;
+  job_type: string | null;
+};
 
 /** Flat row for transport list table: workshop_transport + workshop fields */
 export interface WorkshopTransportListRow {
@@ -1160,24 +1172,27 @@ export async function getTechScheduleByWorkshopId(
 }
 
 /**
- * Get tech schedules for many workshops (map of workshop_id → schedule ISO string).
+ * Get tech schedules for many workshops (map of workshop_id → schedule + job type).
  */
 export async function getTechSchedulesByWorkshopIds(
   workshopIds: string[]
-): Promise<Map<string, string | null>> {
-  const result = new Map<string, string | null>();
+): Promise<Map<string, WorkshopTechScheduleSummary>> {
+  const result = new Map<string, WorkshopTechScheduleSummary>();
   if (workshopIds.length === 0) return result;
 
   try {
     const { data, error } = await supabase
       .from('workshop_tech_schedule')
-      .select('workshop_id, schedule')
+      .select('workshop_id, schedule, job_type')
       .in('workshop_id', workshopIds);
 
     if (error) throw error;
 
     for (const row of data ?? []) {
-      result.set(row.workshop_id, row.schedule ?? null);
+      result.set(row.workshop_id, {
+        schedule: row.schedule ?? null,
+        job_type: row.job_type ?? null
+      });
     }
     return result;
   } catch (error) {
@@ -1194,6 +1209,7 @@ export async function upsertWorkshopTechSchedule(params: {
   assignedTech?: string | null;
   assignedTechName?: string | null;
   schedule?: string | null;
+  jobType?: string | null;
   assignedBy?: string | null;
   assignedByName?: string | null;
 }): Promise<WorkshopTechScheduleRecord> {
@@ -1204,6 +1220,7 @@ export async function upsertWorkshopTechSchedule(params: {
       assigned_tech: params.assignedTech ?? null,
       assigned_tech_name: params.assignedTechName ?? null,
       schedule: params.schedule ?? null,
+      job_type: params.jobType ?? null,
       assigned_by: params.assignedBy ?? null,
       assigned_by_name: params.assignedByName ?? null,
       updated_at: new Date().toISOString()
@@ -1242,6 +1259,7 @@ export async function assignWorkshopTech(
   assignedTechName: string | null,
   options?: {
     schedule?: string | null;
+    jobType?: string | null;
     assignedBy?: string | null;
     assignedByName?: string | null;
   }
@@ -1265,6 +1283,7 @@ export async function assignWorkshopTech(
       assignedTech,
       assignedTechName,
       schedule: options?.schedule ?? null,
+      jobType: options?.jobType ?? null,
       assignedBy: options?.assignedBy ?? null,
       assignedByName: options?.assignedByName ?? null
     });

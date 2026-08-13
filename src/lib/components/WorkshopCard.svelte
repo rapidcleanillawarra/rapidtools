@@ -393,6 +393,9 @@
 			{/if}
 			{#if viewMode === 'board' && workshop.assigned_tech_name}
 				<div class="mt-1 truncate text-blue-600">Tech: {workshop.assigned_tech_name}</div>
+				{#if workshop.tech_job_type}
+					<div class="mt-0.5 truncate text-blue-500">Type: {workshop.tech_job_type}</div>
+				{/if}
 				{#if workshop.tech_schedule}
 					<div class="mt-0.5 truncate text-blue-500">
 						Sched: {formatSydneyDisplay(workshop.tech_schedule)}

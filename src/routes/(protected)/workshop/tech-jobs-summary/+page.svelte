@@ -1,10 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { SvelteDate } from 'svelte/reactivity';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { getTechJobsSummary, WORKSHOP_TECH_JOB_TYPES } from '$lib/services/workshop';
-  import { toastError } from '$lib/utils/toast';
+  import {
+    assignWorkshopTech,
+    getTechJobsSummary,
+    getWorkshop,
+    notifyAssignTechToTeams,
+    WORKSHOP_TECH_JOB_TYPES,
+    type TechJobsSummaryRow
+  } from '$lib/services/workshop';
+  import { toastError, toastSuccess } from '$lib/utils/toast';
+  import { currentUser } from '$lib/firebase';
+  import { userProfile } from '$lib/userProfile';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
+  import AssignTechModal from '../workshop-board/components/AssignTechModal.svelte';
   import {
     originalData,
     isLoading,
@@ -30,8 +41,7 @@
     viewMode,
     setViewMode,
     simpleJobs,
-    simpleJobsByTech,
-    simpleOverdueCount
+    simpleJobsByTech
   } from './stores';
   import {
     getSortIcon,
@@ -41,11 +51,21 @@
     jobTypeClass,
     formatSimpleSchedule,
     formatSydneyTodayLabel,
-    isOverdueJob,
-    sydneyToday
+    formatSydneyNowTime,
+    isOverdueJob
   } from './utils';
   import { ASSIGNMENT_STATUS_OPTIONS } from './types';
   import type { SortField } from './types';
+
+  const now = new SvelteDate();
+  const sydneyDateLabel = $derived(formatSydneyTodayLabel(now.getTime()));
+  const sydneyTimeLabel = $derived(formatSydneyNowTime(now.getTime()));
+  const nowMillis = $derived(now.getTime());
+  const overdueCount = $derived($simpleJobs.filter((row) => isOverdueJob(row, nowMillis)).length);
+
+  let showAssignTechModal = $state(false);
+  let assignTechSubmitting = $state(false);
+  let rowForAssignTech = $state.raw<TechJobsSummaryRow | null>(null);
 
   function handleSortClick(field: SortField) {
     if ($sortField === field) {
@@ -75,29 +95,162 @@
     }
   }
 
-  const today = sydneyToday();
+  function openAssignTechModal(row: TechJobsSummaryRow, event: MouseEvent) {
+    event.stopPropagation();
+    rowForAssignTech = row;
+    showAssignTechModal = true;
+  }
+
+  function closeAssignTechModal() {
+    showAssignTechModal = false;
+    rowForAssignTech = null;
+  }
+
+  async function loadTechJobs(silent = false) {
+    if (!silent) isLoading.set(true);
+    tableError.set(null);
+    try {
+      const data = await getTechJobsSummary();
+      originalData.set(data);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load tech jobs';
+      tableError.set(message);
+      toastError(message);
+    } finally {
+      if (!silent) isLoading.set(false);
+    }
+  }
+
+  async function handleAssignTechConfirm(
+    event: CustomEvent<{
+      assignedTo: string;
+      assignedToName: string;
+      schedule: string;
+      jobType: string;
+      changeReason: string;
+      save: boolean;
+      sendNotice: boolean;
+    }>
+  ) {
+    const row = rowForAssignTech;
+    if (!row) return;
+
+    const { assignedTo, assignedToName, schedule, jobType, changeReason, save, sendNotice } =
+      event.detail;
+    const user = $currentUser;
+    const profile = $userProfile;
+    const assignedByName = user
+      ? profile
+        ? `${profile.firstName} ${profile.lastName}`.trim()
+        : user.displayName || user.email?.split('@')[0] || 'Unknown User'
+      : 'Unknown User';
+    const assignedBy = user?.email ?? null;
+
+    try {
+      assignTechSubmitting = true;
+
+      if (save) {
+        await assignWorkshopTech(row.workshop_id, assignedTo || null, assignedToName || null, {
+          schedule: schedule || null,
+          jobType: jobType || null,
+          workshopStatus: row.current_workshop_status,
+          assignedBy,
+          assignedByName: assignedByName || null,
+          changeReason: changeReason || null
+        });
+      }
+
+      let teamsOk = true;
+      if (sendNotice) {
+        const workshop = await getWorkshop(row.workshop_id);
+        teamsOk = workshop
+          ? await notifyAssignTechToTeams(workshop, {
+              assignedToName: assignedToName || null,
+              schedule,
+              jobType: jobType || null,
+              assignedByName: assignedByName || null,
+              changeReason: changeReason || null
+            })
+          : false;
+        if (!teamsOk) {
+          toastError(
+            save
+              ? 'Teams notification failed. Technician was assigned.'
+              : 'Teams notification failed. Please try again.'
+          );
+          if (save) {
+            await loadTechJobs(true);
+            closeAssignTechModal();
+          }
+          return;
+        }
+      }
+
+      if (save) await loadTechJobs(true);
+      closeAssignTechModal();
+      if (save && sendNotice) {
+        toastSuccess(
+          assignedTo
+            ? 'Technician assigned and Teams notice sent.'
+            : 'Technician assignment removed and Teams notice sent.'
+        );
+      } else if (save) {
+        toastSuccess(
+          assignedTo ? 'Technician assigned successfully.' : 'Technician assignment removed.'
+        );
+      } else if (sendNotice) {
+        toastSuccess('Teams notice sent.');
+      }
+    } catch (err) {
+      console.error('[TECH_JOBS] Failed to assign tech:', err);
+      toastError(
+        sendNotice && !save
+          ? 'Failed to send Teams notice. Please try again.'
+          : 'Failed to assign technician. Please try again.'
+      );
+    } finally {
+      assignTechSubmitting = false;
+    }
+  }
+
+  $effect(() => {
+    if ($viewMode !== 'simple') return;
+    const interval = setInterval(() => {
+      now.setTime(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  });
 
   onMount(() => {
-    async function loadTechJobs() {
-      isLoading.set(true);
-      tableError.set(null);
-      try {
-        const data = await getTechJobsSummary();
-        originalData.set(data);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Failed to load tech jobs';
-        tableError.set(message);
-        toastError(message);
-      } finally {
-        isLoading.set(false);
-      }
-    }
-
     void loadTechJobs();
   });
 </script>
 
 <ToastContainer />
+
+{#snippet assignScheduleButton(row: TechJobsSummaryRow)}
+  {#if row.assignment_status === 'active'}
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+      title="Reschedule technician"
+      aria-label="Reschedule technician"
+      onclick={(event) => openAssignTechModal(row, event)}
+    >
+      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        ></path>
+      </svg>
+      Reschedule
+    </button>
+  {:else}
+    <span class="text-sm text-gray-400">—</span>
+  {/if}
+{/snippet}
 
 <svelte:head>
   <title>Tech Jobs Summary - RapidTools</title>
@@ -175,11 +328,13 @@
 
     {#if $viewMode === 'simple'}
       <div class="flex flex-wrap items-center gap-3 mb-4">
-        <span class="text-sm text-gray-600">{formatSydneyTodayLabel()}</span>
+        <span class="text-sm text-gray-600">{sydneyDateLabel}</span>
+        <span class="text-lg font-semibold tabular-nums text-gray-900">{sydneyTimeLabel}</span>
+        <span class="text-xs text-gray-400">Sydney</span>
         <span class="text-sm font-medium text-gray-900">{$simpleJobs.length} remaining</span>
-        {#if $simpleOverdueCount > 0}
+        {#if overdueCount > 0}
           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            {$simpleOverdueCount} overdue
+            {overdueCount} overdue
           </span>
         {/if}
       </div>
@@ -226,11 +381,12 @@
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Board status</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reschedule</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   {#each group.jobs as row (row.id)}
-                    {@const overdue = isOverdueJob(row, today)}
+                    {@const overdue = isOverdueJob(row, nowMillis)}
                     <tr
                       class={['cursor-pointer hover:bg-gray-50', overdue && 'bg-red-50']}
                       tabindex="0"
@@ -240,7 +396,10 @@
                     >
                       <td class="px-3 py-2 whitespace-nowrap">
                         {#if !row.schedule}
-                          <span class="text-sm text-gray-400">Unscheduled</span>
+                          <span class="text-sm {overdue ? 'text-red-700 font-medium' : 'text-gray-400'}">Unscheduled</span>
+                          {#if overdue}
+                            <span class="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Overdue</span>
+                          {/if}
                         {:else if overdue}
                           <span class="text-sm text-red-700 font-medium">{formatSimpleSchedule(row.schedule)}</span>
                           <span class="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Overdue</span>
@@ -291,6 +450,9 @@
                       </td>
                       <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                         {formatStatusLabel(row.current_workshop_status)}
+                      </td>
+                      <td class="px-3 py-2 whitespace-nowrap">
+                        {@render assignScheduleButton(row)}
                       </td>
                     </tr>
                   {/each}
@@ -561,6 +723,9 @@
                     Assigned by {getSortIcon('assigned_by_name', $sortField, $sortDirection)}
                   </button>
                 </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Reschedule
+                </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -637,6 +802,9 @@
                   <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
                     {row.assigned_by_name || '—'}
                   </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    {@render assignScheduleButton(row)}
+                  </td>
                 </tr>
               {/each}
             </tbody>
@@ -688,6 +856,18 @@
     {/if}
   </div>
 </div>
+
+<AssignTechModal
+  show={showAssignTechModal}
+  workshopLabel={rowForAssignTech?.customer_name || rowForAssignTech?.order_id || ''}
+  initialAssignedTo={rowForAssignTech?.assigned_tech || ''}
+  initialAssignedToName={rowForAssignTech?.assigned_tech_name || ''}
+  initialSchedule={rowForAssignTech?.schedule || ''}
+  initialJobType={rowForAssignTech?.job_type || ''}
+  submitting={assignTechSubmitting}
+  on:confirm={handleAssignTechConfirm}
+  on:cancel={closeAssignTechModal}
+/>
 
 <style>
   .filter-controls {

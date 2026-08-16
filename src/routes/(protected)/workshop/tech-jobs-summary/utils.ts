@@ -3,6 +3,8 @@ import type { TechJobsSummaryRow } from '$lib/services/workshop';
 import type { SortField, TechJobGroup, TechJobsFilters, TechJobsSummaryStats } from './types';
 
 const SYDNEY_ZONE = 'Australia/Sydney';
+/** Remaining jobs scheduled for today become overdue from this Sydney hour (24h). */
+export const OVERDUE_CUTOFF_HOUR_SYDNEY = 14;
 
 export function getSortIcon(
   field: SortField,
@@ -56,8 +58,12 @@ export function sydneyToday(): string {
   return DateTime.now().setZone(SYDNEY_ZONE).toFormat('yyyy-LL-dd');
 }
 
-export function formatSydneyTodayLabel(): string {
-  return DateTime.now().setZone(SYDNEY_ZONE).toFormat('cccc, d LLL yyyy');
+export function formatSydneyTodayLabel(millis = Date.now()): string {
+  return DateTime.fromMillis(millis).setZone(SYDNEY_ZONE).toFormat('cccc, d LLL yyyy');
+}
+
+export function formatSydneyNowTime(millis = Date.now()): string {
+  return DateTime.fromMillis(millis).setZone(SYDNEY_ZONE).toFormat('h:mm a');
 }
 
 export function scheduleDateInSydney(iso: string | null): string | null {
@@ -75,10 +81,16 @@ export function isIncompleteTodayJob(row: TechJobsSummaryRow, today = sydneyToda
   return scheduleDate <= today;
 }
 
-export function isOverdueJob(row: TechJobsSummaryRow, today = sydneyToday()): boolean {
+export function isOverdueJob(row: TechJobsSummaryRow, nowMillis = Date.now()): boolean {
+  const now = DateTime.fromMillis(nowMillis).setZone(SYDNEY_ZONE);
+  if (!now.isValid) return false;
+
+  const today = now.toFormat('yyyy-LL-dd');
   const scheduleDate = scheduleDateInSydney(row.schedule);
-  if (!scheduleDate) return false;
-  return scheduleDate < today;
+
+  if (scheduleDate && scheduleDate < today) return true;
+  if (now.hour < OVERDUE_CUTOFF_HOUR_SYDNEY) return false;
+  return !scheduleDate || scheduleDate === today;
 }
 
 export function formatSimpleSchedule(iso: string | null | undefined, today = sydneyToday()): string {

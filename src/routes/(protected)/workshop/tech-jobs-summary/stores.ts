@@ -157,6 +157,6 @@ export const simpleJobs = derived([originalData, searchQuery], ([$originalData, 
 export const simpleJobsByTech = derived(simpleJobs, ($simpleJobs) => groupJobsByTech($simpleJobs));
 
 export const simpleOverdueCount = derived(simpleJobs, ($simpleJobs) => {
-  const today = sydneyToday();
-  return $simpleJobs.filter((row) => isOverdueJob(row, today)).length;
+  const now = Date.now();
+  return $simpleJobs.filter((row) => isOverdueJob(row, now)).length;
 });

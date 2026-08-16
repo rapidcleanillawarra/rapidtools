@@ -180,7 +180,10 @@ export interface WorkshopTransportRecord {
 export const WORKSHOP_TECH_JOB_TYPES = ['Quote', 'Repair', 'Service', 'Warranty'] as const;
 export type WorkshopTechJobType = (typeof WORKSHOP_TECH_JOB_TYPES)[number];
 
-/** workshop_tech_schedule table record (assign tech + schedule) */
+/** assignment_status on workshop_tech_schedule */
+export type WorkshopTechAssignmentStatus = 'active' | 'superseded' | 'completed' | 'cancelled';
+
+/** workshop_tech_schedule table record (assign tech + schedule; history via assignment_status) */
 export interface WorkshopTechScheduleRecord {
   id: string;
   workshop_id: string;
@@ -188,13 +191,15 @@ export interface WorkshopTechScheduleRecord {
   assigned_tech_name: string | null;
   schedule: string | null;
   job_type: string | null;
+  assignment_status: WorkshopTechAssignmentStatus;
+  workshop_status: string | null;
   assigned_by: string | null;
   assigned_by_name: string | null;
   created_at: string;
   updated_at: string;
 }
 
-/** Board enrichment row from workshop_tech_schedule */
+/** Board enrichment row from workshop_tech_schedule (active only) */
 export type WorkshopTechScheduleSummary = {
   schedule: string | null;
   job_type: string | null;
@@ -1151,7 +1156,7 @@ export async function updateWorkshopStatus(id: string, status: WorkshopRecord['s
 }
 
 /**
- * Get tech schedule row for a workshop (one row per workshop).
+ * Get the active tech schedule row for a workshop (at most one).
  */
 export async function getTechScheduleByWorkshopId(
   workshopId: string
@@ -1161,6 +1166,7 @@ export async function getTechScheduleByWorkshopId(
       .from('workshop_tech_schedule')
       .select('*')
       .eq('workshop_id', workshopId)
+      .eq('assignment_status', 'active')
       .maybeSingle();
 
     if (error) throw error;
@@ -1172,7 +1178,7 @@ export async function getTechScheduleByWorkshopId(
 }
 
 /**
- * Get tech schedules for many workshops (map of workshop_id → schedule + job type).
+ * Get active tech schedules for many workshops (map of workshop_id → schedule + job type).
  */
 export async function getTechSchedulesByWorkshopIds(
   workshopIds: string[]
@@ -1184,7 +1190,8 @@ export async function getTechSchedulesByWorkshopIds(
     const { data, error } = await supabase
       .from('workshop_tech_schedule')
       .select('workshop_id, schedule, job_type')
-      .in('workshop_id', workshopIds);
+      .in('workshop_id', workshopIds)
+      .eq('assignment_status', 'active');
 
     if (error) throw error;
 
@@ -1202,40 +1209,60 @@ export async function getTechSchedulesByWorkshopIds(
 }
 
 /**
- * Insert or update workshop_tech_schedule for a workshop.
+ * Close the current active schedule row (superseded or cancelled).
  */
-export async function upsertWorkshopTechSchedule(params: {
+async function closeActiveTechSchedule(
+  workshopId: string,
+  nextStatus: 'superseded' | 'cancelled'
+): Promise<void> {
+  const { error } = await supabase
+    .from('workshop_tech_schedule')
+    .update({
+      assignment_status: nextStatus,
+      updated_at: new Date().toISOString()
+    })
+    .eq('workshop_id', workshopId)
+    .eq('assignment_status', 'active');
+
+  if (error) throw error;
+}
+
+/**
+ * Create a new active workshop_tech_schedule row, superseding any previous active row.
+ * Pass assignedTech null to unassign (cancels active; no new row).
+ */
+export async function createWorkshopTechSchedule(params: {
   workshopId: string;
   assignedTech?: string | null;
   assignedTechName?: string | null;
   schedule?: string | null;
   jobType?: string | null;
+  workshopStatus?: string | null;
   assignedBy?: string | null;
   assignedByName?: string | null;
-}): Promise<WorkshopTechScheduleRecord> {
+}): Promise<WorkshopTechScheduleRecord | null> {
   try {
-    const existing = await getTechScheduleByWorkshopId(params.workshopId);
+    const assignedTech = params.assignedTech ?? null;
+
+    if (!assignedTech) {
+      await closeActiveTechSchedule(params.workshopId, 'cancelled');
+      return null;
+    }
+
+    await closeActiveTechSchedule(params.workshopId, 'superseded');
+
     const payload = {
       workshop_id: params.workshopId,
-      assigned_tech: params.assignedTech ?? null,
+      assigned_tech: assignedTech,
       assigned_tech_name: params.assignedTechName ?? null,
       schedule: params.schedule ?? null,
       job_type: params.jobType ?? null,
+      workshop_status: params.workshopStatus ?? null,
+      assignment_status: 'active' as const,
       assigned_by: params.assignedBy ?? null,
       assigned_by_name: params.assignedByName ?? null,
       updated_at: new Date().toISOString()
     };
-
-    if (existing) {
-      const { data, error } = await supabase
-        .from('workshop_tech_schedule')
-        .update(payload)
-        .eq('id', existing.id)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as WorkshopTechScheduleRecord;
-    }
 
     const { data, error } = await supabase
       .from('workshop_tech_schedule')
@@ -1245,13 +1272,13 @@ export async function upsertWorkshopTechSchedule(params: {
     if (error) throw error;
     return data as WorkshopTechScheduleRecord;
   } catch (error) {
-    console.error('Error upserting workshop tech schedule:', error);
+    console.error('Error creating workshop tech schedule:', error);
     throw error;
   }
 }
 
 /**
- * Assign a technician to a workshop row and upsert their schedule.
+ * Assign a technician to a workshop row and create a new active schedule (history preserved).
  */
 export async function assignWorkshopTech(
   workshopId: string,
@@ -1260,6 +1287,7 @@ export async function assignWorkshopTech(
   options?: {
     schedule?: string | null;
     jobType?: string | null;
+    workshopStatus?: string | null;
     assignedBy?: string | null;
     assignedByName?: string | null;
   }
@@ -1278,12 +1306,13 @@ export async function assignWorkshopTech(
       throw error;
     }
 
-    await upsertWorkshopTechSchedule({
+    await createWorkshopTechSchedule({
       workshopId,
       assignedTech,
       assignedTechName,
       schedule: options?.schedule ?? null,
       jobType: options?.jobType ?? null,
+      workshopStatus: options?.workshopStatus ?? null,
       assignedBy: options?.assignedBy ?? null,
       assignedByName: options?.assignedByName ?? null
     });

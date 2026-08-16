@@ -388,6 +388,7 @@
       await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null, {
         schedule: schedule || null,
         jobType: jobType || null,
+        workshopStatus: workshop.status,
         assignedBy,
         assignedByName: assignedByName || null
       });
@@ -397,8 +398,8 @@
               ...w,
               assigned_tech: assignedTo || null,
               assigned_tech_name: assignedToName || null,
-              tech_schedule: schedule || null,
-              tech_job_type: jobType || null
+              tech_schedule: assignedTo ? schedule || null : null,
+              tech_job_type: assignedTo ? jobType || null : null
             }
           : w
       );

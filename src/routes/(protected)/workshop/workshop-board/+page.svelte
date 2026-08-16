@@ -375,6 +375,7 @@
       assignedToName: string;
       schedule: string;
       jobType: string;
+      changeReason: string;
       save: boolean;
       sendNotice: boolean;
     }>
@@ -382,7 +383,8 @@
     const workshop = workshopForAssignTech;
     if (!workshop) return;
 
-    const { assignedTo, assignedToName, schedule, jobType, save, sendNotice } = event.detail;
+    const { assignedTo, assignedToName, schedule, jobType, changeReason, save, sendNotice } =
+      event.detail;
     const user = $currentUser;
     const profile = $userProfile;
     const assignedByName = user
@@ -399,7 +401,8 @@
           jobType: jobType || null,
           workshopStatus: workshop.status,
           assignedBy,
-          assignedByName: assignedByName || null
+          assignedByName: assignedByName || null,
+          changeReason: changeReason || null
         });
         workshops = workshops.map((w) =>
           w.id === workshop.id
@@ -420,7 +423,8 @@
           assignedToName: assignedToName || null,
           schedule,
           jobType: jobType || null,
-          assignedByName: assignedByName || null
+          assignedByName: assignedByName || null,
+          changeReason: changeReason || null
         });
         if (!teamsOk) {
           toastError(
@@ -435,7 +439,11 @@
 
       closeAssignTechModal();
       if (save && sendNotice) {
-        toastSuccess('Technician assigned and Teams notice sent.');
+        toastSuccess(
+          assignedTo
+            ? 'Technician assigned and Teams notice sent.'
+            : 'Technician assignment removed and Teams notice sent.'
+        );
       } else if (save) {
         toastSuccess(
           assignedTo
@@ -798,6 +806,7 @@
   show={showAssignTechModal}
   workshopLabel={workshopForAssignTech?.customer_name || workshopForAssignTech?.order_id || ''}
   initialAssignedTo={workshopForAssignTech?.assigned_tech || ''}
+  initialAssignedToName={workshopForAssignTech?.assigned_tech_name || ''}
   initialSchedule={workshopForAssignTech?.tech_schedule || ''}
   initialJobType={workshopForAssignTech?.tech_job_type ||
     (workshopForAssignTech?.status === 'to_be_quoted' ? 'Quote' : '')}

@@ -195,6 +195,7 @@ export interface WorkshopTechScheduleRecord {
   workshop_status: string | null;
   assigned_by: string | null;
   assigned_by_name: string | null;
+  change_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -219,6 +220,7 @@ export interface TechJobsSummaryRow {
   workshop_status: string | null;
   assigned_by: string | null;
   assigned_by_name: string | null;
+  change_reason: string | null;
   created_at: string;
   updated_at: string;
   customer_name: string | null;
@@ -394,6 +396,7 @@ function buildAssignTechHtmlBody(
     schedule?: string | null;
     jobType?: string | null;
     assignedByName?: string | null;
+    changeReason?: string | null;
   }
 ): string {
   const company =
@@ -409,8 +412,9 @@ function buildAssignTechHtmlBody(
   const fault = workshop.fault_description ?? 'N/A';
   const location = workshop.site_location?.trim() || 'N/A';
 
+  const isUpdate = !!options.changeReason?.trim();
   const lines: string[] = [
-    '<p><strong>TECH ASSIGNED</strong></p>',
+    `<p><strong>${isUpdate ? 'TECH ASSIGNMENT UPDATED' : 'TECH ASSIGNED'}</strong></p>`,
     `<p>Order #${escapeHtml(orderId)}</p>`,
     `<p>${escapeHtml(company)}</p>`,
     `<p>${escapeHtml(contactLine)}</p>`,
@@ -430,6 +434,8 @@ function buildAssignTechHtmlBody(
 
   if (options.assignedToName?.trim()) {
     lines.push('<p><br></p>', `<p><strong>Assigned to: ${escapeHtml(options.assignedToName.trim())}</strong></p>`);
+  } else if (options.changeReason?.trim()) {
+    lines.push('<p><br></p>', '<p><strong>Assigned to: Unassigned</strong></p>');
   }
   if (options.jobType?.trim()) {
     lines.push(`<p><strong>Job type: ${escapeHtml(options.jobType.trim())}</strong></p>`);
@@ -440,6 +446,11 @@ function buildAssignTechHtmlBody(
   }
   if (options.assignedByName?.trim()) {
     lines.push(`<p><strong>Assigned by: ${escapeHtml(options.assignedByName.trim())}</strong></p>`);
+  }
+  if (options.changeReason?.trim()) {
+    lines.push(
+      `<p><strong>Change reason: ${escapeHtml(options.changeReason.trim())}</strong></p>`
+    );
   }
 
   const dashboardUrl = techDashboardUrl(workshop.id);
@@ -583,6 +594,7 @@ export async function notifyAssignTechToTeams(
     schedule?: string | null;
     jobType?: string | null;
     assignedByName?: string | null;
+    changeReason?: string | null;
   }
 ): Promise<boolean> {
   try {
@@ -1362,7 +1374,7 @@ export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
     const { data, error } = await supabase
       .from('workshop_tech_schedule')
       .select(
-        'id, workshop_id, assigned_tech, assigned_tech_name, schedule, job_type, assignment_status, workshop_status, assigned_by, assigned_by_name, created_at, updated_at, workshop:workshop_id(customer_name, product_name, order_id, clients_work_order, make_model, serial_number, status, site_location)'
+        'id, workshop_id, assigned_tech, assigned_tech_name, schedule, job_type, assignment_status, workshop_status, assigned_by, assigned_by_name, change_reason, created_at, updated_at, workshop:workshop_id(customer_name, product_name, order_id, clients_work_order, make_model, serial_number, status, site_location)'
       )
       .order('schedule', { ascending: false, nullsFirst: false });
 
@@ -1390,6 +1402,7 @@ export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
       workshop_status: string | null;
       assigned_by: string | null;
       assigned_by_name: string | null;
+      change_reason: string | null;
       created_at: string;
       updated_at: string;
       workshop: WorkshopJoin | WorkshopJoin[] | null;
@@ -1408,6 +1421,7 @@ export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
         workshop_status: row.workshop_status ?? null,
         assigned_by: row.assigned_by ?? null,
         assigned_by_name: row.assigned_by_name ?? null,
+        change_reason: row.change_reason ?? null,
         created_at: row.created_at,
         updated_at: row.updated_at,
         customer_name: workshop?.customer_name ?? null,
@@ -1428,17 +1442,28 @@ export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
 
 /**
  * Close the current active schedule row (superseded or cancelled).
+ * When cancelling (unassign), optional changeReason is stored on the closed row.
  */
 async function closeActiveTechSchedule(
   workshopId: string,
-  nextStatus: 'superseded' | 'cancelled'
+  nextStatus: 'superseded' | 'cancelled',
+  changeReason?: string | null
 ): Promise<void> {
+  const update: {
+    assignment_status: 'superseded' | 'cancelled';
+    updated_at: string;
+    change_reason?: string;
+  } = {
+    assignment_status: nextStatus,
+    updated_at: new Date().toISOString()
+  };
+  if (nextStatus === 'cancelled' && changeReason?.trim()) {
+    update.change_reason = changeReason.trim();
+  }
+
   const { error } = await supabase
     .from('workshop_tech_schedule')
-    .update({
-      assignment_status: nextStatus,
-      updated_at: new Date().toISOString()
-    })
+    .update(update)
     .eq('workshop_id', workshopId)
     .eq('assignment_status', 'active');
 
@@ -1458,12 +1483,14 @@ export async function createWorkshopTechSchedule(params: {
   workshopStatus?: string | null;
   assignedBy?: string | null;
   assignedByName?: string | null;
+  changeReason?: string | null;
 }): Promise<WorkshopTechScheduleRecord | null> {
   try {
     const assignedTech = params.assignedTech ?? null;
+    const changeReason = params.changeReason?.trim() || null;
 
     if (!assignedTech) {
-      await closeActiveTechSchedule(params.workshopId, 'cancelled');
+      await closeActiveTechSchedule(params.workshopId, 'cancelled', changeReason);
       return null;
     }
 
@@ -1479,6 +1506,7 @@ export async function createWorkshopTechSchedule(params: {
       assignment_status: 'active' as const,
       assigned_by: params.assignedBy ?? null,
       assigned_by_name: params.assignedByName ?? null,
+      change_reason: changeReason,
       updated_at: new Date().toISOString()
     };
 
@@ -1509,6 +1537,7 @@ export async function assignWorkshopTech(
     workshopStatus?: string | null;
     assignedBy?: string | null;
     assignedByName?: string | null;
+    changeReason?: string | null;
   }
 ): Promise<void> {
   try {
@@ -1520,7 +1549,8 @@ export async function assignWorkshopTech(
       jobType: options?.jobType ?? null,
       workshopStatus: options?.workshopStatus ?? null,
       assignedBy: options?.assignedBy ?? null,
-      assignedByName: options?.assignedByName ?? null
+      assignedByName: options?.assignedByName ?? null,
+      changeReason: options?.changeReason ?? null
     });
   } catch (error) {
     console.error('Error assigning workshop tech:', error);

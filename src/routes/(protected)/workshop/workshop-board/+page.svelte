@@ -53,8 +53,6 @@
     'fault_description',
     'contact_number',
     'optional_contacts',
-    'assigned_tech',
-    'assigned_tech_name',
     'location_of_machine'
   ];
 
@@ -181,6 +179,8 @@
         const tech = schedules.get(w.id);
         return {
           ...w,
+          assigned_tech: tech?.assigned_tech ?? null,
+          assigned_tech_name: tech?.assigned_tech_name ?? null,
           tech_schedule: tech?.schedule ?? null,
           tech_job_type: tech?.job_type ?? null
         };

@@ -144,9 +144,9 @@ export interface WorkshopRecord {
     isCreation?: boolean;
   }> | any;
 
-  // Assigned technician (workshop board)
-  assigned_tech: string | null;
-  assigned_tech_name: string | null;
+  // Assigned technician (from active workshop_tech_schedule; not workshop columns)
+  assigned_tech?: string | null;
+  assigned_tech_name?: string | null;
   /** From workshop_tech_schedule (board enrichment; not a workshop column) */
   tech_schedule?: string | null;
   tech_job_type?: string | null;
@@ -201,6 +201,8 @@ export interface WorkshopTechScheduleRecord {
 
 /** Board enrichment row from workshop_tech_schedule (active only) */
 export type WorkshopTechScheduleSummary = {
+  assigned_tech: string | null;
+  assigned_tech_name: string | null;
   schedule: string | null;
   job_type: string | null;
 };
@@ -1178,7 +1180,7 @@ export async function getTechScheduleByWorkshopId(
 }
 
 /**
- * Get active tech schedules for many workshops (map of workshop_id → schedule + job type).
+ * Get active tech schedules for many workshops (map of workshop_id → active assignment).
  */
 export async function getTechSchedulesByWorkshopIds(
   workshopIds: string[]
@@ -1189,7 +1191,7 @@ export async function getTechSchedulesByWorkshopIds(
   try {
     const { data, error } = await supabase
       .from('workshop_tech_schedule')
-      .select('workshop_id, schedule, job_type')
+      .select('workshop_id, assigned_tech, assigned_tech_name, schedule, job_type')
       .in('workshop_id', workshopIds)
       .eq('assignment_status', 'active');
 
@@ -1197,6 +1199,8 @@ export async function getTechSchedulesByWorkshopIds(
 
     for (const row of data ?? []) {
       result.set(row.workshop_id, {
+        assigned_tech: row.assigned_tech ?? null,
+        assigned_tech_name: row.assigned_tech_name ?? null,
         schedule: row.schedule ?? null,
         job_type: row.job_type ?? null
       });
@@ -1278,7 +1282,8 @@ export async function createWorkshopTechSchedule(params: {
 }
 
 /**
- * Assign a technician to a workshop row and create a new active schedule (history preserved).
+ * Assign a technician via workshop_tech_schedule only (history preserved).
+ * Does not write assigned_tech columns on workshop.
  */
 export async function assignWorkshopTech(
   workshopId: string,
@@ -1293,19 +1298,6 @@ export async function assignWorkshopTech(
   }
 ): Promise<void> {
   try {
-    const { error } = await supabase
-      .from('workshop')
-      .update({
-        assigned_tech: assignedTech,
-        assigned_tech_name: assignedTechName,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', workshopId);
-
-    if (error) {
-      throw error;
-    }
-
     await createWorkshopTechSchedule({
       workshopId,
       assignedTech,

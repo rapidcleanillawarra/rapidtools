@@ -207,6 +207,30 @@ export type WorkshopTechScheduleSummary = {
   job_type: string | null;
 };
 
+/** Flattened workshop_tech_schedule row joined with workshop job details */
+export interface TechJobsSummaryRow {
+  id: string;
+  workshop_id: string;
+  assigned_tech: string | null;
+  assigned_tech_name: string | null;
+  schedule: string | null;
+  job_type: string | null;
+  assignment_status: WorkshopTechAssignmentStatus;
+  workshop_status: string | null;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+  customer_name: string | null;
+  product_name: string | null;
+  order_id: string | null;
+  clients_work_order: string | null;
+  make_model: string | null;
+  serial_number: string | null;
+  current_workshop_status: string | null;
+  site_location: string | null;
+}
+
 /** Flat row for transport list table: workshop_transport + workshop fields */
 export interface WorkshopTransportListRow {
   id: string;
@@ -1326,6 +1350,78 @@ export async function getTechSchedulesByWorkshopIds(
     return result;
   } catch (error) {
     console.error('Error fetching workshop tech schedules:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get all workshop_tech_schedule rows joined with workshop job details.
+ */
+export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('workshop_tech_schedule')
+      .select(
+        'id, workshop_id, assigned_tech, assigned_tech_name, schedule, job_type, assignment_status, workshop_status, assigned_by, assigned_by_name, created_at, updated_at, workshop:workshop_id(customer_name, product_name, order_id, clients_work_order, make_model, serial_number, status, site_location)'
+      )
+      .order('schedule', { ascending: false, nullsFirst: false });
+
+    if (error) throw error;
+
+    type WorkshopJoin = {
+      customer_name: string | null;
+      product_name: string | null;
+      order_id: string | null;
+      clients_work_order: string | null;
+      make_model: string | null;
+      serial_number: string | null;
+      status: string | null;
+      site_location: string | null;
+    };
+
+    const rows = (data ?? []) as Array<{
+      id: string;
+      workshop_id: string;
+      assigned_tech: string | null;
+      assigned_tech_name: string | null;
+      schedule: string | null;
+      job_type: string | null;
+      assignment_status: WorkshopTechAssignmentStatus;
+      workshop_status: string | null;
+      assigned_by: string | null;
+      assigned_by_name: string | null;
+      created_at: string;
+      updated_at: string;
+      workshop: WorkshopJoin | WorkshopJoin[] | null;
+    }>;
+
+    return rows.map((row) => {
+      const workshop = Array.isArray(row.workshop) ? (row.workshop[0] ?? null) : row.workshop;
+      return {
+        id: row.id,
+        workshop_id: row.workshop_id,
+        assigned_tech: row.assigned_tech ?? null,
+        assigned_tech_name: row.assigned_tech_name ?? null,
+        schedule: row.schedule ?? null,
+        job_type: row.job_type ?? null,
+        assignment_status: row.assignment_status,
+        workshop_status: row.workshop_status ?? null,
+        assigned_by: row.assigned_by ?? null,
+        assigned_by_name: row.assigned_by_name ?? null,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        customer_name: workshop?.customer_name ?? null,
+        product_name: workshop?.product_name ?? null,
+        order_id: workshop?.order_id ?? null,
+        clients_work_order: workshop?.clients_work_order ?? null,
+        make_model: workshop?.make_model ?? null,
+        serial_number: workshop?.serial_number ?? null,
+        current_workshop_status: workshop?.status ?? null,
+        site_location: workshop?.site_location ?? null
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching tech jobs summary:', error);
     throw error;
   }
 }

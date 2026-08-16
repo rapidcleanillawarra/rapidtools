@@ -758,7 +758,8 @@
   workshopLabel={workshopForAssignTech?.customer_name || workshopForAssignTech?.order_id || ''}
   initialAssignedTo={workshopForAssignTech?.assigned_tech || ''}
   initialSchedule={workshopForAssignTech?.tech_schedule || ''}
-  initialJobType={workshopForAssignTech?.tech_job_type || ''}
+  initialJobType={workshopForAssignTech?.tech_job_type ||
+    (workshopForAssignTech?.status === 'to_be_quoted' ? 'Quote' : '')}
   submitting={assignTechSubmitting}
   on:confirm={handleAssignTechConfirm}
   on:cancel={closeAssignTechModal}

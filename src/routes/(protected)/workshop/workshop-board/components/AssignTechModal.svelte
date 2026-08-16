@@ -31,10 +31,18 @@
   let jobType = '';
   let loadSeq = 0;
   let wasShown = false;
+  let actionInProgress: 'save' | 'notice' | null = null;
 
   const dispatch = createEventDispatcher<{
     cancel: void;
-    confirm: { assignedTo: string; assignedToName: string; schedule: string; jobType: string };
+    confirm: {
+      assignedTo: string;
+      assignedToName: string;
+      schedule: string;
+      jobType: string;
+      save: boolean;
+      sendNotice: boolean;
+    };
   }>();
 
   $: scheduleLocal = schedule ? utcIsoToSydneyInput(schedule) : '';
@@ -61,6 +69,8 @@
     scheduleValid &&
     jobTypeValid &&
     (techChanged || scheduleChanged || jobTypeChanged);
+  $: canSendNotice =
+    !submitting && !!selectedEmail && scheduleValid && jobTypeValid;
 
   beforeUpdate(() => {
     if (show && !wasShown) {
@@ -68,6 +78,7 @@
       selectedEmail = initialAssignedTo || '';
       schedule = initialSchedule || '';
       jobType = initialJobType || '';
+      actionInProgress = null;
       users = [];
       usersError = null;
       fetchUsers();
@@ -138,17 +149,29 @@
     schedule = sydneyInputToUtcIso(value) ?? '';
   }
 
-  function handleConfirm() {
-    if (!canSave) return;
+  function assignmentDetail(save: boolean, sendNotice: boolean) {
     const user = users.find((u) => u.email === selectedEmail);
     const assignedTo = selectedEmail;
-    dispatch('confirm', {
+    return {
       assignedTo,
       assignedToName: user?.full_name ?? '',
-      // Schedule/job type required when assigning a tech; clear when unassigning
       schedule: assignedTo ? schedule.trim() : '',
-      jobType: assignedTo ? jobType.trim() : ''
-    });
+      jobType: assignedTo ? jobType.trim() : '',
+      save,
+      sendNotice
+    };
+  }
+
+  function handleConfirm() {
+    if (!canSave) return;
+    actionInProgress = 'save';
+    dispatch('confirm', assignmentDetail(true, false));
+  }
+
+  function handleSendNotice() {
+    if (!canSendNotice) return;
+    actionInProgress = 'notice';
+    dispatch('confirm', assignmentDetail(canSave, true));
   }
 
   function handleCancel() {
@@ -302,7 +325,7 @@
       </div>
 
       <div
-        class="flex flex-shrink-0 justify-end gap-3 rounded-b-lg border-t border-gray-200 bg-gray-50 px-6 py-4"
+        class="flex flex-shrink-0 flex-wrap justify-end gap-3 rounded-b-lg border-t border-gray-200 bg-gray-50 px-6 py-4"
       >
         <button
           type="button"
@@ -318,7 +341,7 @@
           disabled={!canSave}
           on:click={handleConfirm}
         >
-          {#if submitting}
+          {#if submitting && actionInProgress === 'save'}
             <span class="inline-flex items-center">
               <svg class="mr-2 -ml-1 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
@@ -333,6 +356,29 @@
             </span>
           {:else}
             Save
+          {/if}
+        </button>
+        <button
+          type="button"
+          class="min-w-[120px] rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!canSendNotice}
+          on:click={handleSendNotice}
+        >
+          {#if submitting && actionInProgress === 'notice'}
+            <span class="inline-flex items-center">
+              <svg class="mr-2 -ml-1 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Sending...
+            </span>
+          {:else}
+            Send Notice
           {/if}
         </button>
       </div>

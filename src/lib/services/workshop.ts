@@ -289,6 +289,13 @@ async function getWorkshopHistoryFromTable(
 const PICKUP_POWER_AUTOMATE_URL =
   'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huzEhEV42TBgQraOgxHRDDp_ZD6GjCmrD-Nuy4YtOFA';
 
+const TECH_DASHBOARD_PUBLIC_BASE =
+  'https://rapidcleantools.vercel.app/admin/workshop/tech-dashboard';
+
+function techDashboardUrl(workshopId: string): string {
+  return `${TECH_DASHBOARD_PUBLIC_BASE}?highlight=${encodeURIComponent(workshopId)}`;
+}
+
 function buildPickupHtmlBody(
   workshop: WorkshopRecord,
   status: 'pickup' | 'return',
@@ -331,20 +338,92 @@ function buildPickupHtmlBody(
     lines.push('<p><br></p>', `<p><strong>Assigned to: ${escapeHtml(options.assignedToName.trim())}</strong></p>`);
   }
   if (options?.schedule?.trim()) {
-    try {
-      const scheduleDate = new Date(options.schedule);
-      if (!isNaN(scheduleDate.getTime())) {
-        const formatted = scheduleDate.toLocaleString('en-AU', {
-          timeZone: 'Australia/Sydney',
-          dateStyle: 'medium',
-          timeStyle: 'short'
-        });
-        lines.push(`<p><strong>Scheduled: ${escapeHtml(formatted)}</strong></p>`);
-      }
-    } catch {
+    const formatted = formatScheduleForTeams(options.schedule);
+    if (formatted) {
+      lines.push(`<p><strong>Scheduled: ${escapeHtml(formatted)}</strong></p>`);
+    } else {
       lines.push(`<p><strong>Scheduled: ${escapeHtml(options.schedule)}</strong></p>`);
     }
   }
+
+  return lines.join('\n');
+}
+
+function formatScheduleForTeams(schedule: string): string | null {
+  try {
+    const scheduleDate = new Date(schedule);
+    if (isNaN(scheduleDate.getTime())) return null;
+    return scheduleDate.toLocaleString('en-AU', {
+      timeZone: 'Australia/Sydney',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+  } catch {
+    return null;
+  }
+}
+
+function buildAssignTechHtmlBody(
+  workshop: WorkshopRecord,
+  options: {
+    assignedToName?: string | null;
+    schedule?: string | null;
+    jobType?: string | null;
+    assignedByName?: string | null;
+  }
+): string {
+  const company =
+    workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
+  const firstName = workshop.customer_data?.BillingAddress?.BillFirstName ?? '';
+  const lastName = workshop.customer_data?.BillingAddress?.BillLastName ?? '';
+  const phone = workshop.customer_data?.BillingAddress?.BillPhone ?? workshop.contact_number ?? '';
+  const contactName =
+    (`${firstName} ${lastName}`.trim() || workshop.customer_name) ?? 'N/A';
+  const contactLine = phone ? `${contactName} - ${phone}` : contactName;
+  const orderId = workshop.order_id ?? 'N/A';
+  const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
+  const fault = workshop.fault_description ?? 'N/A';
+  const location = workshop.site_location?.trim() || 'N/A';
+
+  const lines: string[] = [
+    '<p><strong>TECH ASSIGNED</strong></p>',
+    `<p>Order #${escapeHtml(orderId)}</p>`,
+    `<p>${escapeHtml(company)}</p>`,
+    `<p>${escapeHtml(contactLine)}</p>`,
+    '<p><br></p>',
+    `<p>${escapeHtml(product)}</p>`,
+    `<p>${escapeHtml(fault)}</p>`,
+    `<p><strong>Location: ${escapeHtml(location)}</strong></p>`
+  ];
+
+  const firstOptional = workshop.optional_contacts?.[0];
+  const whoToContact = firstOptional
+    ? [firstOptional.name, firstOptional.number, firstOptional.email].filter(Boolean).join(' - ') || null
+    : null;
+  if (whoToContact) {
+    lines.push(`<p><strong>Who to Contact: ${escapeHtml(whoToContact)}</strong></p>`);
+  }
+
+  if (options.assignedToName?.trim()) {
+    lines.push('<p><br></p>', `<p><strong>Assigned to: ${escapeHtml(options.assignedToName.trim())}</strong></p>`);
+  }
+  if (options.jobType?.trim()) {
+    lines.push(`<p><strong>Job type: ${escapeHtml(options.jobType.trim())}</strong></p>`);
+  }
+  if (options.schedule?.trim()) {
+    const formatted = formatScheduleForTeams(options.schedule);
+    lines.push(`<p><strong>Scheduled: ${escapeHtml(formatted ?? options.schedule)}</strong></p>`);
+  }
+  if (options.assignedByName?.trim()) {
+    lines.push(`<p><strong>Assigned by: ${escapeHtml(options.assignedByName.trim())}</strong></p>`);
+  }
+
+  const dashboardUrl = techDashboardUrl(workshop.id);
+  lines.push(
+    '<p><br></p>',
+    `<p><a href="${dashboardUrl}">Open Tech Dashboard</a></p>`,
+    `<p>${dashboardUrl}</p>`
+  );
 
   return lines.join('\n');
 }
@@ -456,6 +535,45 @@ export async function notifyCompletedToTeams(
   try {
     const body = buildCompletedHtmlBody(workshop, triggeredBy);
     const payload = { body, action: 'workshop_completed' };
+
+    const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Notify Teams via Power Automate when a technician is assigned a schedule.
+ * Returns true on success, false on failure. Does not throw.
+ */
+export async function notifyAssignTechToTeams(
+  workshop: WorkshopRecord,
+  options: {
+    assignedToName?: string | null;
+    schedule?: string | null;
+    jobType?: string | null;
+    assignedByName?: string | null;
+  }
+): Promise<boolean> {
+  try {
+    const dashboardUrl = techDashboardUrl(workshop.id);
+    const body = buildAssignTechHtmlBody(workshop, options);
+    const payload = {
+      body,
+      action: 'tech_dashboard',
+      url: dashboardUrl,
+      buttonUrl: dashboardUrl,
+      button: {
+        title: 'Open Tech Dashboard',
+        url: dashboardUrl
+      }
+    };
 
     const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
       method: 'POST',

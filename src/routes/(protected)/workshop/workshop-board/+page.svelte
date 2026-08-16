@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, getTechSchedulesByWorkshopIds, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, assignWorkshopTech, type WorkshopRecord } from '$lib/services/workshop';
+  import { deleteWorkshop as deleteWorkshopService, getWorkshops, getTechSchedulesByWorkshopIds, notifyAssignTechToTeams, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, assignWorkshopTech, type WorkshopRecord } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
@@ -370,12 +370,19 @@
   }
 
   async function handleAssignTechConfirm(
-    event: CustomEvent<{ assignedTo: string; assignedToName: string; schedule: string; jobType: string }>
+    event: CustomEvent<{
+      assignedTo: string;
+      assignedToName: string;
+      schedule: string;
+      jobType: string;
+      save: boolean;
+      sendNotice: boolean;
+    }>
   ) {
     const workshop = workshopForAssignTech;
     if (!workshop) return;
 
-    const { assignedTo, assignedToName, schedule, jobType } = event.detail;
+    const { assignedTo, assignedToName, schedule, jobType, save, sendNotice } = event.detail;
     const user = $currentUser;
     const profile = $userProfile;
     const assignedByName = user
@@ -385,33 +392,66 @@
 
     try {
       assignTechSubmitting = true;
-      await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null, {
-        schedule: schedule || null,
-        jobType: jobType || null,
-        workshopStatus: workshop.status,
-        assignedBy,
-        assignedByName: assignedByName || null
-      });
-      workshops = workshops.map((w) =>
-        w.id === workshop.id
-          ? {
-              ...w,
-              assigned_tech: assignedTo || null,
-              assigned_tech_name: assignedToName || null,
-              tech_schedule: assignedTo ? schedule || null : null,
-              tech_job_type: assignedTo ? jobType || null : null
-            }
-          : w
-      );
+
+      if (save) {
+        await assignWorkshopTech(workshop.id, assignedTo || null, assignedToName || null, {
+          schedule: schedule || null,
+          jobType: jobType || null,
+          workshopStatus: workshop.status,
+          assignedBy,
+          assignedByName: assignedByName || null
+        });
+        workshops = workshops.map((w) =>
+          w.id === workshop.id
+            ? {
+                ...w,
+                assigned_tech: assignedTo || null,
+                assigned_tech_name: assignedToName || null,
+                tech_schedule: assignedTo ? schedule || null : null,
+                tech_job_type: assignedTo ? jobType || null : null
+              }
+            : w
+        );
+      }
+
+      let teamsOk = true;
+      if (sendNotice) {
+        teamsOk = await notifyAssignTechToTeams(workshop, {
+          assignedToName: assignedToName || null,
+          schedule,
+          jobType: jobType || null,
+          assignedByName: assignedByName || null
+        });
+        if (!teamsOk) {
+          toastError(
+            save
+              ? 'Teams notification failed. Technician was assigned.'
+              : 'Teams notification failed. Please try again.'
+          );
+          if (save) closeAssignTechModal();
+          return;
+        }
+      }
+
       closeAssignTechModal();
-      toastSuccess(
-        assignedTo
-          ? 'Technician assigned successfully.'
-          : 'Technician assignment removed.'
-      );
+      if (save && sendNotice) {
+        toastSuccess('Technician assigned and Teams notice sent.');
+      } else if (save) {
+        toastSuccess(
+          assignedTo
+            ? 'Technician assigned successfully.'
+            : 'Technician assignment removed.'
+        );
+      } else if (sendNotice) {
+        toastSuccess('Teams notice sent.');
+      }
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to assign tech:', err);
-      toastError('Failed to assign technician. Please try again.');
+      toastError(
+        sendNotice && !save
+          ? 'Failed to send Teams notice. Please try again.'
+          : 'Failed to assign technician. Please try again.'
+      );
     } finally {
       assignTechSubmitting = false;
     }

@@ -73,15 +73,36 @@ export function scheduleDateInSydney(iso: string | null): string | null {
   return dt.setZone(SYDNEY_ZONE).toFormat('yyyy-LL-dd');
 }
 
-/** Active jobs due today or earlier (including unscheduled). */
+function sydneyDateFromIso(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const dt = DateTime.fromISO(iso, { setZone: true });
+  if (!dt.isValid) return null;
+  return dt.setZone(SYDNEY_ZONE).toFormat('yyyy-LL-dd');
+}
+
+export function isJobCompleted(row: TechJobsSummaryRow): boolean {
+  return row.current_workshop_status === 'completed' || row.assignment_status === 'completed';
+}
+
+/** Active jobs due today or earlier (including unscheduled), excluding completed workshops. */
 export function isIncompleteTodayJob(row: TechJobsSummaryRow, today = sydneyToday()): boolean {
+  if (isJobCompleted(row)) return false;
   if (row.assignment_status !== 'active') return false;
   const scheduleDate = scheduleDateInSydney(row.schedule);
   if (!scheduleDate) return true;
   return scheduleDate <= today;
 }
 
+/** Completed jobs scheduled for today, or completed today. */
+export function isCompletedTodayJob(row: TechJobsSummaryRow, today = sydneyToday()): boolean {
+  if (!isJobCompleted(row)) return false;
+  const scheduleDate = scheduleDateInSydney(row.schedule);
+  if (scheduleDate === today) return true;
+  return sydneyDateFromIso(row.updated_at) === today;
+}
+
 export function isOverdueJob(row: TechJobsSummaryRow, nowMillis = Date.now()): boolean {
+  if (isJobCompleted(row)) return false;
   const now = DateTime.fromMillis(nowMillis).setZone(SYDNEY_ZONE);
   if (!now.isValid) return false;
 

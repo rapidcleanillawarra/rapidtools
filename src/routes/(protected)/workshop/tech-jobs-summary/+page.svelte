@@ -52,7 +52,8 @@
     formatSimpleSchedule,
     formatSydneyTodayLabel,
     formatSydneyNowTime,
-    isOverdueJob
+    isOverdueJob,
+    isJobCompleted
   } from './utils';
   import { ASSIGNMENT_STATUS_OPTIONS } from './types';
   import type { SortField } from './types';
@@ -62,6 +63,8 @@
   const sydneyTimeLabel = $derived(formatSydneyNowTime(now.getTime()));
   const nowMillis = $derived(now.getTime());
   const overdueCount = $derived($simpleJobs.filter((row) => isOverdueJob(row, nowMillis)).length);
+  const remainingCount = $derived($simpleJobs.filter((row) => !isJobCompleted(row)).length);
+  const completedCount = $derived($simpleJobs.filter((row) => isJobCompleted(row)).length);
 
   let showAssignTechModal = $state(false);
   let assignTechSubmitting = $state(false);
@@ -229,7 +232,7 @@
 <ToastContainer />
 
 {#snippet assignScheduleButton(row: TechJobsSummaryRow)}
-  {#if row.assignment_status === 'active'}
+  {#if row.assignment_status === 'active' && !isJobCompleted(row)}
     <button
       type="button"
       class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
@@ -264,7 +267,7 @@
           <h1 class="text-3xl font-bold text-gray-900 mb-2">Tech Jobs Summary</h1>
           <p class="text-gray-600">
             {$viewMode === 'simple'
-              ? 'Jobs not completed today'
+              ? 'Jobs due today, including completed'
               : 'Assigned technician jobs from the workshop schedule'}
           </p>
         </div>
@@ -331,7 +334,12 @@
         <span class="text-sm text-gray-600">{sydneyDateLabel}</span>
         <span class="text-lg font-semibold tabular-nums text-gray-900">{sydneyTimeLabel}</span>
         <span class="text-xs text-gray-400">Sydney</span>
-        <span class="text-sm font-medium text-gray-900">{$simpleJobs.length} remaining</span>
+        <span class="text-sm font-medium text-gray-900">{remainingCount} remaining</span>
+        {#if completedCount > 0}
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            {completedCount} completed
+          </span>
+        {/if}
         {#if overdueCount > 0}
           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
             {overdueCount} overdue
@@ -360,8 +368,8 @@
       {:else if $simpleJobs.length === 0}
         <div class="bg-white rounded-lg shadow-sm border border-gray-200">
           <div class="text-center py-12">
-            <h3 class="text-sm font-medium text-gray-900">No jobs remaining today</h3>
-            <p class="mt-1 text-sm text-gray-500">All active technician jobs due today are complete.</p>
+            <h3 class="text-sm font-medium text-gray-900">No jobs for today</h3>
+            <p class="mt-1 text-sm text-gray-500">There are no remaining or completed technician jobs due today.</p>
           </div>
         </div>
       {:else}
@@ -386,16 +394,24 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                   {#each group.jobs as row (row.id)}
-                    {@const overdue = isOverdueJob(row, nowMillis)}
+                    {@const completed = isJobCompleted(row)}
+                    {@const overdue = !completed && isOverdueJob(row, nowMillis)}
                     <tr
-                      class={['cursor-pointer hover:bg-gray-50', overdue && 'bg-red-50']}
+                      class={[
+                        'cursor-pointer hover:bg-gray-50',
+                        completed && 'bg-green-50',
+                        overdue && 'bg-red-50'
+                      ]}
                       tabindex="0"
                       title="Open workshop job"
                       onclick={() => handleWorkshopClick(row.workshop_id)}
                       onkeydown={(event) => handleRowKeydown(event, row.workshop_id)}
                     >
                       <td class="px-3 py-2 whitespace-nowrap">
-                        {#if !row.schedule}
+                        {#if completed}
+                          <span class="text-sm text-green-800 font-medium">{formatSimpleSchedule(row.schedule)}</span>
+                          <span class="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
+                        {:else if !row.schedule}
                           <span class="text-sm {overdue ? 'text-red-700 font-medium' : 'text-gray-400'}">Unscheduled</span>
                           {#if overdue}
                             <span class="ml-1.5 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Overdue</span>

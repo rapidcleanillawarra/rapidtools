@@ -6,6 +6,7 @@ import {
   filterTechJobs,
   groupJobsByTech,
   isIncompleteTodayJob,
+  isCompletedTodayJob,
   isOverdueJob,
   sortData,
   sydneyToday,
@@ -142,8 +143,13 @@ export const techOptions = derived(originalData, ($originalData) => uniqueTechs(
 
 export const simpleJobs = derived([originalData, searchQuery], ([$originalData, $searchQuery]) => {
   const today = sydneyToday();
-  const incomplete = $originalData.filter((row) => isIncompleteTodayJob(row, today));
-  const filtered = filterTechJobs(incomplete, {
+  const remaining = $originalData.filter((row) => isIncompleteTodayJob(row, today));
+  const completed = $originalData.filter((row) => isCompletedTodayJob(row, today));
+  const combined = [
+    ...sortData(remaining, 'schedule', 'asc'),
+    ...sortData(completed, 'schedule', 'asc')
+  ];
+  return filterTechJobs(combined, {
     searchQuery: $searchQuery,
     selectedTech: '',
     selectedJobType: '',
@@ -151,7 +157,6 @@ export const simpleJobs = derived([originalData, searchQuery], ([$originalData, 
     dateFrom: '',
     dateTo: ''
   });
-  return sortData(filtered, 'schedule', 'asc');
 });
 
 export const simpleJobsByTech = derived(simpleJobs, ($simpleJobs) => groupJobsByTech($simpleJobs));

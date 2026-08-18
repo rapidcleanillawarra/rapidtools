@@ -61,6 +61,7 @@
 		purchasePriceIncrease = 0;
 		markupIncrease = 0;
 		listPriceIncrease = 0;
+		gppIncrease = 0;
 		currentPage.set(1);
 	}
 
@@ -71,10 +72,12 @@
 		const purchasePct = toNumber(purchasePriceIncrease, 0);
 		const markupPct = toNumber(markupIncrease, 0);
 		const listPct = toNumber(listPriceIncrease, 0);
+		const gppPct = toNumber(gppIncrease, 0);
 
 		if (purchasePct !== 0) applyPurchasePricePercentChange();
 		if (markupPct !== 0) applyMarkupAddition();
 		if (listPct !== 0) applyListPricePercentChange();
+		if (gppPct !== 0) applyGppChange();
 	}
 	async function handleFilterClick() {
 		resetControlSection();
@@ -131,6 +134,13 @@
 		return { text: 'No change', cls: 'text-gray-500' };
 	}
 
+	function gppHint(value: number): PercentHint {
+		if (value >= 100) return { text: 'GPP must be below 100%', cls: 'text-red-700' };
+		if (value > 0) return { text: `Set GPP to ${value}%`, cls: 'text-green-700' };
+		if (value < 0) return { text: `Set GPP to ${value}%`, cls: 'text-red-700' };
+		return { text: 'No change', cls: 'text-gray-500' };
+	}
+
 	function getSelectedSkusOrToast(): string[] | null {
 		const selected = Array.from($selectedRows);
 		if (selected.length === 0) {
@@ -184,9 +194,25 @@
 		}
 	}
 
+	function applyGppChange() {
+		const target = toNumber(gppIncrease, 0);
+		const selected = getSelectedSkusOrToast();
+		if (!selected) return;
+		if (target === 0) return;
+		if (target >= 100) {
+			toastError('GPP must be below 100%.');
+			return;
+		}
+
+		for (const sku of selected) {
+			updateProductPricingBySku(sku, { gpp: target }, 'gpp');
+		}
+	}
+
 	$: purchasePriceIncreaseHint = percentHint(toNumber(purchasePriceIncrease, 0));
 	$: markupIncreaseHint = markupHint(toNumber(markupIncrease, 0));
 	$: listPriceIncreaseHint = percentHint(toNumber(listPriceIncrease, 0));
+	$: gppIncreaseHint = gppHint(toNumber(gppIncrease, 0));
 
 	onMount(async () => {
 		const onError = (event: ErrorEvent) => {
@@ -234,6 +260,7 @@
 	let purchasePriceIncrease = 0;
 	let markupIncrease = 0;
 	let listPriceIncrease = 0;
+	let gppIncrease = 0;
 	let visibleProducts: any[] = [];
 	let paginatedProducts: any[] = [];
 	let totalPages = 0;
@@ -561,6 +588,25 @@
 			</div>
 			<div class={`mt-1 text-[10px] ${listPriceIncreaseHint.cls}`}>
 				{listPriceIncreaseHint.text}
+			</div>
+		</div>
+		<div>
+			<label class="mb-1 block text-xs font-medium text-gray-700" for="gpp_increase_modal">
+				GPP
+			</label>
+			<div class="flex items-center gap-2">
+				<input
+					id="gpp_increase_modal"
+					type="number"
+					bind:value={gppIncrease}
+					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					step="0.01"
+					max="99.99"
+					on:change={applyGppChange}
+				/>
+			</div>
+			<div class={`mt-1 text-[10px] ${gppIncreaseHint.cls}`}>
+				{gppIncreaseHint.text}
 			</div>
 		</div>
 	</div>

@@ -476,6 +476,7 @@
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Board status</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reschedule</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cancel</th>
                   </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -550,6 +551,9 @@
                       </td>
                       <td class="px-3 py-2 whitespace-nowrap">
                         {@render assignScheduleButton(row)}
+                      </td>
+                      <td class="px-3 py-2 whitespace-nowrap">
+                        {@render cancelJobButton(row)}
                       </td>
                     </tr>
                   {/each}

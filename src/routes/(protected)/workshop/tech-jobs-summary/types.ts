@@ -10,6 +10,14 @@ export type SortField = keyof TechJobsSummaryRow | '';
 
 export type ViewMode = 'simple' | 'advanced';
 
+export type SimpleDay = 'yesterday' | 'today' | 'tomorrow';
+
+export const SIMPLE_DAY_OPTIONS: { value: SimpleDay; label: string }[] = [
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' }
+];
+
 export type AssignmentStatusFilter = WorkshopTechAssignmentStatus | 'all';
 
 export interface TechJobsFilters {

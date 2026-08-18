@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon';
 import type { TechJobsSummaryRow } from '$lib/services/workshop';
-import type { SortField, TechJobGroup, TechJobsFilters, TechJobsSummaryStats } from './types';
+import type { SimpleDay, SortField, TechJobGroup, TechJobsFilters, TechJobsSummaryStats } from './types';
 
 const SYDNEY_ZONE = 'Australia/Sydney';
 /** Remaining jobs scheduled for today become overdue from this Sydney hour (24h). */
@@ -58,8 +58,17 @@ export function sydneyToday(): string {
   return DateTime.now().setZone(SYDNEY_ZONE).toFormat('yyyy-LL-dd');
 }
 
-export function formatSydneyTodayLabel(millis = Date.now()): string {
-  return DateTime.fromMillis(millis).setZone(SYDNEY_ZONE).toFormat('cccc, d LLL yyyy');
+export function sydneyDateForSimpleDay(day: SimpleDay, millis = Date.now()): string {
+  const offset = day === 'yesterday' ? -1 : day === 'tomorrow' ? 1 : 0;
+  return DateTime.fromMillis(millis).setZone(SYDNEY_ZONE).plus({ days: offset }).toFormat('yyyy-LL-dd');
+}
+
+export function formatSydneyDayLabel(day: SimpleDay, millis = Date.now()): string {
+  const offset = day === 'yesterday' ? -1 : day === 'tomorrow' ? 1 : 0;
+  return DateTime.fromMillis(millis)
+    .setZone(SYDNEY_ZONE)
+    .plus({ days: offset })
+    .toFormat('cccc, d LLL yyyy');
 }
 
 export function formatSydneyNowTime(millis = Date.now()): string {
@@ -88,22 +97,38 @@ export function isJobCancelled(row: TechJobsSummaryRow): boolean {
   return row.assignment_status === 'cancelled';
 }
 
-function isTodayScheduleOrUpdate(row: TechJobsSummaryRow, today: string): boolean {
+function isScheduleOrUpdateOnDay(row: TechJobsSummaryRow, day: string): boolean {
   const scheduleDate = scheduleDateInSydney(row.schedule);
-  if (scheduleDate === today) return true;
-  return sydneyDateFromIso(row.updated_at) === today;
+  if (scheduleDate === day) return true;
+  return sydneyDateFromIso(row.updated_at) === day;
 }
 
-/** Completed jobs scheduled for today, or completed today. */
-export function isCompletedTodayJob(row: TechJobsSummaryRow, today = sydneyToday()): boolean {
+/** Active remaining jobs for a simple-mode day (unscheduled only included for today). */
+export function isRemainingJobForDay(
+  row: TechJobsSummaryRow,
+  day: string,
+  today = sydneyToday()
+): boolean {
+  if (isJobCompleted(row) || isJobCancelled(row)) return false;
+  if (row.assignment_status !== 'active') return false;
+  const scheduleDate = scheduleDateInSydney(row.schedule);
+  if (day === today) {
+    if (!scheduleDate) return true;
+    return scheduleDate <= today;
+  }
+  return scheduleDate === day;
+}
+
+/** Completed jobs scheduled for the day, or completed on that day. */
+export function isCompletedTodayJob(row: TechJobsSummaryRow, day = sydneyToday()): boolean {
   if (!isJobCompleted(row) || isJobCancelled(row)) return false;
-  return isTodayScheduleOrUpdate(row, today);
+  return isScheduleOrUpdateOnDay(row, day);
 }
 
-/** Cancelled jobs scheduled for today, or cancelled today. */
-export function isCancelledTodayJob(row: TechJobsSummaryRow, today = sydneyToday()): boolean {
+/** Cancelled jobs scheduled for the day, or cancelled on that day. */
+export function isCancelledTodayJob(row: TechJobsSummaryRow, day = sydneyToday()): boolean {
   if (!isJobCancelled(row)) return false;
-  return isTodayScheduleOrUpdate(row, today);
+  return isScheduleOrUpdateOnDay(row, day);
 }
 
 export function isOverdueJob(row: TechJobsSummaryRow, nowMillis = Date.now()): boolean {
@@ -119,14 +144,14 @@ export function isOverdueJob(row: TechJobsSummaryRow, nowMillis = Date.now()): b
   return !scheduleDate || scheduleDate === today;
 }
 
-export function formatSimpleSchedule(iso: string | null | undefined, today = sydneyToday()): string {
+export function formatSimpleSchedule(iso: string | null | undefined, day = sydneyToday()): string {
   if (!iso) return 'Unscheduled';
   const scheduleDate = scheduleDateInSydney(iso);
   if (!scheduleDate) return 'Unscheduled';
   const dt = DateTime.fromISO(iso, { setZone: true });
   if (!dt.isValid) return iso;
   const sydney = dt.setZone(SYDNEY_ZONE);
-  if (scheduleDate === today) return sydney.toFormat('h:mm a');
+  if (scheduleDate === day) return sydney.toFormat('h:mm a');
   return sydney.toFormat('d LLL, h:mm a');
 }
 

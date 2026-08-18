@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { TechJobsSummaryRow, WorkshopTechJobType } from '$lib/services/workshop';
-import type { AssignmentStatusFilter, SortField, ViewMode } from './types';
+import type { AssignmentStatusFilter, SimpleDay, SortField, ViewMode } from './types';
 import {
   buildSummaryStats,
   filterTechJobs,
@@ -8,12 +8,15 @@ import {
   isCancelledTodayJob,
   isCompletedTodayJob,
   isOverdueJob,
+  isRemainingJobForDay,
   sortData,
+  sydneyDateForSimpleDay,
   sydneyToday,
   uniqueTechs
 } from './utils';
 
 const VIEW_MODE_KEY = 'rapidtools-tech-jobs-view-mode';
+const SIMPLE_DAY_KEY = 'rapidtools-tech-jobs-simple-day';
 
 function loadViewMode(): ViewMode {
   if (typeof window === 'undefined') return 'simple';
@@ -24,7 +27,19 @@ function loadViewMode(): ViewMode {
   }
 }
 
+function loadSimpleDay(): SimpleDay {
+  if (typeof window === 'undefined') return 'today';
+  try {
+    const stored = localStorage.getItem(SIMPLE_DAY_KEY);
+    if (stored === 'yesterday' || stored === 'tomorrow') return stored;
+  } catch {
+    /* ignore */
+  }
+  return 'today';
+}
+
 export const viewMode = writable<ViewMode>(loadViewMode());
+export const simpleDay = writable<SimpleDay>(loadSimpleDay());
 
 export const originalData = writable<TechJobsSummaryRow[]>([]);
 export const isLoading = writable<boolean>(true);
@@ -82,10 +97,24 @@ viewMode.subscribe((mode) => {
   }
 });
 
+simpleDay.subscribe((day) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SIMPLE_DAY_KEY, day);
+  } catch {
+    /* ignore quota / private mode */
+  }
+});
+
 export function setViewMode(mode: ViewMode) {
   if (get(viewMode) === mode) return;
   viewMode.set(mode);
   currentPage.set(1);
+}
+
+export function setSimpleDay(day: SimpleDay) {
+  if (get(simpleDay) === day) return;
+  simpleDay.set(day);
 }
 
 export const tableData = derived(
@@ -141,23 +170,29 @@ export const summaryStats = derived(tableData, ($tableData) => buildSummaryStats
 
 export const techOptions = derived(originalData, ($originalData) => uniqueTechs($originalData));
 
-export const simpleJobs = derived([originalData, searchQuery], ([$originalData, $searchQuery]) => {
-  const today = sydneyToday();
-  const completed = $originalData.filter((row) => isCompletedTodayJob(row, today));
-  const cancelled = $originalData.filter((row) => isCancelledTodayJob(row, today));
-  const combined = [
-    ...sortData(completed, 'schedule', 'asc'),
-    ...sortData(cancelled, 'schedule', 'asc')
-  ];
-  return filterTechJobs(combined, {
-    searchQuery: $searchQuery,
-    selectedTech: '',
-    selectedJobType: '',
-    assignmentStatus: 'all',
-    dateFrom: '',
-    dateTo: ''
-  });
-});
+export const simpleJobs = derived(
+  [originalData, searchQuery, simpleDay],
+  ([$originalData, $searchQuery, $simpleDay]) => {
+    const today = sydneyToday();
+    const day = sydneyDateForSimpleDay($simpleDay);
+    const remaining = $originalData.filter((row) => isRemainingJobForDay(row, day, today));
+    const completed = $originalData.filter((row) => isCompletedTodayJob(row, day));
+    const cancelled = $originalData.filter((row) => isCancelledTodayJob(row, day));
+    const combined = [
+      ...sortData(remaining, 'schedule', 'asc'),
+      ...sortData(completed, 'schedule', 'asc'),
+      ...sortData(cancelled, 'schedule', 'asc')
+    ];
+    return filterTechJobs(combined, {
+      searchQuery: $searchQuery,
+      selectedTech: '',
+      selectedJobType: '',
+      assignmentStatus: 'all',
+      dateFrom: '',
+      dateTo: ''
+    });
+  }
+);
 
 export const simpleJobsByTech = derived(simpleJobs, ($simpleJobs) => groupJobsByTech($simpleJobs));
 

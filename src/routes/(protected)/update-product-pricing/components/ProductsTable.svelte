@@ -173,13 +173,6 @@
     return `${txt}%`;
   }
 
-  function formatMarkupInputValue(value: unknown): string {
-    const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
-    if (!Number.isFinite(n)) return '';
-    const out = n < 4 ? (n - 1) * 100 : n;
-    return Number.isInteger(out) ? String(out) : out.toFixed(2).replace(/\.?0+$/, '');
-  }
-
   function toNumber(value: unknown): number | null {
     const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
     return Number.isFinite(n) ? n : null;
@@ -567,27 +560,11 @@
                       <div class={`field_number_changes mt-0.5 text-[10px] ${ppDelta.cls}`}>{ppDelta.txt || '$0'}</div>
                     {/if}
                   {:else if col.key === 'markup'}
-                    <input
-                      type="number"
-                      value={formatMarkupInputValue(product.markup)}
-                      on:blur={(e) => {
-                        const target = e.target as HTMLInputElement | null;
-                        if (!target) return;
-                        if (!target.value) return;
-
-                        const current =
-                          typeof product.markup === 'number'
-                            ? product.markup
-                            : parseFloat(String(product.markup ?? ''));
-                        const percentMode = Number.isFinite(current) && current > 0 && current < 4;
-
-                        const n = parseFloat(target.value);
-                        if (!Number.isFinite(n)) return;
-                        const next = percentMode ? 1 + Math.max(0, n) / 100 : n;
-                        onUpdateProductPricingBySku(product.sku, { markup: next }, 'markup');
-                      }}
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
-                    />
+                    <div
+                      class="block w-full border border-gray-200 bg-gray-50 rounded-md text-xs h-7 px-1 leading-7 text-gray-700"
+                    >
+                      {formatMarkupDisplay(product.markup) || '—'}
+                    </div>
                     {#if true}
                       {@const mupDelta = markupDeltaAlways(product.markup, original?.markup)}
                       <div class={`field_number_changes mt-0.5 text-[10px] ${mupDelta.cls}`}>{mupDelta.txt || '0'}</div>

@@ -389,6 +389,36 @@ function formatScheduleForTeams(schedule: string): string | null {
   }
 }
 
+/** Teams HTML colors for notification headings. Yellow is amber so it stays readable. */
+const TEAMS_HEADING_COLORS = {
+  cancelled: '#DC2626',
+  updated: '#CA8A04',
+  assigned: '#2563EB',
+  repaired: '#16A34A',
+  docketReady: '#16A34A'
+} as const;
+
+function teamsColoredText(text: string, color: string): string {
+  return `<font color="${color}"><span style="color:${color};">${text}</span></font>`;
+}
+
+type TeamsHeadingKind = 'cancelled' | 'updated' | 'assigned' | 'repaired' | 'docket_ready';
+
+function teamsHeadingLine(kind: TeamsHeadingKind): string {
+  switch (kind) {
+    case 'cancelled':
+      return `<p><strong>Tech Assignment is ${teamsColoredText('Cancelled', TEAMS_HEADING_COLORS.cancelled)}</strong></p>`;
+    case 'updated':
+      return `<p><strong>Tech Assignment ${teamsColoredText('Updated', TEAMS_HEADING_COLORS.updated)}</strong></p>`;
+    case 'assigned':
+      return `<p><strong>${teamsColoredText('Tech Assigned', TEAMS_HEADING_COLORS.assigned)}</strong></p>`;
+    case 'repaired':
+      return `<p><strong>${teamsColoredText('Repaired', TEAMS_HEADING_COLORS.repaired)}</strong></p>`;
+    case 'docket_ready':
+      return `<p><strong>${teamsColoredText('Docket Ready', TEAMS_HEADING_COLORS.docketReady)}</strong></p>`;
+  }
+}
+
 function buildAssignTechHtmlBody(
   workshop: WorkshopRecord,
   options: {
@@ -397,6 +427,7 @@ function buildAssignTechHtmlBody(
     jobType?: string | null;
     assignedByName?: string | null;
     changeReason?: string | null;
+    cancelled?: boolean;
   }
 ): string {
   const company =
@@ -412,9 +443,17 @@ function buildAssignTechHtmlBody(
   const fault = workshop.fault_description ?? 'N/A';
   const location = workshop.site_location?.trim() || 'N/A';
 
-  const isUpdate = !!options.changeReason?.trim();
+  const isCancelled =
+    options.cancelled === true ||
+    (!options.assignedToName?.trim() && !!options.changeReason?.trim());
+  const isUpdate = !isCancelled && !!options.changeReason?.trim();
+  const headingKind: TeamsHeadingKind = isCancelled
+    ? 'cancelled'
+    : isUpdate
+      ? 'updated'
+      : 'assigned';
   const lines: string[] = [
-    `<p><strong>${isUpdate ? 'TECH ASSIGNMENT UPDATED' : 'TECH ASSIGNED'}</strong></p>`,
+    teamsHeadingLine(headingKind),
     `<p>Order #${escapeHtml(orderId)}</p>`,
     `<p>${escapeHtml(company)}</p>`,
     `<p>${escapeHtml(contactLine)}</p>`,
@@ -595,6 +634,7 @@ export async function notifyAssignTechToTeams(
     jobType?: string | null;
     assignedByName?: string | null;
     changeReason?: string | null;
+    cancelled?: boolean;
   }
 ): Promise<boolean> {
   try {

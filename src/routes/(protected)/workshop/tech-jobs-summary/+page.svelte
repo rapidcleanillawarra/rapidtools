@@ -261,16 +261,17 @@
             schedule: row.schedule,
             jobType: row.job_type,
             assignedByName: assignedByName || null,
-            changeReason: reason
+            changeReason: reason,
+            cancelled: true
           })
         : false;
 
       await loadTechJobs(true);
       closeCancelJobModal();
       if (!teamsOk) {
-        toastError('Teams notification failed. Job was cancelled and unassigned.');
+        toastError('Teams notification failed. Tech assignment was cancelled.');
       } else {
-        toastSuccess('Job cancelled and technician unassigned.');
+        toastSuccess('Tech Assignment is Cancelled.');
       }
     } catch (err) {
       console.error('[TECH_JOBS] Failed to cancel job:', err);

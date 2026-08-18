@@ -64,7 +64,7 @@
   >
     <div class="flex-shrink-0 border-b border-gray-200 px-6 py-4">
       <h2 id="cancel-job-modal-title" class="text-lg font-semibold text-gray-900">
-        Cancel job / Unassign technician
+        Tech Assignment is <span class="text-red-600">Cancelled</span>
       </h2>
       <p class="mt-1 text-sm text-gray-500">
         {#if workshopLabel}

@@ -16,6 +16,7 @@
   import { userProfile } from '$lib/userProfile';
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import AssignTechModal from '../workshop-board/components/AssignTechModal.svelte';
+  import CancelJobModal from './components/CancelJobModal.svelte';
   import {
     originalData,
     isLoading,
@@ -69,6 +70,9 @@
   let showAssignTechModal = $state(false);
   let assignTechSubmitting = $state(false);
   let rowForAssignTech = $state.raw<TechJobsSummaryRow | null>(null);
+  let showCancelJobModal = $state(false);
+  let cancelJobSubmitting = $state(false);
+  let rowForCancelJob = $state.raw<TechJobsSummaryRow | null>(null);
 
   function handleSortClick(field: SortField) {
     if ($sortField === field) {
@@ -107,6 +111,17 @@
   function closeAssignTechModal() {
     showAssignTechModal = false;
     rowForAssignTech = null;
+  }
+
+  function openCancelJobModal(row: TechJobsSummaryRow, event: MouseEvent) {
+    event.stopPropagation();
+    rowForCancelJob = row;
+    showCancelJobModal = true;
+  }
+
+  function closeCancelJobModal() {
+    showCancelJobModal = false;
+    rowForCancelJob = null;
   }
 
   async function loadTechJobs(silent = false) {
@@ -216,6 +231,55 @@
     }
   }
 
+  async function handleCancelJobConfirm(changeReason: string) {
+    const row = rowForCancelJob;
+    const reason = changeReason.trim();
+    if (!row || !reason) return;
+
+    const user = $currentUser;
+    const profile = $userProfile;
+    const assignedByName = user
+      ? profile
+        ? `${profile.firstName} ${profile.lastName}`.trim()
+        : user.displayName || user.email?.split('@')[0] || 'Unknown User'
+      : 'Unknown User';
+    const assignedBy = user?.email ?? null;
+
+    try {
+      cancelJobSubmitting = true;
+      await assignWorkshopTech(row.workshop_id, null, null, {
+        workshopStatus: row.current_workshop_status,
+        assignedBy,
+        assignedByName: assignedByName || null,
+        changeReason: reason
+      });
+
+      const workshop = await getWorkshop(row.workshop_id);
+      const teamsOk = workshop
+        ? await notifyAssignTechToTeams(workshop, {
+            assignedToName: null,
+            schedule: row.schedule,
+            jobType: row.job_type,
+            assignedByName: assignedByName || null,
+            changeReason: reason
+          })
+        : false;
+
+      await loadTechJobs(true);
+      closeCancelJobModal();
+      if (!teamsOk) {
+        toastError('Teams notification failed. Job was cancelled and unassigned.');
+      } else {
+        toastSuccess('Job cancelled and technician unassigned.');
+      }
+    } catch (err) {
+      console.error('[TECH_JOBS] Failed to cancel job:', err);
+      toastError('Failed to cancel job. Please try again.');
+    } finally {
+      cancelJobSubmitting = false;
+    }
+  }
+
   $effect(() => {
     if ($viewMode !== 'simple') return;
     const interval = setInterval(() => {
@@ -249,6 +313,30 @@
         ></path>
       </svg>
       Reschedule
+    </button>
+  {:else}
+    <span class="text-sm text-gray-400">—</span>
+  {/if}
+{/snippet}
+
+{#snippet cancelJobButton(row: TechJobsSummaryRow)}
+  {#if row.assignment_status === 'active' && !isJobCompleted(row)}
+    <button
+      type="button"
+      class="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+      title="Cancel job or unassign technician"
+      aria-label="Cancel job or unassign technician"
+      onclick={(event) => openCancelJobModal(row, event)}
+    >
+      <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        ></path>
+      </svg>
+      Cancel
     </button>
   {:else}
     <span class="text-sm text-gray-400">—</span>
@@ -742,6 +830,9 @@
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Reschedule
                 </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Cancel
+                </th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -821,6 +912,9 @@
                   <td class="px-4 py-3 whitespace-nowrap">
                     {@render assignScheduleButton(row)}
                   </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    {@render cancelJobButton(row)}
+                  </td>
                 </tr>
               {/each}
             </tbody>
@@ -884,6 +978,18 @@
   on:confirm={handleAssignTechConfirm}
   on:cancel={closeAssignTechModal}
 />
+
+{#if showCancelJobModal && rowForCancelJob}
+  <CancelJobModal
+    workshopLabel={rowForCancelJob.customer_name || rowForCancelJob.order_id || ''}
+    assignedTechName={rowForCancelJob.assigned_tech_name || rowForCancelJob.assigned_tech || ''}
+    scheduleLabel={rowForCancelJob.schedule ? formatSydneyDate(rowForCancelJob.schedule) : ''}
+    jobType={rowForCancelJob.job_type || ''}
+    submitting={cancelJobSubmitting}
+    onconfirm={handleCancelJobConfirm}
+    oncancel={closeCancelJobModal}
+  />
+{/if}
 
 <style>
   .filter-controls {

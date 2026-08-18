@@ -78,6 +78,8 @@
 		requestor_firstname: string;
 		requestor_lastname: string;
 		TaxIncluded: boolean;
+		SortOrder1: number;
+		SortOrder2: number;
 	}
 
 	interface CustomerGroup {
@@ -576,7 +578,9 @@
 								PriceGroup: priceGroups
 							},
 							TaxInclusive: false,
-							TaxFreeItem: request.tax_included || false
+							TaxFreeItem: request.tax_included || false,
+							SortOrder1: 99999,
+							SortOrder2: 99999
 						};
 					}),
 					action: 'AddItem'

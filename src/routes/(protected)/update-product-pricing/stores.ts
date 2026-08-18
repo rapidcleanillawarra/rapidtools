@@ -120,10 +120,18 @@ export async function fetchLastPriceAdjustmentsForCurrentProducts(): Promise<voi
 }
 
 /** Which pricing field the user last edited; that value is kept as-is, others are derived. */
-export type PricingEditSource = 'purchase_price' | 'markup' | 'rrp' | 'rrp_gst_inclusive';
+export type PricingEditSource = 'purchase_price' | 'markup' | 'rrp' | 'rrp_gst_inclusive' | 'gpp';
 
 function listPriceFromGstInclusive(gstInclusive: number): number {
   return round2(gstInclusive / 1.1);
+}
+
+/** List price from purchase + GPP%: list = purchase / (1 − gpp/100). Null when invalid. */
+function listPriceFromGrossProfitPercent(purchasePrice: number, gpp: number): number | null {
+  if (!(purchasePrice > 0) || !Number.isFinite(gpp) || gpp >= 100) return null;
+  const remaining = 1 - gpp / 100;
+  if (!(remaining > 0)) return null;
+  return round2(purchasePrice / remaining);
 }
 
 function computePricing(product: any, source: PricingEditSource) {
@@ -131,6 +139,7 @@ function computePricing(product: any, source: PricingEditSource) {
   const anchorMarkup = toNumber(product.markup ?? product.client_mup ?? product.retail_mup, 0);
   const anchorRrp = toNumber(product.rrp, 0);
   const anchorRrpGst = toNumber(product.rrp_gst_inclusive, NaN);
+  const anchorGpp = toNumber(product.gpp, NaN);
 
   let purchasePrice = anchorPurchase;
   let markup = anchorMarkup;
@@ -160,6 +169,14 @@ function computePricing(product: any, source: PricingEditSource) {
         markup = round2(rrp / purchasePrice);
       }
       break;
+    case 'gpp': {
+      const nextRrp = listPriceFromGrossProfitPercent(purchasePrice, anchorGpp);
+      if (nextRrp !== null) {
+        rrp = nextRrp;
+        markup = round2(rrp / purchasePrice);
+      }
+      break;
+    }
   }
 
   const roundedMarkup = source === 'markup' ? markup : round2(markup);
@@ -177,6 +194,8 @@ function computePricing(product: any, source: PricingEditSource) {
   } else {
     delete result.rrp_gst_inclusive;
   }
+
+  delete result.gpp;
 
   return result;
 }

@@ -75,7 +75,7 @@
     { key: 'markup', label: 'Markup', minWidth: 100, width: 120 },
     { key: 'rrp', label: 'List Price', minWidth: 100, width: 120 },
     { key: 'plus_gst', label: 'RRP', minWidth: 90, width: 110 },
-    { key: 'gpp', label: 'GPP', minWidth: 72, width: 88 },
+    { key: 'gpp', label: 'GPP', minWidth: 80, width: 100 },
     { key: 'difference', label: 'Difference', minWidth: 80, width: 100 },
     { key: 'remove_pricegroups', label: 'Remove PriceGroups', minWidth: 120, width: 140 },
     { key: 'tax_free', label: 'Tax Free', minWidth: 80, width: 100 },
@@ -274,6 +274,18 @@
     const cur = computeMarkupDisplayValue(productMarkup, percentMode) ?? 0;
     const orig = computeMarkupDisplayValue(originalMarkup, percentMode) ?? 0;
 
+    const delta = cur - orig;
+    return { txt: formatSigned(delta, formatNumberCompact) + '%', cls: deltaClass(delta) };
+  }
+
+  function gppDeltaAlways(
+    currentPurchase: unknown,
+    currentList: unknown,
+    originalPurchase: unknown,
+    originalList: unknown
+  ): { txt: string; cls: string } {
+    const cur = grossProfitPercent(currentPurchase, currentList) ?? 0;
+    const orig = grossProfitPercent(originalPurchase, originalList) ?? 0;
     const delta = cur - orig;
     return { txt: formatSigned(delta, formatNumberCompact) + '%', cls: deltaClass(delta) };
   }
@@ -616,10 +628,30 @@
                     {/if}
                   {:else if col.key === 'gpp'}
                     {@const gppVal = grossProfitPercent(product.purchase_price, product.rrp)}
-                    {#if gppVal !== null}
-                      <span class={`font-medium ${deltaClass(gppVal)}`}>{formatNumberCompact(gppVal)}%</span>
-                    {:else}
-                      <span class="text-gray-400">—</span>
+                    <input
+                      type="number"
+                      value={gppVal ?? ''}
+                      on:blur={(e) => {
+                        const target = e.target as HTMLInputElement | null;
+                        const next = onNumberInput(e);
+                        if (next >= 100) {
+                          if (target) target.value = gppVal != null ? String(gppVal) : '';
+                          return;
+                        }
+                        onUpdateProductPricingBySku(product.sku, { gpp: next }, 'gpp');
+                      }}
+                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
+                      step="0.01"
+                      max="99.99"
+                    />
+                    {#if true}
+                      {@const gppDelta = gppDeltaAlways(
+                        product.purchase_price,
+                        product.rrp,
+                        original?.purchase_price,
+                        original?.rrp
+                      )}
+                      <div class={`field_number_changes mt-0.5 text-[10px] ${gppDelta.cls}`}>{gppDelta.txt || '0%'}</div>
                     {/if}
                   {:else if col.key === 'difference'}
                     <span class={diffDelta !== 0 ? deltaClass(diffDelta) : ''}>

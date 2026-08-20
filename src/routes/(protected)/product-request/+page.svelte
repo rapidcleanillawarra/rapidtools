@@ -1,11 +1,18 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import Select from 'svelte-select';
   import { db } from '$lib/firebase';
   import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
   import { currentUser } from '$lib/firebase';
   import { userProfile, type UserProfile } from '$lib/userProfile';
+  import {
+    revokeProductImagePreviews,
+    uploadProductRequestImages,
+    type ProductImageDraft,
+    type ProductRequestImage
+  } from '$lib/product-request/imageUpload';
+  import ProductRequestImages from './ProductRequestImages.svelte';
 
   interface SelectOption {
     value: string;
@@ -23,6 +30,7 @@
     rrp: string;
     taxIncluded: boolean;
     exists: boolean;
+    images: ProductImageDraft[];
   }
 
   // API Endpoints
@@ -64,6 +72,7 @@
 
   let showTaxConfirmation = false;
   let taxFreeProducts: ProductRow[] = [];
+  let previewImage: string | null = null;
 
   function createEmptyRow(): ProductRow {
     return {
@@ -76,8 +85,14 @@
       listPrice: '',
       rrp: '',
       taxIncluded: false,
-      exists: false
+      exists: false,
+      images: []
     };
+  }
+
+  function resetRows() {
+    rows.forEach((row) => revokeProductImagePreviews(row.images ?? []));
+    rows = [createEmptyRow()];
   }
 
   // Format number with commas for display
@@ -157,7 +172,8 @@
           rows = validRows.map((row: any) => {
             const processedRow = {
               ...row,
-              exists: false // Reset exists flag
+              exists: false, // Reset exists flag
+              images: [] as ProductImageDraft[]
             };
             // Recalculate GPM for loaded data
             processedRow.gpm = calculateGPM(processedRow.purchasePrice, processedRow.listPrice);
@@ -190,7 +206,9 @@
   }
 
   function removeRow(index: number) {
-    rows = rows.filter((_, i) => i !== index);
+    const [removed] = rows.splice(index, 1);
+    if (removed) revokeProductImagePreviews(removed.images ?? []);
+    rows = [...rows];
   }
 
   function applyToAll<K extends keyof ProductRow>(field: K, value: ProductRow[K]) {
@@ -273,7 +291,7 @@
   }
 
   // Function to send email notification
-  async function sendEmailNotification(products: ProductRow[]) {
+  async function sendEmailNotification(products: (ProductRow & { uploadedImages: ProductRequestImage[] })[]) {
     console.log('=== Starting Email Notification Process ===');
     console.log('Current user:', user);
     console.log('Current profile:', profile);
@@ -296,7 +314,8 @@
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Supplier</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Purchase Price</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">List Price</th>
-      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Tax</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Tax</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Images</th>
     </tr>
   </thead>
   <tbody>
@@ -310,6 +329,7 @@
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">${product.taxIncluded ? 'Yes' : 'No'}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.uploadedImages.length > 0 ? product.uploadedImages.map((image) => `<a href="${image.URL}">${image.Name}</a>`).join(', ') : '-'}</td>
     </tr>
     `).join('')}
   </tbody>
@@ -317,7 +337,7 @@
 
       // For Teams, create a simplified ASCII table
       const teamsTable = products.map((product, index) => `
-${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | $${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | ${product.taxIncluded ? 'Yes' : 'No'}`).join('\n');
+${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | $${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | ${product.taxIncluded ? 'Yes' : 'No'} | ${product.uploadedImages.length > 0 ? product.uploadedImages.map((image) => image.URL).join(', ') : 'No images'}`).join('\n');
 
       // Create email body with HTML formatting
       const emailBody = `
@@ -454,8 +474,23 @@ For any questions or concerns, please contact the system administrator.`;
         }
 
         console.log('=== Starting Firebase Submission ===');
+        const preparedRows: (ProductRow & { uploadedImages: ProductRequestImage[] })[] = [];
+        for (const row of rows) {
+          const filesToUpload = (row.images ?? []).map((image) => image.file);
+          let uploadedImages: ProductRequestImage[] = [];
+          if (filesToUpload.length > 0) {
+            console.log('Uploading images for SKU:', row.sku, filesToUpload.length);
+            const result = await uploadProductRequestImages(row.sku, filesToUpload);
+            if (result.error) {
+              throw new Error(`Failed to upload images for ${row.sku}: ${result.error}`);
+            }
+            uploadedImages = result.images;
+          }
+          preparedRows.push({ ...row, uploadedImages });
+        }
+
         // If all validation passes, save to Firestore
-        const savePromises = rows.map(row => {
+        const savePromises = preparedRows.map((row) => {
           const productData = {
             sku: row.sku,
             product_name: row.productName,
@@ -491,7 +526,7 @@ For any questions or concerns, please contact the system administrator.`;
         console.log('Saved document references:', results.map(ref => ref.id));
 
         // Send email notification after successful submission
-        await sendEmailNotification(rows);
+        await sendEmailNotification(preparedRows);
 
         showNotification('Product request submitted successfully', 'success');
         
@@ -499,7 +534,7 @@ For any questions or concerns, please contact the system administrator.`;
         clearLocalStorage();
         
         // Clear form and add new row
-        rows = [createEmptyRow()];
+        resetRows();
         console.log('Form cleared and reset');
       } else {
         console.error('SKU check API returned error:', data);
@@ -967,7 +1002,17 @@ For any questions or concerns, please contact the system administrator.`;
     fetchBrands();
     fetchSuppliers();
   });
+
+  onDestroy(() => {
+    rows.forEach((row) => revokeProductImagePreviews(row.images ?? []));
+  });
 </script>
+
+<svelte:window
+  on:keydown={(event) => {
+    if (event.key === 'Escape') previewImage = null;
+  }}
+/>
 
 <div class="min-h-screen bg-gray-100 py-6 px-1 sm:px-3 lg:px-6">
   <div class="w-full bg-white shadow-sm rounded-2xl p-4 sm:p-6 lg:p-8" transition:fade>
@@ -993,7 +1038,7 @@ For any questions or concerns, please contact the system administrator.`;
           <button
             on:click={() => {
               clearLocalStorage();
-              rows = [createEmptyRow()];
+              resetRows();
               showNotification('New cleared', 'info');
             }}
             class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
@@ -1054,12 +1099,16 @@ For any questions or concerns, please contact the system administrator.`;
 
         <div class="rounded-2xl border border-gray-200 bg-white shadow-lg">
           <div class="overflow-x-auto">
-            <table class="w-full min-w-[1180px] divide-y divide-gray-200 text-sm">
+            <table class="w-full min-w-[1280px] divide-y divide-gray-200 text-sm">
               <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 <tr>
                   <th class="py-3 pl-6 pr-3 text-left w-12">#</th>
                   <th class="px-3 py-3 text-left w-32">SKU</th>
                   <th class="px-3 py-3 text-left w-48">Product Name</th>
+                  <th class="px-3 py-3 text-left w-36">
+                    Images
+                    <span class="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional, max 5MB</span>
+                  </th>
                   <th class="px-3 py-3 text-left w-52">
                     <div class="flex items-center gap-2">
                       <span>Brand</span>
@@ -1126,6 +1175,13 @@ For any questions or concerns, please contact the system administrator.`;
                         on:paste={(e) => handlePaste(e, i, 'productName')}
                         class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
                         placeholder="Product Name"
+                      />
+                    </td>
+                    <td class="px-3 py-4 align-top w-36">
+                      <ProductRequestImages
+                        bind:images={row.images}
+                        onPreview={(url) => (previewImage = url)}
+                        onError={(message) => showNotification(message, 'error')}
                       />
                     </td>
                     <td class="px-3 py-4 align-top select-wrapper w-52">
@@ -1245,6 +1301,22 @@ For any questions or concerns, please contact the system administrator.`;
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
         <p class="mt-4 text-gray-700">Processing...</p>
       </div>
+    </div>
+  {/if}
+
+  {#if previewImage}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <button
+        type="button"
+        class="absolute inset-0 cursor-default"
+        aria-label="Close image preview"
+        on:click={() => (previewImage = null)}
+      ></button>
+      <img
+        src={previewImage}
+        alt="Product preview"
+        class="relative z-10 max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+      />
     </div>
   {/if}
 

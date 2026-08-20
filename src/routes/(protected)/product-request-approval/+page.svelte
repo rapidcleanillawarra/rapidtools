@@ -6,6 +6,7 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import type { ProductRequest, Brand, Supplier, Category, Markup } from '$lib/types';
 	import { userProfile, type UserProfile } from '$lib/userProfile';
+	import { loadProductRequestImagesBySku } from '$lib/product-request/imageUpload';
 	import Select from 'svelte-select';
 
 	interface SelectOption {
@@ -41,6 +42,7 @@
 	let deleteLoading = false;
 	let submitLoading = false;
 	let profile: UserProfile | null = null;
+	let previewImage: string | null = null;
 
 	interface SkuToRequestMap {
 		[key: string]: ProductRequest[];
@@ -427,6 +429,12 @@
 				};
 			}) as ProductRequest[];
 
+			const imagesBySku = await loadProductRequestImagesBySku(productRequests.map((request) => request.sku));
+			productRequests = productRequests.map((request) => ({
+				...request,
+				images: imagesBySku[request.sku] ?? []
+			}));
+
 			// Enhanced logging of fetched data
 			console.log('=== Fetched Product Requests from Firebase ===');
 			console.log('Total requests found:', productRequests.length);
@@ -580,7 +588,17 @@
 							TaxInclusive: false,
 							TaxFreeItem: request.tax_included || false,
 							SortOrder1: 99999,
-							SortOrder2: 99999
+							SortOrder2: 99999,
+							...(request.images && request.images.length > 0
+								? {
+										Images: {
+											Image: request.images.map((image) => ({
+												Name: image.Name,
+												URL: image.URL
+											}))
+										}
+									}
+								: {})
 						};
 					}),
 					action: 'AddItem'
@@ -1012,6 +1030,12 @@
 	});
 </script>
 
+<svelte:window
+	on:keydown={(event) => {
+		if (event.key === 'Escape') previewImage = null;
+	}}
+/>
+
 <div class="min-h-screen bg-gray-100 px-2 py-8 sm:px-3">
 	<div class="mx-auto max-w-[98%] bg-white p-6 shadow" transition:fade>
 		<h2 class="mb-6 text-2xl font-bold text-gray-900">Product Request Approval</h2>
@@ -1148,6 +1172,20 @@
 										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										style="font-size: 0.7rem !important;"
 									/>
+									{#if request.images && request.images.length > 0}
+										<div class="mt-2 flex flex-wrap gap-1">
+											{#each request.images as image, imageIndex (image.URL + imageIndex)}
+												<button
+													type="button"
+													class="overflow-hidden rounded border border-gray-200"
+													title={image.Name}
+													on:click={() => (previewImage = image.URL)}
+												>
+													<img src={image.URL} alt={image.Name} class="h-8 w-8 object-cover" />
+												</button>
+											{/each}
+										</div>
+									{/if}
 								</div>
 
 								<!-- Brand -->
@@ -1334,6 +1372,20 @@
 										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										style="font-size: 0.7rem !important;"
 									/>
+									{#if request.images && request.images.length > 0}
+										<div class="mt-2 flex flex-wrap gap-1">
+											{#each request.images as image, imageIndex (image.URL + imageIndex)}
+												<button
+													type="button"
+													class="overflow-hidden rounded border border-gray-200"
+													title={image.Name}
+													on:click={() => (previewImage = image.URL)}
+												>
+													<img src={image.URL} alt={image.Name} class="h-8 w-8 object-cover" />
+												</button>
+											{/each}
+										</div>
+									{/if}
 								</div>
 							</div>
 
@@ -1529,6 +1581,22 @@
 		</div>
 	</div>
 </div>
+
+{#if previewImage}
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+		<button
+			type="button"
+			class="absolute inset-0 cursor-default"
+			aria-label="Close image preview"
+			on:click={() => (previewImage = null)}
+		></button>
+		<img
+			src={previewImage}
+			alt="Product preview"
+			class="relative z-10 max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+		/>
+	</div>
+{/if}
 
 <style>
 	:global(.svelte-select) {

@@ -1,3 +1,8 @@
+export interface ProductRequestImage {
+  Name: string;
+  URL: string;
+}
+
 export interface ProductRequest {
   id: string;
   requestor_firstName: string;
@@ -17,6 +22,7 @@ export interface ProductRequest {
   status: 'request' | 'approved' | 'rejected' | 'delete' | 'product_created';
   tax_included?: boolean;
   product_creation_date?: string;
+  images?: ProductRequestImage[];
 }
 
 export interface Brand {

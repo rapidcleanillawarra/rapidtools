@@ -245,3 +245,34 @@ export async function updateProduct(productId: string, updateData: any): Promise
     throw error;
   }
 }
+
+export async function updateProductImages(
+  sku: string,
+  images: Array<{ Name: string; URL: string }>
+): Promise<any> {
+  const payload = {
+    Item: [
+      {
+        SKU: sku,
+        Images: {
+          Image: images
+        }
+      }
+    ],
+    action: 'UpdateItem'
+  };
+
+  const response = await fetch(PRODUCTS_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}

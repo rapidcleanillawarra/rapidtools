@@ -50,7 +50,9 @@
 
 	function removeImage(imageIndex: number) {
 		const removed = images[imageIndex];
-		if (removed) URL.revokeObjectURL(removed.previewUrl);
+		if (removed?.file && removed.previewUrl.startsWith('blob:')) {
+			URL.revokeObjectURL(removed.previewUrl);
+		}
 		images = images.filter((_, index) => index !== imageIndex);
 	}
 </script>

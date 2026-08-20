@@ -476,7 +476,9 @@ For any questions or concerns, please contact the system administrator.`;
         console.log('=== Starting Firebase Submission ===');
         const preparedRows: (ProductRow & { uploadedImages: ProductRequestImage[] })[] = [];
         for (const row of rows) {
-          const filesToUpload = (row.images ?? []).map((image) => image.file);
+          const filesToUpload = (row.images ?? [])
+            .map((image) => image.file)
+            .filter((file): file is File => Boolean(file));
           let uploadedImages: ProductRequestImage[] = [];
           if (filesToUpload.length > 0) {
             console.log('Uploading images for SKU:', row.sku, filesToUpload.length);

@@ -6,7 +6,15 @@
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import type { ProductRequest, Brand, Supplier, Category, Markup } from '$lib/types';
 	import { userProfile, type UserProfile } from '$lib/userProfile';
-	import { loadProductRequestImagesBySku } from '$lib/product-request/imageUpload';
+	import {
+		loadProductRequestImagesBySku,
+		persistProductRequestImageDrafts,
+		savedImageToDraft,
+		toMaropostImages,
+		type ProductRequestImage
+	} from '$lib/product-request/imageUpload';
+	import { updateProductImages } from '$lib/services/products';
+	import ProductRequestImages from '../product-request/ProductRequestImages.svelte';
 	import Select from 'svelte-select';
 
 	interface SelectOption {
@@ -430,10 +438,14 @@
 			}) as ProductRequest[];
 
 			const imagesBySku = await loadProductRequestImagesBySku(productRequests.map((request) => request.sku));
-			productRequests = productRequests.map((request) => ({
-				...request,
-				images: imagesBySku[request.sku] ?? []
-			}));
+			productRequests = productRequests.map((request) => {
+				const images = imagesBySku[request.sku] ?? [];
+				return {
+					...request,
+					images,
+					imageDrafts: images.map(savedImageToDraft)
+				};
+			});
 
 			// Enhanced logging of fetched data
 			console.log('=== Fetched Product Requests from Firebase ===');
@@ -534,9 +546,31 @@
 					failedSubmits.push(`${request.sku || 'Unknown SKU'} (missing required fields)`);
 				});
 			} else {
+				const imagesByRequestId: Record<string, ProductRequestImage[]> = {};
+				const requestsToSubmit: ProductRequest[] = [];
+
+				for (const request of selectedRequests) {
+					const persistResult = await persistProductRequestImageDrafts(
+						request.sku,
+						request.imageDrafts ?? (request.images ?? []).map(savedImageToDraft),
+						request.images ?? [],
+						{ requestId: request.id }
+					);
+					if (persistResult.error) {
+						failedSubmits.push(
+							`${request.sku || 'Unknown SKU'} (image save failed: ${persistResult.error})`
+						);
+						continue;
+					}
+					imagesByRequestId[request.id] = persistResult.images;
+					request.images = persistResult.images;
+					requestsToSubmit.push(request);
+				}
+
+				if (requestsToSubmit.length > 0) {
 				// Create a single payload for all valid requests
 				const payload = {
-					Item: selectedRequests.map((request) => {
+					Item: requestsToSubmit.map((request) => {
 						// Generate PriceGroups dynamically from customer groups data
 						const priceGroups = customerGroups.map((group) => {
 							if (group.GroupID === '2') {
@@ -565,6 +599,8 @@
 							}
 						});
 
+						const maropostImages = toMaropostImages(imagesByRequestId[request.id] ?? []);
+
 						return {
 							SKU: request.sku,
 							Model: request.product_name,
@@ -589,13 +625,10 @@
 							TaxFreeItem: request.tax_included || false,
 							SortOrder1: 99999,
 							SortOrder2: 99999,
-							...(request.images && request.images.length > 0
+							...(maropostImages.length > 0
 								? {
 										Images: {
-											Image: request.images.map((image) => ({
-												Name: image.Name,
-												URL: image.URL
-											}))
+											Image: maropostImages
 										}
 									}
 								: {})
@@ -650,7 +683,8 @@
 
 				if (response.ok && (ackStatus === 'Success' || ackStatus === 'Warning')) {
 					// Store selected requests data for Teams notification before removing them
-					const requestsForNotification = [...selectedRequests];
+					const requestsForNotification = [...requestsToSubmit];
+					const failedImageUpdates: string[] = [];
 
 					// Handle existing products (Warning case)
 					const existingSkus: string[] = [];
@@ -696,9 +730,19 @@
 							: 'Success (new products created)'
 					);
 
-					for (const request of selectedRequests) {
+					for (const request of requestsToSubmit) {
 						const inventoryId = skuToInventoryId[request.sku] || 'not-found';
 						const isExistingProduct = existingSkus.includes(request.sku);
+						const requestImages = toMaropostImages(imagesByRequestId[request.id] ?? []);
+
+						if (isExistingProduct && requestImages.length > 0) {
+							try {
+								await updateProductImages(request.sku, requestImages);
+							} catch (imageError) {
+								console.error('Failed to update images for existing SKU:', request.sku, imageError);
+								failedImageUpdates.push(request.sku);
+							}
+						}
 
 						console.log('Would save to Firebase for request ID:', request.id, {
 							status: 'product_created',
@@ -748,8 +792,14 @@
 						);
 					}
 
+					if (failedImageUpdates.length > 0) {
+						toastError(
+							`Products processed but images failed to save for: ${failedImageUpdates.join(', ')}`
+						);
+					}
+
 					// Remove from local list and clear selections after processing all requests
-					selectedRequests.forEach((request) => {
+					requestsToSubmit.forEach((request) => {
 						productRequests = productRequests.filter((req) => req.id !== request.id);
 						selectedRows.delete(request.id);
 					});
@@ -845,22 +895,23 @@
 						messagesData.Error.forEach((error: any) => {
 							console.error('API Error:', error.Message);
 						});
-						selectedRequests.forEach((request) => {
+						requestsToSubmit.forEach((request) => {
 							failedSubmits.push(
 								`${request.sku} (API Error: ${messagesData.Error[0]?.Message || 'Unknown error'})`
 							);
 						});
 					} else if (!response.ok) {
 						// HTTP response failed
-						selectedRequests.forEach((request) => {
+						requestsToSubmit.forEach((request) => {
 							failedSubmits.push(`${request.sku} (HTTP Error: ${response.status})`);
 						});
 					} else {
 						// Unknown response format
-						selectedRequests.forEach((request) => {
+						requestsToSubmit.forEach((request) => {
 							failedSubmits.push(`${request.sku} (Unknown response format)`);
 						});
 					}
+				}
 				}
 			}
 
@@ -1172,20 +1223,18 @@
 										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										style="font-size: 0.7rem !important;"
 									/>
-									{#if request.images && request.images.length > 0}
-										<div class="mt-2 flex flex-wrap gap-1">
-											{#each request.images as image, imageIndex (image.URL + imageIndex)}
-												<button
-													type="button"
-													class="overflow-hidden rounded border border-gray-200"
-													title={image.Name}
-													on:click={() => (previewImage = image.URL)}
-												>
-													<img src={image.URL} alt={image.Name} class="h-8 w-8 object-cover" />
-												</button>
-											{/each}
-										</div>
-									{/if}
+									<div class="mt-2">
+										<ProductRequestImages
+											bind:images={
+												() => request.imageDrafts ?? [],
+												(value) => {
+													request.imageDrafts = value;
+												}
+											}
+											onPreview={(url) => (previewImage = url)}
+											onError={(message) => toastError(message)}
+										/>
+									</div>
 								</div>
 
 								<!-- Brand -->
@@ -1372,20 +1421,18 @@
 										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
 										style="font-size: 0.7rem !important;"
 									/>
-									{#if request.images && request.images.length > 0}
-										<div class="mt-2 flex flex-wrap gap-1">
-											{#each request.images as image, imageIndex (image.URL + imageIndex)}
-												<button
-													type="button"
-													class="overflow-hidden rounded border border-gray-200"
-													title={image.Name}
-													on:click={() => (previewImage = image.URL)}
-												>
-													<img src={image.URL} alt={image.Name} class="h-8 w-8 object-cover" />
-												</button>
-											{/each}
-										</div>
-									{/if}
+									<div class="mt-2">
+										<ProductRequestImages
+											bind:images={
+												() => request.imageDrafts ?? [],
+												(value) => {
+													request.imageDrafts = value;
+												}
+											}
+											onPreview={(url) => (previewImage = url)}
+											onError={(message) => toastError(message)}
+										/>
+									</div>
 								</div>
 							</div>
 

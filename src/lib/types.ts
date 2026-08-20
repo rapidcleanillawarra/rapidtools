@@ -1,6 +1,7 @@
 export interface ProductRequestImage {
   Name: string;
   URL: string;
+  storage_path?: string;
 }
 
 export interface ProductRequest {
@@ -23,6 +24,7 @@ export interface ProductRequest {
   tax_included?: boolean;
   product_creation_date?: string;
   images?: ProductRequestImage[];
+  imageDrafts?: import('$lib/product-request/imageUpload').ProductImageDraft[];
 }
 
 export interface Brand {

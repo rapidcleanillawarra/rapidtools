@@ -14,8 +14,14 @@ export type ProductRequestImage = {
 
 export type ProductImageDraft = {
 	id: string;
-	file: File;
 	previewUrl: string;
+	file?: File;
+	saved?: ProductRequestImage;
+};
+
+export type UploadProductRequestImagesOptions = {
+	requestId?: string;
+	startIndex?: number;
 };
 
 function sanitizeKey(value: string) {
@@ -28,24 +34,48 @@ function fileExtension(file: File) {
 	return fromType ? `.${fromType}` : '';
 }
 
+function imageKey(image: ProductRequestImage) {
+	return image.storage_path || image.URL;
+}
+
 export function productImageName(index: number): string {
 	return index === 0 ? 'Main' : `Alt ${index}`;
 }
 
+export function toMaropostImages(images: ProductRequestImage[]) {
+	return images.map((image, index) => ({
+		Name: productImageName(index),
+		URL: image.URL
+	}));
+}
+
+export function savedImageToDraft(image: ProductRequestImage): ProductImageDraft {
+	return {
+		id: crypto.randomUUID(),
+		previewUrl: image.URL,
+		saved: image
+	};
+}
+
 export function revokeProductImagePreviews(images: ProductImageDraft[]) {
 	for (const image of images) {
-		if (image.previewUrl) URL.revokeObjectURL(image.previewUrl);
+		if (image.file && image.previewUrl.startsWith('blob:')) {
+			URL.revokeObjectURL(image.previewUrl);
+		}
 	}
 }
 
 export async function uploadProductRequestImages(
 	sku: string,
-	files: File[]
+	files: File[],
+	options?: UploadProductRequestImagesOptions
 ): Promise<{ images: ProductRequestImage[]; error: string | null }> {
 	const images: ProductRequestImage[] = [];
+	const startIndex = options?.startIndex ?? 0;
 
 	for (let i = 0; i < files.length; i++) {
 		const file = files[i];
+		const sortOrder = startIndex + i;
 		const ext = fileExtension(file);
 		const storagePath = `${PRODUCT_REQUEST_IMAGES_FOLDER}/${sanitizeKey(sku)}/${crypto.randomUUID()}${ext}`;
 
@@ -62,20 +92,21 @@ export async function uploadProductRequestImages(
 
 		const { data } = supabase.storage.from(PRODUCT_REQUEST_IMAGES_BUCKET).getPublicUrl(storagePath);
 		const image: ProductRequestImage = {
-			Name: productImageName(i),
+			Name: productImageName(sortOrder),
 			URL: data.publicUrl,
 			storage_path: storagePath
 		};
 
 		const { error: insertError } = await supabase.from(PRODUCT_REQUEST_IMAGES_TABLE).insert({
 			sku,
+			request_id: options?.requestId || null,
 			image_name: image.Name,
 			url: image.URL,
 			storage_path: storagePath,
 			file_name: file.name,
 			content_type: file.type || null,
 			byte_size: file.size,
-			sort_order: i
+			sort_order: sortOrder
 		});
 
 		if (insertError) {
@@ -84,6 +115,88 @@ export async function uploadProductRequestImages(
 		}
 
 		images.push(image);
+	}
+
+	return { images, error: null };
+}
+
+export async function deleteProductRequestImages(
+	images: ProductRequestImage[]
+): Promise<{ error: string | null }> {
+	const storagePaths = images
+		.map((image) => image.storage_path)
+		.filter((path): path is string => Boolean(path));
+
+	if (storagePaths.length > 0) {
+		const { error: storageError } = await supabase.storage
+			.from(PRODUCT_REQUEST_IMAGES_BUCKET)
+			.remove(storagePaths);
+		if (storageError) {
+			return { error: storageError.message };
+		}
+
+		const { error: deleteError } = await supabase
+			.from(PRODUCT_REQUEST_IMAGES_TABLE)
+			.delete()
+			.in('storage_path', storagePaths);
+		if (deleteError) {
+			return { error: deleteError.message };
+		}
+	}
+
+	const urlsWithoutPath = images.filter((image) => !image.storage_path).map((image) => image.URL);
+	if (urlsWithoutPath.length > 0) {
+		const { error: deleteByUrlError } = await supabase
+			.from(PRODUCT_REQUEST_IMAGES_TABLE)
+			.delete()
+			.in('url', urlsWithoutPath);
+		if (deleteByUrlError) {
+			return { error: deleteByUrlError.message };
+		}
+	}
+
+	return { error: null };
+}
+
+export async function persistProductRequestImageDrafts(
+	sku: string,
+	drafts: ProductImageDraft[],
+	originalSaved: ProductRequestImage[],
+	options?: { requestId?: string }
+): Promise<{ images: ProductRequestImage[]; error: string | null }> {
+	const currentSaved = drafts
+		.map((draft) => draft.saved)
+		.filter((image): image is ProductRequestImage => Boolean(image));
+	const currentKeys = new Set(currentSaved.map(imageKey));
+	const removed = originalSaved.filter((image) => !currentKeys.has(imageKey(image)));
+
+	if (removed.length > 0) {
+		const deleted = await deleteProductRequestImages(removed);
+		if (deleted.error) return { images: [], error: deleted.error };
+	}
+
+	const newFiles = drafts
+		.map((draft) => draft.file)
+		.filter((file): file is File => Boolean(file));
+	let uploaded: ProductRequestImage[] = [];
+	if (newFiles.length > 0) {
+		const result = await uploadProductRequestImages(sku, newFiles, {
+			requestId: options?.requestId,
+			startIndex: currentSaved.length
+		});
+		if (result.error) return { images: currentSaved, error: result.error };
+		uploaded = result.images;
+	}
+
+	const uploadedQueue = [...uploaded];
+	const images: ProductRequestImage[] = [];
+	for (const draft of drafts) {
+		if (draft.saved) {
+			images.push(draft.saved);
+		} else if (draft.file) {
+			const next = uploadedQueue.shift();
+			if (next) images.push(next);
+		}
 	}
 
 	return { images, error: null };

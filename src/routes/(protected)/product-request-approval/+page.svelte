@@ -240,13 +240,17 @@
 		}
 	}
 
+	function toTenths(value: number): number {
+		return parseFloat(value.toFixed(1));
+	}
+
 	function getMarkupPercent(request: ProductRequest): number | '' {
 		if (request.retail_mup === undefined || request.retail_mup === null) return '';
-		return parseFloat(((request.retail_mup - 1) * 100).toFixed(2));
+		return toTenths((request.retail_mup - 1) * 100);
 	}
 
 	function applyMarkupPercent(request: ProductRequest, rawValue: string) {
-		const percent = parseFloat(rawValue);
+		const percent = toTenths(parseFloat(rawValue));
 		if (isNaN(percent)) return;
 		request.retail_mup = parseFloat((1 + percent / 100).toFixed(4));
 		calculatePrices(request, 'retail_mup');
@@ -256,11 +260,11 @@
 		const purchase = parseFloat(request.purchase_price?.toString() || '0');
 		const list = parseFloat(request.list_price?.toString() || '0');
 		if (purchase <= 0 || list <= 0) return '';
-		return parseFloat((((list - purchase) / list) * 100).toFixed(2));
+		return toTenths(((list - purchase) / list) * 100);
 	}
 
 	function applyGPP(request: ProductRequest, rawValue: string) {
-		const gpp = parseFloat(rawValue);
+		const gpp = toTenths(parseFloat(rawValue));
 		const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
 		if (isNaN(gpp) || purchasePrice <= 0) return;
 		if (gpp >= 100) {
@@ -285,6 +289,25 @@
 			if (idx === 0) return req;
 			req.retail_mup = retailMupVal;
 			calculatePrices(req, 'retail_mup');
+			return req;
+		});
+	}
+
+	function applyGPPToAll() {
+		if (productRequests.length === 0) {
+			toastError('No data rows available');
+			return;
+		}
+		const gppVal = getGPP(productRequests[0]);
+		if (gppVal === '') {
+			toastError('First row does not have a GPP to apply');
+			return;
+		}
+
+		const gppText = gppVal.toString();
+		productRequests = productRequests.map((req, idx) => {
+			if (idx === 0) return req;
+			applyGPP(req, gppText);
 			return req;
 		});
 	}
@@ -1211,6 +1234,15 @@
 							{@html applyToAllIcon}
 							Markup %
 						</button>
+						<button
+							type="button"
+							onclick={applyGPPToAll}
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+							title="Apply GPP to all rows"
+						>
+							{@html applyToAllIcon}
+							GPP
+						</button>
 					</div>
 				</div>
 			</div>
@@ -1275,7 +1307,19 @@
 											</button>
 										</div>
 									</th>
-									<th class="px-3 py-3 text-left w-24">GPP</th>
+									<th class="px-3 py-3 text-left w-24">
+										<div class="flex items-center gap-2">
+											<span>GPP</span>
+											<button
+												type="button"
+												onclick={applyGPPToAll}
+												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+												title="Apply to all rows"
+											>
+												{@html applyToAllIcon}
+											</button>
+										</div>
+									</th>
 									<th class="px-3 py-3 text-left w-28">List Price</th>
 									<th class="px-3 py-3 text-left w-28">RRP</th>
 									<th class="py-3 pl-3 pr-6 text-center w-20">Tax Free</th>
@@ -1408,7 +1452,7 @@
 												onblur={(event) =>
 													applyMarkupPercent(request, (event.target as HTMLInputElement).value)
 												}
-												step="0.01"
+												step="0.1"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="50"
 											/>
@@ -1422,9 +1466,9 @@
 												onblur={(event) =>
 													applyGPP(request, (event.target as HTMLInputElement).value)
 												}
-												step="0.01"
+												step="0.1"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="33.33"
+												placeholder="33.3"
 											/>
 										</td>
 										<td class="px-3 py-4 align-top w-28">

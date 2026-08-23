@@ -62,7 +62,7 @@
 		<div class="group relative">
 			<button
 				type="button"
-				class="block overflow-hidden rounded-md border border-gray-200"
+				class="block overflow-hidden rounded-md border border-[#333842] hover:border-lime-500/50 transition-colors"
 				title="View image"
 				onclick={() => onPreview(image.previewUrl)}
 			>
@@ -70,7 +70,7 @@
 			</button>
 			<button
 				type="button"
-				class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs text-white opacity-90 hover:bg-red-700"
+				class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600/90 text-xs text-white opacity-90 hover:bg-red-600 hover:opacity-100 transition-all shadow"
 				title="Remove image"
 				onclick={() => removeImage(imageIndex)}
 			>
@@ -81,7 +81,7 @@
 
 	{#if images.length < MAX_PRODUCT_IMAGES}
 		<label
-			class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-gray-300 text-lg text-gray-400 hover:border-blue-400 hover:text-blue-600"
+			class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-[#333842] bg-[#0e1012]/50 text-lg text-gray-400 hover:border-lime-500 hover:text-lime-400 hover:bg-lime-500/5 transition-all"
 			title="Upload images"
 		>
 			<input

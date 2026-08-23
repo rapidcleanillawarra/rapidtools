@@ -1016,24 +1016,28 @@ For any questions or concerns, please contact the system administrator.`;
   }}
 />
 
-<div class="min-h-screen bg-gray-100 py-6 px-1 sm:px-3 lg:px-6">
-  <div class="w-full bg-white shadow-sm rounded-2xl p-4 sm:p-6 lg:p-8" transition:fade>
+<svelte:head>
+  <title>Product Request - RapidTools</title>
+</svelte:head>
+
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+  <div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8" transition:fade>
     <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-gray-900">Product Request</h2>
+      <h2 class="text-2xl font-bold text-white tracking-tight">Product Request</h2>
       {#if profile}
-        <div class="text-sm text-gray-600">
-          <span class="font-medium">User:</span> {profile.firstName} {profile.lastName}
+        <div class="text-sm text-gray-400">
+          <span class="font-medium text-gray-300">User:</span> <span class="text-lime-400 font-semibold">{profile.firstName} {profile.lastName}</span>
         </div>
       {/if}
     </div>
     
     <!-- Product Request Form -->
     <div class="space-y-6">
-      <div class="flex justify-between items-center sticky top-[64px] bg-white/95 backdrop-blur-sm py-4 z-30">
-        <div class="flex gap-2">
+      <div class="flex justify-between items-center sticky top-[64px] bg-[#141619]/95 backdrop-blur-sm border-b border-[#262a30] py-4 z-30">
+        <div class="flex items-center gap-2">
           <button
             on:click={addRow}
-            class="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+            class="btn-secondary flex items-center gap-1.5 text-sm font-semibold"
           >
             Add Row
           </button>
@@ -1043,19 +1047,19 @@ For any questions or concerns, please contact the system administrator.`;
               resetRows();
               showNotification('New cleared', 'info');
             }}
-            class="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-[#333842] bg-[#1f2329] px-4 py-2 text-sm font-medium text-gray-400 transition hover:bg-[#262a30] hover:text-gray-200"
           >
             Clear New
           </button>
           {#if user?.email === 'orders@rapidcleanillawarra.com.au' || user?.email === 'marketing@rapidcleanillawarra.com.au'}
-            <span class="text-sm text-blue-600 font-medium italic">
+            <span class="text-sm text-lime-400 font-medium italic">
               Wag mashadong balibag Zsa ha! Gentle lang
             </span>
           {/if}
         </div>
         <button
           on:click={handleProductRequestSubmit}
-          class="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+          class="btn-primary"
           disabled={isLoading}
         >
           {isLoading ? 'Submitting...' : 'Submit'}
@@ -1064,16 +1068,16 @@ For any questions or concerns, please contact the system administrator.`;
 
       <!-- Product Rows -->
       <section class="space-y-5">
-        <div class="rounded-2xl border border-blue-100/80 bg-blue-50/80 p-4 text-sm text-blue-900 shadow-sm">
+        <div class="rounded-2xl border border-lime-500/20 bg-lime-500/5 p-4 text-sm text-gray-200 shadow-sm">
           <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p class="text-base font-semibold">Bulk apply</p>
-              <p class="text-xs text-blue-700">Copy the first-row selections to every row below.</p>
+              <p class="text-base font-semibold text-lime-400">Bulk apply</p>
+              <p class="text-xs text-gray-400">Copy the first-row selections to every row below.</p>
             </div>
             <div class="flex flex-wrap gap-2">
               <button
                 on:click={() => applyToAll('brand', rows[0]?.brand)}
-                class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
                 title="Apply brand to all rows"
               >
                 {@html applyToAllIcon}
@@ -1081,7 +1085,7 @@ For any questions or concerns, please contact the system administrator.`;
               </button>
               <button
                 on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-                class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
                 title="Apply supplier to all rows"
               >
                 {@html applyToAllIcon}
@@ -1089,7 +1093,7 @@ For any questions or concerns, please contact the system administrator.`;
               </button>
               <button
                 on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
-                class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white/80 px-4 py-1 text-xs font-semibold uppercase tracking-wide text-blue-700 shadow-sm hover:bg-white"
+                class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
                 title="Apply tax setting to all rows"
               >
                 {@html applyToAllIcon}
@@ -1099,24 +1103,24 @@ For any questions or concerns, please contact the system administrator.`;
           </div>
         </div>
 
-        <div class="rounded-2xl border border-gray-200 bg-white shadow-lg">
+        <div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
           <div class="overflow-x-auto">
-            <table class="w-full min-w-[1280px] divide-y divide-gray-200 text-sm">
-              <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+            <table class="w-full min-w-[1280px] divide-y divide-[#262a30] text-sm">
+              <thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
                 <tr>
                   <th class="py-3 pl-6 pr-3 text-left w-12">#</th>
                   <th class="px-3 py-3 text-left w-32">SKU</th>
                   <th class="px-3 py-3 text-left w-48">Product Name</th>
                   <th class="px-3 py-3 text-left w-36">
                     Images
-                    <span class="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional, max 5MB</span>
+                    <span class="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-gray-500">Optional, max 5MB</span>
                   </th>
                   <th class="px-3 py-3 text-left w-52">
                     <div class="flex items-center gap-2">
                       <span>Brand</span>
                       <button
                         on:click={() => applyToAll('brand', rows[0]?.brand)}
-                        class="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                        class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
                         title="Apply to all rows"
                       >
                         {@html applyToAllIcon}
@@ -1128,7 +1132,7 @@ For any questions or concerns, please contact the system administrator.`;
                       <span>Supplier</span>
                       <button
                         on:click={() => applyToAll('supplier', rows[0]?.supplier)}
-                        class="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                        class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
                         title="Apply to all rows"
                       >
                         {@html applyToAllIcon}
@@ -1143,7 +1147,7 @@ For any questions or concerns, please contact the system administrator.`;
                       <span>Tax</span>
                       <button
                         on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
-                        class="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                        class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
                         title="Apply to all rows"
                       >
                         {@html applyToAllIcon}
@@ -1153,9 +1157,9 @@ For any questions or concerns, please contact the system administrator.`;
                   <th class="py-3 pl-3 pr-6 text-right w-28">Action</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-100 bg-white">
+              <tbody class="divide-y divide-[#262a30] bg-[#141619]">
                 {#each rows as row, i}
-                  <tr class="even:bg-gray-50/70">
+                  <tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
                     <td class="whitespace-nowrap py-4 pl-6 pr-3 text-center text-sm font-semibold text-gray-500 w-12">{i + 1}</td>
                     <td class="px-3 py-4 align-top w-32">
                       <label class="sr-only" for={`sku-${i}`}>SKU</label>
@@ -1164,7 +1168,7 @@ For any questions or concerns, please contact the system administrator.`;
                         type="text"
                         bind:value={row.sku}
                         on:paste={(e) => handlePaste(e, i, 'sku')}
-                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                         placeholder="SKU"
                       />
                     </td>
@@ -1175,7 +1179,7 @@ For any questions or concerns, please contact the system administrator.`;
                         type="text"
                         bind:value={row.productName}
                         on:paste={(e) => handlePaste(e, i, 'productName')}
-                        class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                         placeholder="Product Name"
                       />
                     </td>
@@ -1188,9 +1192,9 @@ For any questions or concerns, please contact the system administrator.`;
                     </td>
                     <td class="px-3 py-4 align-top select-wrapper w-52">
                       {#if loadingBrands}
-                        <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
+                        <div class="h-10 animate-pulse rounded-lg bg-[#1f2329] border border-[#262a30]"></div>
                       {:else if brandError}
-                        <div class="text-sm text-red-600">{brandError}</div>
+                        <div class="text-sm text-red-400">{brandError}</div>
                       {:else}
                         <Select
                           items={brands}
@@ -1202,9 +1206,9 @@ For any questions or concerns, please contact the system administrator.`;
                     </td>
                     <td class="px-3 py-4 align-top select-wrapper w-52">
                       {#if loadingSuppliers}
-                        <div class="h-10 animate-pulse rounded-lg bg-gray-100"></div>
+                        <div class="h-10 animate-pulse rounded-lg bg-[#1f2329] border border-[#262a30]"></div>
                       {:else if supplierError}
-                        <div class="text-sm text-red-600">{supplierError}</div>
+                        <div class="text-sm text-red-400">{supplierError}</div>
                       {:else}
                         <Select
                           items={suppliers}
@@ -1223,7 +1227,7 @@ For any questions or concerns, please contact the system administrator.`;
                         on:input={(e) => handlePurchasePriceChange(e, i)}
                         on:blur={(e) => handlePurchasePriceBlur(e, i)}
                         on:paste={(e) => handlePaste(e, i, 'purchasePrice')}
-                        class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                         placeholder="0.00"
                       />
                     </td>
@@ -1235,7 +1239,7 @@ For any questions or concerns, please contact the system administrator.`;
                         bind:value={row.gpm}
                         on:input={(e) => handleGPMChange(e, i)}
                         on:paste={(e) => handlePaste(e, i, 'gpm')}
-                        class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                         placeholder="0.00"
                         step="0.01"
                       />
@@ -1249,7 +1253,7 @@ For any questions or concerns, please contact the system administrator.`;
                         on:input={(e) => handleListPriceChange(e, i)}
                         on:blur={(e) => handleListPriceBlur(e, i)}
                         on:paste={(e) => handlePaste(e, i, 'listPrice')}
-                        class="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:border-blue-500 focus:ring-blue-500"
+                        class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                         placeholder="0.00"
                       />
                     </td>
@@ -1259,13 +1263,13 @@ For any questions or concerns, please contact the system administrator.`;
                         id={`tax-${i}`}
                         type="checkbox"
                         bind:checked={row.taxIncluded}
-                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                       />
                     </td>
                     <td class="py-4 pl-3 pr-6 text-right w-28">
                       <button
                         on:click={() => removeRow(i)}
-                        class="inline-flex items-center justify-center rounded-full border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 disabled:hover:bg-transparent transition"
                         disabled={rows.length === 1}
                         title="Remove row"
                       >
@@ -1286,28 +1290,33 @@ For any questions or concerns, please contact the system administrator.`;
   <!-- Notification -->
   {#if notification.show}
     <div
-      class="fixed bottom-4 right-4 px-4 py-2 rounded shadow-lg"
-      class:bg-green-500={notification.type === 'success'}
-      class:bg-red-500={notification.type === 'error'}
-      class:bg-blue-500={notification.type === 'info'}
+      class="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-xl border border-[#333842] z-50 text-sm font-medium"
+      class:bg-lime-900={notification.type === 'success'}
+      class:text-lime-200={notification.type === 'success'}
+      class:border-lime-700={notification.type === 'success'}
+      class:bg-red-950={notification.type === 'error'}
+      class:text-red-200={notification.type === 'error'}
+      class:border-red-800={notification.type === 'error'}
+      class:bg-[#1f2329]={notification.type === 'info'}
+      class:text-gray-200={notification.type === 'info'}
       transition:fade
     >
-      <p class="text-white">{notification.message}</p>
+      <p>{notification.message}</p>
     </div>
   {/if}
 
   <!-- Loading Overlay -->
   {#if isLoading}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-xl">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-        <p class="mt-4 text-gray-700">Processing...</p>
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+      <div class="bg-[#141619] border border-[#262a30] p-6 rounded-2xl shadow-2xl text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-lime-500 border-t-transparent mx-auto"></div>
+        <p class="mt-4 text-gray-300 font-medium">Processing...</p>
       </div>
     </div>
   {/if}
 
   {#if previewImage}
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
       <button
         type="button"
         class="absolute inset-0 cursor-default"
@@ -1317,30 +1326,30 @@ For any questions or concerns, please contact the system administrator.`;
       <img
         src={previewImage}
         alt="Product preview"
-        class="relative z-10 max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+        class="relative z-10 max-h-[90vh] max-w-[90vw] rounded-xl border border-[#333842] shadow-2xl object-contain"
       />
     </div>
   {/if}
 
   <!-- Tax Confirmation Modal -->
   {#if showTaxConfirmation}
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-        <h3 class="text-lg font-bold mb-4">Tax Confirmation</h3>
-        <p class="mb-4">
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-[#141619] border border-[#262a30] p-6 rounded-2xl shadow-2xl max-w-md w-full text-gray-200">
+        <h3 class="text-lg font-bold text-white mb-2">Tax Confirmation</h3>
+        <p class="mb-6 text-sm text-gray-300 leading-relaxed">
           All products are marked as tax included. Are you sure you want to proceed?
         </p>
         
-        <div class="mt-4 flex justify-end space-x-3">
+        <div class="flex justify-end space-x-3">
           <button
             on:click={() => showTaxConfirmation = false}
-            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            class="btn-secondary text-sm"
           >
             Cancel
           </button>
           <button
             on:click={submitProductRequest}
-            class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+            class="btn-primary text-sm"
           >
             Proceed
           </button>
@@ -1354,19 +1363,24 @@ For any questions or concerns, please contact the system administrator.`;
 <div id="select-portal"></div>
 
 <style>
-  :global(body) {
-    background-color: #f3f4f6;
-  }
-
   :global(.svelte-select) {
     --height: 38px;
-    --border: 1px solid #d1d5db;
-    --border-hover: 1px solid #3b82f6;
-    --border-radius: 0.375rem;
-    --background: white;
+    --border: 1px solid #262a30;
+    --border-hover: 1px solid #84cc16;
+    --border-focused: 1px solid #a3e635;
+    --border-radius: 0.5rem;
+    --background: #0e1012;
     --font-size: 0.875rem;
     --padding: 0 0.75rem;
-    --placeholder-color: #9ca3af;
+    --placeholder-color: #6b7280;
+    --input-color: #e5e7eb;
+    --item-color: #e5e7eb;
+    --item-hover-bg: #1f2329;
+    --item-is-active-bg: #262a30;
+    --item-is-active-color: #a3e635;
+    --list-background: #141619;
+    --list-border: 1px solid #262a30;
+    --clear-select-color: #9ca3af;
     width: 100%;
     position: relative;
   }
@@ -1378,6 +1392,7 @@ For any questions or concerns, please contact the system administrator.`;
     background: var(--background);
     min-height: var(--height);
     padding: 0;
+    color: #e5e7eb;
   }
 
   :global(.svelte-select .items) {
@@ -1385,14 +1400,15 @@ For any questions or concerns, please contact the system administrator.`;
     top: 100%;
     left: 0;
     right: 0;
-    border: var(--border);
+    border: var(--list-border, 1px solid #262a30);
     border-radius: var(--border-radius);
-    background: var(--background);
+    background: var(--list-background, #141619);
     margin-top: 4px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.4);
     z-index: 999;
     max-height: 300px;
     overflow-y: auto;
+    color: #e5e7eb;
   }
 
   :global(.svelte-select .item) {
@@ -1401,15 +1417,17 @@ For any questions or concerns, please contact the system administrator.`;
     padding: 0.5rem 0.75rem;
     white-space: normal;
     word-break: break-word;
+    color: #e5e7eb;
   }
 
   :global(.svelte-select .item.hover) {
-    background-color: #f3f4f6;
+    background-color: #1f2329;
+    color: #a3e635;
   }
 
   :global(.svelte-select .item.active) {
-    background-color: #dbeafe;
-    color: #1e40af;
+    background-color: #262a30;
+    color: #a3e635;
   }
 
   #select-portal {
@@ -1445,6 +1463,7 @@ For any questions or concerns, please contact the system administrator.`;
     font-size: var(--font-size);
     display: flex;
     align-items: center;
+    color: #e5e7eb;
   }
 
   :global(.svelte-select .selected-item) {
@@ -1452,6 +1471,7 @@ For any questions or concerns, please contact the system administrator.`;
     align-items: center;
     height: 100%;
     line-height: normal;
+    color: #e5e7eb;
   }
 
   :global(.svelte-select input) {
@@ -1460,6 +1480,7 @@ For any questions or concerns, please contact the system administrator.`;
     height: calc(var(--height) - 2px);
     display: flex;
     align-items: center;
+    color: #e5e7eb;
   }
 
   :global(.svelte-select .placeholder) {

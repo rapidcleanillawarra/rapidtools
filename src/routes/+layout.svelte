@@ -62,7 +62,7 @@
 {#if !hideAppChrome}
 	<Header />
 {/if}
-<main class="transition-all duration-300" style:margin-left={sidebarWidth}>
+<main class="min-h-screen bg-[#0e1012] text-gray-200 transition-all duration-300" style:margin-left={sidebarWidth}>
 	<slot />
 </main>
 <ToastContainer />

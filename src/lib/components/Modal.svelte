@@ -25,40 +25,40 @@
 
 {#if show}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4"
 		transition:fade={{ duration: 200 }}
 	>
 		{#if allowClose}
 			<button
 				type="button"
-				class="absolute inset-0 bg-black bg-opacity-50 cursor-default"
+				class="absolute inset-0 bg-black/75 backdrop-blur-sm cursor-default"
 				aria-label="Close modal"
 				on:click={closeModal}
 			></button>
 		{:else}
-			<div class="absolute inset-0 bg-black bg-opacity-50" aria-hidden="true"></div>
+			<div class="absolute inset-0 bg-black/75 backdrop-blur-sm" aria-hidden="true"></div>
 		{/if}
 		<div
-			class="relative z-10 bg-white rounded-lg shadow-xl p-6 w-full {size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}"
+			class="relative z-10 bg-[#141619] text-gray-200 border border-[#262a30] rounded-xl shadow-2xl p-6 w-full {size === 'sm' ? 'max-w-sm' : size === 'lg' ? 'max-w-2xl' : size === 'xl' ? 'max-w-4xl' : 'max-w-lg'}"
 			style={style}
 			role="dialog"
 			aria-modal="true"
 			tabindex="-1"
 		>
-			<div class="flex justify-between items-center border-b pb-3 mb-4">
-				<h2 class="text-xl font-semibold">
+			<div class="flex justify-between items-center border-b border-[#262a30] pb-3 mb-4">
+				<h2 class="text-xl font-bold text-gray-100">
 					<slot name="header">Modal Title</slot>
 				</h2>
 				{#if allowClose}
-					<button type="button" on:click={closeModal} class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="Close modal"
+					<button type="button" on:click={closeModal} class="text-gray-400 hover:text-lime-400 text-2xl transition-colors leading-none" aria-label="Close modal"
 						>&times;</button
 					>
 				{/if}
 			</div>
-			<div class="modal-content">
+			<div class="modal-content text-gray-300">
 				<slot name="body">Modal Content</slot>
 			</div>
-			<div class="modal-footer border-t pt-4 mt-6">
+			<div class="modal-footer border-t border-[#262a30] pt-4 mt-6">
 				<slot name="footer" />
 			</div>
 		</div>

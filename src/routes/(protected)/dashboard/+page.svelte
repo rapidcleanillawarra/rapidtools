@@ -115,100 +115,206 @@
   <title>Dashboard - RapidTools</title>
 </svelte:head>
 
-<div class="dashboard-container">
+<div class="min-h-[calc(100vh-4rem)] w-full p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
   {#if currentIsLoadingAuth || isLoadingProfile}
-    <p>Loading...</p>
+    <div class="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+      <div class="h-8 w-8 animate-spin rounded-full border-2 border-lime-400 border-t-transparent"></div>
+      <p class="text-sm font-medium text-gray-400">Loading your profile...</p>
+    </div>
   {:else if currentAuthUser}
     {#if currentProfile}
-      <div class="welcome-section">
-        <h1 class="text-2xl font-bold mb-4">Welcome, {currentProfile.firstName}!</h1>
-        <p class="text-gray-600">Email: {currentAuthUser.email}</p>
-        <button 
-          class="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors" 
-          on:click={handleLogout}
-        >
-          Log Out
-        </button>
+      <!-- Welcome Hero -->
+      <div class="mb-8 relative overflow-hidden rounded-2xl border border-[#262a30] bg-gradient-to-br from-[#16191d] via-[#141619] to-[#101214] p-6 sm:p-8 shadow-xl">
+        <div class="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-lime-500/10 blur-3xl pointer-events-none"></div>
+        <div class="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="rounded bg-lime-500/20 px-2 py-0.5 text-xs font-bold tracking-wider text-lime-400 border border-lime-500/30">
+                RAPIDTOOLS WORKSPACE
+              </span>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Welcome back, <span class="text-lime-400">{currentProfile.firstName}</span>!
+            </h1>
+            <p class="mt-1 text-sm text-gray-400">
+              Logged in as <span class="text-gray-300 font-medium">{currentAuthUser.email}</span>
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <a
+              href="{base}/edit-profile"
+              class="inline-flex items-center gap-2 rounded-lg border border-[#333842] bg-[#1f2329] px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-lime-500/40 hover:bg-[#262a30] hover:text-lime-300"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              Edit Profile
+            </a>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-900/60 hover:text-red-300"
+              on:click={handleLogout}
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Log Out
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Launch Navigation Grid -->
+      <div class="mb-8">
+        <h2 class="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
+          <svg class="h-4 w-4 text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          </svg>
+          Quick Shortcuts
+        </h2>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <!-- Price Lists -->
+          <a
+            href="{base}/price-lists"
+            class="group rounded-xl border border-[#262a30] bg-[#141619] p-5 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-lime-500/50 hover:bg-[#181b20]"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-500/10 border border-lime-500/20 text-lime-400">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5h12M9 12h12M9 19h12M5 5h.01M5 12h.01M5 19h.01" />
+                </svg>
+              </div>
+              <svg class="h-4 w-4 text-gray-500 transition-transform group-hover:translate-x-1 group-hover:text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-lime-300">Price Lists</h3>
+            <p class="mt-1 text-xs text-gray-400">Manage, calculate, and duplicate SKU price lists.</p>
+          </a>
+
+          <!-- Products -->
+          <a
+            href="{base}/product-request"
+            class="group rounded-xl border border-[#262a30] bg-[#141619] p-5 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-lime-500/50 hover:bg-[#181b20]"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-500/10 border border-lime-500/20 text-lime-400">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <svg class="h-4 w-4 text-gray-500 transition-transform group-hover:translate-x-1 group-hover:text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-lime-300">Products</h3>
+            <p class="mt-1 text-xs text-gray-400">Product requests, approvals, and price updates.</p>
+          </a>
+
+          <!-- Orders -->
+          <a
+            href="{base}/customer-group-invoices"
+            class="group rounded-xl border border-[#262a30] bg-[#141619] p-5 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-lime-500/50 hover:bg-[#181b20]"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-500/10 border border-lime-500/20 text-lime-400">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <svg class="h-4 w-4 text-gray-500 transition-transform group-hover:translate-x-1 group-hover:text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-lime-300">Orders & Invoices</h3>
+            <p class="mt-1 text-xs text-gray-400">Customer invoices, past due accounts, and batch payments.</p>
+          </a>
+
+          <!-- Workshop -->
+          <a
+            href="{base}/workshop/workshop-board"
+            class="group rounded-xl border border-[#262a30] bg-[#141619] p-5 shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:border-lime-500/50 hover:bg-[#181b20]"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-lime-500/10 border border-lime-500/20 text-lime-400">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <svg class="h-4 w-4 text-gray-500 transition-transform group-hover:translate-x-1 group-hover:text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+            <h3 class="text-base font-bold text-white group-hover:text-lime-300">Workshop Board</h3>
+            <p class="mt-1 text-xs text-gray-400">Track service jobs, deliveries, PMIS and equipment repair.</p>
+          </a>
+        </div>
       </div>
     {:else}
-      <div class="profile-setup-section">
-        <h2 class="text-xl font-semibold mb-4">Complete Your Profile</h2>
-        <p class="text-gray-600 mb-4">Please provide your information to continue</p>
-        
-        <form on:submit|preventDefault={handleProfileSubmit} class="w-full max-w-md">
-          <div class="mb-4">
-            <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+      <!-- Complete Profile Setup -->
+      <div class="mx-auto max-w-lg mt-10 rounded-2xl border border-[#262a30] bg-[#141619] p-6 sm:p-8 shadow-2xl">
+        <div class="mb-6 text-center">
+          <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-lime-500/10 border border-lime-500/30 text-lime-400">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold text-white">Complete Your Profile</h2>
+          <p class="mt-1 text-sm text-gray-400">Please provide your details to continue to the workspace.</p>
+        </div>
+
+        <form on:submit|preventDefault={handleProfileSubmit} class="space-y-4">
+          <div>
+            <label for="firstName" class="form-label">First Name</label>
             <input
               type="text"
               id="firstName"
               bind:value={firstName}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="input-field"
+              placeholder="e.g. John"
               required
             />
           </div>
-          
-          <div class="mb-4">
-            <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+
+          <div>
+            <label for="lastName" class="form-label">Last Name</label>
             <input
               type="text"
               id="lastName"
               bind:value={lastName}
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="input-field"
+              placeholder="e.g. Doe"
               required
             />
           </div>
 
           {#if profileError}
-            <p class="text-red-600 mb-4">{profileError}</p>
+            <div class="rounded-lg border border-red-500/30 bg-red-950/40 p-3 text-sm text-red-400">
+              {profileError}
+            </div>
           {/if}
 
           <button
             type="submit"
-            class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+            class="btn-primary w-full mt-2"
             disabled={isLoadingProfile}
           >
-            {isLoadingProfile ? 'Saving...' : 'Save Profile'}
+            {isLoadingProfile ? 'Saving Profile...' : 'Save Profile & Continue'}
           </button>
         </form>
       </div>
     {/if}
   {:else if currentAuthError}
-    <p class="error">Authentication Error: {typeof currentAuthError === 'object' && currentAuthError !== null && 'message' in currentAuthError ? (currentAuthError as {message: string}).message : 'An unknown error occurred'}. Please try logging in again.</p>
-    <p><a href="{base}/">Go to Login</a></p>
+    <div class="mx-auto max-w-md mt-16 rounded-xl border border-red-500/30 bg-red-950/30 p-6 text-center shadow-xl">
+      <h3 class="text-lg font-bold text-red-400 mb-2">Authentication Error</h3>
+      <p class="text-sm text-gray-300 mb-4">{typeof currentAuthError === 'object' && currentAuthError !== null && 'message' in currentAuthError ? (currentAuthError as {message: string}).message : 'An unknown error occurred'}.</p>
+      <a href="{base}/" class="btn-primary inline-block">Return to Login</a>
+    </div>
   {:else}
-    <p>You are not authenticated. Redirecting to login...</p>
+    <div class="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+      <p class="text-sm text-gray-400">You are not authenticated. Redirecting to login...</p>
+    </div>
   {/if}
-</div>
-
-<style>
-  .dashboard-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding: 2rem;
-    min-height: calc(100vh - 4rem);
-  }
-  
-  .profile-setup-section {
-    width: 100%;
-    max-width: 32rem;
-    padding: 2rem;
-    background-color: white;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  }
-
-  .welcome-section {
-    text-align: center;
-  }
-
-  .error {
-    color: rgb(220, 38, 38);
-    margin-top: 1rem;
-  }
-
-  :global(input) {
-    font-size: 1rem;
-  }
-</style> 
+</div> 

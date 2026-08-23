@@ -7,7 +7,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        // You can add your custom colors here
+        'rapid-canvas': '#0e1012',
+        'rapid-surface': '#141619',
+        'rapid-panel': '#101214',
+        'rapid-card': '#16191d',
+        'rapid-card-hover': '#1f2329',
+        'rapid-border': '#262a30',
+        'rapid-border-light': '#333842'
       },
       fontFamily: {
         // You can add your custom fonts here

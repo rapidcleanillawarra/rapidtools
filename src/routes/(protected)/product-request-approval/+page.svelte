@@ -240,6 +240,38 @@
 		}
 	}
 
+	function getMarkupPercent(request: ProductRequest): number | '' {
+		if (request.retail_mup === undefined || request.retail_mup === null) return '';
+		return parseFloat(((request.retail_mup - 1) * 100).toFixed(2));
+	}
+
+	function applyMarkupPercent(request: ProductRequest, rawValue: string) {
+		const percent = parseFloat(rawValue);
+		if (isNaN(percent)) return;
+		request.retail_mup = parseFloat((1 + percent / 100).toFixed(4));
+		calculatePrices(request, 'retail_mup');
+	}
+
+	function getGPP(request: ProductRequest): number | '' {
+		const purchase = parseFloat(request.purchase_price?.toString() || '0');
+		const list = parseFloat(request.list_price?.toString() || '0');
+		if (purchase <= 0 || list <= 0) return '';
+		return parseFloat((((list - purchase) / list) * 100).toFixed(2));
+	}
+
+	function applyGPP(request: ProductRequest, rawValue: string) {
+		const gpp = parseFloat(rawValue);
+		const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
+		if (isNaN(gpp) || purchasePrice <= 0) return;
+		if (gpp >= 100) {
+			toastError('GPP must be less than 100%');
+			productRequests = productRequests;
+			return;
+		}
+		request.list_price = parseFloat((purchasePrice / (1 - gpp / 100)).toFixed(2));
+		calculatePrices(request, 'list_price');
+	}
+
 	// Function to apply retail MUP to all rows
 	function applyRetailMupToAll() {
 		if (productRequests.length === 0) {
@@ -252,7 +284,7 @@
 		productRequests = productRequests.map((req, idx) => {
 			if (idx === 0) return req;
 			req.retail_mup = retailMupVal;
-			calculatePrices(req);
+			calculatePrices(req, 'retail_mup');
 			return req;
 		});
 	}
@@ -1090,7 +1122,7 @@
 </svelte:head>
 
 <svelte:window
-	on:keydown={(event) => {
+	onkeydown={(event) => {
 		if (event.key === 'Escape') previewImage = null;
 	}}
 />
@@ -1121,7 +1153,7 @@
 					<button
 						type="button"
 						class="inline-flex min-w-[160px] items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
-						on:click={handleDeleteChecked}
+						onclick={handleDeleteChecked}
 						disabled={selectedRows.size === 0 || deleteLoading}
 					>
 						{#if deleteLoading}
@@ -1140,7 +1172,7 @@
 				<button
 					type="button"
 					class="btn-primary flex min-w-[160px] items-center justify-center"
-					on:click={handleSubmitChecked}
+					onclick={handleSubmitChecked}
 					disabled={selectedRows.size === 0 || submitLoading}
 				>
 					{#if submitLoading}
@@ -1163,7 +1195,7 @@
 					<div class="flex flex-wrap gap-2">
 						<button
 							type="button"
-							on:click={applyCategoryToAll}
+							onclick={applyCategoryToAll}
 							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
 							title="Apply category to all rows"
 						>
@@ -1172,12 +1204,12 @@
 						</button>
 						<button
 							type="button"
-							on:click={applyRetailMupToAll}
+							onclick={applyRetailMupToAll}
 							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
-							title="Apply retail MUP to all rows"
+							title="Apply Markup % to all rows"
 						>
 							{@html applyToAllIcon}
-							Retail MUP
+							Markup %
 						</button>
 					</div>
 				</div>
@@ -1200,7 +1232,7 @@
 										<input
 											type="checkbox"
 											bind:checked={selectAll}
-											on:change={handleSelectAll}
+											onchange={handleSelectAll}
 											class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
 										/>
 									</th>
@@ -1221,7 +1253,7 @@
 											<span>Category</span>
 											<button
 												type="button"
-												on:click={applyCategoryToAll}
+												onclick={applyCategoryToAll}
 												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
 												title="Apply to all rows"
 											>
@@ -1232,10 +1264,10 @@
 									<th class="px-3 py-3 text-left w-28">Purchase Price</th>
 									<th class="px-3 py-3 text-left w-24">
 										<div class="flex items-center gap-2">
-											<span>Retail MUP</span>
+											<span>Markup %</span>
 											<button
 												type="button"
-												on:click={applyRetailMupToAll}
+												onclick={applyRetailMupToAll}
 												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
 												title="Apply to all rows"
 											>
@@ -1243,6 +1275,7 @@
 											</button>
 										</div>
 									</th>
+									<th class="px-3 py-3 text-left w-24">GPP</th>
 									<th class="px-3 py-3 text-left w-28">List Price</th>
 									<th class="px-3 py-3 text-left w-28">RRP</th>
 									<th class="py-3 pl-3 pr-6 text-center w-20">Tax Free</th>
@@ -1255,7 +1288,7 @@
 											<input
 												type="checkbox"
 												checked={selectedRows.has(request.id)}
-												on:change={(event) => {
+												onchange={(event) => {
 													const target = event.target as HTMLInputElement;
 													if (target.checked) {
 														selectedRows.add(request.id);
@@ -1317,7 +1350,7 @@
 													placeholder="Select Brand"
 													clearable={false}
 													containerStyles="position: relative;"
-													on:change={(e) => {
+													onchange={(e) => {
 														request.brand = e.detail?.value || '';
 														searchMarkups();
 													}}
@@ -1336,7 +1369,7 @@
 													placeholder="Select Supplier"
 													clearable={false}
 													containerStyles="position: relative;"
-													on:change={(e) => {
+													onchange={(e) => {
 														request.primary_supplier = e.detail?.value || '';
 													}}
 												/>
@@ -1349,7 +1382,7 @@
 												placeholder="Select Category"
 												clearable={false}
 												containerStyles="position: relative;"
-												on:change={(e) => {
+												onchange={(e) => {
 													request.category = e.detail?.value || '';
 												}}
 											/>
@@ -1360,22 +1393,38 @@
 												id={`purchase-price-${request.id}`}
 												type="number"
 												bind:value={request.purchase_price}
-												on:blur={() => calculatePrices(request)}
+												onblur={() => calculatePrices(request)}
 												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="0.00"
 											/>
 										</td>
 										<td class="px-3 py-4 align-top w-24">
-											<label class="sr-only" for={`retail-mup-${request.id}`}>Retail MUP</label>
+											<label class="sr-only" for={`markup-percent-${request.id}`}>Markup %</label>
 											<input
-												id={`retail-mup-${request.id}`}
+												id={`markup-percent-${request.id}`}
 												type="number"
-												bind:value={request.retail_mup}
-												on:blur={() => calculatePrices(request, 'retail_mup')}
+												value={getMarkupPercent(request)}
+												onblur={(event) =>
+													applyMarkupPercent(request, (event.target as HTMLInputElement).value)
+												}
 												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="0.00"
+												placeholder="50"
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-24">
+											<label class="sr-only" for={`gpp-${request.id}`}>GPP</label>
+											<input
+												id={`gpp-${request.id}`}
+												type="number"
+												value={getGPP(request)}
+												onblur={(event) =>
+													applyGPP(request, (event.target as HTMLInputElement).value)
+												}
+												step="0.01"
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="33.33"
 											/>
 										</td>
 										<td class="px-3 py-4 align-top w-28">
@@ -1384,7 +1433,7 @@
 												id={`list-price-${request.id}`}
 												type="number"
 												bind:value={request.list_price}
-												on:blur={() => calculatePrices(request, 'list_price')}
+												onblur={() => calculatePrices(request, 'list_price')}
 												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="0.00"
@@ -1396,7 +1445,7 @@
 												id={`rrp-${request.id}`}
 												type="number"
 												bind:value={request.rrp}
-												on:blur={() => calculatePrices(request, 'rrp')}
+												onblur={() => calculatePrices(request, 'rrp')}
 												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="0.00"
@@ -1408,7 +1457,7 @@
 												id={`tax-${request.id}`}
 												type="checkbox"
 												bind:checked={request.tax_included}
-												on:change={() => calculatePrices(request)}
+												onchange={() => calculatePrices(request)}
 												class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
 											/>
 										</td>
@@ -1479,7 +1528,7 @@
 			type="button"
 			class="absolute inset-0 cursor-default"
 			aria-label="Close image preview"
-			on:click={() => (previewImage = null)}
+			onclick={() => (previewImage = null)}
 		></button>
 		<img
 			src={previewImage}

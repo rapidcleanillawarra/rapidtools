@@ -32,7 +32,11 @@
 
 	onMount(() => {
 		// Load initial sidebar state
-		if (browser && localStorage.getItem('sidebarMinimized') === 'true') {
+		if (
+			browser &&
+			localStorage.getItem('rememberSidebarMinimized') === 'true' &&
+			localStorage.getItem('sidebarMinimized') === 'true'
+		) {
 			sidebarMinimized = true;
 		}
 

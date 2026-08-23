@@ -52,6 +52,10 @@
 	let profile: UserProfile | null = null;
 	let previewImage: string | null = null;
 
+	const applyToAllIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="w-4 h-4">
+		<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+	</svg>`;
+
 	interface SkuToRequestMap {
 		[key: string]: ProductRequest[];
 	}
@@ -1081,556 +1085,396 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Product Request Approval - RapidTools</title>
+</svelte:head>
+
 <svelte:window
 	on:keydown={(event) => {
 		if (event.key === 'Escape') previewImage = null;
 	}}
 />
 
-<div class="min-h-screen bg-gray-100 px-2 py-8 sm:px-3">
-	<div class="mx-auto max-w-[98%] bg-white p-6 shadow" transition:fade>
-		<h2 class="mb-6 text-2xl font-bold text-gray-900">Product Request Approval</h2>
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div
+		class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8"
+		transition:fade
+	>
+		<div class="flex justify-between items-center mb-6">
+			<div>
+				<h2 class="text-2xl font-bold text-white tracking-tight">Product Request Approval</h2>
+				<p class="mt-1 text-sm text-gray-400">Review, edit, and approve pending product requests.</p>
+			</div>
+			{#if profile}
+				<div class="text-sm text-gray-400">
+					<span class="font-medium text-gray-300">Approver:</span>
+					<span class="text-lime-400 font-semibold">{profile.firstName} {profile.lastName}</span>
+				</div>
+			{/if}
+		</div>
 
-		<!-- Product Request Form -->
 		<div class="space-y-6">
 			<div
-				class="z-5 mobile-buttons sticky top-[64px] flex items-center justify-between bg-white/95 py-4 backdrop-blur-sm"
+				class="flex justify-between items-center sticky top-[64px] bg-[#141619]/95 backdrop-blur-sm border-b border-[#262a30] py-4 z-30"
 			>
-				<button
-					class="flex min-w-[160px] items-center justify-center rounded bg-red-600 px-4 py-2 text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-					on:click={handleDeleteChecked}
-					disabled={selectedRows.size === 0 || deleteLoading}
-				>
-					{#if deleteLoading}
-						<div
-							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
-						></div>
-						Deleting...
-					{:else}
-						Delete Checked Request
+				<div class="flex items-center gap-3">
+					<button
+						type="button"
+						class="inline-flex min-w-[160px] items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
+						on:click={handleDeleteChecked}
+						disabled={selectedRows.size === 0 || deleteLoading}
+					>
+						{#if deleteLoading}
+							<div
+								class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent"
+							></div>
+							Deleting...
+						{:else}
+							Delete Selected
+						{/if}
+					</button>
+					{#if selectedRows.size > 0}
+						<span class="text-sm text-gray-400">{selectedRows.size} selected</span>
 					{/if}
-				</button>
+				</div>
 				<button
-					class="flex min-w-[160px] items-center justify-center rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+					type="button"
+					class="btn-primary flex min-w-[160px] items-center justify-center"
 					on:click={handleSubmitChecked}
 					disabled={selectedRows.size === 0 || submitLoading}
 				>
 					{#if submitLoading}
 						<div
-							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+							class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-950 border-t-transparent"
 						></div>
 						Submitting...
 					{:else}
-						Submit Checked Rows
+						Submit Selected
 					{/if}
 				</button>
 			</div>
 
-			<!-- Product Requests Table -->
-			<div class="overflow-visible">
-				<!-- Desktop Headers -->
-				<div
-					class="hidden rounded-t-lg bg-gray-50 text-xs font-medium uppercase tracking-wider text-gray-500 md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_80px] md:gap-4 md:px-6 md:py-3"
-					style="font-size: 0.7rem;"
-				>
+			<div class="rounded-2xl border border-lime-500/20 bg-lime-500/5 p-4 text-sm text-gray-200 shadow-sm">
+				<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 					<div>
-						<input
-							type="checkbox"
-							bind:checked={selectAll}
-							on:change={handleSelectAll}
-							class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-						/>
+						<p class="text-base font-semibold text-lime-400">Bulk apply</p>
+						<p class="text-xs text-gray-400">Copy the first-row values onto every request below.</p>
 					</div>
-					<div class="requestor-cell table-cell">Requestor Name</div>
-					<div class="sku-cell table-cell">SKU</div>
-					<div class="product-name-cell table-cell">Product Name</div>
-					<div class="brand-cell table-cell">Brand</div>
-					<div class="supplier-cell table-cell">Supplier</div>
-					<div class="category-cell table-cell">
-						<div>Category</div>
-						<button class="text-xs text-blue-600 hover:text-blue-800" on:click={applyCategoryToAll}
-							>Apply All</button
-						>
-					</div>
-					<div class="price-cell table-cell">Price</div>
-					<div class="price-cell table-cell">
-						Retail MUP
+					<div class="flex flex-wrap gap-2">
 						<button
-							class="ml-2 text-xs text-blue-600 hover:text-blue-800"
-							on:click={applyRetailMupToAll}>Apply All</button
+							type="button"
+							on:click={applyCategoryToAll}
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+							title="Apply category to all rows"
 						>
+							{@html applyToAllIcon}
+							Category
+						</button>
+						<button
+							type="button"
+							on:click={applyRetailMupToAll}
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+							title="Apply retail MUP to all rows"
+						>
+							{@html applyToAllIcon}
+							Retail MUP
+						</button>
 					</div>
-					<div class="price-cell table-cell">List Price</div>
-					<div class="price-cell table-cell">RRP</div>
-					<div class="table-cell">Tax Free</div>
-				</div>
-
-				<!-- Rows -->
-				<div class="divide-y divide-gray-200">
-					{#each productRequests as request}
-						<!-- Desktop View -->
-						<div class="hidden bg-white transition-colors md:block md:hover:bg-gray-50">
-							<div
-								class="p-4 md:grid md:grid-cols-[10px_100px_100px_100px_120px_120px_120px_80px_100px_100px_100px_80px] md:items-center md:gap-4 md:px-6 md:py-4"
-							>
-								<!-- Checkbox -->
-								<div class="mb-4 md:mb-0">
-									<input
-										type="checkbox"
-										checked={selectedRows.has(request.id)}
-										on:change={(event) => {
-											const target = event.target as HTMLInputElement;
-											if (target.checked) {
-												selectedRows.add(request.id);
-											} else {
-												selectedRows.delete(request.id);
-											}
-											selectedRows = selectedRows;
-										}}
-										class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-								</div>
-
-								<!-- Requestor Name -->
-								<div class="requestor-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Requestor Name</label
-									>
-									<span class="text-xs text-gray-900" style="font-size: 0.7rem;"
-										>{request.requestor_firstName} {request.requestor_lastName}</span
-									>
-								</div>
-
-								<!-- SKU -->
-								<div class="sku-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden">SKU</label>
-									<input
-										type="text"
-										bind:value={request.sku}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-									/>
-								</div>
-
-								<!-- Product Name -->
-								<div class="product-name-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Product Name</label
-									>
-									<input
-										type="text"
-										bind:value={request.product_name}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-									/>
-									<div class="mt-2">
-										<ProductRequestImages
-											bind:images={
-												() => request.imageDrafts ?? [],
-												(value) => {
-													request.imageDrafts = value;
-												}
-											}
-											onPreview={(url) => (previewImage = url)}
-											onError={(message) => toastError(message)}
-										/>
-									</div>
-								</div>
-
-								<!-- Brand -->
-								<div class="brand-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden">Brand</label
-									>
-									{#if loadingBrands}
-										<div class="h-9 animate-pulse rounded bg-gray-200"></div>
-									{:else if brandError}
-										<div class="text-sm text-red-600">{brandError}</div>
-									{:else}
-										<Select
-											items={brands}
-											value={brands.find((b) => b.value === request.brand) || null}
-											placeholder="Select Brand"
-											clearable={false}
-											on:change={(e) => {
-												request.brand = e.detail?.value || '';
-												// Trigger search for markups when brand changes
-												searchMarkups();
-											}}
-										/>
-									{/if}
-								</div>
-
-								<!-- Primary Supplier -->
-								<div class="supplier-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Primary Supplier</label
-									>
-									{#if loadingSuppliers}
-										<div class="h-9 animate-pulse rounded bg-gray-200"></div>
-									{:else if supplierError}
-										<div class="text-sm text-red-600">{supplierError}</div>
-									{:else}
-										<Select
-											items={suppliers}
-											value={suppliers.find((s) => s.value === request.primary_supplier)}
-											placeholder="Select Supplier"
-											clearable={false}
-											on:change={(e) => {
-												request.primary_supplier = e.detail?.value || '';
-											}}
-										/>
-									{/if}
-								</div>
-
-								<!-- Category -->
-								<div class="category-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Category</label
-									>
-									<Select
-										items={categoriesList}
-										value={categoriesList.find((c) => c.value === request.category) || null}
-										placeholder="Select Category"
-										clearable={false}
-										on:change={(e) => {
-											request.category = e.detail?.value || '';
-										}}
-									/>
-								</div>
-
-								<!-- Purchase Price -->
-								<div class="price-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Purchase Price</label
-									>
-									<input
-										type="number"
-										bind:value={request.purchase_price}
-										on:blur={() => calculatePrices(request)}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-
-								<!-- Retail MUP -->
-								<div class="price-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Retail MUP</label
-									>
-									<input
-										type="number"
-										bind:value={request.retail_mup}
-										on:blur={() => calculatePrices(request, 'retail_mup')}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-
-								<!-- List Price -->
-								<div class="price-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>List Price</label
-									>
-									<input
-										type="number"
-										bind:value={request.list_price}
-										on:blur={() => calculatePrices(request, 'list_price')}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-
-								<!-- RRP -->
-								<div class="price-cell mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden">RRP</label>
-									<input
-										type="number"
-										bind:value={request.rrp}
-										on:blur={() => calculatePrices(request, 'rrp')}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-
-								<!-- Tax Included -->
-								<div class="mb-4 table-cell md:mb-0">
-									<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-										>Tax Free</label
-									>
-									<input
-										type="checkbox"
-										bind:checked={request.tax_included}
-										on:change={() => calculatePrices(request)}
-										class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-								</div>
-							</div>
-						</div>
-
-						<!-- Mobile View -->
-						<div class="mobile-row md:hidden">
-							<div class="mobile-field">
-								<span class="mobile-label">Select</span>
-								<div class="mobile-value">
-									<input
-										type="checkbox"
-										checked={selectedRows.has(request.id)}
-										on:change={(event) => {
-											const target = event.target as HTMLInputElement;
-											if (target.checked) {
-												selectedRows.add(request.id);
-											} else {
-												selectedRows.delete(request.id);
-											}
-											selectedRows = selectedRows;
-										}}
-										class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Requestor Name</span>
-								<span class="mobile-value text-gray-900"
-									>{request.requestor_firstName} {request.requestor_lastName}</span
-								>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">SKU</span>
-								<div class="mobile-value">
-									<input
-										type="text"
-										bind:value={request.sku}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Product Name</span>
-								<div class="mobile-value">
-									<input
-										type="text"
-										bind:value={request.product_name}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-									/>
-									<div class="mt-2">
-										<ProductRequestImages
-											bind:images={
-												() => request.imageDrafts ?? [],
-												(value) => {
-													request.imageDrafts = value;
-												}
-											}
-											onPreview={(url) => (previewImage = url)}
-											onError={(message) => toastError(message)}
-										/>
-									</div>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Brand</span>
-								<div class="mobile-value">
-									{#if loadingBrands}
-										<div class="h-9 animate-pulse rounded bg-gray-200"></div>
-									{:else if brandError}
-										<div class="text-sm text-red-600">{brandError}</div>
-									{:else}
-										<Select
-											items={brands}
-											value={brands.find((b) => b.value === request.brand) || null}
-											placeholder="Select Brand"
-											clearable={false}
-											on:change={(e) => {
-												request.brand = e.detail?.value || '';
-												searchMarkups();
-											}}
-										/>
-									{/if}
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Primary Supplier</span>
-								<div class="mobile-value">
-									{#if loadingSuppliers}
-										<div class="h-9 animate-pulse rounded bg-gray-200"></div>
-									{:else if supplierError}
-										<div class="text-sm text-red-600">{supplierError}</div>
-									{:else}
-										<Select
-											items={suppliers}
-											value={suppliers.find((s) => s.value === request.primary_supplier)}
-											placeholder="Select Supplier"
-											clearable={false}
-											on:change={(e) => {
-												request.primary_supplier = e.detail?.value || '';
-											}}
-										/>
-									{/if}
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Category</span>
-								<div class="mobile-value">
-									<Select
-										items={categoriesList}
-										value={categoriesList.find((c) => c.value === request.category) || null}
-										placeholder="Select Category"
-										clearable={false}
-										on:change={(e) => {
-											request.category = e.detail?.value || '';
-										}}
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Purchase Price</span>
-								<div class="mobile-value">
-									<input
-										type="number"
-										bind:value={request.purchase_price}
-										on:blur={() => calculatePrices(request)}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Retail MUP</span>
-								<div class="mobile-value">
-									<input
-										type="number"
-										bind:value={request.retail_mup}
-										on:blur={() => calculatePrices(request, 'retail_mup')}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">List Price</span>
-								<div class="mobile-value">
-									<input
-										type="number"
-										bind:value={request.list_price}
-										on:blur={() => calculatePrices(request, 'list_price')}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">RRP</span>
-								<div class="mobile-value">
-									<input
-										type="number"
-										bind:value={request.rrp}
-										on:blur={() => calculatePrices(request, 'rrp')}
-										class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-										style="font-size: 0.7rem !important;"
-										step="0.01"
-									/>
-								</div>
-							</div>
-
-							<div class="mobile-field">
-								<span class="mobile-label">Tax Free</span>
-								<div class="mobile-value">
-									<input
-										type="checkbox"
-										bind:checked={request.tax_included}
-										on:change={() => calculatePrices(request)}
-										class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-									/>
-								</div>
-							</div>
-						</div>
-					{/each}
 				</div>
 			</div>
 
-			<!-- Markup Search Results -->
-			<div class="mt-8">
-				<h3 class="mb-4 text-xl font-bold text-gray-900">Search Results from Markups</h3>
-				<div class="overflow-x-auto">
-					<div
-						class="hidden rounded-t-lg bg-gray-50 text-xs font-medium uppercase tracking-wider text-gray-500 md:grid md:grid-cols-[1fr_1fr_1fr_2fr_1fr] md:gap-4 md:px-6 md:py-3"
-						style="font-size: 0.7rem;"
-					>
-						<div>Brand</div>
-						<div>Main Category</div>
-						<div>Sub Category</div>
-						<div>Description</div>
-						<div>RRP Markup</div>
+			{#if productRequests.length === 0}
+				<div
+					class="rounded-2xl border border-[#262a30] bg-[#141619] px-6 py-16 text-center shadow-xl"
+				>
+					<p class="font-medium text-gray-300">No pending product requests</p>
+					<p class="mt-1 text-sm text-gray-500">New requests will appear here for review.</p>
+				</div>
+			{:else}
+				<div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
+					<div class="overflow-x-auto">
+						<table class="w-full min-w-[1800px] divide-y divide-[#262a30] text-sm">
+							<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+								<tr>
+									<th class="py-3 pl-6 pr-3 text-left w-10">
+										<input
+											type="checkbox"
+											bind:checked={selectAll}
+											on:change={handleSelectAll}
+											class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+										/>
+									</th>
+									<th class="px-3 py-3 text-left w-32">Requestor</th>
+									<th class="px-3 py-3 text-left w-28">SKU</th>
+									<th class="px-3 py-3 text-left w-48">Product Name</th>
+									<th class="px-3 py-3 text-left w-36">
+										Images
+										<span
+											class="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-gray-500"
+											>Optional</span
+										>
+									</th>
+									<th class="px-3 py-3 text-left w-52">Brand</th>
+									<th class="px-3 py-3 text-left w-52">Supplier</th>
+									<th class="px-3 py-3 text-left w-52">
+										<div class="flex items-center gap-2">
+											<span>Category</span>
+											<button
+												type="button"
+												on:click={applyCategoryToAll}
+												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+												title="Apply to all rows"
+											>
+												{@html applyToAllIcon}
+											</button>
+										</div>
+									</th>
+									<th class="px-3 py-3 text-left w-28">Purchase Price</th>
+									<th class="px-3 py-3 text-left w-24">
+										<div class="flex items-center gap-2">
+											<span>Retail MUP</span>
+											<button
+												type="button"
+												on:click={applyRetailMupToAll}
+												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+												title="Apply to all rows"
+											>
+												{@html applyToAllIcon}
+											</button>
+										</div>
+									</th>
+									<th class="px-3 py-3 text-left w-28">List Price</th>
+									<th class="px-3 py-3 text-left w-28">RRP</th>
+									<th class="py-3 pl-3 pr-6 text-center w-20">Tax Free</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-[#262a30] bg-[#141619]">
+								{#each productRequests as request (request.id)}
+									<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
+										<td class="py-4 pl-6 pr-3 align-middle">
+											<input
+												type="checkbox"
+												checked={selectedRows.has(request.id)}
+												on:change={(event) => {
+													const target = event.target as HTMLInputElement;
+													if (target.checked) {
+														selectedRows.add(request.id);
+													} else {
+														selectedRows.delete(request.id);
+													}
+													selectedRows = selectedRows;
+												}}
+												class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+											/>
+										</td>
+										<td class="px-3 py-4 align-middle w-32">
+											<span class="text-xs font-medium text-gray-200">
+												{request.requestor_firstName}
+												{request.requestor_lastName}
+											</span>
+										</td>
+										<td class="px-3 py-4 align-top w-28">
+											<label class="sr-only" for={`sku-${request.id}`}>SKU</label>
+											<input
+												id={`sku-${request.id}`}
+												type="text"
+												bind:value={request.sku}
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="SKU"
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-48">
+											<label class="sr-only" for={`product-name-${request.id}`}>Product Name</label>
+											<input
+												id={`product-name-${request.id}`}
+												type="text"
+												bind:value={request.product_name}
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="Product Name"
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-36">
+											<ProductRequestImages
+												bind:images={
+													() => request.imageDrafts ?? [],
+													(value) => {
+														request.imageDrafts = value;
+													}
+												}
+												onPreview={(url) => (previewImage = url)}
+												onError={(message) => toastError(message)}
+											/>
+										</td>
+										<td class="px-3 py-4 align-top select-wrapper w-52">
+											{#if loadingBrands}
+												<div class="h-10 animate-pulse rounded-lg bg-[#1f2329] border border-[#262a30]"></div>
+											{:else if brandError}
+												<div class="text-sm text-red-400">{brandError}</div>
+											{:else}
+												<Select
+													items={brands}
+													value={brands.find((b) => b.value === request.brand) || null}
+													placeholder="Select Brand"
+													clearable={false}
+													containerStyles="position: relative;"
+													on:change={(e) => {
+														request.brand = e.detail?.value || '';
+														searchMarkups();
+													}}
+												/>
+											{/if}
+										</td>
+										<td class="px-3 py-4 align-top select-wrapper w-52">
+											{#if loadingSuppliers}
+												<div class="h-10 animate-pulse rounded-lg bg-[#1f2329] border border-[#262a30]"></div>
+											{:else if supplierError}
+												<div class="text-sm text-red-400">{supplierError}</div>
+											{:else}
+												<Select
+													items={suppliers}
+													value={suppliers.find((s) => s.value === request.primary_supplier) || null}
+													placeholder="Select Supplier"
+													clearable={false}
+													containerStyles="position: relative;"
+													on:change={(e) => {
+														request.primary_supplier = e.detail?.value || '';
+													}}
+												/>
+											{/if}
+										</td>
+										<td class="px-3 py-4 align-top select-wrapper w-52">
+											<Select
+												items={categoriesList}
+												value={categoriesList.find((c) => c.value === request.category) || null}
+												placeholder="Select Category"
+												clearable={false}
+												containerStyles="position: relative;"
+												on:change={(e) => {
+													request.category = e.detail?.value || '';
+												}}
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-28">
+											<label class="sr-only" for={`purchase-price-${request.id}`}>Purchase Price</label>
+											<input
+												id={`purchase-price-${request.id}`}
+												type="number"
+												bind:value={request.purchase_price}
+												on:blur={() => calculatePrices(request)}
+												step="0.01"
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="0.00"
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-24">
+											<label class="sr-only" for={`retail-mup-${request.id}`}>Retail MUP</label>
+											<input
+												id={`retail-mup-${request.id}`}
+												type="number"
+												bind:value={request.retail_mup}
+												on:blur={() => calculatePrices(request, 'retail_mup')}
+												step="0.01"
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="0.00"
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-28">
+											<label class="sr-only" for={`list-price-${request.id}`}>List Price</label>
+											<input
+												id={`list-price-${request.id}`}
+												type="number"
+												bind:value={request.list_price}
+												on:blur={() => calculatePrices(request, 'list_price')}
+												step="0.01"
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="0.00"
+											/>
+										</td>
+										<td class="px-3 py-4 align-top w-28">
+											<label class="sr-only" for={`rrp-${request.id}`}>RRP</label>
+											<input
+												id={`rrp-${request.id}`}
+												type="number"
+												bind:value={request.rrp}
+												on:blur={() => calculatePrices(request, 'rrp')}
+												step="0.01"
+												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+												placeholder="0.00"
+											/>
+										</td>
+										<td class="py-4 pl-3 pr-6 text-center align-middle w-20">
+											<label class="sr-only" for={`tax-${request.id}`}>Tax Free</label>
+											<input
+												id={`tax-${request.id}`}
+												type="checkbox"
+												bind:checked={request.tax_included}
+												on:change={() => calculatePrices(request)}
+												class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+											/>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
 					</div>
+				</div>
+			{/if}
 
-					<div class="divide-y divide-gray-200">
-						{#each Object.entries(markupResults) as [term, markups]}
-							{#each markups as markup}
-								<div class="bg-white transition-colors md:hover:bg-gray-50">
-									<div
-										class="p-4 md:grid md:grid-cols-[1fr_1fr_1fr_2fr_1fr] md:items-center md:gap-4 md:px-6 md:py-4"
-									>
-										<div class="mb-4 md:mb-0">
-											<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-												>Brand</label
-											>
-											<span class="text-gray-900">{markup.brand}</span>
-										</div>
-										<div class="mb-4 md:mb-0">
-											<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-												>Main Category</label
-											>
-											<span class="text-gray-900">{markup.main_category}</span>
-										</div>
-										<div class="mb-4 md:mb-0">
-											<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-												>Sub Category</label
-											>
-											<span class="text-gray-900">{markup.sub_category}</span>
-										</div>
-										<div class="mb-4 md:mb-0">
-											<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-												>Description</label
-											>
-											<span class="text-gray-900">{markup.description}</span>
-										</div>
-										<div class="mb-4 md:mb-0">
-											<label class="mb-1 block text-sm font-medium text-gray-700 md:hidden"
-												>RRP Markup</label
-											>
-											<span class="text-gray-900">{markup.rrp_markup}</span>
-										</div>
-									</div>
-								</div>
-							{/each}
-						{/each}
+			<div>
+				<h3 class="mb-4 text-xl font-bold text-white tracking-tight">Search Results from Markups</h3>
+				<div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
+					<div class="overflow-x-auto">
+						<table class="w-full min-w-[720px] divide-y divide-[#262a30] text-sm">
+							<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+								<tr>
+									<th class="px-6 py-3 text-left">Brand</th>
+									<th class="px-6 py-3 text-left">Main Category</th>
+									<th class="px-6 py-3 text-left">Sub Category</th>
+									<th class="px-6 py-3 text-left">Description</th>
+									<th class="px-6 py-3 text-left">RRP Markup</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-[#262a30] bg-[#141619]">
+								{#each Object.entries(markupResults) as [term, markups] (term)}
+									{#each markups as markup, markupIndex (`${term}-${markup.id ?? markupIndex}`)}
+										<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
+											<td class="px-6 py-4 text-gray-200">{markup.brand}</td>
+											<td class="px-6 py-4 text-gray-300">{markup.main_category}</td>
+											<td class="px-6 py-4 text-gray-300">{markup.sub_category}</td>
+											<td class="px-6 py-4 text-gray-300">{markup.description}</td>
+											<td class="px-6 py-4 font-medium text-lime-400">{markup.rrp_markup}</td>
+										</tr>
+									{/each}
+								{/each}
+							</tbody>
+						</table>
 					</div>
+					{#if Object.values(markupResults).every((markups) => markups.length === 0)}
+						<p class="px-6 py-10 text-center text-sm text-gray-500">
+							No markup matches for the current brands and suppliers.
+						</p>
+					{/if}
 				</div>
 			</div>
 		</div>
 	</div>
 </div>
 
+{#if submitLoading || deleteLoading}
+	<div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+		<div class="bg-[#141619] border border-[#262a30] p-6 rounded-2xl shadow-2xl text-center">
+			<div
+				class="animate-spin rounded-full h-12 w-12 border-4 border-lime-500 border-t-transparent mx-auto"
+			></div>
+			<p class="mt-4 text-gray-300 font-medium">
+				{deleteLoading ? 'Deleting requests...' : 'Processing products...'}
+			</p>
+		</div>
+	</div>
+{/if}
+
 {#if previewImage}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
 		<button
 			type="button"
 			class="absolute inset-0 cursor-default"
@@ -1640,71 +1484,34 @@
 		<img
 			src={previewImage}
 			alt="Product preview"
-			class="relative z-10 max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+			class="relative z-10 max-h-[90vh] max-w-[90vw] rounded-xl border border-[#333842] shadow-2xl object-contain"
 		/>
 	</div>
 {/if}
 
+<div id="select-portal"></div>
+
 <style>
 	:global(.svelte-select) {
-		--height: 32px;
-		--border: 1px solid #d1d5db;
-		--border-hover: 1px solid #3b82f6;
-		--border-radius: 0.375rem;
-		--background: white;
-		--font-size: 0.7rem;
-		--padding: 0 0.5rem;
-		--placeholder-color: #9ca3af;
+		--height: 38px;
+		--border: 1px solid #262a30;
+		--border-hover: 1px solid #84cc16;
+		--border-focused: 1px solid #a3e635;
+		--border-radius: 0.5rem;
+		--background: #0e1012;
+		--font-size: 0.875rem;
+		--padding: 0 0.75rem;
+		--placeholder-color: #6b7280;
+		--input-color: #e5e7eb;
+		--item-color: #e5e7eb;
+		--item-hover-bg: #1f2329;
+		--item-is-active-bg: #262a30;
+		--item-is-active-color: #a3e635;
+		--list-background: #141619;
+		--list-border: 1px solid #262a30;
+		--clear-select-color: #9ca3af;
 		width: 100%;
 		position: relative;
-	}
-
-	/* Add styles for the clear button */
-	:global(.svelte-select .icon.clear-select) {
-		width: 14px;
-		height: 14px;
-		min-width: 14px;
-		margin-right: 4px;
-	}
-
-	:global(.svelte-select .icon.clear-select svg) {
-		width: 14px;
-		height: 14px;
-	}
-
-	/* Add new table cell styles */
-	.table-cell {
-		word-wrap: break-word;
-		overflow-wrap: break-word;
-		min-width: 0;
-	}
-
-	.requestor-cell {
-		width: 100%;
-	}
-
-	.sku-cell {
-		width: 100%;
-	}
-
-	.product-name-cell {
-		width: 100%;
-	}
-
-	.brand-cell {
-		width: 100%;
-	}
-
-	.supplier-cell {
-		width: 100%;
-	}
-
-	.category-cell {
-		width: 100%;
-	}
-
-	.price-cell {
-		width: 100%;
 	}
 
 	:global(.svelte-select .selectContainer) {
@@ -1714,6 +1521,7 @@
 		background: var(--background);
 		min-height: var(--height);
 		padding: 0;
+		color: #e5e7eb;
 	}
 
 	:global(.svelte-select .items) {
@@ -1721,82 +1529,103 @@
 		top: 100%;
 		left: 0;
 		right: 0;
-		border: var(--border);
+		border: var(--list-border, 1px solid #262a30);
 		border-radius: var(--border-radius);
-		background: var(--background);
-		z-index: 10;
+		background: var(--list-background, #141619);
+		margin-top: 4px;
 		box-shadow:
-			0 4px 6px -1px rgba(0, 0, 0, 0.1),
-			0 2px 4px -1px rgba(0, 0, 0, 0.06);
+			0 10px 15px -3px rgba(0, 0, 0, 0.5),
+			0 4px 6px -2px rgba(0, 0, 0, 0.4);
+		z-index: 999;
+		max-height: 300px;
+		overflow-y: auto;
+		color: #e5e7eb;
 	}
 
 	:global(.svelte-select .item) {
-		padding: 0.25rem 0.5rem;
-		font-size: 0.7rem;
-		cursor: pointer;
+		font-size: var(--font-size);
+		line-height: 1.25;
+		padding: 0.5rem 0.75rem;
+		white-space: normal;
+		word-break: break-word;
+		color: #e5e7eb;
 	}
 
 	:global(.svelte-select .item.hover) {
-		background-color: #f3f4f6;
+		background-color: #1f2329;
+		color: #a3e635;
 	}
 
 	:global(.svelte-select .item.active) {
-		background-color: #e5e7eb;
+		background-color: #262a30;
+		color: #a3e635;
 	}
 
-	:global(.svelte-select input) {
-		width: calc(100% - 24px); /* Adjust input width to account for smaller clear button */
-		font-size: 0.7rem !important;
+	#select-portal {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%;
+		height: 0;
+		overflow: visible;
+		z-index: 999;
+	}
+
+	.select-wrapper {
+		position: relative;
+		z-index: 10;
+	}
+
+	.select-wrapper:focus-within {
+		z-index: 20;
+	}
+
+	:global(.svelte-select .value-container) {
+		padding: var(--padding);
+		height: var(--height);
+		line-height: var(--height);
+		font-size: var(--font-size);
+		display: flex;
+		align-items: center;
+		color: #e5e7eb;
 	}
 
 	:global(.svelte-select .selected-item) {
-		font-size: 0.7rem !important;
+		display: flex;
+		align-items: center;
+		height: 100%;
+		line-height: normal;
+		color: #e5e7eb;
 	}
 
-	:global(.svelte-select .selected-item span) {
-		font-size: 0.7rem !important;
+	:global(.svelte-select input) {
+		font-size: var(--font-size);
+		padding: var(--padding);
+		height: calc(var(--height) - 2px);
+		display: flex;
+		align-items: center;
+		color: #e5e7eb;
 	}
 
-	/* Reduce input field padding and height */
-	:global(input[type='number']) {
-		padding: 0.25rem 0.5rem !important;
-		height: 32px !important;
-		min-height: 32px !important;
+	:global(.svelte-select .placeholder) {
+		color: var(--placeholder-color);
+		font-size: var(--font-size);
 	}
 
-	/* Mobile styles */
-	@media (max-width: 768px) {
-		.mobile-row {
-			display: flex;
-			flex-direction: column;
-			padding: 1rem;
-			border-bottom: 1px solid #e5e7eb;
-		}
+	:global(button:disabled) {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
 
-		.mobile-field {
-			display: flex;
-			justify-content: space-between;
-			align-items: center;
-			padding: 0.5rem 0;
-		}
-
-		.mobile-label {
-			font-weight: 500;
-			color: #374151;
-			width: 40%;
-		}
-
-		.mobile-value {
-			width: 60%;
-		}
-
-		.mobile-buttons {
-			position: sticky;
-			top: 0;
-			background-color: white;
-			padding: 1rem;
-			z-index: 40;
-			border-bottom: 1px solid #e5e7eb;
-		}
+	:global(.sr-only) {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border-width: 0;
 	}
 </style>

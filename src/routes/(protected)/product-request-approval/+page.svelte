@@ -118,177 +118,287 @@
 		Ack: string;
 	}
 
-	// Function to calculate prices - prioritizes the field that was changed
-	function calculatePrices(
-		request: ProductRequest,
-		changedField?: 'retail_mup' | 'list_price' | 'rrp'
-	) {
-		const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
+	type PricingMethod = 'markup' | 'gpp' | 'list' | 'rrp';
+	type PricingTrigger = PricingMethod | 'purchase' | 'tax';
 
-		console.log(`=== CALCULATING PRICES - prioritizing ${changedField || 'general change'} ===`);
-		console.log('Input values:', {
-			purchase_price: request.purchase_price,
-			retail_mup: request.retail_mup,
-			list_price: request.list_price,
-			rrp: request.rrp
-		});
-
-		// Prioritize the field that was changed by the user
-		if (
-			changedField === 'retail_mup' &&
-			request.retail_mup !== undefined &&
-			request.retail_mup !== null
-		) {
-			// User changed retail MUP - use it to calculate list_price and RRP
-			if (purchasePrice > 0) {
-				request.list_price = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
-				request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-				console.log('Prioritized retail_mup change - calculated list_price and rrp');
-			}
-		} else if (
-			changedField === 'list_price' &&
-			request.list_price !== undefined &&
-			request.list_price !== null
-		) {
-			// User changed list price - use it to calculate retail MUP and RRP
-			if (purchasePrice > 0) {
-				request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
-				request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-				console.log('Prioritized list_price change - calculated retail_mup and rrp');
-			}
-		} else if (changedField === 'rrp' && request.rrp !== undefined && request.rrp !== null) {
-			// User changed RRP - use it to calculate list_price, then retail MUP
-			request.list_price = parseFloat((request.rrp / 1.1).toFixed(2));
-			if (purchasePrice > 0) {
-				request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
-				console.log('Prioritized rrp change - calculated list_price and retail_mup');
-			} else {
-				console.log(
-					'Prioritized rrp change - calculated list_price (no purchase_price for retail_mup)'
-				);
-			}
-		} else {
-			// General change (like purchase_price) or no specific field - recalculate based on available data
-			if (purchasePrice > 0) {
-				// If we have purchase_price and retail_mup, calculate others
-				if (request.retail_mup && request.retail_mup > 0) {
-					request.list_price = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
-					request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-					console.log('General calc: used purchase_price + retail_mup');
-				}
-				// If we have purchase_price and list_price, calculate others
-				else if (request.list_price && request.list_price > 0) {
-					request.retail_mup = parseFloat((request.list_price / purchasePrice).toFixed(2));
-					request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-					console.log('General calc: used purchase_price + list_price');
-				}
-				// Default case with purchase_price
-				else {
-					request.retail_mup = 1.0; // Default markup
-					request.list_price = parseFloat((purchasePrice * request.retail_mup).toFixed(2));
-					request.rrp = parseFloat((request.list_price * 1.1).toFixed(2));
-					console.log('General calc: set defaults with purchase_price');
-				}
-			}
-			// If no purchase_price but we have RRP, calculate backwards
-			else if (request.rrp && request.rrp > 0) {
-				request.list_price = parseFloat((request.rrp / 1.1).toFixed(2));
-				console.log('General calc: calculated list_price from rrp (no purchase_price)');
-			}
-		}
-
-		// Always update client fields to match the main fields
-		request.client_price = request.list_price || 0.0;
-		request.client_mup = request.retail_mup || 1.0;
-
-		console.log('Final calculated values:', {
-			retail_mup: request.retail_mup,
-			list_price: request.list_price,
-			rrp: request.rrp,
-			client_price: request.client_price,
-			client_mup: request.client_mup
-		});
-		console.log('=====================================');
-
-		// Force Svelte reactivity
-		productRequests = productRequests;
-
-		// Ensure all values are properly formatted to 2 decimal places
-		if (request.purchase_price !== undefined && request.purchase_price !== null) {
-			request.purchase_price = parseFloat(request.purchase_price.toFixed(2));
-		}
-		if (request.retail_mup !== undefined && request.retail_mup !== null) {
-			request.retail_mup = parseFloat(request.retail_mup.toFixed(2));
-		}
-		if (request.list_price !== undefined && request.list_price !== null) {
-			request.list_price = parseFloat(request.list_price.toFixed(2));
-		} else {
-			request.list_price = 0.0;
-		}
-		if (request.rrp !== undefined && request.rrp !== null) {
-			request.rrp = parseFloat(request.rrp.toFixed(2));
-		} else {
-			request.rrp = 0.0;
-		}
-		if (request.client_price !== undefined && request.client_price !== null) {
-			request.client_price = parseFloat(request.client_price.toFixed(2));
-		} else {
-			request.client_price = 0.0;
-		}
-		if (request.client_mup !== undefined && request.client_mup !== null) {
-			request.client_mup = parseFloat(request.client_mup.toFixed(2));
-		}
+	interface PricingIntent {
+		method: PricingMethod;
+		markupPercent: number;
+		gppPercent: number;
+		listPrice: number;
+		rrp: number;
 	}
 
-	function toTenths(value: number): number {
-		return parseFloat(value.toFixed(1));
+	const GST_RATE = 0.1;
+	const DEC_SCALE = 8n;
+	const DEC_BASE = 10n ** DEC_SCALE;
+	const pricingIntentById = new Map<string, PricingIntent>();
+
+	function decimalFromNumber(value: number): bigint {
+		if (!Number.isFinite(value)) return 0n;
+		const negative = value < 0;
+		const [intPart, frac = ''] = Math.abs(value).toFixed(Number(DEC_SCALE)).split('.');
+		const raw = BigInt(intPart) * DEC_BASE + BigInt(frac);
+		return negative ? -raw : raw;
+	}
+
+	function mulDec(a: bigint, b: bigint): bigint {
+		return (a * b) / DEC_BASE;
+	}
+
+	function divDec(a: bigint, b: bigint): bigint {
+		if (b === 0n) return 0n;
+		return (a * DEC_BASE) / b;
+	}
+
+	function addDec(a: bigint, b: bigint): bigint {
+		return a + b;
+	}
+
+	function subDec(a: bigint, b: bigint): bigint {
+		return a - b;
+	}
+
+	function roundHalfUpDec(value: bigint, decimals: number): number {
+		const factor = 10n ** (DEC_SCALE - BigInt(decimals));
+		const half = factor / 2n;
+		const sign = value < 0n ? -1n : 1n;
+		const abs = value < 0n ? -value : value;
+		const roundedUnits = (abs + half) / factor;
+		return Number(sign * roundedUnits) / 10 ** decimals;
+	}
+
+	function toNumberDec(value: bigint): number {
+		return Number(value) / Number(DEC_BASE);
+	}
+
+	function numericOrZero(value: number | undefined | null): number {
+		return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+	}
+
+	function getTaxRate(request: ProductRequest): number {
+		return request.tax_included ? 0 : GST_RATE;
+	}
+
+	function getPurchase(request: ProductRequest): number {
+		const purchase = numericOrZero(request.purchase_price);
+		return roundHalfUpDec(decimalFromNumber(purchase), 4);
+	}
+
+	function ensurePricingIntent(request: ProductRequest): PricingIntent {
+		const existing = pricingIntentById.get(request.id);
+		if (existing) return existing;
+
+		const purchase = getPurchase(request);
+		const list = numericOrZero(request.list_price);
+		const retailMup = numericOrZero(request.retail_mup);
+		const intent: PricingIntent = {
+			method: list > 0 ? 'list' : 'markup',
+			markupPercent:
+				purchase > 0 && list > 0
+					? toNumberDec(mulDec(divDec(subDec(decimalFromNumber(list), decimalFromNumber(purchase)), decimalFromNumber(purchase)), decimalFromNumber(100)))
+					: retailMup > 0
+						? toNumberDec(mulDec(subDec(decimalFromNumber(retailMup), decimalFromNumber(1)), decimalFromNumber(100)))
+						: 0,
+			gppPercent:
+				purchase > 0 && list > 0
+					? toNumberDec(mulDec(divDec(subDec(decimalFromNumber(list), decimalFromNumber(purchase)), decimalFromNumber(list)), decimalFromNumber(100)))
+					: 0,
+			listPrice: list,
+			rrp: numericOrZero(request.rrp)
+		};
+		pricingIntentById.set(request.id, intent);
+		return intent;
+	}
+
+	function markupFromGpp(gppPercent: number): number {
+		const remainder = subDec(decimalFromNumber(100), decimalFromNumber(gppPercent));
+		if (remainder === 0n) return 0;
+		return toNumberDec(mulDec(divDec(decimalFromNumber(gppPercent), remainder), decimalFromNumber(100)));
+	}
+
+	function gppFromMarkup(markupPercent: number): number {
+		const divisor = addDec(decimalFromNumber(100), decimalFromNumber(markupPercent));
+		if (divisor === 0n) return 0;
+		return toNumberDec(mulDec(divDec(decimalFromNumber(markupPercent), divisor), decimalFromNumber(100)));
+	}
+
+	function percentsFromListAndPurchase(listPrice: number, purchase: number) {
+		const listDec = decimalFromNumber(listPrice);
+		const purchaseDec = decimalFromNumber(purchase);
+		const hundred = decimalFromNumber(100);
+		return {
+			markupPercent:
+				purchase > 0
+					? toNumberDec(mulDec(divDec(subDec(listDec, purchaseDec), purchaseDec), hundred))
+					: 0,
+			gppPercent:
+				listPrice > 0
+					? toNumberDec(mulDec(divDec(subDec(listDec, purchaseDec), listDec), hundred))
+					: 0
+		};
+	}
+
+	function displayPercent(value: number): number {
+		return roundHalfUpDec(decimalFromNumber(value), 2);
+	}
+
+	function listFromActiveMethod(purchase: number, taxRate: number, intent: PricingIntent): number {
+		const purchaseDec = decimalFromNumber(purchase);
+		const one = decimalFromNumber(1);
+		const hundred = decimalFromNumber(100);
+
+		if (intent.method === 'markup') {
+			const factor = addDec(one, divDec(decimalFromNumber(intent.markupPercent), hundred));
+			return toNumberDec(mulDec(purchaseDec, factor));
+		}
+
+		if (intent.method === 'gpp') {
+			const remainder = subDec(one, divDec(decimalFromNumber(intent.gppPercent), hundred));
+			if (remainder <= 0n) return intent.listPrice;
+			return toNumberDec(divDec(purchaseDec, remainder));
+		}
+
+		if (intent.method === 'rrp') {
+			const divisor = addDec(one, decimalFromNumber(taxRate));
+			return toNumberDec(divDec(decimalFromNumber(intent.rrp), divisor));
+		}
+
+		return intent.listPrice;
+	}
+
+	function syncDerivedPrices(request: ProductRequest, listPrice: number) {
+		const purchase = getPurchase(request);
+		const taxRate = getTaxRate(request);
+		const listDec = decimalFromNumber(listPrice);
+		const intent = ensurePricingIntent(request);
+
+		if (intent.method === 'markup') {
+			intent.gppPercent = gppFromMarkup(intent.markupPercent);
+		} else if (intent.method === 'gpp') {
+			intent.markupPercent = markupFromGpp(intent.gppPercent);
+		} else {
+			const actual = percentsFromListAndPurchase(listPrice, purchase);
+			intent.markupPercent = actual.markupPercent;
+			intent.gppPercent = actual.gppPercent;
+		}
+
+		const rrp = roundHalfUpDec(
+			mulDec(listDec, addDec(decimalFromNumber(1), decimalFromNumber(taxRate))),
+			2
+		);
+		const retailMup =
+			purchase > 0
+				? toNumberDec(divDec(listDec, decimalFromNumber(purchase)))
+				: numericOrZero(request.retail_mup) || 1;
+
+		request.purchase_price = purchase;
+		request.list_price = listPrice;
+		request.rrp = rrp;
+		request.retail_mup = retailMup;
+		request.client_price = listPrice;
+		request.client_mup = retailMup;
+
+		if (intent.method !== 'list') intent.listPrice = listPrice;
+		intent.rrp = rrp;
+	}
+
+	function calculatePrices(request: ProductRequest, trigger: PricingTrigger = 'purchase') {
+		const intent = ensurePricingIntent(request);
+		const purchase = getPurchase(request);
+		const taxRate = getTaxRate(request);
+
+		if (trigger === 'markup' || trigger === 'gpp' || trigger === 'list' || trigger === 'rrp') {
+			intent.method = trigger;
+		}
+
+		let listPrice =
+			trigger === 'tax' && intent.method !== 'rrp'
+				? numericOrZero(request.list_price)
+				: listFromActiveMethod(purchase, taxRate, intent);
+
+		listPrice = roundHalfUpDec(decimalFromNumber(listPrice), 2);
+		syncDerivedPrices(request, listPrice);
+		productRequests = productRequests;
 	}
 
 	function getMarkupPercent(request: ProductRequest): number | '' {
-		if (request.retail_mup === undefined || request.retail_mup === null) return '';
-		return toTenths((request.retail_mup - 1) * 100);
+		const intent = ensurePricingIntent(request);
+		if (intent.method === 'markup' || intent.method === 'gpp') {
+			return displayPercent(intent.markupPercent);
+		}
+		const purchase = getPurchase(request);
+		const list = numericOrZero(request.list_price);
+		if (purchase <= 0 || list <= 0) return '';
+		return displayPercent(intent.markupPercent);
 	}
 
 	function applyMarkupPercent(request: ProductRequest, rawValue: string) {
-		const percent = toTenths(parseFloat(rawValue));
-		if (isNaN(percent)) return;
-		request.retail_mup = parseFloat((1 + percent / 100).toFixed(4));
-		calculatePrices(request, 'retail_mup');
+		const percent = Number(rawValue);
+		if (!Number.isFinite(percent)) return;
+		const intent = ensurePricingIntent(request);
+		intent.method = 'markup';
+		intent.markupPercent = percent;
+		calculatePrices(request, 'markup');
 	}
 
 	function getGPP(request: ProductRequest): number | '' {
-		const purchase = parseFloat(request.purchase_price?.toString() || '0');
-		const list = parseFloat(request.list_price?.toString() || '0');
+		const intent = ensurePricingIntent(request);
+		if (intent.method === 'markup' || intent.method === 'gpp') {
+			return displayPercent(intent.gppPercent);
+		}
+		const purchase = getPurchase(request);
+		const list = numericOrZero(request.list_price);
 		if (purchase <= 0 || list <= 0) return '';
-		return toTenths(((list - purchase) / list) * 100);
+		return displayPercent(intent.gppPercent);
 	}
 
 	function applyGPP(request: ProductRequest, rawValue: string) {
-		const gpp = toTenths(parseFloat(rawValue));
-		const purchasePrice = parseFloat(request.purchase_price?.toString() || '0');
-		if (isNaN(gpp) || purchasePrice <= 0) return;
+		const gpp = Number(rawValue);
+		const purchase = getPurchase(request);
+		if (!Number.isFinite(gpp) || purchase <= 0) return;
 		if (gpp >= 100) {
 			toastError('GPP must be less than 100%');
 			productRequests = productRequests;
 			return;
 		}
-		request.list_price = parseFloat((purchasePrice / (1 - gpp / 100)).toFixed(2));
-		calculatePrices(request, 'list_price');
+		const intent = ensurePricingIntent(request);
+		intent.method = 'gpp';
+		intent.gppPercent = gpp;
+		calculatePrices(request, 'gpp');
 	}
 
-	// Function to apply retail MUP to all rows
+	function applyListPrice(request: ProductRequest) {
+		const list = numericOrZero(request.list_price);
+		const intent = ensurePricingIntent(request);
+		intent.method = 'list';
+		intent.listPrice = list;
+		calculatePrices(request, 'list');
+	}
+
+	function applyRrp(request: ProductRequest) {
+		const rrp = numericOrZero(request.rrp);
+		const intent = ensurePricingIntent(request);
+		intent.method = 'rrp';
+		intent.rrp = rrp;
+		calculatePrices(request, 'rrp');
+	}
+
 	function applyRetailMupToAll() {
 		if (productRequests.length === 0) {
 			toastError('No data rows available');
 			return;
 		}
-		const firstRequest = productRequests[0];
-		const retailMupVal = firstRequest.retail_mup;
+		const firstIntent = ensurePricingIntent(productRequests[0]);
+		const markupPercent = firstIntent.method === 'markup' ? firstIntent.markupPercent : getMarkupPercent(productRequests[0]);
+		if (markupPercent === '') {
+			toastError('First row does not have a markup to apply');
+			return;
+		}
 
 		productRequests = productRequests.map((req, idx) => {
 			if (idx === 0) return req;
-			req.retail_mup = retailMupVal;
-			calculatePrices(req, 'retail_mup');
+			applyMarkupPercent(req, markupPercent.toString());
 			return req;
 		});
 	}
@@ -298,16 +408,16 @@
 			toastError('No data rows available');
 			return;
 		}
-		const gppVal = getGPP(productRequests[0]);
+		const firstIntent = ensurePricingIntent(productRequests[0]);
+		const gppVal = firstIntent.method === 'gpp' ? firstIntent.gppPercent : getGPP(productRequests[0]);
 		if (gppVal === '') {
 			toastError('First row does not have a GPP to apply');
 			return;
 		}
 
-		const gppText = gppVal.toString();
 		productRequests = productRequests.map((req, idx) => {
 			if (idx === 0) return req;
-			applyGPP(req, gppText);
+			applyGPP(req, gppVal.toString());
 			return req;
 		});
 	}
@@ -1105,30 +1215,28 @@
 		]).then(() => {
 			// Ensure client_mup and client_price match retail_mup and list_price for all requests
 			productRequests.forEach((request) => {
-				// Calculate list_price if it's missing but we have purchase_price and retail_mup
 				if (
 					(request.list_price === undefined || request.list_price === null) &&
 					request.purchase_price &&
 					request.retail_mup
 				) {
-					request.list_price = parseFloat((request.purchase_price * request.retail_mup).toFixed(2));
+					const intent = ensurePricingIntent(request);
+					intent.method = 'markup';
+					intent.markupPercent = toNumberDec(
+						mulDec(subDec(decimalFromNumber(request.retail_mup), decimalFromNumber(1)), decimalFromNumber(100))
+					);
+					calculatePrices(request, 'markup');
+					return;
 				}
 
-				request.client_mup = request.retail_mup;
-				request.client_price = request.list_price || 0;
-
-				// Calculate retail MUP for any requests that have list_price but no retail MUP
-				if (request.list_price && (!request.retail_mup || request.retail_mup === 0)) {
-					calculatePrices(request);
+				const intent = ensurePricingIntent(request);
+				if (request.list_price) {
+					intent.method = 'list';
+					intent.listPrice = request.list_price;
+					calculatePrices(request, 'list');
+				} else {
+					calculatePrices(request, 'markup');
 				}
-
-				// Ensure rrp has a default value if not present
-				if (request.rrp === undefined || request.rrp === null) {
-					request.rrp = request.list_price ? parseFloat((request.list_price * 1.1).toFixed(2)) : 0; // Use list_price * 1.1, or 0 if that's also missing
-				}
-
-				// Ensure all price fields are properly formatted to 2 decimal places
-				calculatePrices(request);
 			});
 
 			loading = false;
@@ -1437,8 +1545,8 @@
 												id={`purchase-price-${request.id}`}
 												type="number"
 												bind:value={request.purchase_price}
-												onblur={() => calculatePrices(request)}
-												step="0.01"
+												onblur={() => calculatePrices(request, 'purchase')}
+												step="0.0001"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="0.00"
 											/>
@@ -1452,7 +1560,7 @@
 												onblur={(event) =>
 													applyMarkupPercent(request, (event.target as HTMLInputElement).value)
 												}
-												step="0.1"
+												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="50"
 											/>
@@ -1466,7 +1574,7 @@
 												onblur={(event) =>
 													applyGPP(request, (event.target as HTMLInputElement).value)
 												}
-												step="0.1"
+												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="33.3"
 											/>
@@ -1477,7 +1585,7 @@
 												id={`list-price-${request.id}`}
 												type="number"
 												bind:value={request.list_price}
-												onblur={() => calculatePrices(request, 'list_price')}
+												onblur={() => applyListPrice(request)}
 												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="0.00"
@@ -1489,7 +1597,7 @@
 												id={`rrp-${request.id}`}
 												type="number"
 												bind:value={request.rrp}
-												onblur={() => calculatePrices(request, 'rrp')}
+												onblur={() => applyRrp(request)}
 												step="0.01"
 												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 												placeholder="0.00"
@@ -1501,7 +1609,7 @@
 												id={`tax-${request.id}`}
 												type="checkbox"
 												bind:checked={request.tax_included}
-												onchange={() => calculatePrices(request)}
+												onchange={() => calculatePrices(request, 'tax')}
 												class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
 											/>
 										</td>

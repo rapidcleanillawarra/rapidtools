@@ -58,45 +58,54 @@
 	}
 </script>
 
-<div class="container mx-auto max-w-2xl p-6">
-	<div class="rounded-lg bg-white p-6 shadow-md">
-		<h1 class="mb-6 text-2xl font-bold text-gray-800">Generate Invoice PDF</h1>
+<svelte:head>
+	<title>Generate Invoice PDF - RapidTools</title>
+</svelte:head>
 
-		<form on:submit|preventDefault={handleGenerate} class="space-y-4">
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div class="mx-auto max-w-2xl bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-6 sm:p-8">
+		<h1 class="mb-6 text-2xl font-bold text-white tracking-tight">Generate Invoice PDF</h1>
+
+		<form on:submit|preventDefault={handleGenerate} class="space-y-5">
 			<div>
-				<label for="order_id" class="mb-1 block text-sm font-medium text-gray-700">Order ID</label>
+				<label for="order_id" class="form-label">Order ID</label>
 				<input
 					type="text"
 					id="order_id"
 					bind:value={order_id}
 					required
 					placeholder="e.g. 26-0012128"
-					class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:ring-blue-500"
+					class="input-field"
 				/>
 			</div>
 
 			<button
 				type="submit"
 				disabled={loading}
-				class="w-full rounded-md bg-blue-600 px-4 py-2 font-bold text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+				class="btn-primary w-full flex items-center justify-center gap-2"
 			>
-				{loading ? 'Generating...' : 'Generate PDF'}
+				{#if loading}
+					<div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-950 border-t-transparent"></div>
+					Generating...
+				{:else}
+					Generate PDF
+				{/if}
 			</button>
 		</form>
 
 		{#if error}
-			<div class="mt-6 rounded-md border border-red-200 bg-red-50 p-4">
-				<p class="font-medium text-red-700">Error: {error}</p>
+			<div class="mt-6 rounded-xl border border-red-500/30 bg-red-950/20 p-4">
+				<p class="font-semibold text-red-400">Error: {error}</p>
 				{#if details}
-					<pre class="mt-2 whitespace-pre-wrap text-xs text-red-600">{details}</pre>
+					<pre class="mt-2 whitespace-pre-wrap text-xs text-red-300/90 font-mono bg-[#0e1012] p-3 rounded-lg border border-red-500/20">{details}</pre>
 				{/if}
 			</div>
 		{/if}
 
 		{#if result}
-			<div class="mt-8 border-t pt-6">
-				<h2 class="mb-4 flex items-center text-lg font-semibold text-green-700">
-					<svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<div class="mt-8 border-t border-[#262a30] pt-6">
+				<h2 class="mb-4 flex items-center text-lg font-bold text-emerald-400">
+					<svg class="mr-2 h-5 w-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
 							stroke-linecap="round"
 							stroke-linejoin="round"
@@ -107,35 +116,35 @@
 					Invoice Generated Successfully
 				</h2>
 
-				<div class="grid grid-cols-1 gap-4 rounded-md bg-gray-50 p-4">
-					<div class="grid grid-cols-3 gap-2">
-						<span class="text-sm font-medium text-gray-500">Execution By:</span>
-						<span class="col-span-2 text-sm text-gray-800">{result.created_by}</span>
+				<div class="space-y-2.5 rounded-xl border border-[#262a30] bg-[#0e1012] p-4 text-sm">
+					<div class="flex justify-between items-center">
+						<span class="text-gray-400 font-medium">Execution By:</span>
+						<span class="text-gray-200 font-medium">{result.created_by}</span>
 					</div>
-					<div class="grid grid-cols-3 gap-2">
-						<span class="text-sm font-medium text-gray-500">Customer:</span>
-						<span class="col-span-2 text-sm text-gray-800">{result.customer_username}</span>
+					<div class="flex justify-between items-center">
+						<span class="text-gray-400 font-medium">Customer:</span>
+						<span class="text-gray-200 font-medium">{result.customer_username}</span>
 					</div>
-					<div class="grid grid-cols-3 gap-2">
-						<span class="text-sm font-medium text-gray-500">Created At:</span>
-						<span class="col-span-2 text-sm text-gray-800"
+					<div class="flex justify-between items-center">
+						<span class="text-gray-400 font-medium">Created At:</span>
+						<span class="text-gray-200 font-medium"
 							>{new Date(result.created_at).toLocaleString()}</span
 						>
 					</div>
-					<div class="grid grid-cols-3 gap-2">
-						<span class="text-sm font-medium text-gray-500">File Name:</span>
-						<span class="col-span-2 break-all text-sm text-gray-800">{result.file_name}</span>
+					<div class="flex justify-between items-start gap-4">
+						<span class="text-gray-400 font-medium shrink-0">File Name:</span>
+						<span class="break-all text-right text-gray-200 font-medium">{result.file_name}</span>
 					</div>
 				</div>
 
-				<div class="mt-6">
+				<div class="mt-5">
 					<a
 						href={result.onedrive_id}
 						target="_blank"
 						rel="noopener noreferrer"
-						class="inline-flex w-full items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+						class="btn-secondary w-full inline-flex items-center justify-center gap-2 text-lime-400 hover:text-lime-300"
 					>
-						<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"

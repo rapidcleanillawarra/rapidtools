@@ -298,15 +298,15 @@
 
 				// Determine payment status
 				let status = 'Unpaid';
-				let statusColor = 'bg-red-100 text-red-800';
+				let statusColor = 'bg-red-950/60 border border-red-500/30 text-red-400';
 
 				if (roundedTotalPayments > 0) {
 					if (roundedTotalPayments >= roundedGrandTotal) {
 						status = 'Fully Paid';
-						statusColor = 'bg-green-100 text-green-800';
+						statusColor = 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400';
 					} else {
 						status = 'Partially Paid';
-						statusColor = 'bg-yellow-100 text-yellow-800';
+						statusColor = 'bg-amber-950/60 border border-amber-500/30 text-amber-400';
 					}
 				}
 
@@ -792,51 +792,61 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gray-100 px-2 py-8 sm:px-3">
-	<div class="mx-auto max-w-[98%] bg-white p-6 shadow" transition:fade>
-		<h2 class="mb-6 text-2xl font-bold text-gray-900">Customer Group Invoices</h2>
+<svelte:head>
+	<title>Customer Group Invoices - RapidTools</title>
+</svelte:head>
+
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8" transition:fade>
+		<!-- Header -->
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+			<div>
+				<h1 class="text-2xl font-bold text-white tracking-tight">Customer Group Invoices</h1>
+				<p class="mt-1 text-sm text-gray-400">Filter, review, and export customer group invoices and payment statuses.</p>
+			</div>
+		</div>
 
 		<!-- Legend for row highlighting -->
 		{#if $filterType === 'group' && $selectedCustomerGroup}
-			<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
-				<h3 class="mb-2 text-sm font-medium text-blue-800">Filtering & Color Legend:</h3>
-				<div class="space-y-1 text-xs text-blue-700">
+			<div class="mb-6 rounded-xl border border-[#262a30] bg-[#181b20] p-4 shadow-sm">
+				<h3 class="mb-2 text-sm font-semibold text-gray-200">Filtering & Color Legend:</h3>
+				<div class="space-y-1.5 text-xs text-gray-300">
 					<div class="flex items-center">
-						<div class="mr-2 h-4 w-4 rounded border border-green-400 bg-green-100"></div>
+						<div class="mr-2.5 h-3.5 w-3.5 rounded border border-emerald-500/40 bg-emerald-950/40"></div>
 						<span
 							>Showing all invoices for users who belong to the selected customer group (filtered by
 							username)</span
 						>
 					</div>
 					<div class="flex items-center">
-						<div class="mr-2 h-4 w-4 rounded border border-orange-400 bg-orange-100"></div>
+						<div class="mr-2.5 h-3.5 w-3.5 rounded border border-orange-500/40 bg-orange-950/40"></div>
 						<span
 							>Orange rows: Invoices where the UserGroup doesn't match the selected filter (user
 							moved between groups)</span
 						>
 					</div>
 					<div class="flex items-center">
-						<div class="mr-2 h-4 w-4 rounded border border-gray-300 bg-white"></div>
-						<span>White rows: Invoices where the UserGroup matches the selected filter</span>
+						<div class="mr-2.5 h-3.5 w-3.5 rounded border border-[#262a30] bg-[#141619]"></div>
+						<span>Default rows: Invoices where the UserGroup matches the selected filter</span>
 					</div>
 				</div>
 			</div>
 		{/if}
 
 		<!-- Filter Section -->
-		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+		<div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4 bg-[#181b20]/60 p-4 rounded-xl border border-[#262a30]">
 			<div>
 				<div class="mb-2 flex items-center justify-between">
-					<label class="block text-sm font-medium text-gray-700">Filter Type</label>
+					<label class="block text-sm font-medium text-gray-300">Filter Type</label>
 					<div class="flex items-center space-x-2">
 						<button
-							class={`rounded-md px-3 py-1 text-sm ${$filterType === 'group' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+							class={`rounded-lg px-3 py-1 text-xs font-semibold transition ${$filterType === 'group' ? 'bg-lime-500 text-gray-950 shadow-sm' : 'bg-[#1f2329] border border-[#333842] text-gray-400 hover:text-gray-200'}`}
 							on:click={() => filterType.set('group')}
 						>
 							Group
 						</button>
 						<button
-							class={`rounded-md px-3 py-1 text-sm ${$filterType === 'customer' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+							class={`rounded-lg px-3 py-1 text-xs font-semibold transition ${$filterType === 'customer' ? 'bg-lime-500 text-gray-950 shadow-sm' : 'bg-[#1f2329] border border-[#333842] text-gray-400 hover:text-gray-200'}`}
 							on:click={() => filterType.set('customer')}
 						>
 							Customer
@@ -872,24 +882,24 @@
 						<!-- Display selected customers as removable chips -->
 						{#if $selectedCustomer && $selectedCustomer.length > 0}
 							<div
-								class="flex flex-wrap gap-2 rounded-md border border-gray-200 bg-gray-50 p-2"
+								class="flex flex-wrap gap-2 rounded-lg border border-[#262a30] bg-[#0e1012] p-2"
 								transition:fade={{ duration: 200 }}
 							>
 								{#each $selectedCustomer as customer (customer.value)}
 									<div
-										class="flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm"
+										class="flex items-center gap-1.5 rounded-md border border-[#333842] bg-[#1f2329] px-2.5 py-1 text-xs text-lime-400"
 										transition:scale={{ duration: 200, start: 0.8 }}
 									>
-										<span class="text-blue-800">{customer.label}</span>
+										<span class="font-medium">{customer.label}</span>
 										<button
 											type="button"
-											class="ml-1 text-blue-600 transition-colors hover:text-blue-800"
+											class="ml-1 text-gray-400 hover:text-red-400 transition-colors"
 											on:click={() => removeCustomer(customer.value)}
 											title="Remove customer"
 										>
 											<svg
 												xmlns="http://www.w3.org/2000/svg"
-												class="h-4 w-4"
+												class="h-3.5 w-3.5"
 												fill="none"
 												viewBox="0 0 24 24"
 												stroke="currentColor"
@@ -906,7 +916,7 @@
 								{/each}
 								<button
 									type="button"
-									class="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700 transition-colors hover:bg-gray-300"
+									class="rounded-md border border-[#333842] bg-[#181b20] px-2.5 py-1 text-xs text-gray-300 hover:bg-[#262a30] hover:text-white transition-colors"
 									on:click={() => {
 										selectedCustomer.set([]);
 										validateFilters();
@@ -919,30 +929,30 @@
 					</div>
 				{/if}
 				{#if $customerGroupError}
-					<p class="mt-1 text-sm text-red-600">{$customerGroupError}</p>
+					<p class="mt-1.5 text-xs text-red-400">{$customerGroupError}</p>
 				{/if}
 			</div>
 
 			<div>
-				<label class="mb-1 block text-sm font-medium text-gray-700">Date From</label>
+				<label class="mb-1.5 block text-sm font-medium text-gray-300">Date From</label>
 				<input
 					type="date"
-					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors [color-scheme:dark]"
 					on:change={(e) => handleDateChange(e, dateFrom.set)}
 				/>
 			</div>
 
 			<div>
-				<label class="mb-1 block text-sm font-medium text-gray-700">Date To</label>
+				<label class="mb-1.5 block text-sm font-medium text-gray-300">Date To</label>
 				<input
 					type="date"
-					class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors [color-scheme:dark]"
 					on:change={(e) => handleDateChange(e, dateTo.set)}
 				/>
 			</div>
 
 			<div>
-				<label class="mb-1 block text-sm font-medium text-gray-700">Status</label>
+				<label class="mb-1.5 block text-sm font-medium text-gray-300">Status</label>
 				<Select
 					items={statusOptions}
 					placeholder="Select status"
@@ -956,22 +966,22 @@
 					on:change={handleStatusChange}
 				/>
 				{#if $statusError}
-					<p class="mt-1 text-sm text-red-600">{$statusError}</p>
+					<p class="mt-1.5 text-xs text-red-400">{$statusError}</p>
 				{/if}
 			</div>
 		</div>
 
 		<!-- Date Error Message -->
 		{#if $dateError}
-			<div class="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
-				<p class="text-sm text-red-600">{$dateError}</p>
+			<div class="mb-6 rounded-lg border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-400">
+				{$dateError}
 			</div>
 		{/if}
 
-		<!-- Apply Filter Button -->
-		<div class="mb-6 flex justify-end gap-4">
+		<!-- Action Buttons -->
+		<div class="mb-6 flex flex-wrap items-center justify-end gap-3">
 			<button
-				class="flex min-w-[160px] items-center justify-center rounded bg-gray-500 px-4 py-2 text-white hover:bg-gray-600"
+				class="btn-secondary text-sm"
 				on:click={() => {
 					// Clear all filters
 					selectedCustomerGroup.set(null);
@@ -1001,12 +1011,12 @@
 			</button>
 			{#if $invoices && $invoices.length > 0}
 				<button
-					class="flex min-w-[160px] items-center justify-center rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+					class="btn-secondary text-sm inline-flex items-center gap-1.5 text-lime-400 hover:text-lime-300"
 					on:click={openInvoicePrintout}
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="mr-2 h-5 w-5"
+						class="h-4 w-4"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -1023,7 +1033,7 @@
 			{/if}
 			{#if $invoices && $invoices.length > 0}
 				<button
-					class="flex min-w-[160px] items-center justify-center rounded bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+					class="btn-secondary text-sm inline-flex items-center gap-1.5"
 					on:click={handleGetOrderLines}
 				>
 					Get Order Lines
@@ -1031,12 +1041,12 @@
 			{/if}
 			{#if $invoices && $invoices.length > 0}
 				<button
-					class="flex min-w-[160px] items-center justify-center rounded bg-gray-600 px-4 py-2 text-white hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+					class="btn-secondary text-sm inline-flex items-center gap-1.5"
 					on:click={() => handlePrint($invoices, printData)}
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
-						class="mr-2 h-5 w-5"
+						class="h-4 w-4"
 						fill="none"
 						viewBox="0 0 24 24"
 						stroke="currentColor"
@@ -1052,13 +1062,13 @@
 				</button>
 			{/if}
 			<button
-				class="flex min-w-[160px] items-center justify-center rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+				class="btn-primary text-sm inline-flex items-center gap-2"
 				on:click={handleApplyFilter}
 				disabled={$filterLoading || !!$dateError || !!$customerGroupError || !!$statusError}
 			>
 				{#if $filterLoading}
 					<div
-						class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+						class="h-4 w-4 animate-spin rounded-full border-2 border-gray-950 border-t-transparent"
 					></div>
 					Applying...
 				{:else}
@@ -1067,353 +1077,361 @@
 			</button>
 		</div>
 
-		<!-- Add this before the Invoices Table section -->
+		<!-- Filter Loading overlay modal -->
 		{#if $filterLoading}
-			<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-500 bg-opacity-75">
-				<div class="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+			<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+				<div class="w-full max-w-md rounded-2xl border border-[#262a30] bg-[#141619] p-6 shadow-2xl text-center">
 					<div class="mb-4 flex items-center justify-center">
 						<div
-							class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+							class="h-8 w-8 animate-spin rounded-full border-2 border-lime-500 border-t-transparent"
 						></div>
 					</div>
-					<p class="text-center font-medium text-gray-700">{$currentLoadingStep}</p>
-					<p class="mt-2 text-center text-sm text-gray-500">This may take a few moments</p>
+					<p class="font-semibold text-white">{$currentLoadingStep}</p>
+					<p class="mt-1 text-xs text-gray-400">This may take a few moments</p>
 				</div>
 			</div>
 		{/if}
 
 		<!-- Invoices Table -->
-		<div class="overflow-x-auto">
-			{#if $loading}
-				<div class="flex items-center justify-center py-8">
-					<div
-						class="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
-					></div>
-				</div>
-			{:else}
-				<table class="min-w-full table-fixed divide-y divide-gray-200">
-					<thead class="bg-gray-50">
-						<tr>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('invoiceNumber')}
-									>
-										Invoice # {getSortIcon('invoiceNumber', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'invoiceNumber')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('dateIssued')}
-									>
-										Date Issued {getSortIcon('dateIssued', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'dateIssued')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('dueDate')}
-									>
-										Due Date {getSortIcon('dueDate', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'dueDate')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('totalAmount')}
-									>
-										Total Invoice {getSortIcon('totalAmount', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'totalAmount')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('amountPaid')}
-									>
-										Payments {getSortIcon('amountPaid', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'amountPaid')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('balance')}
-									>
-										Balance AUD {getSortIcon('balance', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'balance')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('username')}
-									>
-										Username {getSortIcon('username', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'username')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('company')}
-									>
-										Company {getSortIcon('company', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'company')}
-									/>
-								</div>
-							</th>
-							<th
-								class="col-approval px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('approval')}
-									>
-										Approval {getSortIcon('approval', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'approval')}
-									/>
-								</div>
-							</th>
-							<th
-								class="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
-							>
-								<div class="flex flex-col">
-									<div
-										class="flex cursor-pointer items-center hover:bg-gray-100"
-										on:click={() => handleSortClick('status')}
-									>
-										Status {getSortIcon('status', $sortField, $sortDirection)}
-									</div>
-									<input
-										type="text"
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Search..."
-										on:input={(e) => handleSearch(e, 'status')}
-									/>
-								</div>
-							</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white">
-						{#if !$invoices || $invoices.length === 0}
+		<div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
+			<div class="overflow-x-auto">
+				{#if $loading}
+					<div class="flex items-center justify-center py-12">
+						<div
+							class="h-8 w-8 animate-spin rounded-full border-2 border-lime-500 border-t-transparent"
+						></div>
+					</div>
+				{:else}
+					<table class="w-full min-w-full table-fixed divide-y divide-[#262a30]">
+						<thead class="bg-[#181b20]">
 							<tr>
-								<td colspan="10" class="px-2 py-4 text-center text-gray-500"> No results found </td>
-							</tr>
-						{:else}
-							{#each paginatedInvoices as invoice (invoice.invoiceNumber)}
-								<tr
-									class={`${invoice.updated ? 'bg-green-50' : ''} ${invoice.userGroupMismatch ? 'border-l-4 border-orange-400 bg-orange-100' : ''}`}
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
 								>
-									<td class="px-2 py-1 text-sm">
-										{invoice.invoiceNumber}
-										{#if invoice.userGroupMismatch}
-											<span
-												class="ml-1 text-xs font-medium text-orange-600"
-												title="UserGroup mismatch - this invoice was placed when user was in a different group"
-												>⚠️</span
-											>
-										{/if}
-									</td>
-									<td class="px-2 py-1 text-sm">
-										{new Date(invoice.dateIssued).toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'long',
-											day: 'numeric'
-										})}
-									</td>
-									<td class="px-2 py-1 text-sm">
-										{new Date(invoice.dueDate).toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'long',
-											day: 'numeric'
-										})}
-									</td>
-									<td class="px-2 py-1 text-sm">
-										{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
-											invoice.totalAmount
-										)}
-									</td>
-									<td class="px-2 py-1 text-sm">
-										{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
-											invoice.amountPaid
-										)}
-									</td>
-									<td class="px-2 py-1 text-sm">
-										{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
-											invoice.balance
-										)}
-									</td>
-									<td class="px-2 py-1 text-sm">{invoice.username}</td>
-									<td class="px-2 py-1 text-sm">{invoice.company}</td>
-									<td class="col-approval px-2 py-1 text-sm">
-										<span
-											class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-												invoice.approval === 'Approved'
-													? 'bg-green-100 text-green-800'
-													: invoice.approval === 'Incomplete'
-														? 'bg-amber-100 text-amber-800'
-														: 'bg-gray-100 text-gray-600'
-											}`}
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('invoiceNumber')}
 										>
-											{invoice.approval}
-										</span>
-									</td>
-									<td class="px-2 py-1 text-sm">
-										<span
-											class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${invoice.statusColor}`}
+											Invoice # {getSortIcon('invoiceNumber', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'invoiceNumber')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('dateIssued')}
 										>
-											{invoice.status}
-										</span>
-									</td>
+											Date Issued {getSortIcon('dateIssued', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'dateIssued')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('dueDate')}
+										>
+											Due Date {getSortIcon('dueDate', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'dueDate')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('totalAmount')}
+										>
+											Total Invoice {getSortIcon('totalAmount', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'totalAmount')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('amountPaid')}
+										>
+											Payments {getSortIcon('amountPaid', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'amountPaid')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('balance')}
+										>
+											Balance AUD {getSortIcon('balance', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'balance')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('username')}
+										>
+											Username {getSortIcon('username', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'username')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('company')}
+										>
+											Company {getSortIcon('company', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'company')}
+										/>
+									</div>
+								</th>
+								<th
+									class="col-approval px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('approval')}
+										>
+											Approval {getSortIcon('approval', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'approval')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('status')}
+										>
+											Status {getSortIcon('status', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'status')}
+										/>
+									</div>
+								</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-[#262a30] bg-[#141619]">
+							{#if !$invoices || $invoices.length === 0}
+								<tr>
+									<td colspan="10" class="px-4 py-8 text-center text-sm text-gray-400"> No results found </td>
 								</tr>
-							{/each}
-						{/if}
-					</tbody>
-				</table>
-			{/if}
-		</div>
-
-		<!-- Pagination -->
-		<div
-			class="mt-4 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6"
-		>
-			<div class="flex items-center">
-				<span class="mr-2 text-sm text-gray-700">Items per page:</span>
-				<select
-					class="rounded border-gray-300 text-sm focus:border-blue-500 focus:ring-blue-500"
-					on:change={handleItemsPerPageChange}
-					value={$itemsPerPage}
-				>
-					<option value="5">5</option>
-					<option value="10">10</option>
-					<option value="20">20</option>
-					<option value="50">50</option>
-					<option value="100">100</option>
-				</select>
+							{:else}
+								{#each paginatedInvoices as invoice (invoice.invoiceNumber)}
+									<tr
+										class={`transition-colors ${invoice.updated ? 'bg-emerald-950/20' : ''} ${invoice.userGroupMismatch ? 'border-l-4 border-orange-500 bg-orange-950/20 hover:bg-orange-950/30' : 'hover:bg-[#1f2329]/60'}`}
+									>
+										<td class="px-3 py-3 text-sm font-medium text-white">
+											{invoice.invoiceNumber}
+											{#if invoice.userGroupMismatch}
+												<span
+													class="ml-1 text-xs font-medium text-orange-400"
+													title="UserGroup mismatch - this invoice was placed when user was in a different group"
+													>⚠️</span
+												>
+											{/if}
+										</td>
+										<td class="px-3 py-3 text-sm text-gray-300">
+											{new Date(invoice.dateIssued).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'long',
+												day: 'numeric'
+											})}
+										</td>
+										<td class="px-3 py-3 text-sm text-gray-300">
+											{new Date(invoice.dueDate).toLocaleDateString('en-US', {
+												year: 'numeric',
+												month: 'long',
+												day: 'numeric'
+											})}
+										</td>
+										<td class="px-3 py-3 text-sm text-gray-200">
+											{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
+												invoice.totalAmount
+											)}
+										</td>
+										<td class="px-3 py-3 text-sm text-gray-200">
+											{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
+												invoice.amountPaid
+											)}
+										</td>
+										<td class="px-3 py-3 text-sm text-gray-200 font-medium">
+											{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
+												invoice.balance
+											)}
+										</td>
+										<td class="px-3 py-3 text-sm text-gray-300">{invoice.username}</td>
+										<td class="px-3 py-3 text-sm text-gray-300">{invoice.company}</td>
+										<td class="col-approval px-3 py-3 text-sm">
+											<span
+												class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+													invoice.approval === 'Approved'
+														? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400'
+														: invoice.approval === 'Incomplete'
+															? 'bg-amber-950/60 border border-amber-500/30 text-amber-400'
+															: 'bg-[#1f2329] border border-[#333842] text-gray-300'
+												}`}
+											>
+												{invoice.approval}
+											</span>
+										</td>
+										<td class="px-3 py-3 text-sm">
+											<span
+												class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+													invoice.status === 'Fully Paid'
+														? 'bg-emerald-950/60 border border-emerald-500/30 text-emerald-400'
+														: invoice.status === 'Partially Paid'
+															? 'bg-amber-950/60 border border-amber-500/30 text-amber-400'
+															: 'bg-red-950/60 border border-red-500/30 text-red-400'
+												}`}
+											>
+												{invoice.status}
+											</span>
+										</td>
+									</tr>
+								{/each}
+							{/if}
+						</tbody>
+					</table>
+				{/if}
 			</div>
 
-			<div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
-				<div>
-					<p class="text-sm text-gray-700">
-						Showing <span class="font-medium">{currentPageItems.start}</span> to{' '}
-						<span class="font-medium">{currentPageItems.end}</span> of{' '}
-						<span class="font-medium">{currentPageItems.total}</span> results
-					</p>
+			<!-- Pagination -->
+			<div
+				class="flex items-center justify-between border-t border-[#262a30] bg-[#181b20]/60 px-4 py-3 sm:px-6"
+			>
+				<div class="flex items-center">
+					<span class="mr-2 text-sm text-gray-400">Items per page:</span>
+					<select
+						class="bg-[#0e1012] border border-[#262a30] rounded-lg text-sm text-gray-200 px-2.5 py-1 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						on:change={handleItemsPerPageChange}
+						value={$itemsPerPage}
+					>
+						<option value="5">5</option>
+						<option value="10">10</option>
+						<option value="20">20</option>
+						<option value="50">50</option>
+						<option value="100">100</option>
+					</select>
 				</div>
-				<div>
-					<nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-						<button
-							class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
-							on:click={() => handlePageChange($currentPage - 1)}
-							disabled={$currentPage === 1}
-						>
-							<span class="sr-only">Previous</span>
-							<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-								<path
-									fill-rule="evenodd"
-									d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-						</button>
 
-						<button
-							class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:cursor-not-allowed disabled:opacity-50"
-							on:click={() => handlePageChange($currentPage + 1)}
-							disabled={$currentPage === totalPages}
-						>
-							<span class="sr-only">Next</span>
-							<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-								<path
-									fill-rule="evenodd"
-									d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-						</button>
-					</nav>
+				<div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between ml-4">
+					<div>
+						<p class="text-sm text-gray-400">
+							Showing <span class="font-medium text-white">{currentPageItems.start}</span> to{' '}
+							<span class="font-medium text-white">{currentPageItems.end}</span> of{' '}
+							<span class="font-medium text-white">{currentPageItems.total}</span> results
+						</p>
+					</div>
+					<div>
+						<nav class="isolate inline-flex -space-x-px rounded-lg shadow-sm" aria-label="Pagination">
+							<button
+								class="relative inline-flex items-center rounded-l-lg border border-[#333842] bg-[#1f2329] px-2.5 py-2 text-gray-300 hover:bg-[#262a30] hover:text-white focus:z-20 disabled:cursor-not-allowed disabled:opacity-30 transition"
+								on:click={() => handlePageChange($currentPage - 1)}
+								disabled={$currentPage === 1}
+							>
+								<span class="sr-only">Previous</span>
+								<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+									<path
+										fill-rule="evenodd"
+										d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z"
+										clip-rule="evenodd"
+									/>
+								</svg>
+							</button>
+
+							<button
+								class="relative inline-flex items-center rounded-r-lg border border-[#333842] bg-[#1f2329] px-2.5 py-2 text-gray-300 hover:bg-[#262a30] hover:text-white focus:z-20 disabled:cursor-not-allowed disabled:opacity-30 transition"
+								on:click={() => handlePageChange($currentPage + 1)}
+								disabled={$currentPage === totalPages}
+							>
+								<span class="sr-only">Next</span>
+								<svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+									<path
+										fill-rule="evenodd"
+										d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+										clip-rule="evenodd"
+									/>
+								</svg>
+							</button>
+						</nav>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -1421,77 +1439,77 @@
 </div>
 
 {#if $isModalOpen && modalInvoice}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-gray-500 bg-opacity-75">
-		<div class="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-			<h3 class="mb-4 text-lg font-medium text-gray-900">Apply Payment</h3>
-			<div class="space-y-2">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+		<div class="w-full max-w-md rounded-2xl border border-[#262a30] bg-[#141619] p-6 shadow-2xl text-gray-200">
+			<h3 class="mb-4 text-lg font-bold text-white">Apply Payment</h3>
+			<div class="space-y-2.5 rounded-xl border border-[#262a30] bg-[#0e1012] p-4 text-sm">
 				<div class="flex justify-between">
-					<span class="font-semibold text-gray-700">Order ID:</span>
-					<span class="text-gray-900">{modalInvoice.invoiceNumber}</span>
+					<span class="text-gray-400">Order ID:</span>
+					<span class="font-semibold text-white">{modalInvoice.invoiceNumber}</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="font-semibold text-gray-700">Total Invoice:</span>
-					<span class="text-gray-900"
+					<span class="text-gray-400">Total Invoice:</span>
+					<span class="font-semibold text-white"
 						>{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
 							modalInvoice.totalAmount
 						)}</span
 					>
 				</div>
 				<div class="flex justify-between">
-					<span class="font-semibold text-gray-700">Balance:</span>
-					<span class="text-gray-900"
+					<span class="text-gray-400">Balance:</span>
+					<span class="font-semibold text-lime-400"
 						>{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
 							modalInvoice.balance
 						)}</span
 					>
 				</div>
 				<div class="flex justify-between">
-					<span class="font-semibold text-gray-700">Username:</span>
-					<span class="text-gray-900">{modalInvoice.username}</span>
+					<span class="text-gray-400">Username:</span>
+					<span class="text-gray-200">{modalInvoice.username}</span>
 				</div>
 				<div class="flex justify-between">
-					<span class="font-semibold text-gray-700">Company:</span>
-					<span class="text-gray-900">{modalInvoice.company}</span>
+					<span class="text-gray-400">Company:</span>
+					<span class="text-gray-200">{modalInvoice.company}</span>
 				</div>
 			</div>
-			<div class="mt-4 space-y-4">
+			<div class="mt-5 space-y-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700">Payment Mode</label>
+					<label class="form-label">Payment Mode</label>
 					<select
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+						class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
 					>
 						<option value="POS Card">POS Card</option>
 					</select>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700">Amount</label>
+					<label class="form-label">Amount</label>
 					<input
 						id="amount"
 						type="number"
 						step="0.01"
 						bind:value={defaultAmount}
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+						class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700">Payment Date</label>
+					<label class="form-label">Payment Date</label>
 					<input
 						id="payment-date"
 						type="datetime-local"
 						bind:value={defaultPaymentDate}
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+						class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors [color-scheme:dark]"
 					/>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700">Payment Notes</label>
+					<label class="form-label">Payment Notes</label>
 					<textarea
-						class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+						class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 						rows="3"
 					></textarea>
 				</div>
 			</div>
 			<button
-				class="mt-6 w-full rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+				class="mt-6 w-full btn-primary"
 				on:click={closeModal}>Close</button
 			>
 		</div>
@@ -1533,9 +1551,5 @@
 		* {
 			color: black !important;
 		}
-	}
-
-	tbody tr:hover {
-		background-color: #f0f0f0; /* Light gray background on hover */
 	}
 </style>

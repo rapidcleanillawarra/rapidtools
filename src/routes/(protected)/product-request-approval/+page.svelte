@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import { db } from '$lib/firebase';
 	import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
@@ -672,6 +673,15 @@
 		}
 	}
 
+	const isDesktopLayout = new MediaQuery('min-width: 1024px');
+
+	const textInputClass =
+		'w-full min-w-0 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors';
+	const numberInputClass =
+		'w-full min-w-0 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors';
+	const checkboxClass =
+		'h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]';
+
 	function handleSelectAll() {
 		if (selectAll) {
 			productRequests.forEach((req) => selectedRows.add(req.id));
@@ -679,6 +689,15 @@
 			selectedRows.clear();
 		}
 		selectedRows = selectedRows; // trigger reactivity
+	}
+
+	function toggleRequestSelected(id: string, checked: boolean) {
+		if (checked) {
+			selectedRows.add(id);
+		} else {
+			selectedRows.delete(id);
+		}
+		selectedRows = selectedRows;
 	}
 
 	async function handleSubmitChecked() {
@@ -1258,32 +1277,32 @@
 	}}
 />
 
-<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+<div class="min-h-screen min-w-0 max-w-full overflow-x-hidden py-6 px-2 sm:px-4 lg:px-6">
 	<div
-		class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8"
+		class="min-w-0 max-w-full w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8"
 		transition:fade
 	>
-		<div class="flex justify-between items-center mb-6">
-			<div>
+		<div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+			<div class="min-w-0">
 				<h2 class="text-2xl font-bold text-white tracking-tight">Product Request Approval</h2>
 				<p class="mt-1 text-sm text-gray-400">Review, edit, and approve pending product requests.</p>
 			</div>
 			{#if profile}
-				<div class="text-sm text-gray-400">
+				<div class="shrink-0 text-sm text-gray-400">
 					<span class="font-medium text-gray-300">Approver:</span>
 					<span class="text-lime-400 font-semibold">{profile.firstName} {profile.lastName}</span>
 				</div>
 			{/if}
 		</div>
 
-		<div class="space-y-6">
+		<div class="min-w-0 space-y-6">
 			<div
-				class="flex justify-between items-center sticky top-[64px] bg-[#141619]/95 backdrop-blur-sm border-b border-[#262a30] py-4 z-30"
+				class="sticky top-14 z-30 flex flex-col-reverse gap-3 border-b border-[#262a30] bg-[#141619]/95 py-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between lg:top-[64px]"
 			>
-				<div class="flex items-center gap-3">
+				<div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
 					<button
 						type="button"
-						class="inline-flex min-w-[160px] items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
+						class="inline-flex w-full items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 sm:w-auto sm:min-w-[160px]"
 						onclick={handleDeleteChecked}
 						disabled={selectedRows.size === 0 || deleteLoading}
 					>
@@ -1302,7 +1321,7 @@
 				</div>
 				<button
 					type="button"
-					class="btn-primary flex min-w-[160px] items-center justify-center"
+					class="btn-primary flex w-full items-center justify-center sm:w-auto sm:min-w-[160px]"
 					onclick={handleSubmitChecked}
 					disabled={selectedRows.size === 0 || submitLoading}
 				>
@@ -1355,6 +1374,197 @@
 				</div>
 			</div>
 
+			{#snippet fieldLabel(id: string, text: string, labeled: boolean)}
+				<label class={labeled ? 'mb-1 block text-xs font-medium text-gray-400' : 'sr-only'} for={id}
+					>{text}</label
+				>
+			{/snippet}
+
+			{#snippet skuField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`sku-${request.id}`, 'SKU', labeled)}
+				<input
+					id={`sku-${request.id}`}
+					type="text"
+					bind:value={request.sku}
+					class={textInputClass}
+					placeholder="SKU"
+				/>
+			{/snippet}
+
+			{#snippet productNameField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`product-name-${request.id}`, 'Product Name', labeled)}
+				<input
+					id={`product-name-${request.id}`}
+					type="text"
+					bind:value={request.product_name}
+					class={textInputClass}
+					placeholder="Product Name"
+				/>
+			{/snippet}
+
+			{#snippet imagesField(request: ProductRequest)}
+				<ProductRequestImages
+					bind:images={
+						() => request.imageDrafts ?? [],
+						(value) => {
+							request.imageDrafts = value;
+						}
+					}
+					onPreview={(url) => (previewImage = url)}
+					onError={(message) => toastError(message)}
+				/>
+			{/snippet}
+
+			{#snippet brandField(request: ProductRequest)}
+				<div class="select-wrapper min-w-0">
+					{#if loadingBrands}
+						<div class="h-10 animate-pulse rounded-lg border border-[#262a30] bg-[#1f2329]"></div>
+					{:else if brandError}
+						<div class="text-sm text-red-400">{brandError}</div>
+					{:else}
+						<Select
+							items={brands}
+							value={brands.find((b) => b.value === request.brand) || null}
+							placeholder="Select Brand"
+							clearable={false}
+							containerStyles="position: relative;"
+							onchange={(e) => {
+								request.brand = e.detail?.value || '';
+								searchMarkups();
+							}}
+						/>
+					{/if}
+				</div>
+			{/snippet}
+
+			{#snippet supplierField(request: ProductRequest)}
+				<div class="select-wrapper min-w-0">
+					{#if loadingSuppliers}
+						<div class="h-10 animate-pulse rounded-lg border border-[#262a30] bg-[#1f2329]"></div>
+					{:else if supplierError}
+						<div class="text-sm text-red-400">{supplierError}</div>
+					{:else}
+						<Select
+							items={suppliers}
+							value={suppliers.find((s) => s.value === request.primary_supplier) || null}
+							placeholder="Select Supplier"
+							clearable={false}
+							containerStyles="position: relative;"
+							onchange={(e) => {
+								request.primary_supplier = e.detail?.value || '';
+							}}
+						/>
+					{/if}
+				</div>
+			{/snippet}
+
+			{#snippet categoryField(request: ProductRequest)}
+				<div class="select-wrapper min-w-0">
+					<Select
+						items={categoriesList}
+						value={categoriesList.find((c) => c.value === request.category) || null}
+						placeholder="Select Category"
+						clearable={false}
+						containerStyles="position: relative;"
+						onchange={(e) => {
+							request.category = e.detail?.value || '';
+						}}
+					/>
+				</div>
+			{/snippet}
+
+			{#snippet purchasePriceField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`purchase-price-${request.id}`, 'Purchase Price', labeled)}
+				<input
+					id={`purchase-price-${request.id}`}
+					type="number"
+					bind:value={request.purchase_price}
+					onblur={() => calculatePrices(request, 'purchase')}
+					step="0.0001"
+					class={numberInputClass}
+					placeholder="0.00"
+				/>
+			{/snippet}
+
+			{#snippet markupPercentField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`markup-percent-${request.id}`, 'Markup %', labeled)}
+				<input
+					id={`markup-percent-${request.id}`}
+					type="number"
+					value={getMarkupPercent(request)}
+					onblur={(event) => applyMarkupPercent(request, (event.target as HTMLInputElement).value)}
+					step="0.01"
+					class={numberInputClass}
+					placeholder="50"
+				/>
+			{/snippet}
+
+			{#snippet gppField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`gpp-${request.id}`, 'GPP', labeled)}
+				<input
+					id={`gpp-${request.id}`}
+					type="number"
+					value={getGPP(request)}
+					onblur={(event) => applyGPP(request, (event.target as HTMLInputElement).value)}
+					step="0.01"
+					class={numberInputClass}
+					placeholder="33.3"
+				/>
+			{/snippet}
+
+			{#snippet listPriceField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`list-price-${request.id}`, 'List Price', labeled)}
+				<input
+					id={`list-price-${request.id}`}
+					type="number"
+					bind:value={request.list_price}
+					onblur={() => applyListPrice(request)}
+					step="0.01"
+					class={numberInputClass}
+					placeholder="0.00"
+				/>
+			{/snippet}
+
+			{#snippet rrpField(request: ProductRequest, labeled: boolean)}
+				{@render fieldLabel(`rrp-${request.id}`, 'RRP', labeled)}
+				<input
+					id={`rrp-${request.id}`}
+					type="number"
+					bind:value={request.rrp}
+					onblur={() => applyRrp(request)}
+					step="0.01"
+					class={numberInputClass}
+					placeholder="0.00"
+				/>
+			{/snippet}
+
+			{#snippet taxFreeField(request: ProductRequest, labeled: boolean)}
+				<div class={labeled ? 'flex items-center gap-2' : ''}>
+					<input
+						id={`tax-${request.id}`}
+						type="checkbox"
+						bind:checked={request.tax_included}
+						onchange={() => calculatePrices(request, 'tax')}
+						class={checkboxClass}
+					/>
+					<label class={labeled ? 'text-sm text-gray-300' : 'sr-only'} for={`tax-${request.id}`}
+						>Tax Free</label
+					>
+				</div>
+			{/snippet}
+
+			{#snippet requestCheckbox(request: ProductRequest)}
+				<input
+					type="checkbox"
+					checked={selectedRows.has(request.id)}
+					onchange={(event) => {
+						const target = event.target as HTMLInputElement;
+						toggleRequestSelected(request.id, target.checked);
+					}}
+					class={checkboxClass}
+				/>
+			{/snippet}
+
 			{#if productRequests.length === 0}
 				<div
 					class="rounded-2xl border border-[#262a30] bg-[#141619] px-6 py-16 text-center shadow-xl"
@@ -1362,256 +1572,100 @@
 					<p class="font-medium text-gray-300">No pending product requests</p>
 					<p class="mt-1 text-sm text-gray-500">New requests will appear here for review.</p>
 				</div>
-			{:else}
-				<div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
-					<div class="overflow-x-auto">
-						<table class="w-full min-w-[1800px] divide-y divide-[#262a30] text-sm">
+			{:else if isDesktopLayout.current}
+				<div class="min-w-0 overflow-hidden rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl">
+					<div class="min-w-0 overflow-x-auto">
+						<table class="w-full min-w-[1200px] divide-y divide-[#262a30] text-sm">
 							<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
 								<tr>
-									<th class="py-3 pl-6 pr-3 text-left w-10">
+									<th class="w-10 py-3 pl-6 pr-3 text-left">
 										<input
 											type="checkbox"
 											bind:checked={selectAll}
 											onchange={handleSelectAll}
-											class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+											class={checkboxClass}
 										/>
 									</th>
-									<th class="px-3 py-3 text-left w-32">Requestor</th>
-									<th class="px-3 py-3 text-left w-28">SKU</th>
-									<th class="px-3 py-3 text-left w-48">Product Name</th>
-									<th class="px-3 py-3 text-left w-36">
+									<th class="w-32 px-3 py-3 text-left">Requestor</th>
+									<th class="w-28 px-3 py-3 text-left">SKU</th>
+									<th class="w-48 px-3 py-3 text-left">Product Name</th>
+									<th class="w-36 px-3 py-3 text-left">
 										Images
 										<span
 											class="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-gray-500"
 											>Optional</span
 										>
 									</th>
-									<th class="px-3 py-3 text-left w-52">Brand</th>
-									<th class="px-3 py-3 text-left w-52">Supplier</th>
-									<th class="px-3 py-3 text-left w-52">
+									<th class="w-52 px-3 py-3 text-left">Brand</th>
+									<th class="w-52 px-3 py-3 text-left">Supplier</th>
+									<th class="w-52 px-3 py-3 text-left">
 										<div class="flex items-center gap-2">
 											<span>Category</span>
 											<button
 												type="button"
 												onclick={applyCategoryToAll}
-												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+												class="inline-flex items-center justify-center rounded-md p-1 text-lime-400 transition-colors hover:bg-lime-500/20 hover:text-lime-300"
 												title="Apply to all rows"
 											>
 												{@html applyToAllIcon}
 											</button>
 										</div>
 									</th>
-									<th class="px-3 py-3 text-left w-28">Purchase Price</th>
-									<th class="px-3 py-3 text-left w-24">
+									<th class="w-28 px-3 py-3 text-left">Purchase Price</th>
+									<th class="w-24 px-3 py-3 text-left">
 										<div class="flex items-center gap-2">
 											<span>Markup %</span>
 											<button
 												type="button"
 												onclick={applyRetailMupToAll}
-												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+												class="inline-flex items-center justify-center rounded-md p-1 text-lime-400 transition-colors hover:bg-lime-500/20 hover:text-lime-300"
 												title="Apply to all rows"
 											>
 												{@html applyToAllIcon}
 											</button>
 										</div>
 									</th>
-									<th class="px-3 py-3 text-left w-24">
+									<th class="w-24 px-3 py-3 text-left">
 										<div class="flex items-center gap-2">
 											<span>GPP</span>
 											<button
 												type="button"
 												onclick={applyGPPToAll}
-												class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+												class="inline-flex items-center justify-center rounded-md p-1 text-lime-400 transition-colors hover:bg-lime-500/20 hover:text-lime-300"
 												title="Apply to all rows"
 											>
 												{@html applyToAllIcon}
 											</button>
 										</div>
 									</th>
-									<th class="px-3 py-3 text-left w-28">List Price</th>
-									<th class="px-3 py-3 text-left w-28">RRP</th>
-									<th class="py-3 pl-3 pr-6 text-center w-20">Tax Free</th>
+									<th class="w-28 px-3 py-3 text-left">List Price</th>
+									<th class="w-28 px-3 py-3 text-left">RRP</th>
+									<th class="w-20 py-3 pl-3 pr-6 text-center">Tax Free</th>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-[#262a30] bg-[#141619]">
 								{#each productRequests as request (request.id)}
 									<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
-										<td class="py-4 pl-6 pr-3 align-middle">
-											<input
-												type="checkbox"
-												checked={selectedRows.has(request.id)}
-												onchange={(event) => {
-													const target = event.target as HTMLInputElement;
-													if (target.checked) {
-														selectedRows.add(request.id);
-													} else {
-														selectedRows.delete(request.id);
-													}
-													selectedRows = selectedRows;
-												}}
-												class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
-											/>
-										</td>
-										<td class="px-3 py-4 align-middle w-32">
+										<td class="py-4 pl-6 pr-3 align-middle">{@render requestCheckbox(request)}</td>
+										<td class="w-32 px-3 py-4 align-middle">
 											<span class="text-xs font-medium text-gray-200">
 												{request.requestor_firstName}
 												{request.requestor_lastName}
 											</span>
 										</td>
-										<td class="px-3 py-4 align-top w-28">
-											<label class="sr-only" for={`sku-${request.id}`}>SKU</label>
-											<input
-												id={`sku-${request.id}`}
-												type="text"
-												bind:value={request.sku}
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="SKU"
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-48">
-											<label class="sr-only" for={`product-name-${request.id}`}>Product Name</label>
-											<input
-												id={`product-name-${request.id}`}
-												type="text"
-												bind:value={request.product_name}
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="Product Name"
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-36">
-											<ProductRequestImages
-												bind:images={
-													() => request.imageDrafts ?? [],
-													(value) => {
-														request.imageDrafts = value;
-													}
-												}
-												onPreview={(url) => (previewImage = url)}
-												onError={(message) => toastError(message)}
-											/>
-										</td>
-										<td class="px-3 py-4 align-top select-wrapper w-52">
-											{#if loadingBrands}
-												<div class="h-10 animate-pulse rounded-lg bg-[#1f2329] border border-[#262a30]"></div>
-											{:else if brandError}
-												<div class="text-sm text-red-400">{brandError}</div>
-											{:else}
-												<Select
-													items={brands}
-													value={brands.find((b) => b.value === request.brand) || null}
-													placeholder="Select Brand"
-													clearable={false}
-													containerStyles="position: relative;"
-													onchange={(e) => {
-														request.brand = e.detail?.value || '';
-														searchMarkups();
-													}}
-												/>
-											{/if}
-										</td>
-										<td class="px-3 py-4 align-top select-wrapper w-52">
-											{#if loadingSuppliers}
-												<div class="h-10 animate-pulse rounded-lg bg-[#1f2329] border border-[#262a30]"></div>
-											{:else if supplierError}
-												<div class="text-sm text-red-400">{supplierError}</div>
-											{:else}
-												<Select
-													items={suppliers}
-													value={suppliers.find((s) => s.value === request.primary_supplier) || null}
-													placeholder="Select Supplier"
-													clearable={false}
-													containerStyles="position: relative;"
-													onchange={(e) => {
-														request.primary_supplier = e.detail?.value || '';
-													}}
-												/>
-											{/if}
-										</td>
-										<td class="px-3 py-4 align-top select-wrapper w-52">
-											<Select
-												items={categoriesList}
-												value={categoriesList.find((c) => c.value === request.category) || null}
-												placeholder="Select Category"
-												clearable={false}
-												containerStyles="position: relative;"
-												onchange={(e) => {
-													request.category = e.detail?.value || '';
-												}}
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-28">
-											<label class="sr-only" for={`purchase-price-${request.id}`}>Purchase Price</label>
-											<input
-												id={`purchase-price-${request.id}`}
-												type="number"
-												bind:value={request.purchase_price}
-												onblur={() => calculatePrices(request, 'purchase')}
-												step="0.0001"
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="0.00"
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-24">
-											<label class="sr-only" for={`markup-percent-${request.id}`}>Markup %</label>
-											<input
-												id={`markup-percent-${request.id}`}
-												type="number"
-												value={getMarkupPercent(request)}
-												onblur={(event) =>
-													applyMarkupPercent(request, (event.target as HTMLInputElement).value)
-												}
-												step="0.01"
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="50"
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-24">
-											<label class="sr-only" for={`gpp-${request.id}`}>GPP</label>
-											<input
-												id={`gpp-${request.id}`}
-												type="number"
-												value={getGPP(request)}
-												onblur={(event) =>
-													applyGPP(request, (event.target as HTMLInputElement).value)
-												}
-												step="0.01"
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="33.3"
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-28">
-											<label class="sr-only" for={`list-price-${request.id}`}>List Price</label>
-											<input
-												id={`list-price-${request.id}`}
-												type="number"
-												bind:value={request.list_price}
-												onblur={() => applyListPrice(request)}
-												step="0.01"
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="0.00"
-											/>
-										</td>
-										<td class="px-3 py-4 align-top w-28">
-											<label class="sr-only" for={`rrp-${request.id}`}>RRP</label>
-											<input
-												id={`rrp-${request.id}`}
-												type="number"
-												bind:value={request.rrp}
-												onblur={() => applyRrp(request)}
-												step="0.01"
-												class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-												placeholder="0.00"
-											/>
-										</td>
-										<td class="py-4 pl-3 pr-6 text-center align-middle w-20">
-											<label class="sr-only" for={`tax-${request.id}`}>Tax Free</label>
-											<input
-												id={`tax-${request.id}`}
-												type="checkbox"
-												bind:checked={request.tax_included}
-												onchange={() => calculatePrices(request, 'tax')}
-												class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
-											/>
+										<td class="w-28 px-3 py-4 align-top">{@render skuField(request, false)}</td>
+										<td class="w-48 px-3 py-4 align-top">{@render productNameField(request, false)}</td>
+										<td class="w-36 px-3 py-4 align-top">{@render imagesField(request)}</td>
+										<td class="w-52 px-3 py-4 align-top">{@render brandField(request)}</td>
+										<td class="w-52 px-3 py-4 align-top">{@render supplierField(request)}</td>
+										<td class="w-52 px-3 py-4 align-top">{@render categoryField(request)}</td>
+										<td class="w-28 px-3 py-4 align-top">{@render purchasePriceField(request, false)}</td>
+										<td class="w-24 px-3 py-4 align-top">{@render markupPercentField(request, false)}</td>
+										<td class="w-24 px-3 py-4 align-top">{@render gppField(request, false)}</td>
+										<td class="w-28 px-3 py-4 align-top">{@render listPriceField(request, false)}</td>
+										<td class="w-28 px-3 py-4 align-top">{@render rrpField(request, false)}</td>
+										<td class="w-20 py-4 pl-3 pr-6 text-center align-middle">
+											{@render taxFreeField(request, false)}
 										</td>
 									</tr>
 								{/each}
@@ -1619,41 +1673,123 @@
 						</table>
 					</div>
 				</div>
+			{:else}
+				<div class="flex items-center gap-3 px-1">
+					<input
+						type="checkbox"
+						bind:checked={selectAll}
+						onchange={handleSelectAll}
+						class={checkboxClass}
+						id="select-all-mobile"
+					/>
+					<label for="select-all-mobile" class="text-sm text-gray-300">Select all</label>
+				</div>
+				<div class="space-y-4">
+					{#each productRequests as request (request.id)}
+						<article
+							class="min-w-0 space-y-4 rounded-2xl border border-[#262a30] bg-[#181b20] p-4 shadow-xl"
+						>
+							<div class="flex items-start gap-3">
+								<div class="pt-1">{@render requestCheckbox(request)}</div>
+								<div class="min-w-0 flex-1 space-y-1">
+									<p class="text-xs font-medium text-gray-400">
+										{request.requestor_firstName}
+										{request.requestor_lastName}
+									</p>
+									{@render skuField(request, true)}
+								</div>
+							</div>
+
+							<div>{@render productNameField(request, true)}</div>
+
+							<div>
+								<p class="mb-1 text-xs font-medium text-gray-400">Images</p>
+								<p class="mb-2 text-[10px] text-gray-500">Optional</p>
+								{@render imagesField(request)}
+							</div>
+
+							<div>
+								<p class="mb-1 text-xs font-medium text-gray-400">Brand</p>
+								{@render brandField(request)}
+							</div>
+							<div>
+								<p class="mb-1 text-xs font-medium text-gray-400">Supplier</p>
+								{@render supplierField(request)}
+							</div>
+							<div>
+								<p class="mb-1 text-xs font-medium text-gray-400">Category</p>
+								{@render categoryField(request)}
+							</div>
+
+							<div class="grid grid-cols-2 gap-3">
+								<div>{@render purchasePriceField(request, true)}</div>
+								<div>{@render markupPercentField(request, true)}</div>
+								<div>{@render gppField(request, true)}</div>
+								<div>{@render listPriceField(request, true)}</div>
+								<div>{@render rrpField(request, true)}</div>
+								<div class="flex items-end pb-1">{@render taxFreeField(request, true)}</div>
+							</div>
+						</article>
+					{/each}
+				</div>
 			{/if}
 
-			<div>
-				<h3 class="mb-4 text-xl font-bold text-white tracking-tight">Search Results from Markups</h3>
-				<div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
-					<div class="overflow-x-auto">
-						<table class="w-full min-w-[720px] divide-y divide-[#262a30] text-sm">
-							<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
-								<tr>
-									<th class="px-6 py-3 text-left">Brand</th>
-									<th class="px-6 py-3 text-left">Main Category</th>
-									<th class="px-6 py-3 text-left">Sub Category</th>
-									<th class="px-6 py-3 text-left">Description</th>
-									<th class="px-6 py-3 text-left">RRP Markup</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-[#262a30] bg-[#141619]">
-								{#each Object.entries(markupResults) as [term, markups] (term)}
-									{#each markups as markup, markupIndex (`${term}-${markup.id ?? markupIndex}`)}
-										<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
-											<td class="px-6 py-4 text-gray-200">{markup.brand}</td>
-											<td class="px-6 py-4 text-gray-300">{markup.main_category}</td>
-											<td class="px-6 py-4 text-gray-300">{markup.sub_category}</td>
-											<td class="px-6 py-4 text-gray-300">{markup.description}</td>
-											<td class="px-6 py-4 font-medium text-lime-400">{markup.rrp_markup}</td>
-										</tr>
-									{/each}
-								{/each}
-							</tbody>
-						</table>
-					</div>
+			<div class="min-w-0">
+				<h3 class="mb-4 text-xl font-bold tracking-tight text-white">Search Results from Markups</h3>
+				<div class="min-w-0 overflow-hidden rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl">
 					{#if Object.values(markupResults).every((markups) => markups.length === 0)}
 						<p class="px-6 py-10 text-center text-sm text-gray-500">
 							No markup matches for the current brands and suppliers.
 						</p>
+					{:else if isDesktopLayout.current}
+						<div class="min-w-0 overflow-x-auto">
+							<table class="w-full divide-y divide-[#262a30] text-sm">
+								<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+									<tr>
+										<th class="px-6 py-3 text-left">Brand</th>
+										<th class="px-6 py-3 text-left">Main Category</th>
+										<th class="px-6 py-3 text-left">Sub Category</th>
+										<th class="px-6 py-3 text-left">Description</th>
+										<th class="px-6 py-3 text-left">RRP Markup</th>
+									</tr>
+								</thead>
+								<tbody class="divide-y divide-[#262a30] bg-[#141619]">
+									{#each Object.entries(markupResults) as [term, markups] (term)}
+										{#each markups as markup, markupIndex (`${term}-${markup.id ?? markupIndex}`)}
+											<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
+												<td class="px-6 py-4 text-gray-200">{markup.brand}</td>
+												<td class="px-6 py-4 text-gray-300">{markup.main_category}</td>
+												<td class="px-6 py-4 text-gray-300">{markup.sub_category}</td>
+												<td class="px-6 py-4 text-gray-300">{markup.description}</td>
+												<td class="px-6 py-4 font-medium text-lime-400">{markup.rrp_markup}</td>
+											</tr>
+										{/each}
+									{/each}
+								</tbody>
+							</table>
+						</div>
+					{:else}
+						<div class="divide-y divide-[#262a30]">
+							{#each Object.entries(markupResults) as [term, markups] (term)}
+								{#each markups as markup, markupIndex (`${term}-${markup.id ?? markupIndex}`)}
+									<div class="space-y-2 p-4">
+										<div class="flex items-start justify-between gap-3">
+											<p class="min-w-0 break-words font-medium text-gray-200">{markup.brand}</p>
+											<p class="shrink-0 font-medium text-lime-400">{markup.rrp_markup}</p>
+										</div>
+										<p class="break-words text-sm text-gray-300">
+											{markup.main_category}
+											{#if markup.sub_category}
+												<span class="text-gray-500"> / </span>{markup.sub_category}
+											{/if}
+										</p>
+										{#if markup.description}
+											<p class="break-words text-sm text-gray-400">{markup.description}</p>
+										{/if}
+									</div>
+								{/each}
+							{/each}
+						</div>
 					{/if}
 				</div>
 			</div>

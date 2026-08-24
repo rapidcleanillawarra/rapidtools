@@ -393,139 +393,149 @@
 
 <LoadingProgressModal show={showProgressModal} totalProducts={totalProductsLoaded} />
 
-<div class="container mx-auto p-4">
-	<div class="mb-6 flex items-center justify-between">
-		<h1 class="text-2xl font-bold">Product Information Update</h1>
-	</div>
+<svelte:head>
+	<title>Product Information Update - RapidTools</title>
+</svelte:head>
 
-	<!-- Filter Selection -->
-	<div class="mb-6 rounded-lg bg-white p-6 shadow">
-		<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-			<!-- Brand Selection -->
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
+		<!-- Header -->
+		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
 			<div>
-				<label for="brand-select" class="mb-2 block text-sm font-medium text-gray-700">
-					Filter by Brand
-				</label>
-				<div class="mb-4 flex gap-2">
-					<div class="flex-1">
-						<BrandDropdown
-							id="brand-select"
-							placeholder="Search brands..."
-							value={$selectedBrand}
-							disabled={parseSkus($selectedSkus).length > 0}
-							on:select={handleBrandSelect}
-							on:clear={handleBrandClear}
-						/>
+				<h1 class="text-2xl font-bold text-white tracking-tight">Product Information Update</h1>
+				<p class="mt-1 text-sm text-gray-400">Search, update, and manage product catalog data</p>
+			</div>
+		</div>
+
+		<!-- Filter Selection -->
+		<div class="mb-6 rounded-xl border border-[#262a30] bg-[#181b20]/60 p-5 shadow-sm">
+			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+				<!-- Brand Selection -->
+				<div>
+					<label for="brand-select" class="form-label">
+						Filter by Brand
+					</label>
+					<div class="mb-2 flex gap-2">
+						<div class="flex-1">
+							<BrandDropdown
+								id="brand-select"
+								placeholder="Search brands..."
+								value={$selectedBrand}
+								disabled={parseSkus($selectedSkus).length > 0}
+								on:select={handleBrandSelect}
+								on:clear={handleBrandClear}
+							/>
+						</div>
 					</div>
+					{#if parseSkus($selectedSkus).length > 0}
+						<p class="mt-1 text-xs text-gray-500">Disabled because SKU filter is active</p>
+					{/if}
 				</div>
+
+				<!-- SKU Selection -->
+				<div>
+					<SkuTextarea
+						value={$selectedSkus}
+						disabled={$selectedBrand !== ''}
+						on:input={handleSkuInput}
+						on:clear={handleSkuClear}
+					/>
+					{#if $selectedBrand !== ''}
+						<p class="mt-1 text-xs text-gray-500">Disabled because brand filter is active</p>
+					{/if}
+				</div>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="mt-6 flex flex-wrap gap-3">
+				<button
+					type="button"
+					class="btn-primary"
+					on:click={() => {
+						resetHighlights();
+						const parsedSkus = parseSkus($selectedSkus);
+						if (parsedSkus.length > 0) {
+							loadProducts(undefined, parsedSkus);
+						} else if ($selectedBrand) {
+							loadProducts($selectedBrand);
+						} else {
+							loadProducts();
+						}
+					}}
+					disabled={$isLoading}
+				>
+					{#if $isLoading}
+						<div class="flex items-center">
+							<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-gray-950"></div>
+							Loading...
+						</div>
+					{:else}
+						Apply Filter
+					{/if}
+				</button>
+				<button
+					type="button"
+					class="btn-secondary"
+					on:click={() => handleExport(false)}
+					disabled={$tableData.length === 0}
+				>
+					Export Visible CSV
+				</button>
+				<button
+					type="button"
+					class="btn-secondary"
+					on:click={() => handleExport(true)}
+					disabled={$tableData.length === 0}
+				>
+					Export All CSV
+				</button>
+			</div>
+
+			<p class="mt-4 text-sm text-gray-400">
 				{#if parseSkus($selectedSkus).length > 0}
-					<p class="mb-4 text-xs text-gray-500">Disabled because SKU filter is active</p>
-				{/if}
-			</div>
-
-			<!-- SKU Selection -->
-			<div>
-				<SkuTextarea
-					value={$selectedSkus}
-					disabled={$selectedBrand !== ''}
-					on:input={handleSkuInput}
-					on:clear={handleSkuClear}
-				/>
-				{#if $selectedBrand !== ''}
-					<p class="mt-2 text-xs text-gray-500">Disabled because brand filter is active</p>
-				{/if}
-			</div>
-		</div>
-
-		<!-- Action Buttons -->
-		<div class="mt-6 flex gap-4">
-			<button
-				type="button"
-				class="whitespace-nowrap rounded-lg bg-blue-600 px-4 py-2 font-medium text-white shadow-sm transition-colors duration-200 hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-				on:click={() => {
-					resetHighlights();
-					const parsedSkus = parseSkus($selectedSkus);
-					if (parsedSkus.length > 0) {
-						loadProducts(undefined, parsedSkus);
-					} else if ($selectedBrand) {
-						loadProducts($selectedBrand);
-					} else {
-						loadProducts();
-					}
-				}}
-				disabled={$isLoading}
-			>
-				{#if $isLoading}
-					<div class="flex items-center">
-						<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-						Loading...
-					</div>
+					Showing products for <strong class="text-white">{parseSkus($selectedSkus).length} SKU(s)</strong>
+				{:else if $selectedBrand}
+					Showing products for brand: <strong class="text-white">{$selectedBrand}</strong>
 				{:else}
-					Apply Filter
+					Showing all products
 				{/if}
-			</button>
-			<button
-				type="button"
-				class="whitespace-nowrap rounded-lg bg-green-600 px-4 py-2 font-medium text-white shadow-sm transition-colors duration-200 hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-				on:click={() => handleExport(false)}
-				disabled={$tableData.length === 0}
-			>
-				Export Visible CSV
-			</button>
-			<button
-				type="button"
-				class="whitespace-nowrap rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white shadow-sm transition-colors duration-200 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-				on:click={() => handleExport(true)}
-				disabled={$tableData.length === 0}
-			>
-				Export All CSV
-			</button>
+			</p>
 		</div>
 
-		<p class="mt-4 text-sm text-gray-500">
-			{#if parseSkus($selectedSkus).length > 0}
-				Showing products for <strong>{parseSkus($selectedSkus).length} SKU(s)</strong>
-			{:else if $selectedBrand}
-				Showing products for brand: <strong>{$selectedBrand}</strong>
-			{:else}
-				Showing all products
-			{/if}
-		</p>
-	</div>
-
-	<ColumnVisibilityControls
-		{columns}
-		visibleColumns={$visibleColumns}
-		onToggle={toggleColumnVisibility}
-		onShowAll={showAllColumns}
-		onHideAll={hideAllColumns}
-	/>
-
-	<!-- Products Table -->
-	<div class="overflow-hidden rounded-lg bg-white shadow">
-		<ProductsTable
-			columns={visibleColumnsList}
-			products={$paginatedData}
-			{categories}
-			{highlightStatuses}
-			isLoading={$isLoading}
-			searchFilters={$searchFilters}
-			sortField={$sortField}
-			sortDirection={$sortDirection}
-			onSort={handleSortClick}
-			onSearchChange={handleSearchChange}
-			onImageClick={handleImageClick}
-			onRowClick={handleRowClick}
-			onGptInfoClick={handleGptInfoClick}
-			hasData={$originalData.length > 0}
+		<ColumnVisibilityControls
+			{columns}
+			visibleColumns={$visibleColumns}
+			onToggle={toggleColumnVisibility}
+			onShowAll={showAllColumns}
+			onHideAll={hideAllColumns}
 		/>
 
-		<TablePagination
-			currentPage={$currentPage}
-			itemsPerPage={$itemsPerPage}
-			hasNextPage={$paginatedData.length >= $itemsPerPage}
-			onPageChange={(page) => currentPage.set(page)}
-			onItemsPerPageChange={(items) => itemsPerPage.set(items)}
-		/>
+		<!-- Products Table Container -->
+		<div class="overflow-hidden rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl">
+			<ProductsTable
+				columns={visibleColumnsList}
+				products={$paginatedData}
+				{categories}
+				{highlightStatuses}
+				isLoading={$isLoading}
+				searchFilters={$searchFilters}
+				sortField={$sortField}
+				sortDirection={$sortDirection}
+				onSort={handleSortClick}
+				onSearchChange={handleSearchChange}
+				onImageClick={handleImageClick}
+				onRowClick={handleRowClick}
+				onGptInfoClick={handleGptInfoClick}
+				hasData={$originalData.length > 0}
+			/>
+
+			<TablePagination
+				currentPage={$currentPage}
+				itemsPerPage={$itemsPerPage}
+				hasNextPage={$paginatedData.length >= $itemsPerPage}
+				onPageChange={(page) => currentPage.set(page)}
+				onItemsPerPageChange={(items) => itemsPerPage.set(items)}
+			/>
+		</div>
 	</div>
 </div>

@@ -122,7 +122,7 @@
     <input
       {id}
       type="text"
-      class="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent {disabled || isLoading ? 'cursor-not-allowed bg-gray-100' : 'cursor-pointer'}"
+      class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 pr-10 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 text-sm transition-colors {disabled || isLoading ? 'cursor-not-allowed bg-[#141619] text-gray-500' : 'cursor-pointer'}"
       {placeholder}
       value={selectedCategory ? selectedCategory.path : searchTerm}
       on:click={disabled ? undefined : toggleDropdown}
@@ -136,14 +136,14 @@
 
     <button
       type="button"
-      class="absolute inset-y-0 right-0 pr-3 flex items-center"
+      class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-lime-400 transition-colors"
       on:click={disabled ? undefined : toggleDropdown}
       disabled={disabled || isLoading}
     >
       {#if isLoading}
         <SkeletonLoader className="w-5 h-5" />
       {:else}
-        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
       {/if}
@@ -152,7 +152,7 @@
     {#if selectedCategory}
       <button
         type="button"
-        class="absolute inset-y-0 right-8 pr-2 flex items-center text-gray-400 hover:text-gray-600"
+        class="absolute inset-y-0 right-8 pr-2 flex items-center text-gray-400 hover:text-lime-400 transition-colors"
         on:click={disabled ? undefined : clearSelection}
         disabled={disabled}
         title="Clear selection"
@@ -165,7 +165,7 @@
   </div>
 
   {#if isOpen}
-    <div class="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+    <div class="absolute z-20 mt-1 w-full bg-[#141619] border border-[#262a30] rounded-xl shadow-2xl max-h-60 overflow-auto divide-y divide-[#262a30]">
       {#if isLoading}
         <div class="p-4">
           <SkeletonLoader className="h-4 mb-2" />
@@ -173,11 +173,11 @@
           <SkeletonLoader className="h-4" />
         </div>
       {:else if error}
-        <div class="p-4 text-red-600 text-sm">
+        <div class="p-4 text-red-400 text-sm">
           {error}
         </div>
       {:else if filteredCategories.length === 0}
-        <div class="p-4 text-gray-500 text-sm">
+        <div class="p-4 text-gray-400 text-sm">
           {#if searchTerm}
             No categories found matching "{searchTerm}"
           {:else}
@@ -188,17 +188,17 @@
         {#each filteredCategories as category}
           <button
             type="button"
-            class="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none border-b border-gray-100 last:border-b-0"
+            class="w-full text-left px-4 py-2 hover:bg-[#1f2329] hover:text-lime-300 focus:bg-[#1f2329] focus:outline-none transition-colors"
             style="padding-left: {category.level * 16 + 16}px"
             on:click={() => selectCategory(category)}
           >
             <div class="flex items-center">
               {#if category.level > 0}
-                <span class="text-gray-400 mr-2">{"→".repeat(category.level)}</span>
+                <span class="text-gray-500 mr-2">{"→".repeat(category.level)}</span>
               {/if}
-              <span class="font-medium">{category.name}</span>
+              <span class="font-medium text-gray-200">{category.name}</span>
               {#if category.level > 0}
-                <span class="text-gray-500 text-sm ml-2">({category.path.split(' > ')[0]})</span>
+                <span class="text-gray-400 text-xs ml-2">({category.path.split(' > ')[0]})</span>
               {/if}
             </div>
           </button>

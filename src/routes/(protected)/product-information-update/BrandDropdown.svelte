@@ -179,13 +179,13 @@
       on:input={handleInput}
       on:focus={handleFocus}
       on:blur={handleBlur}
-      class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+      class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-2.5 pr-10 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 disabled:bg-[#141619] disabled:text-gray-500 disabled:border-[#262a30] disabled:cursor-not-allowed text-sm transition-colors"
       autocomplete="off"
     />
     <button
       type="button"
       on:click={toggleDropdown}
-      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-lime-400 transition-colors"
       aria-label="Toggle brand dropdown"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,7 +196,7 @@
 
   {#if isOpen}
     <div
-      class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto"
+      class="absolute z-20 w-full mt-1 bg-[#141619] border border-[#262a30] rounded-xl shadow-2xl max-h-60 overflow-auto divide-y divide-[#262a30]"
       on:click|stopPropagation={() => {}}
       on:mouseenter={() => isDropdownInteracting = true}
       on:mouseleave={() => isDropdownInteracting = false}
@@ -208,18 +208,18 @@
           <SkeletonLoader type="text" height="1rem" width="60%" />
         </div>
       {:else if error}
-        <div class="p-4 text-red-600 text-sm">
+        <div class="p-4 text-red-400 text-sm">
           {error}
           <button
             type="button"
             on:click={loadBrands}
-            class="ml-2 text-blue-600 hover:text-blue-800 underline"
+            class="ml-2 text-lime-400 hover:text-lime-300 underline font-medium"
           >
             Retry
           </button>
         </div>
       {:else if filteredBrands.length === 0}
-        <div class="p-4 text-gray-500 text-sm">
+        <div class="p-4 text-gray-400 text-sm">
           {#if searchTerm}
             No brands found matching "{searchTerm}"
           {:else}
@@ -231,9 +231,9 @@
           <button
             type="button"
             on:click={() => selectBrand(brand)}
-            class="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
+            class="w-full text-left px-4 py-2.5 hover:bg-[#1f2329] hover:text-lime-300 transition-colors focus:outline-none focus:bg-[#1f2329]"
           >
-            <div class="font-medium text-gray-900">
+            <div class="font-medium text-gray-200">
               {brand.name}
             </div>
           </button>

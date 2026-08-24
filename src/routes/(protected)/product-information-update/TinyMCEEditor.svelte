@@ -56,14 +56,14 @@
           'bold italic forecolor | alignleft aligncenter ' +
           'alignright alignjustify | bullist numlist outdent indent | ' +
           'removeformat | code',
-        content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size:14px; padding: 10px; }',
+        content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size:14px; padding: 10px; background-color: #0e1012; color: #e5e7eb; }',
         placeholder: placeholder,
         readonly: disabled,
         branding: false,
         promotion: false,
         license_key: 'gpl',
-        skin_url: `${base}/tinymce/skins/ui/oxide`,
-        content_css: `${base}/tinymce/skins/content/default/content.min.css`,
+        skin_url: `${base}/tinymce/skins/ui/oxide-dark`,
+        content_css: `${base}/tinymce/skins/content/dark/content.min.css`,
         setup: (ed: any) => {
           editor = ed;
 
@@ -128,13 +128,13 @@
   }
   
   .tinymce-wrapper :global(.tox-tinymce) {
-    border-radius: 0.375rem;
-    border-color: #d1d5db;
+    border-radius: 0.5rem;
+    border-color: #262a30;
   }
   
   .tinymce-wrapper :global(.tox-tinymce:focus-within) {
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    border-color: #84cc16;
+    box-shadow: 0 0 0 1px #84cc16;
   }
 </style>
 

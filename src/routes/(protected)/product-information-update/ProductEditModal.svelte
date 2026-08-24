@@ -190,19 +190,23 @@
 	}
 
 	function handleBrandSelect(event: CustomEvent) {
+		if (!formData) return;
 		const brand = event.detail.brand;
 		formData = { ...formData, brand: brand.name };
 	}
 
 	function handleBrandClear() {
+		if (!formData) return;
 		formData = { ...formData, brand: '' };
 	}
 
 	function handleInputChange(field: keyof ProductInfo, value: string | boolean | string[]) {
+		if (!formData) return;
 		formData = { ...formData, [field]: value };
 	}
 
 	function handleKeywordsChange(event: CustomEvent<{ keywords: string[] }>) {
+		if (!formData) return;
 		formData = { ...formData, search_keywords: event.detail.keywords };
 	}
 
@@ -388,6 +392,8 @@
 
 				// Type validation
 				switch (key) {
+					case 'name':
+					case 'subtitle':
 					case 'description':
 					case 'short_description':
 					case 'specifications':
@@ -396,13 +402,11 @@
 					case 'seo_meta_description':
 					case 'seo_page_heading':
 						if (typeof value === 'string') {
-							validatedData[key] = value;
+							(validatedData as any)[key] = value;
 						} else {
 							errors.push(`Field '${key}' must be a string`);
 						}
 						break;
-					case 'name':
-					case 'subtitle':
 					case 'search_keywords':
 						if (typeof value === 'string') {
 							validatedData[key] = value
@@ -534,9 +538,9 @@
 			];
 
 			supportedFields.forEach((field) => {
-				const value = formData[field];
+				const value = formData?.[field];
 				if (value !== undefined && value !== null && value !== '') {
-					exportData[field] = value;
+					(exportData as any)[field] = value;
 				}
 			});
 
@@ -583,9 +587,9 @@
 			];
 
 			supportedFields.forEach((field) => {
-				const value = formData[field];
+				const value = formData?.[field];
 				if (value !== undefined && value !== null && value !== '') {
-					exportData[field] = value;
+					(exportData as any)[field] = value;
 				}
 			});
 
@@ -636,20 +640,20 @@
 
 <Modal {show} on:close={closeModal} size="xl" style="max-width: 90vw;">
 	<div slot="header">
-		<h2 class="text-lg font-semibold">Edit Product: {product?.name || 'Unknown Product'}</h2>
+		<h2 class="text-xl font-bold text-white tracking-tight">Edit Product: {product?.name || 'Unknown Product'}</h2>
 	</div>
 
-	<div slot="body" class="max-h-[80vh] space-y-6 overflow-y-auto p-6">
-		{#if product}
+	<div slot="body" class="max-h-[80vh] space-y-6 overflow-y-auto p-4 sm:p-6 text-gray-200">
+		{#if product && formData}
 			<!-- JSON Import Section -->
-			<div class="rounded-lg border border-blue-200 bg-blue-50">
+			<div class="rounded-xl border border-[#262a30] bg-[#181b20]/60 overflow-hidden shadow-sm">
 				<div
-					class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-blue-100"
+					class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-[#1f2329]/60"
 					on:click={() => (showJsonImport = !showJsonImport)}
 				>
-					<h3 class="text-lg font-medium text-blue-900">Import from JSON</h3>
+					<h3 class="text-base font-semibold text-lime-400">Import from JSON</h3>
 					<svg
-						class="h-5 w-5 transform text-blue-600 transition-transform duration-200 {showJsonImport
+						class="h-5 w-5 transform text-lime-400 transition-transform duration-200 {showJsonImport
 							? 'rotate-180'
 							: 'rotate-0'}"
 						fill="none"
@@ -665,12 +669,12 @@
 						<div class="space-y-4">
 							<!-- File Upload -->
 							<div
-								class="flex items-center justify-between rounded-md border border-blue-200 bg-white px-3 py-2"
+								class="flex items-center justify-between rounded-lg border border-[#262a30] bg-[#141619] px-3.5 py-2.5"
 							>
-								<div class="text-sm font-medium text-blue-900">Show upload controls</div>
+								<div class="text-sm font-medium text-gray-300">Show upload controls</div>
 								<button
 									type="button"
-									class="rounded-md border border-blue-300 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+									class="btn-secondary text-xs px-3 py-1.5"
 									on:click={() => (showJsonUpload = !showJsonUpload)}
 									disabled={isSaving}
 									aria-pressed={showJsonUpload}
@@ -681,30 +685,28 @@
 
 							{#if showJsonUpload}
 								<div>
-									<label class="mb-2 block text-sm font-medium text-blue-800"
-										>Upload JSON File</label
-									>
+									<label class="form-label">Upload JSON File</label>
 									<input
 										type="file"
 										accept=".json"
-										class="block w-full cursor-pointer rounded-md border border-blue-300 bg-blue-50 text-sm text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+										class="block w-full cursor-pointer rounded-lg border border-[#262a30] bg-[#0e1012] text-sm text-gray-300 focus:outline-none focus:border-lime-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-[#1f2329] file:text-gray-200 hover:file:bg-[#262a30]"
 										on:change={handleFileUpload}
 										disabled={isSaving}
 									/>
-									<p class="mt-1 text-xs text-blue-600">
+									<p class="mt-1 text-xs text-gray-500">
 										Select a JSON file containing product data
 									</p>
 								</div>
 							{/if}
 
 							<!-- Or paste JSON -->
-							<div class="text-center text-sm font-medium text-blue-700">OR</div>
+							<div class="text-center text-xs font-semibold uppercase tracking-wider text-gray-500">OR</div>
 
 							<!-- JSON Textarea -->
 							<div>
-								<label class="mb-2 block text-sm font-medium text-blue-800">Paste JSON Data</label>
+								<label class="form-label">Paste JSON Data</label>
 								<textarea
-									class="resize-vertical h-32 w-full rounded-md border border-blue-300 px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+									class="resize-vertical h-32 w-full rounded-lg border border-[#262a30] bg-[#0e1012] px-3 py-2 font-mono text-sm text-gray-200 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
 									placeholder={jsonPlaceholder}
 									bind:value={jsonText}
 									on:focus={(e) => e.currentTarget.select()}
@@ -713,11 +715,11 @@
 							</div>
 
 							<!-- Import Actions -->
-							<div class="flex items-center justify-between">
-								<div class="flex space-x-2">
+							<div class="flex flex-wrap items-center justify-between gap-3">
+								<div class="flex flex-wrap gap-2">
 									<button
 										type="button"
-										class="rounded-md border border-blue-300 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+										class="btn-secondary text-xs px-3 py-1.5"
 										on:click={clearJsonImport}
 										disabled={isSaving}
 									>
@@ -725,7 +727,7 @@
 									</button>
 									<button
 										type="button"
-										class="rounded-md bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+										class="btn-secondary text-xs px-3 py-1.5"
 										on:click={exportToJson}
 										disabled={isSaving}
 									>
@@ -733,7 +735,7 @@
 									</button>
 									<button
 										type="button"
-										class="rounded-md border border-green-600 px-3 py-1.5 text-sm text-green-700 hover:bg-green-50 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+										class="btn-secondary text-xs px-3 py-1.5"
 										on:click={downloadJson}
 										disabled={isSaving}
 									>
@@ -741,7 +743,7 @@
 									</button>
 									<button
 										type="button"
-										class="rounded-md bg-purple-600 px-3 py-1.5 text-sm text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+										class="btn-secondary text-xs px-3 py-1.5 text-lime-400 border-lime-500/30 hover:border-lime-400"
 										on:click={handleGptInfoClick}
 										disabled={isSaving}
 									>
@@ -751,7 +753,7 @@
 								<div class="flex space-x-2">
 									<button
 										type="button"
-										class="rounded-md bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+										class="btn-primary text-xs px-4 py-1.5"
 										on:click={applyJsonImport}
 										disabled={isSaving || !jsonText.trim()}
 									>
@@ -762,9 +764,9 @@
 
 							<!-- Import Errors -->
 							{#if importErrors.length > 0}
-								<div class="rounded-md border border-red-200 bg-red-50 p-3">
-									<h4 class="mb-2 text-sm font-medium text-red-800">Import Errors:</h4>
-									<ul class="space-y-1 text-sm text-red-700">
+								<div class="rounded-lg border border-red-500/30 bg-red-950/30 p-3">
+									<h4 class="mb-2 text-sm font-medium text-red-400">Import Errors:</h4>
+									<ul class="space-y-1 text-sm text-red-300">
 										{#each importErrors as error}
 											<li>• {error}</li>
 										{/each}
@@ -777,14 +779,14 @@
 			</div>
 
 			<!-- Manual Input Section -->
-			<div class="rounded-lg border border-green-200 bg-green-50">
+			<div class="rounded-xl border border-[#262a30] bg-[#181b20]/60 overflow-hidden shadow-sm">
 				<div
-					class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-green-100"
+					class="flex cursor-pointer items-center justify-between p-4 transition-colors hover:bg-[#1f2329]/60"
 					on:click={() => (showManualInput = !showManualInput)}
 				>
-					<h3 class="text-lg font-medium text-green-900">Manual Product Information</h3>
+					<h3 class="text-base font-semibold text-white">Manual Product Information</h3>
 					<svg
-						class="h-5 w-5 transform text-green-600 transition-transform duration-200 {showManualInput
+						class="h-5 w-5 transform text-lime-400 transition-transform duration-200 {showManualInput
 							? 'rotate-180'
 							: 'rotate-0'}"
 						fill="none"
@@ -796,21 +798,21 @@
 					</svg>
 				</div>
 				{#if showManualInput}
-					<div class="space-y-4 px-4 pb-4">
+					<div class="space-y-5 px-4 pb-5">
 						<!-- Image Preview -->
 						<div class="grid grid-cols-1 gap-6 md:grid-cols-4">
 							<div class="md:col-span-1">
-								<div class="mb-2 block text-sm font-medium text-gray-700">Product Image</div>
+								<div class="form-label">Product Image</div>
 								{#if product.image}
-									<div class="rounded-lg border bg-gray-50 p-4">
+									<div class="rounded-xl border border-[#262a30] bg-[#0e1012] p-2">
 										<img
 											src={product.image}
 											alt={product.name}
-											class="h-48 w-full rounded object-cover"
+											class="h-48 w-full rounded-lg object-contain bg-[#141619]"
 										/>
 									</div>
 								{:else}
-									<div class="rounded-lg border bg-gray-50 p-8 text-center text-gray-500">
+									<div class="h-48 rounded-xl border border-dashed border-[#262a30] bg-[#0e1012] flex items-center justify-center text-gray-500 text-sm">
 										No image available
 									</div>
 								{/if}
@@ -818,30 +820,27 @@
 
 							<div class="space-y-4 md:col-span-3">
 								<!-- SKU and Name -->
-								<div class="grid grid-cols-2 gap-4">
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									<div>
-										<label for="sku" class="mb-1 block text-sm font-medium text-gray-700">SKU</label
-										>
+										<label for="sku" class="form-label">SKU</label>
 										<a
 											href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku={encodeURIComponent(
 												formData.sku || ''
 											)}"
 											target="_blank"
 											rel="noopener noreferrer"
-											class="inline-block w-full cursor-pointer rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
+											class="inline-block w-full cursor-pointer rounded-lg border border-[#262a30] bg-[#0e1012] px-3 py-2 text-sm text-lime-400 font-mono transition-colors hover:border-lime-500/50 hover:text-lime-300"
 											title="Click to view product in Rapid Supplies admin"
 										>
 											{formData.sku || ''}
 										</a>
 									</div>
 									<div>
-										<label for="name" class="mb-1 block text-sm font-medium text-gray-700"
-											>Name</label
-										>
+										<label for="name" class="form-label">Name</label>
 										<input
 											id="name"
 											type="text"
-											class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+											class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 focus:outline-none placeholder-gray-600 transition-colors"
 											value={formData.name || ''}
 											on:input={(e) => handleInputChange('name', e.currentTarget.value)}
 											disabled={isSaving}
@@ -851,9 +850,7 @@
 
 								<!-- Brand -->
 								<div>
-									<label for="brand" class="mb-1 block text-sm font-medium text-gray-700"
-										>Brand</label
-									>
+									<label for="brand" class="form-label">Brand</label>
 									<BrandDropdown
 										id="brand-select"
 										placeholder="Select a brand..."
@@ -866,41 +863,38 @@
 
 								<!-- Category Management -->
 								<div>
-									<label class="mb-2 block text-sm font-medium text-gray-700"
-										>Product Categories</label
-									>
+									<label class="form-label">Product Categories</label>
 									<div class="space-y-3">
 										<!-- Current Categories -->
 										{#each effectiveCategories as categoryName}
 											{@const categoryObj = getCategoryByName(categoryName)}
 											{@const hierarchy = getCategoryHierarchy(categoryName)}
-											<div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+											<div class="rounded-xl border border-[#262a30] bg-[#141619] p-3 text-gray-200">
 												<div class="flex items-center justify-between">
 													<div class="flex-1">
 														{#if categoryObj}
 															<div class="flex items-center gap-2">
-																<div class="font-medium text-gray-900">{categoryObj.name}</div>
+																<div class="font-medium text-white">{categoryObj.name}</div>
 																{#if hierarchy.parent}
-																	<div class="text-sm text-gray-600">
+																	<div class="text-sm text-gray-400">
 																		<span class="text-gray-500">under</span>
-																		<span class="font-medium text-blue-700">{hierarchy.parent}</span
-																		>
+																		<span class="font-medium text-lime-400">{hierarchy.parent}</span>
 																	</div>
 																{/if}
 															</div>
 															{#if hierarchy.children && hierarchy.children.length > 0}
-																<div class="mt-2 text-sm text-gray-600">
-																	<span class="font-medium">Contains:</span>
+																<div class="mt-2 text-sm text-gray-400">
+																	<span class="font-medium text-gray-300">Contains:</span>
 																	<div class="mt-1 flex flex-wrap gap-1">
 																		{#each hierarchy.children.slice(0, 5) as child}
 																			<span
-																				class="inline-flex items-center rounded bg-green-100 px-2 py-1 text-xs text-green-700"
+																				class="inline-flex items-center rounded-md bg-lime-950/30 border border-lime-500/20 px-2 py-0.5 text-xs text-lime-400"
 																			>
 																				{child.name}
 																			</span>
 																		{/each}
 																		{#if hierarchy.children.length > 5}
-																			<span class="text-xs text-gray-500"
+																			<span class="text-xs text-gray-500 self-center"
 																				>+{hierarchy.children.length - 5} more</span
 																			>
 																		{/if}
@@ -908,15 +902,16 @@
 																</div>
 															{/if}
 														{:else}
-															<div class="font-medium text-gray-900">{categoryName}</div>
+															<div class="font-medium text-white">{categoryName}</div>
 														{/if}
 													</div>
 													<button
 														type="button"
-														class="ml-3 rounded p-1 text-red-600 transition-colors hover:bg-red-50 hover:text-red-800"
+														class="ml-3 rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-950/30 hover:text-red-300"
 														on:click={() => removeCategory(categoryName)}
 														disabled={isSaving}
 														title="Remove category"
+														aria-label="Remove category"
 													>
 														<svg
 															class="h-4 w-4"
@@ -937,7 +932,7 @@
 										{/each}
 
 										<!-- Add Category -->
-										<div class="rounded-lg border border-dashed border-gray-300 bg-white p-3">
+										<div class="rounded-xl border border-dashed border-[#333842] bg-[#141619] p-3">
 											<div class="flex items-center gap-3">
 												<div class="flex-1">
 													<CategoryDropdown
@@ -950,7 +945,7 @@
 												</div>
 												<button
 													type="button"
-													class="rounded-md bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+													class="btn-primary text-xs px-3 py-2"
 													on:click={addCategory}
 													disabled={isSaving || !selectedCategoryToAdd}
 												>
@@ -960,13 +955,12 @@
 										</div>
 									</div>
 									{#if effectiveCategories.length === 0}
-										<p class="mt-2 text-sm italic text-gray-500">
+										<p class="mt-2 text-xs italic text-gray-500">
 											No categories assigned to this product
 										</p>
 									{:else}
 										<p class="mt-2 text-xs text-gray-500">
-											Categories assigned to this product, showing their parent and child
-											relationships
+											Categories assigned to this product, showing their parent and child relationships
 										</p>
 									{/if}
 								</div>
@@ -975,7 +969,7 @@
 
 						<!-- Image Management -->
 						<div>
-							<label class="mb-2 block text-sm font-medium text-gray-700">Product Images</label>
+							<label class="form-label">Product Images</label>
 							<ImageUploadComponent
 								images={product?.images || []}
 								{imageOperations}
@@ -986,14 +980,12 @@
 
 						<!-- Subtitle -->
 						<div>
-							<label for="subtitle" class="mb-1 block text-sm font-medium text-gray-700"
-								>Subtitle</label
-							>
+							<label for="subtitle" class="form-label">Subtitle</label>
 							<input
 								id="subtitle"
 								type="text"
 								maxlength="56"
-								class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+								class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 focus:outline-none placeholder-gray-600 transition-colors"
 								value={formData.subtitle || ''}
 								on:input={(e) => handleInputChange('subtitle', e.currentTarget.value)}
 								disabled={isSaving}
@@ -1002,11 +994,9 @@
 
 						<!-- Search Keywords -->
 						<div>
-							<label for="search_keywords" class="mb-1 block text-sm font-medium text-gray-700"
-								>Search Keywords</label
-							>
+							<label for="search_keywords" class="form-label">Search Keywords</label>
 							<KeywordPills
-								keywords={formData.search_keywords || []}
+								keywords={Array.isArray(formData.search_keywords) ? formData.search_keywords : []}
 								on:change={handleKeywordsChange}
 								disabled={isSaving}
 								placeholder="Type a keyword and press Enter..."
@@ -1014,30 +1004,26 @@
 						</div>
 
 						<!-- SEO Fields -->
-						<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+						<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<div>
-								<label for="seo_title" class="mb-1 block text-sm font-medium text-gray-700"
-									>SEO Page Title</label
-								>
+								<label for="seo_title" class="form-label">SEO Page Title</label>
 								<input
 									id="seo_title"
 									type="text"
 									maxlength="100"
-									class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+									class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 focus:outline-none placeholder-gray-600 transition-colors"
 									value={formData.seo_page_title || ''}
 									on:input={(e) => handleInputChange('seo_page_title', e.currentTarget.value)}
 									disabled={isSaving}
 								/>
 							</div>
 							<div>
-								<label for="seo_heading" class="mb-1 block text-sm font-medium text-gray-700"
-									>SEO Page Heading</label
-								>
+								<label for="seo_heading" class="form-label">SEO Page Heading</label>
 								<input
 									id="seo_heading"
 									type="text"
 									maxlength="100"
-									class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+									class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 focus:outline-none placeholder-gray-600 transition-colors"
 									value={formData.seo_page_heading || ''}
 									on:input={(e) => handleInputChange('seo_page_heading', e.currentTarget.value)}
 									disabled={isSaving}
@@ -1047,14 +1033,12 @@
 
 						<!-- SEO Meta Description -->
 						<div>
-							<label for="seo_meta" class="mb-1 block text-sm font-medium text-gray-700"
-								>SEO Meta Description</label
-							>
+							<label for="seo_meta" class="form-label">SEO Meta Description</label>
 							<textarea
 								id="seo_meta"
 								rows="3"
 								maxlength="320"
-								class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+								class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 focus:outline-none placeholder-gray-600 transition-colors"
 								value={formData.seo_meta_description || ''}
 								on:input={(e) => handleInputChange('seo_meta_description', e.currentTarget.value)}
 								disabled={isSaving}
@@ -1063,9 +1047,7 @@
 
 						<!-- Description with TinyMCE -->
 						<div>
-							<label for="description" class="mb-2 block text-sm font-medium text-gray-700"
-								>Description</label
-							>
+							<label for="description" class="form-label">Description</label>
 							<TinyMCEEditor
 								id="description"
 								bind:value={formData.description}
@@ -1077,14 +1059,12 @@
 
 						<!-- Short Description -->
 						<div>
-							<label for="short_description" class="mb-1 block text-sm font-medium text-gray-700"
-								>Short Description</label
-							>
+							<label for="short_description" class="form-label">Short Description</label>
 							<textarea
 								id="short_description"
 								rows="3"
 								maxlength="255"
-								class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+								class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 focus:outline-none placeholder-gray-600 transition-colors"
 								value={formData.short_description || ''}
 								on:input={(e) => handleInputChange('short_description', e.currentTarget.value)}
 								disabled={isSaving}
@@ -1094,9 +1074,7 @@
 
 						<!-- Specifications with TinyMCE -->
 						<div>
-							<label for="specifications" class="mb-2 block text-sm font-medium text-gray-700"
-								>Specifications</label
-							>
+							<label for="specifications" class="form-label">Specifications</label>
 							<TinyMCEEditor
 								id="specifications"
 								bind:value={formData.specifications}
@@ -1108,9 +1086,7 @@
 
 						<!-- Features with TinyMCE -->
 						<div>
-							<label for="features" class="mb-2 block text-sm font-medium text-gray-700"
-								>Features</label
-							>
+							<label for="features" class="form-label">Features</label>
 							<TinyMCEEditor
 								id="features"
 								bind:value={formData.features}
@@ -1129,7 +1105,7 @@
 	<div slot="footer" class="flex justify-end space-x-3">
 		<button
 			type="button"
-			class="rounded-md border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50"
+			class="btn-secondary"
 			on:click={closeModal}
 			disabled={isSaving}
 		>
@@ -1137,13 +1113,13 @@
 		</button>
 		<button
 			type="button"
-			class="rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+			class="btn-primary"
 			on:click={handleSave}
 			disabled={isSaving}
 		>
 			{#if isSaving}
 				<div class="flex items-center">
-					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+					<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-gray-950"></div>
 					Saving...
 				</div>
 			{:else}

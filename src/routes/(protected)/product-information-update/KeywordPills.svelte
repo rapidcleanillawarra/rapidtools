@@ -59,17 +59,18 @@
   }
 </script>
 
-<div class="border {isOverLimit ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 focus-within:ring-2 {isOverLimit ? 'focus-within:ring-red-500 focus-within:border-red-300' : 'focus-within:ring-blue-500 focus-within:border-transparent'}">
+<div class="border {isOverLimit ? 'border-red-500/50 bg-red-950/20' : 'border-[#262a30] bg-[#0e1012]'} rounded-lg px-3 py-2 focus-within:ring-1 {isOverLimit ? 'focus-within:ring-red-500 focus-within:border-red-500' : 'focus-within:ring-lime-500 focus-within:border-lime-500'} transition-colors">
   <div class="flex flex-wrap gap-2 min-h-[2.5rem] items-center">
     {#each keywords as keyword, index}
-      <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-lime-950/30 text-lime-400 border border-lime-500/30">
         {keyword}
         {#if !disabled}
           <button
             type="button"
-            class="ml-2 text-blue-600 hover:text-blue-800 focus:outline-none"
+            class="ml-1.5 text-lime-400 hover:text-red-400 focus:outline-none transition-colors"
             on:click={() => removeKeyword(index)}
             disabled={disabled}
+            aria-label="Remove keyword"
           >
             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -85,7 +86,7 @@
         bind:value={inputValue}
         type="text"
         {placeholder}
-        class="flex-1 min-w-32 outline-none bg-transparent text-sm {isOverLimit ? 'text-red-600' : ''}"
+        class="flex-1 min-w-32 outline-none bg-transparent text-sm text-gray-200 placeholder-gray-500 {isOverLimit ? 'text-red-400' : ''}"
         on:keydown={handleInputKeydown}
         on:blur={handleInputBlur}
         disabled={disabled || isOverLimit}
@@ -94,17 +95,11 @@
   </div>
 </div>
 
-<div class="mt-1 flex justify-between items-center">
+<div class="mt-1.5 flex justify-between items-center">
   <p class="text-xs text-gray-500">
-    Press Enter, comma, or semicolon to add keywords. Press Backspace on empty input to remove the last keyword.
+    Press Enter, comma, or semicolon to add keywords. Press Backspace to remove.
   </p>
-  <p class="text-xs {isOverLimit ? 'text-red-600 font-medium' : isNearLimit ? 'text-orange-600' : 'text-gray-500'}">
+  <p class="text-xs {isOverLimit ? 'text-red-400 font-medium' : isNearLimit ? 'text-amber-400' : 'text-gray-500'}">
     {totalLength}/{maxLength}
   </p>
 </div>
-
-<style>
-  .focus-within\:ring-blue-500:focus-within {
-    --tw-ring-color: rgb(59 130 246);
-  }
-</style>

@@ -21,7 +21,7 @@
 </script>
 
 <div class="relative">
-  <label for={id} class="block text-sm font-medium text-gray-700 mb-2">
+  <label for={id} class="form-label">
     Filter by SKU (multiple SKUs supported)
   </label>
   <div class="flex gap-2">
@@ -32,7 +32,7 @@
         {disabled}
         bind:value
         on:input={handleInput}
-        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical min-h-[100px] font-mono text-sm"
+        class="w-full px-3 py-2 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg shadow-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 disabled:bg-[#141619] disabled:text-gray-500 disabled:border-[#262a30] disabled:cursor-not-allowed resize-vertical min-h-[100px] font-mono text-sm transition-colors"
         rows="4"
       ></textarea>
     </div>
@@ -40,7 +40,7 @@
       <button
         type="button"
         on:click={clearSelection}
-        class="px-3 py-2 text-gray-400 hover:text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+        class="px-3 py-2 text-gray-400 hover:text-lime-400 border border-[#333842] bg-[#1f2329] rounded-lg hover:bg-[#262a30] hover:border-lime-500/40 transition-colors self-start"
         title="Clear SKUs"
       >
         ✕

@@ -34,6 +34,7 @@ const defaultVisibleColumns: Record<keyof ProductInfo, boolean> = {
   image: true,
   images: false, // Hidden by default, not needed in table view
   sku: true,
+  inventory_id: false,
   name: true,
   subtitle: false,
   brand: true,

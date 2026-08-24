@@ -8,32 +8,32 @@
   export let onItemsPerPageChange: (items: number) => void;
 </script>
 
-<div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+<div class="bg-[#181b20] px-4 py-3 flex items-center justify-between border-t border-[#262a30] sm:px-6">
   <div class="flex items-center gap-2">
-    <span class="text-xs text-gray-700">Show</span>
+    <span class="text-xs text-gray-400">Show</span>
     <select
       value={itemsPerPage}
       on:change={(e) => onItemsPerPageChange(Number(e.currentTarget.value))}
-      class="border rounded px-1 py-0.5 text-xs"
+      class="bg-[#0e1012] text-gray-200 border border-[#262a30] rounded px-2 py-1 text-xs focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
     >
       {#each ITEMS_PER_PAGE_OPTIONS as option}
         <option value={option}>{option}</option>
       {/each}
     </select>
-    <span class="text-xs text-gray-700">entries</span>
+    <span class="text-xs text-gray-400">entries</span>
   </div>
 
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-3">
     <button
-      class="relative inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      class="btn-secondary text-xs px-3 py-1"
       on:click={() => onPageChange(Math.max(1, currentPage - 1))}
       disabled={currentPage === 1}
     >
       Previous
     </button>
-    <span class="text-xs text-gray-700">Page {currentPage}</span>
+    <span class="text-xs text-gray-400 font-medium">Page {currentPage}</span>
     <button
-      class="relative inline-flex items-center px-2 py-1 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      class="btn-secondary text-xs px-3 py-1"
       on:click={() => onPageChange(currentPage + 1)}
       disabled={!hasNextPage}
     >

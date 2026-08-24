@@ -144,7 +144,7 @@
 {#if show}
   <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
   <div
-    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
     data-backdrop="true"
     on:click={handleBackdropClick}
     on:keydown={(e) => e.key === 'Escape' && handleCancel()}
@@ -155,26 +155,26 @@
   >
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
-      class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
+      class="bg-[#141619] border border-[#262a30] rounded-2xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col"
       on:click|stopPropagation
       on:keydown|stopPropagation
     >
-      <div class="px-6 py-4 border-b border-gray-200">
-        <h2 id="pickup-return-modal-title" class="text-lg font-semibold text-gray-900">
+      <div class="px-6 py-4 border-b border-[#262a30]">
+        <h2 id="pickup-return-modal-title" class="text-lg font-bold text-white">
           {modalTitle}
         </h2>
-        <p class="mt-1 text-sm text-gray-500">
+        <p class="mt-1 text-sm text-gray-400">
           Assign a person and set the schedule. This will be saved and a Teams notification will be sent.
         </p>
       </div>
 
       <div class="px-6 py-4 space-y-4 overflow-y-auto">
         <div class="relative" bind:this={dropdownNode}>
-          <label for="transport-assigned-input" class="block text-sm font-medium text-gray-700 mb-1">
+          <label for="transport-assigned-input" class="block text-sm font-medium text-gray-300 mb-1">
             Assigned to
           </label>
           <div
-            class="flex rounded-lg border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500"
+            class="flex rounded-lg border border-[#262a30] bg-[#0e1012] focus-within:ring-1 focus-within:ring-lime-500 focus-within:border-lime-500 transition-colors"
           >
             <input
               id="transport-assigned-input"
@@ -185,7 +185,7 @@
               }}
               on:focus={openDropdown}
               on:click|stopPropagation={openDropdown}
-              class="flex-1 min-w-0 rounded-lg border-0 px-4 py-3 focus:ring-0 focus:outline-none"
+              class="flex-1 min-w-0 rounded-lg border-0 bg-transparent px-4 py-3 text-gray-200 placeholder-gray-600 focus:ring-0 focus:outline-none text-sm"
               placeholder="Search by name or email..."
               role="combobox"
               aria-expanded={dropdownOpen}
@@ -195,7 +195,7 @@
             {#if assignedTo}
               <button
                 type="button"
-                class="px-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                class="px-3 text-gray-500 hover:text-gray-300 focus:outline-none transition-colors"
                 on:click|stopPropagation={clearAssignment}
                 title="Clear selection"
                 aria-label="Clear selection"
@@ -207,13 +207,13 @@
           {#if dropdownOpen}
             <ul
               id="transport-user-list"
-              class="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg py-1"
+              class="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-[#262a30] bg-[#0e1012] shadow-xl py-1"
               role="listbox"
             >
               {#if usersLoading}
-                <li class="px-4 py-3 text-sm text-gray-500">Loading users...</li>
+                <li class="px-4 py-3 text-sm text-gray-400">Loading users...</li>
               {:else if filteredUsers.length === 0}
-                <li class="px-4 py-3 text-sm text-gray-500">
+                <li class="px-4 py-3 text-sm text-gray-400">
                   {searchQuery ? 'No users match your search.' : 'No users found.'}
                 </li>
               {:else}
@@ -221,7 +221,7 @@
                   <li>
                     <button
                       type="button"
-                      class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email === assignedTo ? 'bg-blue-50 text-blue-800' : ''}"
+                      class="w-full text-left px-4 py-2 text-sm transition-colors focus:outline-none {user.email === assignedTo ? 'bg-lime-500/10 text-lime-400' : 'text-gray-200 hover:bg-[#1f2329]'}"
                       role="option"
                       aria-selected={user.email === assignedTo}
                       on:click|stopPropagation={() => selectUser(user)}
@@ -237,7 +237,7 @@
         </div>
 
         <div>
-          <label for="transport-schedule" class="block text-sm font-medium text-gray-700 mb-1">
+          <label for="transport-schedule" class="block text-sm font-medium text-gray-300 mb-1">
             {scheduleLabel}
           </label>
           <input
@@ -245,30 +245,30 @@
             type="datetime-local"
             value={scheduleLocal}
             on:input={handleScheduleInput}
-            class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-lime-500 focus:border-lime-500 transition-colors"
             placeholder="Select date and time"
           />
-          <p class="mt-1 text-xs text-gray-400">Times are Australia/Sydney</p>
+          <p class="mt-1 text-xs text-gray-500">Times are Australia/Sydney</p>
         </div>
       </div>
 
-      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-lg">
+      <div class="px-6 py-4 bg-[#181b20] border-t border-[#262a30] flex justify-end gap-3 rounded-b-2xl">
         <button
           type="button"
-          class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          class="btn-secondary text-sm"
           on:click={handleCancel}
         >
           Cancel
         </button>
         <button
           type="button"
-          class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed min-w-[100px]"
+          class="btn-primary text-sm min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={submitting}
           on:click={handleConfirm}
         >
           {#if submitting}
             <span class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>

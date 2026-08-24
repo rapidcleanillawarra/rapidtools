@@ -606,169 +606,167 @@
   <title>Workshop Board - RapidTools</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50">
-  <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-4">
-    <!-- Compact toolbar: title, search, actions -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 mb-3">
-      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
-        <div class="shrink-0">
-          <h1 class="text-xl font-bold text-gray-900 leading-tight">Workshop Board</h1>
-        </div>
-
-        <div class="flex-1 min-w-0 lg:max-w-md xl:max-w-lg">
-          <label for="search-filter" class="sr-only">Search Workshops</label>
-          <input
-            id="search-filter"
-            type="text"
-            bind:value={searchFilter}
-            placeholder="Search customer, company, machine, serial, order ID, work order..."
-            class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-          />
-        </div>
-
-        <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
-          <button
-            type="button"
-            onclick={() => (showColumnTogglesModal = !showColumnTogglesModal)}
-            class="inline-flex items-center px-3 py-1.5 bg-white text-gray-700 text-sm font-medium rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 6h16M4 12h10M4 18h14"
-              />
-            </svg>
-            Columns ({visibleStatusCount}/{BOARD_STATUS_KEYS.length})
-          </button>
-          <a
-            href="{base}/workshop/form?workshop_id="
-            class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-            </svg>
-            Create Workshop
-          </a>
-          <a
-            href="{base}/workshop/completed"
-            class="inline-flex items-center px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              ></path>
-            </svg>
-            Completed Jobs
-          </a>
-          <a
-            href="{base}/workshop/scrapped"
-            class="inline-flex items-center px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-            To Be Scrapped
-          </a>
-        </div>
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+  <!-- Compact toolbar: title, search, actions -->
+  <div class="bg-[#141619] rounded-xl border border-[#262a30] shadow-xl px-4 py-3 mb-3">
+    <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+      <div class="shrink-0">
+        <h1 class="text-xl font-bold text-white leading-tight">Workshop Board</h1>
       </div>
-    </div>
 
-    {#if error}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-        <div class="flex">
-          <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fill-rule="evenodd"
-              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-              clip-rule="evenodd"
-            />
-          </svg>
-          <span class="text-red-800">{error}</span>
-        </div>
+      <div class="flex-1 min-w-0 lg:max-w-md xl:max-w-lg">
+        <label for="search-filter" class="sr-only">Search Workshops</label>
+        <input
+          id="search-filter"
+          type="text"
+          bind:value={searchFilter}
+          placeholder="Search customer, company, machine, serial, order ID, work order..."
+          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-1.5 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors focus:outline-none"
+        />
       </div>
-    {/if}
 
-    <!-- Board View -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      {#if loading}
-        <div class="flex items-center justify-center py-12">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
-          <span class="ml-2 text-gray-600">Loading workshops...</span>
-        </div>
-      {:else if filteredWorkshops.length === 0}
-        <div class="text-center py-12">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div class="flex flex-wrap items-center gap-2 lg:ml-auto">
+        <button
+          type="button"
+          onclick={() => (showColumnTogglesModal = !showColumnTogglesModal)}
+          class="btn-secondary inline-flex items-center px-3 py-1.5 text-sm"
+        >
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              d="M4 6h16M4 12h10M4 18h14"
             />
           </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">No workshops found</h3>
-          <p class="mt-1 text-sm text-gray-500">
-            {workshops.length === 0
-              ? 'No workshop jobs have been created yet.'
-              : activeWorkshops.length === 0
-                ? 'No active workshop jobs right now.'
-                : 'Try adjusting your filters.'}
-          </p>
-        </div>
-      {:else}
-        <div class="relative">
-          <!-- Scroll indicator (fade effect) -->
-          <div class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
-          <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
-
-          <!-- Scrollable container with better vertical space -->
-          <div
-            class="flex gap-6 overflow-x-auto pb-6 px-4 scroll-smooth scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 scroll-snap-x-mandatory"
-            style="scroll-behavior: smooth; scrollbar-width: thin; scroll-padding-left: 1rem; scroll-padding-right: 1rem; min-height: 600px;"
-          >
-            <div class="flex gap-6 min-w-max py-2">
-              {#each BOARD_STATUSES as status (status.key)}
-                {#if visibleStatuses[status.key]}
-                  <StatusColumn
-                    status={status.key}
-                    title={status.title}
-                    workshops={workshopsByStatus[status.key]}
-                    {draggedWorkshopId}
-                    {recentlyMovedWorkshopId}
-                    {showImages}
-                    on:click={handleCardClick}
-                    on:photoClick={handleCardPhotoClick}
-                    on:deleteClick={handleCardDeleteClick}
-                    on:dragstart={handleWorkshopDragStart}
-                    on:drop={handleWorkshopDrop}
-                    on:completed={handleWorkshopCompleted}
-                    on:assignTech={handleAssignTechClick}
-                  />
-                {/if}
-              {/each}
-            </div>
-          </div>
-        </div>
-
-        <!-- Summary for Board View -->
-        <div class="mt-6 bg-gray-50 px-4 py-4 rounded-lg border border-gray-200">
-          <div class="text-sm text-gray-700">
-            Showing {filteredWorkshops.length} of {activeWorkshops.length} active workshop{activeWorkshops.length !== 1
-              ? 's'
-              : ''} across {visibleStatusCount} visible status{visibleStatusCount !== 1 ? 'es' : ''}
-          </div>
-        </div>
-      {/if}
+          Columns ({visibleStatusCount}/{BOARD_STATUS_KEYS.length})
+        </button>
+        <a
+          href="{base}/workshop/form?workshop_id="
+          class="btn-primary inline-flex items-center px-3 py-1.5 text-sm"
+        >
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          Create Workshop
+        </a>
+        <a
+          href="{base}/workshop/completed"
+          class="btn-secondary inline-flex items-center px-3 py-1.5 text-sm hover:text-lime-300"
+        >
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
+          </svg>
+          Completed Jobs
+        </a>
+        <a
+          href="{base}/workshop/scrapped"
+          class="inline-flex items-center px-3 py-1.5 text-sm font-semibold rounded-lg border border-red-500/30 bg-red-950/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
+        >
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+          To Be Scrapped
+        </a>
+      </div>
     </div>
+  </div>
+
+  {#if error}
+    <div class="bg-red-950/20 border border-red-500/30 rounded-lg p-3 mb-3">
+      <div class="flex">
+        <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fill-rule="evenodd"
+            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+            clip-rule="evenodd"
+          />
+        </svg>
+        <span class="text-red-400">{error}</span>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Board View -->
+  <div class="bg-[#141619] rounded-xl border border-[#262a30] shadow-xl p-6">
+    {#if loading}
+      <div class="flex items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-500"></div>
+        <span class="ml-2 text-gray-400">Loading workshops...</span>
+      </div>
+    {:else if filteredWorkshops.length === 0}
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-white">No workshops found</h3>
+        <p class="mt-1 text-sm text-gray-400">
+          {workshops.length === 0
+            ? 'No workshop jobs have been created yet.'
+            : activeWorkshops.length === 0
+              ? 'No active workshop jobs right now.'
+              : 'Try adjusting your filters.'}
+        </p>
+      </div>
+    {:else}
+      <div class="relative">
+        <!-- Scroll indicator (fade effect) -->
+        <div class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#141619] to-transparent z-10 pointer-events-none"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#141619] to-transparent z-10 pointer-events-none"></div>
+
+        <!-- Scrollable container with better vertical space -->
+        <div
+          class="flex gap-6 overflow-x-auto pb-6 px-4 scroll-smooth scrollbar-thin scroll-snap-x-mandatory"
+          style="scroll-behavior: smooth; scrollbar-width: thin; scroll-padding-left: 1rem; scroll-padding-right: 1rem; min-height: 600px;"
+        >
+          <div class="flex gap-6 min-w-max py-2">
+            {#each BOARD_STATUSES as status (status.key)}
+              {#if visibleStatuses[status.key]}
+                <StatusColumn
+                  status={status.key}
+                  title={status.title}
+                  workshops={workshopsByStatus[status.key]}
+                  {draggedWorkshopId}
+                  {recentlyMovedWorkshopId}
+                  {showImages}
+                  on:click={handleCardClick}
+                  on:photoClick={handleCardPhotoClick}
+                  on:deleteClick={handleCardDeleteClick}
+                  on:dragstart={handleWorkshopDragStart}
+                  on:drop={handleWorkshopDrop}
+                  on:completed={handleWorkshopCompleted}
+                  on:assignTech={handleAssignTechClick}
+                />
+              {/if}
+            {/each}
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary for Board View -->
+      <div class="mt-6 bg-[#181b20] px-4 py-4 rounded-lg border border-[#262a30]">
+        <div class="text-sm text-gray-400">
+          Showing {filteredWorkshops.length} of {activeWorkshops.length} active workshop{activeWorkshops.length !== 1
+            ? 's'
+            : ''} across {visibleStatusCount} visible status{visibleStatusCount !== 1 ? 'es' : ''}
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -828,15 +826,15 @@
       type="button"
       onclick={showAllStatusColumns}
       class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {showAllStatuses
-        ? 'bg-blue-100 text-blue-800 border border-blue-200'
-        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+        ? 'bg-lime-500/20 text-lime-400 border border-lime-500/30'
+        : 'bg-[#1f2329] text-gray-400 border border-[#333842] hover:bg-[#262a30]'}"
     >
       Show All
     </button>
     <button
       type="button"
       onclick={hideAllStatusColumns}
-      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
+      class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors bg-[#1f2329] text-gray-400 border border-[#333842] hover:bg-[#262a30]"
     >
       Hide All
     </button>
@@ -846,8 +844,8 @@
         type="button"
         onclick={() => toggleStatusVisibility(status.key)}
         class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full transition-colors {visibleStatuses[status.key]
-          ? 'bg-blue-100 text-blue-800 border border-blue-200'
-          : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'}"
+          ? 'bg-lime-500/20 text-lime-400 border border-lime-500/30'
+          : 'bg-[#1f2329] text-gray-400 border border-[#333842] hover:bg-[#262a30]'}"
       >
         {status.title} ({workshopsByStatus[status.key].length})
       </button>
@@ -863,28 +861,28 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
-    background: #f1f5f9;
+    background: #141619;
     border-radius: 4px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #262a30;
     border-radius: 4px;
     transition: background-color 0.2s ease;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #333842;
   }
 
   .scrollbar-thin::-webkit-scrollbar-corner {
-    background: #f1f5f9;
+    background: #141619;
   }
 
   /* Custom scrollbar styles for Firefox */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    scrollbar-color: #262a30 #141619;
   }
 
   /* Scroll container snap behavior */

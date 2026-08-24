@@ -10,32 +10,40 @@
 	}>();
 </script>
 
-<div class="flex justify-between items-center mb-6">
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
 	<div class="flex items-center space-x-4">
-		<label for="payment-date" class="text-sm font-medium text-gray-700">Payment Date:</label>
+		<label for="payment-date" class="form-label mb-0">Payment Date:</label>
 		<input
 			type="date"
 			id="payment-date"
-			class="border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+			class="bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-1.5 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
 			required
 			bind:value={paymentDate}
 		/>
 	</div>
-	<div class="flex space-x-4">
+	<div class="flex items-center space-x-3">
 		<button
 			type="button"
-			class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+			class="btn-secondary text-sm"
 			on:click={() => dispatch('transactionHistory')}
 		>
 			Transaction History
 		</button>
 		<button
 			type="button"
-			class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+			class="btn-primary text-sm flex items-center gap-2"
 			on:click={() => dispatch('submit')}
 			disabled={isLoading}
 		>
-			{isLoading ? 'Submitting...' : 'Submit All Payments'}
+			{#if isLoading}
+				<svg class="animate-spin -ml-1 mr-1 h-4 w-4 text-gray-950" fill="none" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+				</svg>
+				Submitting...
+			{:else}
+				Submit All Payments
+			{/if}
 		</button>
 	</div>
 </div>

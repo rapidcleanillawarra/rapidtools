@@ -31,25 +31,25 @@
 	function getStatusColor(status: string) {
 		switch (status) {
 			case 'new':
-				return 'bg-yellow-100 text-yellow-800';
+				return 'bg-yellow-400/10 text-yellow-400';
 			case 'to_be_quoted':
-				return 'bg-orange-100 text-orange-800';
+				return 'bg-orange-400/10 text-orange-400';
 			case 'docket_ready':
-				return 'bg-blue-100 text-blue-800';
+				return 'bg-blue-400/10 text-blue-400';
 			case 'quoted':
-				return 'bg-green-100 text-green-800';
+				return 'bg-green-400/10 text-green-400';
 			case 'repaired':
-				return 'bg-teal-100 text-teal-800';
+				return 'bg-teal-400/10 text-teal-400';
 			case 'waiting_approval_po':
-				return 'bg-purple-100 text-purple-800';
+				return 'bg-purple-400/10 text-purple-400';
 			case 'waiting_for_parts':
-				return 'bg-gray-100 text-gray-800';
+				return 'bg-amber-400/10 text-amber-400';
 			case 'booked_in_for_repair_service':
-				return 'bg-indigo-100 text-indigo-800';
+				return 'bg-indigo-400/10 text-indigo-400';
 			case 'pending_jobs':
-				return 'bg-red-100 text-red-800';
+				return 'bg-red-400/10 text-red-400';
 			default:
-				return 'bg-gray-100 text-gray-800';
+				return 'bg-gray-500/10 text-gray-400';
 		}
 	}
 
@@ -110,11 +110,11 @@
 	function getLocationPillClass(location: string | null | undefined): string {
 		switch (location) {
 			case 'Site':
-				return 'bg-amber-100 text-amber-800';
+				return 'bg-amber-400/10 text-amber-400';
 			case 'Workshop':
-				return 'bg-sky-100 text-sky-800';
+				return 'bg-sky-400/10 text-sky-400';
 			default:
-				return 'bg-gray-100 text-gray-600';
+				return 'bg-gray-500/10 text-gray-400';
 		}
 	}
 </script>
@@ -122,7 +122,7 @@
 {#if viewMode === 'table'}
 	<!-- Table Row View -->
 	<tr
-		class="cursor-pointer transition-colors hover:bg-gray-50"
+		class="cursor-pointer transition-colors hover:bg-[#1f2329]/60 even:bg-[#181b20]/50"
 		on:click={handleClick}
 		role="button"
 		tabindex="0"
@@ -142,7 +142,7 @@
 				{workshop.status.replace('_', ' ').toUpperCase()}
 			</span>
 		</td>
-		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-900">
+		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-200">
 			{#if workshop.photo_urls && workshop.photo_urls.length > 0}
 				{#if showImages}
 					<div class="flex items-center space-x-1">
@@ -151,7 +151,7 @@
 								<!-- Photo thumbnail -->
 								<button
 									type="button"
-									class="h-28 w-28 cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
+									class="h-28 w-28 cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-lime-500/50"
 									on:click={(e) => handlePhotoClick(index, e)}
 									aria-label="View photo {index + 1} of {workshop.photo_urls?.length || 0}"
 								>
@@ -163,7 +163,7 @@
 						<!-- Show count if more than 3 photos -->
 						{#if workshop.photo_urls.length > 3}
 							<div
-								class="flex h-28 w-28 items-center justify-center rounded bg-gray-100 text-lg font-medium text-gray-600"
+								class="flex h-28 w-28 items-center justify-center rounded bg-[#1f2329] text-lg font-medium text-gray-400 border border-[#262a30]"
 							>
 								+{workshop.photo_urls.length - 3}
 							</div>
@@ -172,7 +172,7 @@
 				{:else}
 					<button
 						type="button"
-						class="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+						class="inline-flex items-center gap-1 rounded border border-[#262a30] bg-[#1f2329] px-2.5 py-1 text-xs font-medium text-gray-400 hover:text-gray-200 hover:bg-[#262a30]"
 						on:click={(e) => handlePhotoClick(0, e)}
 						aria-label="View {workshop.photo_urls.length} photos"
 					>
@@ -180,11 +180,11 @@
 					</button>
 				{/if}
 			{:else}
-				<div class="text-xs text-gray-400">No photos</div>
+				<div class="text-xs text-gray-600">No photos</div>
 			{/if}
 		</td>
-		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-900">
-			<div class="text-sm font-medium text-gray-900">
+		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-200">
+			<div class="text-sm font-medium text-gray-200">
 				{new Date(workshop.created_at).toLocaleDateString('en-AU', {
 					day: '2-digit',
 					month: '2-digit',
@@ -198,16 +198,16 @@
 				})}
 			</div>
 		</td>
-		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-900">
-			<div class="text-sm font-medium text-gray-900">
+		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-200">
+			<div class="text-sm font-medium text-gray-200">
 				{workshop.created_by || 'Unknown'}
 			</div>
 		</td>
-		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-900">
+		<td class="whitespace-nowrap px-4 py-4 text-sm text-gray-200">
 			{workshop.clients_work_order || 'N/A'}
 		</td>
 		<td class="whitespace-normal px-4 py-4">
-			<div class="text-sm font-medium text-gray-900">
+			<div class="text-sm font-medium text-gray-200">
 				{workshop.product_name}
 			</div>
 			<div class="text-sm text-gray-500">
@@ -218,7 +218,7 @@
 			{/if}
 		</td>
 		<td class="whitespace-normal px-4 py-4">
-			<div class="text-sm font-medium text-gray-900">
+			<div class="text-sm font-medium text-gray-200">
 				{workshop.customer_name}
 			</div>
 			{#if workshop.customer_data}
@@ -227,11 +227,11 @@
 				</div>
 			{/if}
 		</td>
-		<td class="relative whitespace-nowrap px-4 py-4 text-sm text-gray-900">
+		<td class="relative whitespace-nowrap px-4 py-4 text-sm text-gray-200">
 			<!-- X delete button positioned in upper right corner -->
 			<button
 				type="button"
-				class="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white transition-colors duration-200 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+				class="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-red-950/60 border border-red-500/40 text-red-400 transition-colors duration-200 hover:bg-red-900/80 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-[#141619]"
 				on:click={handleDeleteClick}
 				title="Delete workshop"
 				aria-label="Delete workshop"
@@ -250,15 +250,15 @@
 {:else}
 	<!-- Board Card View -->
 	<div
-		class="relative cursor-pointer rounded-lg border border-gray-200 bg-white p-3 shadow-sm transition-all duration-200 hover:shadow-md"
-		class:bg-purple-50={workshop.status === 'quoted'}
-		class:bg-green-50={workshop.status === 'repaired'}
+		class="relative cursor-pointer rounded-lg border border-[#262a30] bg-[#141619] p-3 shadow-sm transition-all duration-200 hover:border-[#333842] hover:shadow-lg hover:shadow-black/20"
+		class:bg-[#1a1f1a]={workshop.status === 'quoted'}
+		class:bg-[#141a1a]={workshop.status === 'repaired'}
 		class:cursor-move={draggable}
 		class:opacity-50={draggedWorkshopId === workshop.id}
 		class:scale-95={draggedWorkshopId === workshop.id}
 		class:rotate-2={draggedWorkshopId === workshop.id}
 		class:border-2={recentlyMovedWorkshopId === workshop.id}
-		class:border-green-400={recentlyMovedWorkshopId === workshop.id}
+		class:border-lime-500={recentlyMovedWorkshopId === workshop.id}
 		class:shadow-lg={recentlyMovedWorkshopId === workshop.id}
 		on:click={handleClick}
 		on:dragstart={handleDragStart}
@@ -282,7 +282,7 @@
 							<!-- Photo thumbnail -->
 							<button
 								type="button"
-								class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
+								class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-lime-500/50"
 								on:click={(e) => handlePhotoClick(0, e)}
 								aria-label="View photo for {workshop.product_name} workshop"
 							>
@@ -299,7 +299,7 @@
 							<!-- Photo thumbnail -->
 							<button
 								type="button"
-								class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-blue-300"
+								class="h-40 w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 transition-all hover:ring-2 hover:ring-lime-500/50"
 								on:click={(e) => handlePhotoClick(0, e)}
 								aria-label="View first photo of {workshop.photo_urls.length} total photos"
 							>
@@ -313,7 +313,7 @@
 							<!-- Photo count indicator for multiple photos -->
 							{#if workshop.photo_urls.length > 1}
 								<div
-									class="absolute right-1 top-1 rounded-full bg-black bg-opacity-70 px-1.5 py-0.5 text-xs text-white"
+									class="absolute right-1 top-1 rounded-full bg-black/70 px-1.5 py-0.5 text-xs text-white"
 								>
 									{workshop.photo_urls.length}
 								</div>
@@ -325,7 +325,7 @@
 				<div class="mb-3">
 					<button
 						type="button"
-						class="flex w-full items-center justify-center gap-1 rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-100"
+						class="flex w-full items-center justify-center gap-1 rounded border border-[#262a30] bg-[#1f2329] px-3 py-2 text-xs font-medium text-gray-400 hover:bg-[#262a30] hover:text-gray-200 transition-colors"
 						on:click={(e) => handlePhotoClick(0, e)}
 						aria-label="View {workshop.photo_urls.length} photos"
 					>
@@ -337,7 +337,7 @@
 			<!-- No photos placeholder -->
 			<div class="mb-3">
 				<div
-					class="flex h-32 w-full items-center justify-center rounded border border-gray-200 bg-gray-100 text-xs text-gray-400"
+					class="flex h-32 w-full items-center justify-center rounded border border-[#262a30] bg-[#0e1012] text-xs text-gray-600"
 				>
 					<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path
@@ -353,20 +353,20 @@
 
 		<div class="mb-2 flex items-start justify-between">
 			<div class="min-w-0 flex-1">
-				<h4 class="truncate text-xs font-medium text-gray-900">
+				<h4 class="truncate text-xs font-medium text-gray-200">
 					{#if workshop.order_id && workshop.order_id.trim()}
 						{workshop.order_id}
 					{:else}
 						{workshop.product_name}
 					{/if}
 				</h4>
-				<p class="truncate text-xs text-gray-500">{workshop.customer_name}</p>
+				<p class="truncate text-xs text-gray-400">{workshop.customer_name}</p>
 				{#if workshop.customer_data?.BillingAddress?.BillCompany}
-					<p class="truncate text-xs text-gray-400">
+					<p class="truncate text-xs text-gray-500">
 						Company: {workshop.customer_data.BillingAddress.BillCompany}
 					</p>
 				{/if}
-				<p class="truncate text-xs text-gray-400">
+				<p class="truncate text-xs text-gray-500">
 					{#if workshop.make_model && workshop.product_name}
 						Machine: {workshop.make_model} - {workshop.product_name}
 					{:else if workshop.make_model}
@@ -378,7 +378,7 @@
 					{/if}
 				</p>
 				{#if workshop.serial_number}
-					<p class="truncate text-xs text-gray-400">S/N: {workshop.serial_number}</p>
+					<p class="truncate text-xs text-gray-500">S/N: {workshop.serial_number}</p>
 				{/if}
 			</div>
 		</div>
@@ -398,12 +398,12 @@
 				</div>
 			{/if}
 			{#if viewMode === 'board' && workshop.assigned_tech_name}
-				<div class="mt-1 truncate text-blue-600">Tech: {workshop.assigned_tech_name}</div>
+				<div class="mt-1 truncate text-lime-400">Tech: {workshop.assigned_tech_name}</div>
 				{#if workshop.tech_job_type}
-					<div class="mt-0.5 truncate text-blue-500">Type: {workshop.tech_job_type}</div>
+					<div class="mt-0.5 truncate text-lime-500/70">Type: {workshop.tech_job_type}</div>
 				{/if}
 				{#if workshop.tech_schedule}
-					<div class="mt-0.5 truncate text-blue-500">
+					<div class="mt-0.5 truncate text-lime-500/70">
 						Sched: {formatSydneyDisplay(workshop.tech_schedule)}
 					</div>
 				{/if}
@@ -414,7 +414,7 @@
 		{#if showCompletedButton(workshop.status)}
 			<button
 				type="button"
-				class="mb-2 w-full rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1"
+				class="mb-2 w-full rounded-md border border-lime-500/30 bg-lime-500/10 px-3 py-1.5 text-xs font-medium text-lime-400 transition-colors duration-200 hover:bg-lime-500/20 hover:text-lime-300 focus:outline-none focus:ring-1 focus:ring-lime-500 focus:ring-offset-1 focus:ring-offset-[#141619]"
 				on:click={handleCompletedClick}
 				title="Mark as completed"
 				aria-label="Mark workshop as completed"
@@ -428,7 +428,7 @@
 			href="{resolve('/workshop-tag/print')}?id={workshop.id}"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-teal-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1"
+			class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#262a30] bg-[#1f2329] px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors duration-200 hover:bg-[#262a30] hover:text-gray-200 focus:outline-none focus:ring-1 focus:ring-lime-500 focus:ring-offset-1 focus:ring-offset-[#141619]"
 			on:click={(e) => e.stopPropagation()}
 			title="Print thermal tag"
 			aria-label="Print thermal tag for workshop"
@@ -447,7 +447,7 @@
 		{#if showAssignTechButton(workshop.status)}
 			<button
 				type="button"
-				class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-200 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1"
+				class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#333842] bg-[#1f2329] px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors duration-200 hover:bg-[#262a30] hover:text-lime-300 focus:outline-none focus:ring-1 focus:ring-lime-500 focus:ring-offset-1 focus:ring-offset-[#141619]"
 				on:click={handleAssignTechClick}
 				title="Assign tech"
 				aria-label="Assign technician to workshop"
@@ -467,7 +467,7 @@
 		<!-- X delete button positioned in upper right corner -->
 		<button
 			type="button"
-			class="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-white transition-colors duration-200 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+			class="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-red-950/60 border border-red-500/40 text-red-400 transition-colors duration-200 hover:bg-red-900/80 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-[#141619]"
 			on:click={handleDeleteClick}
 			title="Delete workshop"
 			aria-label="Delete workshop"

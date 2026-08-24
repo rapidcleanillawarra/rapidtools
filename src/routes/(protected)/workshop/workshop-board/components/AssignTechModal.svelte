@@ -261,7 +261,7 @@
 
 {#if show}
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
     data-backdrop="true"
     on:click={handleBackdropClick}
     on:keydown={handleDialogKeydown}
@@ -272,7 +272,7 @@
   >
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <div
-      class="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-xl"
+      class="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-[#141619] border border-[#262a30] shadow-2xl"
       role="document"
       on:click|stopPropagation
       on:keydown={(e) => {
@@ -280,15 +280,15 @@
         handleDialogKeydown(e);
       }}
     >
-      <div class="flex-shrink-0 border-b border-gray-200 px-6 py-4">
-        <h2 id="assign-tech-modal-title" class="text-lg font-semibold text-gray-900">
+      <div class="flex-shrink-0 border-b border-[#262a30] px-6 py-4">
+        <h2 id="assign-tech-modal-title" class="text-lg font-bold text-white">
           {step === 'explain' ? 'Explain assignment change' : 'Assign Tech'}
         </h2>
-        <p class="mt-1 text-sm text-gray-500">
+        <p class="mt-1 text-sm text-gray-400">
           {#if step === 'explain'}
             An existing schedule is being changed. Add a reason, then save to notify Teams.
           {:else if workshopLabel}
-            Assign a technician for <span class="font-medium text-gray-700">{workshopLabel}</span>.
+            Assign a technician for <span class="font-medium text-gray-200">{workshopLabel}</span>.
           {:else}
             Select a technician from the list below.
           {/if}
@@ -297,7 +297,7 @@
 
       {#if step === 'explain'}
         <div class="space-y-4 overflow-y-auto px-6 py-4">
-          <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div class="rounded-lg border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">
             {#if techChanged}
               <p>
                 <span class="font-medium">Technician:</span>
@@ -313,55 +313,55 @@
           </div>
 
           <div>
-            <label for="assign-tech-change-reason" class="mb-1 block text-sm font-medium text-gray-700">
-              Reason for change<span class="text-red-600"> *</span>
+            <label for="assign-tech-change-reason" class="mb-1 block text-sm font-medium text-gray-300">
+              Reason for change<span class="text-red-400"> *</span>
             </label>
             <textarea
               id="assign-tech-change-reason"
               bind:value={changeReason}
               rows="4"
-              class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
               placeholder="Explain why the technician or schedule is changing..."
               on:input={() => (changeReasonTouched = true)}
             ></textarea>
             {#if changeReasonTouched && !changeReason.trim()}
-              <p class="mt-1 text-sm text-red-600">A reason is required when changing an existing schedule.</p>
+              <p class="mt-1 text-sm text-red-400">A reason is required when changing an existing schedule.</p>
             {/if}
           </div>
         </div>
       {:else}
       <div class="space-y-4 overflow-y-auto px-6 py-4">
         <div>
-          <label for="assign-tech-search" class="mb-1 block text-sm font-medium text-gray-700">
+          <label for="assign-tech-search" class="mb-1 block text-sm font-medium text-gray-300">
             Search
           </label>
           <input
             id="assign-tech-search"
             type="text"
             bind:value={searchQuery}
-            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
             placeholder="Search by name or email..."
           />
         </div>
 
         {#if usersError}
-          <p class="text-sm text-red-600">{usersError}</p>
+          <p class="text-sm text-red-400">{usersError}</p>
         {/if}
 
         <ul
-          class="h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200 bg-white"
+          class="h-80 divide-y divide-[#262a30] overflow-y-auto rounded-lg border border-[#262a30] bg-[#0e1012]"
           role="listbox"
           aria-label="Technicians"
         >
           {#if usersLoading}
-            <li class="px-4 py-3 text-sm text-gray-500">Loading users...</li>
+            <li class="px-4 py-3 text-sm text-gray-400">Loading users...</li>
           {:else}
             <li>
               <button
                 type="button"
-                class="w-full px-4 py-3 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {!selectedEmail
-                  ? 'bg-blue-50 text-blue-800'
-                  : ''}"
+                class="w-full px-4 py-3 text-left text-sm transition-colors focus:outline-none {!selectedEmail
+                  ? 'bg-lime-500/10 text-lime-400'
+                  : 'text-gray-200 hover:bg-[#1f2329]'}"
                 role="option"
                 aria-selected={!selectedEmail}
                 on:click={clearSelection}
@@ -371,7 +371,7 @@
               </button>
             </li>
             {#if filteredUsers.length === 0}
-              <li class="px-4 py-3 text-sm text-gray-500">
+              <li class="px-4 py-3 text-sm text-gray-400">
                 {searchQuery ? 'No users match your search.' : 'No users found.'}
               </li>
             {:else}
@@ -379,10 +379,10 @@
                 <li>
                   <button
                     type="button"
-                    class="w-full px-4 py-3 text-left text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email ===
+                    class="w-full px-4 py-3 text-left text-sm transition-colors focus:outline-none {user.email ===
                     selectedEmail
-                      ? 'bg-blue-50 text-blue-800'
-                      : ''}"
+                      ? 'bg-lime-500/10 text-lime-400'
+                      : 'text-gray-200 hover:bg-[#1f2329]'}"
                     role="option"
                     aria-selected={user.email === selectedEmail}
                     on:click={() => selectUser(user)}
@@ -397,8 +397,8 @@
         </ul>
 
         <div>
-          <label for="assign-tech-schedule" class="mb-1 block text-sm font-medium text-gray-700">
-            Schedule{#if scheduleRequired}<span class="text-red-600"> *</span>{/if}
+          <label for="assign-tech-schedule" class="mb-1 block text-sm font-medium text-gray-300">
+            Schedule{#if scheduleRequired}<span class="text-red-400"> *</span>{/if}
           </label>
           <input
             id="assign-tech-schedule"
@@ -406,24 +406,24 @@
             value={scheduleLocal}
             on:input={handleScheduleInput}
             required={scheduleRequired}
-            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 transition-colors"
             placeholder="Select date and time"
           />
-          <p class="mt-1 text-xs text-gray-400">Times are Australia/Sydney</p>
+          <p class="mt-1 text-xs text-gray-500">Times are Australia/Sydney</p>
           {#if scheduleRequired && !schedule.trim()}
-            <p class="mt-1 text-sm text-red-600">Schedule is required when assigning a technician.</p>
+            <p class="mt-1 text-sm text-red-400">Schedule is required when assigning a technician.</p>
           {/if}
         </div>
 
         <div>
-          <label for="assign-tech-job-type" class="mb-1 block text-sm font-medium text-gray-700">
-            Job type{#if jobTypeRequired}<span class="text-red-600"> *</span>{/if}
+          <label for="assign-tech-job-type" class="mb-1 block text-sm font-medium text-gray-300">
+            Job type{#if jobTypeRequired}<span class="text-red-400"> *</span>{/if}
           </label>
           <select
             id="assign-tech-job-type"
             bind:value={jobType}
             required={jobTypeRequired}
-            class="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 transition-colors"
           >
             <option value="">Select job type...</option>
             {#each WORKSHOP_TECH_JOB_TYPES as type (type)}
@@ -431,7 +431,7 @@
             {/each}
           </select>
           {#if jobTypeRequired && !jobType.trim()}
-            <p class="mt-1 text-sm text-red-600">
+            <p class="mt-1 text-sm text-red-400">
               Job type is required when assigning a technician.
             </p>
           {/if}
@@ -440,12 +440,12 @@
       {/if}
 
       <div
-        class="flex flex-shrink-0 flex-wrap justify-end gap-3 rounded-b-lg border-t border-gray-200 bg-gray-50 px-6 py-4"
+        class="flex flex-shrink-0 flex-wrap justify-end gap-3 rounded-b-2xl border-t border-[#262a30] bg-[#181b20] px-6 py-4"
       >
         {#if step === 'explain'}
           <button
             type="button"
-            class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            class="btn-secondary text-sm"
             on:click={handleExplainBack}
             disabled={submitting}
           >
@@ -453,13 +453,13 @@
           </button>
           <button
             type="button"
-            class="min-w-[140px] rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            class="btn-primary text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!canSave}
             on:click={handleExplainConfirm}
           >
             {#if submitting}
               <span class="inline-flex items-center">
-                <svg class="mr-2 -ml-1 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                <svg class="mr-2 -ml-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
                   ></circle>
                   <path
@@ -477,7 +477,7 @@
         {:else}
         <button
           type="button"
-          class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          class="btn-secondary text-sm"
           on:click={handleCancel}
           disabled={submitting}
         >
@@ -485,13 +485,13 @@
         </button>
         <button
           type="button"
-          class="min-w-[100px] rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          class="btn-primary text-sm min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!canSave}
           on:click={handleConfirm}
         >
           {#if submitting && actionInProgress === 'save'}
             <span class="inline-flex items-center">
-              <svg class="mr-2 -ml-1 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+              <svg class="mr-2 -ml-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
                 ></circle>
                 <path
@@ -508,13 +508,13 @@
         </button>
         <button
           type="button"
-          class="min-w-[120px] rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          class="btn-primary text-sm min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
           disabled={!canSendNotice}
           on:click={handleSendNotice}
         >
           {#if submitting && actionInProgress === 'notice'}
             <span class="inline-flex items-center">
-              <svg class="mr-2 -ml-1 h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+              <svg class="mr-2 -ml-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
                 ></circle>
                 <path

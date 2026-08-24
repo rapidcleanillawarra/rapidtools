@@ -28,79 +28,41 @@
 
   let isDragOver = $state(false);
 
-  function getColumnColor(status: string) {
-    switch (status) {
-      case 'new': return 'bg-yellow-50';
-      case 'pickup': return 'bg-sky-50';
-      case 'to_be_quoted': return 'bg-orange-50';
-      case 'docket_ready': return 'bg-blue-50';
-      case 'quoted': return 'bg-green-50';
-      case 'waiting_approval_po': return 'bg-purple-50';
-      case 'waiting_for_parts': return 'bg-amber-50';
-      case 'booked_in_for_repair_service': return 'bg-indigo-50';
-      case 'repaired': return 'bg-teal-50';
-      case 'pickup_from_workshop': return 'bg-cyan-50';
-      case 'return': return 'bg-lime-50';
-      case 'pending_jobs': return 'bg-red-50';
-      case 'warranty_claim': return 'bg-rose-50';
-      default: return 'bg-gray-50';
-    }
-  }
-
   function getTopBorderColor(status: string) {
     switch (status) {
-      case 'new': return 'border-t-2 border-t-yellow-300';
-      case 'pickup': return 'border-t-2 border-t-sky-300';
-      case 'to_be_quoted': return 'border-t-2 border-t-orange-300';
-      case 'docket_ready': return 'border-t-2 border-t-blue-300';
-      case 'quoted': return 'border-t-2 border-t-green-300';
-      case 'waiting_approval_po': return 'border-t-2 border-t-purple-300';
-      case 'waiting_for_parts': return 'border-t-2 border-t-amber-300';
-      case 'booked_in_for_repair_service': return 'border-t-2 border-t-indigo-300';
-      case 'repaired': return 'border-t-2 border-t-teal-300';
-      case 'pickup_from_workshop': return 'border-t-2 border-t-cyan-300';
-      case 'return': return 'border-t-2 border-t-lime-300';
-      case 'pending_jobs': return 'border-t-2 border-t-red-300';
-      case 'warranty_claim': return 'border-t-2 border-t-rose-300';
-      default: return 'border-t-2 border-t-gray-300';
-    }
-  }
-
-  function getHeaderBorderColor(status: string) {
-    switch (status) {
-      case 'new': return 'border-b-yellow-200';
-      case 'pickup': return 'border-b-sky-200';
-      case 'to_be_quoted': return 'border-b-orange-200';
-      case 'docket_ready': return 'border-b-blue-200';
-      case 'quoted': return 'border-b-green-200';
-      case 'waiting_approval_po': return 'border-b-purple-200';
-      case 'waiting_for_parts': return 'border-b-amber-200';
-      case 'booked_in_for_repair_service': return 'border-b-indigo-200';
-      case 'repaired': return 'border-b-teal-200';
-      case 'pickup_from_workshop': return 'border-b-cyan-200';
-      case 'return': return 'border-b-lime-200';
-      case 'pending_jobs': return 'border-b-red-200';
-      case 'warranty_claim': return 'border-b-rose-200';
-      default: return 'border-b-gray-200';
+      case 'new': return 'border-t-2 border-t-yellow-400';
+      case 'pickup': return 'border-t-2 border-t-sky-400';
+      case 'to_be_quoted': return 'border-t-2 border-t-orange-400';
+      case 'docket_ready': return 'border-t-2 border-t-blue-400';
+      case 'quoted': return 'border-t-2 border-t-green-400';
+      case 'waiting_approval_po': return 'border-t-2 border-t-purple-400';
+      case 'waiting_for_parts': return 'border-t-2 border-t-amber-400';
+      case 'booked_in_for_repair_service': return 'border-t-2 border-t-indigo-400';
+      case 'repaired': return 'border-t-2 border-t-teal-400';
+      case 'pickup_from_workshop': return 'border-t-2 border-t-cyan-400';
+      case 'return': return 'border-t-2 border-t-lime-400';
+      case 'pending_jobs': return 'border-t-2 border-t-red-400';
+      case 'warranty_claim': return 'border-t-2 border-t-rose-400';
+      default: return 'border-t-2 border-t-gray-500';
     }
   }
 
   function getBadgeColor(status: string) {
     switch (status) {
-      case 'new': return 'bg-yellow-100 text-yellow-800';
-      case 'pickup': return 'bg-sky-100 text-sky-800';
-      case 'to_be_quoted': return 'bg-orange-100 text-orange-800';
-      case 'docket_ready': return 'bg-blue-100 text-blue-800';
-      case 'quoted': return 'bg-green-100 text-green-800';
-      case 'waiting_approval_po': return 'bg-purple-100 text-purple-800';
-      case 'waiting_for_parts': return 'bg-amber-100 text-amber-800';
-      case 'booked_in_for_repair_service': return 'bg-indigo-100 text-indigo-800';
-      case 'repaired': return 'bg-teal-100 text-teal-800';
-      case 'pickup_from_workshop': return 'bg-cyan-100 text-cyan-800';
-      case 'return': return 'bg-lime-100 text-lime-800';
-      case 'pending_jobs': return 'bg-red-100 text-red-800';
-      case 'warranty_claim': return 'bg-rose-100 text-rose-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'new': return 'bg-yellow-400/10 text-yellow-400';
+      case 'pickup': return 'bg-sky-400/10 text-sky-400';
+      case 'to_be_quoted': return 'bg-orange-400/10 text-orange-400';
+      case 'docket_ready': return 'bg-blue-400/10 text-blue-400';
+      case 'quoted': return 'bg-green-400/10 text-green-400';
+      case 'waiting_approval_po': return 'bg-purple-400/10 text-purple-400';
+      case 'waiting_for_parts': return 'bg-amber-400/10 text-amber-400';
+      case 'booked_in_for_repair_service': return 'bg-indigo-400/10 text-indigo-400';
+      case 'repaired': return 'bg-teal-400/10 text-teal-400';
+      case 'pickup_from_workshop': return 'bg-cyan-400/10 text-cyan-400';
+      case 'return': return 'bg-lime-400/10 text-lime-400';
+      case 'pending_jobs': return 'bg-red-400/10 text-red-400';
+      case 'warranty_claim': return 'bg-rose-400/10 text-rose-400';
+      default: return 'bg-gray-500/10 text-gray-400';
     }
   }
 
@@ -151,10 +113,7 @@
 </script>
 
 <div
-  class="{isDragOver ? 'bg-blue-50' : getColumnColor(status)} {getTopBorderColor(status)} rounded-lg border border-gray-200 snap-start flex flex-col w-72 flex-shrink-0 min-h-96 max-h-[70vh] transition-all duration-200"
-  class:border-blue-300={isDragOver}
-  class:ring-2={isDragOver}
-  class:ring-blue-200={isDragOver}
+  class="{getTopBorderColor(status)} {isDragOver ? 'bg-[#1f2329] border-lime-500/50 ring-2 ring-lime-500/20' : 'bg-[#181b20] border-[#262a30]'} rounded-lg border snap-start flex flex-col w-72 flex-shrink-0 min-h-96 max-h-[70vh] transition-all duration-200"
   role="region"
   aria-label="{title} status column"
   ondragover={handleDragOver}
@@ -163,8 +122,8 @@
   ondrop={handleDrop}
 >
   <!-- Header - Fixed, non-scrollable -->
-  <div class="flex items-center justify-between p-4 pb-3 border-b {getHeaderBorderColor(status)} flex-shrink-0">
-    <h3 class="text-xs font-semibold text-gray-900 uppercase tracking-wider">{title}</h3>
+  <div class="flex items-center justify-between p-4 pb-3 border-b border-[#262a30] flex-shrink-0">
+    <h3 class="text-xs font-semibold text-gray-300 uppercase tracking-wider">{title}</h3>
     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {getBadgeColor(status)}">
       {workshops.length}
     </span>
@@ -175,10 +134,10 @@
     {#if workshops.length === 0}
       <!-- Empty state -->
       <div class="flex flex-col items-center justify-center py-8 text-center">
-        <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="w-12 h-12 text-gray-700 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
         </svg>
-        <p class="text-sm text-gray-500">No workshops in this status</p>
+        <p class="text-sm text-gray-600">No workshops in this status</p>
       </div>
     {:else}
       <div class="space-y-3">
@@ -209,23 +168,23 @@
   }
 
   :global(.status-column-scroll::-webkit-scrollbar-track) {
-    background: #f1f5f9;
+    background: #141619;
     border-radius: 3px;
   }
 
   :global(.status-column-scroll::-webkit-scrollbar-thumb) {
-    background: #cbd5e1;
+    background: #262a30;
     border-radius: 3px;
     transition: background-color 0.2s ease;
   }
 
   :global(.status-column-scroll::-webkit-scrollbar-thumb:hover) {
-    background: #94a3b8;
+    background: #333842;
   }
 
   /* Firefox scrollbar styling */
   :global(.status-column-scroll) {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    scrollbar-color: #262a30 #141619;
   }
 </style>

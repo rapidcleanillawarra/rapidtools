@@ -249,36 +249,48 @@
 	}
 </script>
 
-<div class="container mx-auto px-4 py-8" in:fade>
-	<PaymentToolbar
-		bind:paymentDate
-		{isLoading}
-		on:transactionHistory={toggleModal}
-		on:submit={handleSubmit}
-	/>
+<svelte:head>
+	<title>Batch Payments - RapidTools</title>
+</svelte:head>
 
-	<NotificationBanner show={notification.show} message={notification.message} type={notification.type} />
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6" in:fade>
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
+		<!-- Page Header -->
+		<div class="mb-6 pb-6 border-b border-[#262a30]">
+			<h1 class="text-2xl font-bold text-white tracking-tight">Batch Payments</h1>
+			<p class="mt-1 text-sm text-gray-400">Process and reconcile bulk customer invoice and credit payments.</p>
+		</div>
 
-	{#if isModalOpen}
-		<TransactionHistoryModal
-			sessions={userSessions}
-			on:close={toggleModal}
-			on:selectSession={(event) => showPaymentDetails(event.detail)}
+		<PaymentToolbar
+			bind:paymentDate
+			{isLoading}
+			on:transactionHistory={toggleModal}
+			on:submit={handleSubmit}
 		/>
-	{/if}
 
-	{#if isPaymentDetailsModalOpen && selectedSession}
-		<PaymentDetailsModal session={selectedSession} on:close={closePaymentDetailsModal} />
-	{/if}
+		<NotificationBanner show={notification.show} message={notification.message} type={notification.type} />
 
-	<PaymentTotalsBar {totalBalance} {totalPayments} {paymentDifference} />
+		{#if isModalOpen}
+			<TransactionHistoryModal
+				sessions={userSessions}
+				on:close={toggleModal}
+				on:selectSession={(event) => showPaymentDetails(event.detail)}
+			/>
+		{/if}
 
-	<PaymentsTable
-		bind:payments
-		on:paste={handlePaste}
-		on:remove={(event) => removePayment(event.detail)}
-		on:applyPaymentModeToAll={applyPaymentModeToAll}
-		on:applyBalanceToPayments={applyBalanceToPayments}
-		on:addPayment={addPayment}
-	/>
+		{#if isPaymentDetailsModalOpen && selectedSession}
+			<PaymentDetailsModal session={selectedSession} on:close={closePaymentDetailsModal} />
+		{/if}
+
+		<PaymentTotalsBar {totalBalance} {totalPayments} {paymentDifference} />
+
+		<PaymentsTable
+			bind:payments
+			on:paste={handlePaste}
+			on:remove={(event) => removePayment(event.detail)}
+			on:applyPaymentModeToAll={applyPaymentModeToAll}
+			on:applyBalanceToPayments={applyBalanceToPayments}
+			on:addPayment={addPayment}
+		/>
+	</div>
 </div>

@@ -179,16 +179,16 @@
       on:input={handleInput}
       on:focus={handleFocus}
       on:blur={handleBlur}
-      class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-2.5 pr-10 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 disabled:bg-[#141619] disabled:text-gray-500 disabled:border-[#262a30] disabled:cursor-not-allowed text-sm transition-colors"
+      class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 disabled:bg-[#141619] disabled:text-gray-500 disabled:border-[#262a30] disabled:cursor-not-allowed text-xs sm:text-sm transition-colors"
       autocomplete="off"
     />
     <button
       type="button"
       on:click={toggleDropdown}
-      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-lime-400 transition-colors"
+      class="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-lime-400 transition-colors"
       aria-label="Toggle brand dropdown"
     >
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
       </svg>
     </button>

@@ -397,43 +397,48 @@
 	<title>Product Information Update - RapidTools</title>
 </svelte:head>
 
-<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
-	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
+<div class="min-h-screen p-2 sm:p-3 lg:p-4">
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-xl p-3 sm:p-4">
 		<!-- Header -->
-		<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-			<div>
-				<h1 class="text-2xl font-bold text-white tracking-tight">Product Information Update</h1>
-				<p class="mt-1 text-sm text-gray-400">Search, update, and manage product catalog data</p>
+		<div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+			<div class="flex items-center gap-3">
+				<h1 class="text-lg sm:text-xl font-bold text-white tracking-tight">Product Information Update</h1>
+				{#if parseSkus($selectedSkus).length > 0}
+					<span class="text-xs px-2 py-0.5 rounded-full bg-lime-500/20 text-lime-300 border border-lime-500/30 font-medium">
+						{parseSkus($selectedSkus).length} SKU(s)
+					</span>
+				{:else if $selectedBrand}
+					<span class="text-xs px-2 py-0.5 rounded-full bg-lime-500/20 text-lime-300 border border-lime-500/30 font-medium">
+						Brand: {$selectedBrand}
+					</span>
+				{/if}
 			</div>
+			<p class="text-xs text-gray-400 hidden sm:block">Search, update, and manage product catalog data</p>
 		</div>
 
-		<!-- Filter Selection -->
-		<div class="mb-6 rounded-xl border border-[#262a30] bg-[#181b20]/60 p-5 shadow-sm">
-			<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+		<!-- Filter Selection & Actions -->
+		<div class="mb-3 rounded-xl border border-[#262a30] bg-[#181b20]/60 p-3 shadow-sm">
+			<div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
 				<!-- Brand Selection -->
-				<div>
-					<label for="brand-select" class="form-label">
+				<div class="md:col-span-4">
+					<label for="brand-select" class="block text-xs font-medium text-gray-300 mb-1">
 						Filter by Brand
 					</label>
-					<div class="mb-2 flex gap-2">
-						<div class="flex-1">
-							<BrandDropdown
-								id="brand-select"
-								placeholder="Search brands..."
-								value={$selectedBrand}
-								disabled={parseSkus($selectedSkus).length > 0}
-								on:select={handleBrandSelect}
-								on:clear={handleBrandClear}
-							/>
-						</div>
-					</div>
+					<BrandDropdown
+						id="brand-select"
+						placeholder="Search brands..."
+						value={$selectedBrand}
+						disabled={parseSkus($selectedSkus).length > 0}
+						on:select={handleBrandSelect}
+						on:clear={handleBrandClear}
+					/>
 					{#if parseSkus($selectedSkus).length > 0}
-						<p class="mt-1 text-xs text-gray-500">Disabled because SKU filter is active</p>
+						<p class="mt-0.5 text-[11px] text-gray-500">Disabled: SKU filter active</p>
 					{/if}
 				</div>
 
 				<!-- SKU Selection -->
-				<div>
+				<div class="md:col-span-4">
 					<SkuTextarea
 						value={$selectedSkus}
 						disabled={$selectedBrand !== ''}
@@ -441,65 +446,57 @@
 						on:clear={handleSkuClear}
 					/>
 					{#if $selectedBrand !== ''}
-						<p class="mt-1 text-xs text-gray-500">Disabled because brand filter is active</p>
+						<p class="mt-0.5 text-[11px] text-gray-500">Disabled: Brand filter active</p>
 					{/if}
 				</div>
-			</div>
 
-			<!-- Action Buttons -->
-			<div class="mt-6 flex flex-wrap gap-3">
-				<button
-					type="button"
-					class="btn-primary"
-					on:click={() => {
-						resetHighlights();
-						const parsedSkus = parseSkus($selectedSkus);
-						if (parsedSkus.length > 0) {
-							loadProducts(undefined, parsedSkus);
-						} else if ($selectedBrand) {
-							loadProducts($selectedBrand);
-						} else {
-							loadProducts();
-						}
-					}}
-					disabled={$isLoading}
-				>
-					{#if $isLoading}
-						<div class="flex items-center">
-							<div class="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-gray-950"></div>
-							Loading...
-						</div>
-					{:else}
-						Apply Filter
-					{/if}
-				</button>
-				<button
-					type="button"
-					class="btn-secondary"
-					on:click={() => handleExport(false)}
-					disabled={$tableData.length === 0}
-				>
-					Export Visible CSV
-				</button>
-				<button
-					type="button"
-					class="btn-secondary"
-					on:click={() => handleExport(true)}
-					disabled={$tableData.length === 0}
-				>
-					Export All CSV
-				</button>
+				<!-- Action Buttons -->
+				<div class="md:col-span-4 flex flex-wrap items-center gap-2">
+					<button
+						type="button"
+						class="btn-primary flex-1 min-w-[110px] py-1.5 px-3 text-xs font-semibold justify-center"
+						on:click={() => {
+							resetHighlights();
+							const parsedSkus = parseSkus($selectedSkus);
+							if (parsedSkus.length > 0) {
+								loadProducts(undefined, parsedSkus);
+							} else if ($selectedBrand) {
+								loadProducts($selectedBrand);
+							} else {
+								loadProducts();
+							}
+						}}
+						disabled={$isLoading}
+					>
+						{#if $isLoading}
+							<div class="flex items-center justify-center">
+								<div class="mr-1.5 h-3.5 w-3.5 animate-spin rounded-full border-b-2 border-gray-950"></div>
+								Loading...
+							</div>
+						{:else}
+							Apply Filter
+						{/if}
+					</button>
+					<button
+						type="button"
+						class="btn-secondary py-1.5 px-2.5 text-xs font-medium whitespace-nowrap"
+						on:click={() => handleExport(false)}
+						disabled={$tableData.length === 0}
+						title="Export Visible CSV"
+					>
+						Export Visible
+					</button>
+					<button
+						type="button"
+						class="btn-secondary py-1.5 px-2.5 text-xs font-medium whitespace-nowrap"
+						on:click={() => handleExport(true)}
+						disabled={$tableData.length === 0}
+						title="Export All CSV"
+					>
+						Export All
+					</button>
+				</div>
 			</div>
-
-			<p class="mt-4 text-sm text-gray-400">
-				{#if parseSkus($selectedSkus).length > 0}
-					Showing products for <strong class="text-white">{parseSkus($selectedSkus).length} SKU(s)</strong>
-				{:else if $selectedBrand}
-					Showing products for brand: <strong class="text-white">{$selectedBrand}</strong>
-				{:else}
-					Showing all products
-				{/if}
-			</p>
 		</div>
 
 		<ColumnVisibilityControls
@@ -511,7 +508,7 @@
 		/>
 
 		<!-- Products Table Container -->
-		<div class="overflow-hidden rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl">
+		<div class="overflow-hidden rounded-xl border border-[#262a30] bg-[#141619] shadow-xl">
 			<ProductsTable
 				columns={visibleColumnsList}
 				products={$paginatedData}

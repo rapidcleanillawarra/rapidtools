@@ -426,28 +426,23 @@
 					</label>
 					<BrandDropdown
 						id="brand-select"
-						placeholder="Search brands..."
+						placeholder={parseSkus($selectedSkus).length > 0 ? 'Disabled: SKU filter active' : 'Search brands...'}
 						value={$selectedBrand}
 						disabled={parseSkus($selectedSkus).length > 0}
 						on:select={handleBrandSelect}
 						on:clear={handleBrandClear}
 					/>
-					{#if parseSkus($selectedSkus).length > 0}
-						<p class="mt-0.5 text-[11px] text-gray-500">Disabled: SKU filter active</p>
-					{/if}
 				</div>
 
 				<!-- SKU Selection -->
 				<div class="md:col-span-4">
 					<SkuTextarea
+						placeholder={$selectedBrand !== '' ? 'Disabled: Brand filter active' : 'Enter SKUs (one per line)...'}
 						value={$selectedSkus}
 						disabled={$selectedBrand !== ''}
 						on:input={handleSkuInput}
 						on:clear={handleSkuClear}
 					/>
-					{#if $selectedBrand !== ''}
-						<p class="mt-0.5 text-[11px] text-gray-500">Disabled: Brand filter active</p>
-					{/if}
 				</div>
 
 				<!-- Action Buttons -->

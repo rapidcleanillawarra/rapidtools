@@ -731,6 +731,22 @@
 
 			if (invalidRequests.length > 0) {
 				invalidRequests.forEach((request) => {
+					const missingFields = [
+						!request.sku && 'sku',
+						!request.product_name && 'product_name',
+						!request.brand && 'brand',
+						!request.primary_supplier && 'primary_supplier',
+						!request.category && 'category',
+						!request.purchase_price && 'purchase_price',
+						!request.client_mup && 'client_mup',
+						!request.retail_mup && 'retail_mup'
+					].filter(Boolean);
+
+					console.error(`[Product Request Approval] Missing required fields for SKU "${request.sku || 'Unknown SKU'}":`, {
+						request,
+						missingFields
+					});
+
 					failedSubmits.push(`${request.sku || 'Unknown SKU'} (missing required fields)`);
 				});
 			} else {
@@ -1428,8 +1444,14 @@
 							placeholder="Select Brand"
 							clearable={false}
 							containerStyles="position: relative;"
-							onchange={(e) => {
-								request.brand = e.detail?.value || '';
+							on:select={(e) => {
+								const selectedVal = e.detail?.value || '';
+								console.log(`[Product Request Approval] Brand selected for SKU "${request.sku}":`, { event: e, selectedVal });
+								request.brand = selectedVal;
+								searchMarkups();
+							}}
+							on:clear={() => {
+								request.brand = '';
 								searchMarkups();
 							}}
 						/>
@@ -1450,8 +1472,13 @@
 							placeholder="Select Supplier"
 							clearable={false}
 							containerStyles="position: relative;"
-							onchange={(e) => {
-								request.primary_supplier = e.detail?.value || '';
+							on:select={(e) => {
+								const selectedVal = e.detail?.value || '';
+								console.log(`[Product Request Approval] Supplier selected for SKU "${request.sku}":`, { event: e, selectedVal });
+								request.primary_supplier = selectedVal;
+							}}
+							on:clear={() => {
+								request.primary_supplier = '';
 							}}
 						/>
 					{/if}
@@ -1466,8 +1493,19 @@
 						placeholder="Select Category"
 						clearable={false}
 						containerStyles="position: relative;"
-						onchange={(e) => {
-							request.category = e.detail?.value || '';
+						on:select={(e) => {
+							const selectedVal = e.detail?.value || '';
+							console.log(`[Product Request Approval] Category selected for SKU "${request.sku}":`, {
+								event: e,
+								detail: e.detail,
+								selectedVal,
+								currentRequestCategoryBefore: request.category
+							});
+							request.category = selectedVal;
+							console.log(`[Product Request Approval] Category updated to:`, request.category);
+						}}
+						on:clear={() => {
+							request.category = '';
 						}}
 					/>
 				</div>

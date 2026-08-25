@@ -412,6 +412,7 @@ onMount(() => {
 		margin: 0 auto;
 		background: #fff;
 		min-height: 100vh;
+		color: #1a1a1a;
 	}
 
 	/* Screen-only header */
@@ -565,6 +566,7 @@ onMount(() => {
 		padding: 10px 8px;
 		border-bottom: 1px solid #e5e7eb;
 		vertical-align: top;
+		color: #1a1a1a;
 	}
 
 	.table-header-cell {
@@ -608,6 +610,7 @@ onMount(() => {
 	.col-model {
 		width: 180px;
 		font-weight: 500;
+		color: #1a1a1a;
 	}
 
 	.col-description {
@@ -644,6 +647,7 @@ onMount(() => {
 		width: 64px;
 		text-align: center;
 		font-variant-numeric: tabular-nums;
+		color: #1a1a1a;
 	}
 
 	.col-custom {
@@ -976,6 +980,30 @@ onMount(() => {
 			max-width: 100%;
 			margin: 0;
 			padding: 0;
+			color: #1a1a1a;
+		}
+
+		.table-cell,
+		.col-model,
+		.col-moq,
+		.print-note-text {
+			color: #1a1a1a;
+		}
+
+		.col-sku {
+			color: #6b7280;
+		}
+
+		.col-description {
+			color: #4b5563;
+		}
+
+		.col-price {
+			color: #80bb3d;
+		}
+
+		.col-rrp {
+			color: #6b7280;
 		}
 
 		.screen-header {

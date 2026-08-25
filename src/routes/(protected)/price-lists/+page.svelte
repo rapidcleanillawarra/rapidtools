@@ -443,189 +443,186 @@
   });
 </script>
 
-<div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
-  <div class="max-w-[98%] mx-auto bg-white shadow p-6 space-y-6">
-    <div class="space-y-1">
-      <h1 class="text-2xl font-semibold text-gray-900">Price Lists</h1>
-      <p class="text-sm text-gray-600">
-        Paste SKUs and discounted prices. Prices sanitize commas and currency symbols, must be 0 or greater,
-        and support up to two decimals.
-      </p>
-    </div>
+<svelte:head>
+  <title>Price Lists - RapidTools</title>
+</svelte:head>
 
-    <div class="flex flex-wrap items-center gap-3">
-      <div class="flex items-center gap-2">
-        <label for="order-id" class="text-sm font-medium text-gray-700 sr-only">Order IDs</label>
-        <input
-          id="order-id"
-          type="text"
-          class="rounded-md border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Order IDs (e.g. 26-0012347, 26-0012348)"
-          bind:value={orderId}
-          on:keydown={(e) => e.key === 'Enter' && loadFromOrder()}
-        />
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+  <div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8 space-y-6">
+    <div class="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-start">
+      <div>
+        <h1 class="text-2xl font-bold text-white tracking-tight">Price Lists</h1>
+        <p class="mt-1 text-sm text-gray-400">
+          Paste SKUs and discounted prices. Prices sanitize commas and currency symbols, must be 0 or greater,
+          and support up to two decimals.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex items-center gap-2">
+          <label for="order-id" class="form-label sr-only">Order IDs</label>
+          <input
+            id="order-id"
+            type="text"
+            class="bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+            placeholder="Order IDs (e.g. 26-0012347, 26-0012348)"
+            bind:value={orderId}
+            on:keydown={(e) => e.key === 'Enter' && loadFromOrder()}
+          />
+          <button
+            class="btn-secondary text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+            type="button"
+            on:click={loadFromOrder}
+            disabled={loadingOrder}
+          >
+            {loadingOrder ? 'Loading…' : 'Load from order(s)'}
+          </button>
+        </div>
+        <button class="btn-secondary text-sm" type="button" on:click={() => addRows(1)}>Add row</button>
+        <button class="btn-secondary text-sm" type="button" on:click={clearRows}>Clear all</button>
         <button
-          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          class="btn-primary text-sm disabled:opacity-60 disabled:cursor-not-allowed"
           type="button"
-          on:click={loadFromOrder}
-          disabled={loadingOrder}
+          on:click={handleSubmit}
+          disabled={submitting}
         >
-          {loadingOrder ? 'Loading…' : 'Load from order(s)'}
+          {submitting ? 'Submitting...' : 'Submit'}
         </button>
       </div>
-      <button
-        class="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        type="button"
-        on:click={() => addRows(1)}
-      >
-        Add row
-      </button>
-      <button
-        class="rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 transition hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        type="button"
-        on:click={clearRows}
-      >
-        Clear all
-      </button>
-      <button
-        class="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
-        type="button"
-        on:click={handleSubmit}
-        disabled={submitting}
-      >
-        {submitting ? 'Submitting...' : 'Submit'}
-      </button>
     </div>
     {#if orderError}
-      <p class="text-sm text-red-600">{orderError}</p>
+      <p class="text-sm text-red-400">{orderError}</p>
     {/if}
     {#if skuCheckError}
-      <p class="text-sm text-red-600">{skuCheckError}</p>
+      <p class="text-sm text-red-400">{skuCheckError}</p>
     {/if}
 
     <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
-      <div class="overflow-auto rounded-lg border border-gray-200 shadow-sm">
-        <table class="min-w-full divide-y divide-gray-200 text-sm">
-          <thead class="bg-gray-50">
-            <tr>
-              <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-700">SKU</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-700">Discount %</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-700">Total Discounted</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-700">Discounted Price</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-700">
-                <span class="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100 bg-white">
-            {#each rows as row, index}
-              {@const isMissing = missingSkus.includes(row.sku.trim())}
-              <tr
-                class={`${rowErrors?.[index]?.sku || rowErrors?.[index]?.price ? 'bg-red-50/60' : ''} ${isMissing ? 'bg-amber-50' : ''}`}
-              >
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700">{index + 1}</td>
-                <td class="px-4 py-3">
-                  <input
-                    class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      rowErrors?.[index]?.sku
-                        ? 'border-red-400 bg-white'
-                        : isMissing
-                          ? 'border-amber-400 bg-white'
-                          : 'border-gray-200 bg-gray-50'
-                    }`}
-                    name={`sku-${index}`}
-                    placeholder="SKU"
-                    value={row.sku}
-                    on:paste={(event) => handleCellPaste(event, index, 'sku')}
-                    on:input={(event) => updateSku(index, event.currentTarget.value)}
-                  />
-                  {#if rowErrors?.[index]?.sku}
-                    <p class="mt-1 text-xs text-red-600">{rowErrors[index].sku}</p>
-                  {:else if isMissing}
-                    <p class="mt-1 text-xs text-amber-700">SKU not found in system</p>
-                  {/if}
-                </td>
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700 tabular-nums">
-                  {row.percentDiscount.trim() ? `${row.percentDiscount}%` : '—'}
-                </td>
-                <td class="whitespace-nowrap px-4 py-3 text-gray-700 tabular-nums">
-                  {row.productDiscount.trim() ? row.productDiscount : '—'}
-                </td>
-                <td class="px-4 py-3">
-                  <input
-                    class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      rowErrors?.[index]?.price ? 'border-red-400 bg-white' : 'border-gray-200 bg-gray-50'
-                    }`}
-                    inputmode="decimal"
-                    name={`price-${index}`}
-                    placeholder="0.00"
-                    value={row.price}
-                    on:paste={(event) => handleCellPaste(event, index, 'price')}
-                    on:input={(event) => updatePrice(index, event.currentTarget.value)}
-                  />
-                  {#if rowErrors?.[index]?.price}
-                    <p class="mt-1 text-xs text-red-600">{rowErrors[index].price}</p>
-                  {/if}
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <button
-                    class="text-sm font-semibold text-red-600 transition hover:text-red-700 focus:outline-none"
-                    type="button"
-                    on:click={() => removeRow(index)}
-                    aria-label={`Remove row ${index + 1}`}
-                  >
-                    Remove
-                  </button>
-                </td>
+      <div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-full divide-y divide-[#262a30] text-sm text-gray-200">
+            <thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <tr>
+                <th class="px-4 py-3 text-left">#</th>
+                <th class="px-4 py-3 text-left">SKU</th>
+                <th class="px-4 py-3 text-left">Discount %</th>
+                <th class="px-4 py-3 text-left">Total Discounted</th>
+                <th class="px-4 py-3 text-left">Discounted Price</th>
+                <th class="px-4 py-3 text-right">Action</th>
               </tr>
-            {/each}
-          </tbody>
-        </table>
+            </thead>
+            <tbody class="divide-y divide-[#262a30] bg-[#141619]">
+              {#each rows as row, index}
+                {@const isMissing = missingSkus.includes(row.sku.trim())}
+                <tr
+                  class={`even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors ${
+                    rowErrors?.[index]?.sku || rowErrors?.[index]?.price ? 'bg-red-950/20' : ''
+                  } ${isMissing ? 'bg-amber-950/20' : ''}`}
+                >
+                  <td class="whitespace-nowrap px-4 py-3.5 text-gray-300">{index + 1}</td>
+                  <td class="px-4 py-3.5">
+                    <input
+                      class={`w-full rounded-lg border px-3 py-2 text-sm text-gray-200 placeholder-gray-600 transition-colors focus:border-lime-500 focus:ring-1 focus:ring-lime-500 ${
+                        rowErrors?.[index]?.sku
+                          ? 'border-red-500/50 bg-red-950/20'
+                          : isMissing
+                            ? 'border-amber-500/50 bg-amber-950/20'
+                            : 'border-[#262a30] bg-[#0e1012]'
+                      }`}
+                      name={`sku-${index}`}
+                      placeholder="SKU"
+                      value={row.sku}
+                      on:paste={(event) => handleCellPaste(event, index, 'sku')}
+                      on:input={(event) => updateSku(index, event.currentTarget.value)}
+                    />
+                    {#if rowErrors?.[index]?.sku}
+                      <p class="mt-1 text-xs text-red-400">{rowErrors[index].sku}</p>
+                    {:else if isMissing}
+                      <p class="mt-1 text-xs text-amber-400">SKU not found in system</p>
+                    {/if}
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5 text-gray-400 tabular-nums">
+                    {row.percentDiscount.trim() ? `${row.percentDiscount}%` : '—'}
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-3.5 text-gray-400 tabular-nums">
+                    {row.productDiscount.trim() ? row.productDiscount : '—'}
+                  </td>
+                  <td class="px-4 py-3.5">
+                    <input
+                      class={`w-full rounded-lg border px-3 py-2 text-sm text-gray-200 placeholder-gray-600 transition-colors focus:border-lime-500 focus:ring-1 focus:ring-lime-500 ${
+                        rowErrors?.[index]?.price
+                          ? 'border-red-500/50 bg-red-950/20'
+                          : 'border-[#262a30] bg-[#0e1012]'
+                      }`}
+                      inputmode="decimal"
+                      name={`price-${index}`}
+                      placeholder="0.00"
+                      value={row.price}
+                      on:paste={(event) => handleCellPaste(event, index, 'price')}
+                      on:input={(event) => updatePrice(index, event.currentTarget.value)}
+                    />
+                    {#if rowErrors?.[index]?.price}
+                      <p class="mt-1 text-xs text-red-400">{rowErrors[index].price}</p>
+                    {/if}
+                  </td>
+                  <td class="px-4 py-3.5 text-right">
+                    <button
+                      class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
+                      type="button"
+                      on:click={() => removeRow(index)}
+                      aria-label={`Remove row ${index + 1}`}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div class="border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
+        <div class="border-b border-[#262a30] bg-[#181b20] px-4 py-3 flex items-center justify-between">
           <div>
-            <p class="text-sm font-semibold text-gray-800">Saved price lists</p>
+            <p class="text-sm font-semibold text-white">Saved price lists</p>
             <p class="text-xs text-gray-500">Loaded from Supabase</p>
           </div>
           {#if loadingPriceLists}
-            <span class="text-xs text-blue-600">Loading…</span>
+            <span class="text-xs text-lime-400">Loading…</span>
           {:else}
             <span class="text-xs text-gray-500">{priceLists.length} items</span>
           {/if}
         </div>
 
         {#if priceListsError}
-          <div class="px-4 py-3 text-sm text-red-600">{priceListsError}</div>
+          <div class="px-4 py-3 text-sm text-red-400">{priceListsError}</div>
         {:else if loadingPriceLists}
           <div class="px-4 py-3 space-y-2">
-            <div class="h-10 rounded bg-gray-100 animate-pulse"></div>
-            <div class="h-10 rounded bg-gray-100 animate-pulse"></div>
+            <div class="h-10 rounded bg-[#1f2329] animate-pulse"></div>
+            <div class="h-10 rounded bg-[#1f2329] animate-pulse"></div>
           </div>
         {:else if priceLists.length === 0}
-          <div class="px-4 py-4 text-sm text-gray-600">No saved price lists found.</div>
+          <div class="px-4 py-4 text-sm text-gray-400">No saved price lists found.</div>
         {:else}
-          <ul class="divide-y divide-gray-100">
+          <ul class="divide-y divide-[#262a30]">
             {#each priceLists as item}
-              <li class="px-4 py-3 space-y-1">
+              <li class="px-4 py-3 space-y-1 hover:bg-[#1f2329]/60 transition-colors">
                 <div class="flex items-center justify-between gap-3">
                   <div>
-                    <p class="text-sm font-semibold text-gray-900">{item.filename || 'Untitled'}</p>
+                    <p class="text-sm font-semibold text-white">{item.filename || 'Untitled'}</p>
                     <p class="text-xs text-gray-500">
                       Updated {formatDate(item.updated_at) || formatDate(item.created_at) || '—'}
                     </p>
                   </div>
                   <div class="flex items-center gap-2">
                     <a
-                      class="rounded-md bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 hover:bg-blue-100 transition"
+                      class="btn-secondary text-xs px-2.5 py-1"
                       href={`${base}/price-lists/build-price-list?id=${item.id}`}
                     >
                       Open
                     </a>
                     <button
-                      class="rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      class="btn-secondary text-xs px-2.5 py-1 disabled:opacity-60 disabled:cursor-not-allowed"
                       type="button"
                       on:click={() => duplicatePriceList(item)}
                       disabled={!!duplicatingId || !!deletingId}
@@ -633,7 +630,7 @@
                       {duplicatingId === item.id ? 'Duplicating…' : 'Duplicate'}
                     </button>
                     <button
-                      class="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                      class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
                       type="button"
                       on:click={() => requestDelete(item)}
                       disabled={!!deletingId || !!duplicatingId}
@@ -642,7 +639,7 @@
                     </button>
                   </div>
                 </div>
-                <div class="text-xs text-gray-600 flex gap-3">
+                <div class="text-xs text-gray-500 flex gap-3">
                   <span>SKUs: {Array.isArray(item.sku_data) ? item.sku_data.length : 0}</span>
                   <span>Builder items: {Array.isArray(item.price_list_data) ? item.price_list_data.length : 0}</span>
                 </div>
@@ -655,23 +652,19 @@
   </div>
 
   {#if showMissingModal}
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 class="text-lg font-semibold text-gray-900">Some SKUs were not found</h2>
-        <p class="mt-2 text-sm text-gray-700">
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-[#141619] border border-[#262a30] p-6 rounded-2xl shadow-2xl max-w-md w-full text-gray-200">
+        <h3 class="text-lg font-bold text-white mb-2">Some SKUs were not found</h3>
+        <p class="text-sm text-gray-300 mb-4 leading-relaxed">
           The following SKUs are not in the system. Please remove them from the table, then try saving again.
         </p>
-        <ul class="mt-3 max-h-40 overflow-auto divide-y divide-gray-100 rounded border border-gray-200 bg-gray-50">
+        <ul class="max-h-40 overflow-auto divide-y divide-[#262a30] rounded-lg border border-[#262a30] bg-[#0e1012]">
           {#each missingSkus as sku}
-            <li class="px-3 py-2 text-sm text-gray-900">{sku}</li>
+            <li class="px-3 py-2 text-sm text-gray-200">{sku}</li>
           {/each}
         </ul>
-        <div class="mt-4 flex justify-end gap-3">
-          <button
-            type="button"
-            class="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            on:click={() => (showMissingModal = false)}
-          >
+        <div class="mt-6 flex justify-end space-x-3">
+          <button type="button" class="btn-secondary text-sm" on:click={() => (showMissingModal = false)}>
             Close
           </button>
         </div>
@@ -680,17 +673,17 @@
   {/if}
 
   {#if confirmDeleteId}
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 class="text-lg font-semibold text-gray-900">Delete price list?</h2>
-        <p class="mt-2 text-sm text-gray-700">
-          Are you sure you want to delete <span class="font-semibold">{confirmDeleteName}</span>? This action
-          cannot be undone.
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div class="bg-[#141619] border border-[#262a30] p-6 rounded-2xl shadow-2xl max-w-md w-full text-gray-200">
+        <h3 class="text-lg font-bold text-white mb-2">Delete price list?</h3>
+        <p class="text-sm text-gray-300 mb-6 leading-relaxed">
+          Are you sure you want to delete <span class="font-semibold text-white">{confirmDeleteName}</span>? This
+          action cannot be undone.
         </p>
-        <div class="mt-5 flex justify-end gap-3">
+        <div class="flex justify-end space-x-3">
           <button
             type="button"
-            class="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            class="btn-secondary text-sm"
             on:click={cancelDelete}
             disabled={!!deletingId}
           >
@@ -698,7 +691,7 @@
           </button>
           <button
             type="button"
-            class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 shadow-sm transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-sm font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
             on:click={confirmDelete}
             disabled={!!deletingId}
           >

@@ -140,28 +140,28 @@
     { border: string; bg: string; hover: string; active: string; text: string; dot: string }
   > = {
     page_break: {
-      border: 'border-gray-300',
-      bg: 'bg-gray-50',
-      hover: 'hover:bg-gray-100',
-      active: 'active:bg-gray-200',
-      text: 'text-gray-800',
+      border: 'border-[#333842]',
+      bg: 'bg-[#1f2329]',
+      hover: 'hover:bg-[#262a30]',
+      active: 'active:bg-[#2a2f36]',
+      text: 'text-gray-300',
       dot: 'bg-gray-500'
     },
     range: {
-      border: 'border-blue-200',
-      bg: 'bg-blue-50',
-      hover: 'hover:bg-blue-100',
-      active: 'active:bg-blue-200',
-      text: 'text-blue-700',
-      dot: 'bg-blue-600'
+      border: 'border-lime-500/30',
+      bg: 'bg-lime-950/30',
+      hover: 'hover:bg-lime-950/50',
+      active: 'active:bg-lime-950/70',
+      text: 'text-lime-300',
+      dot: 'bg-lime-500'
     },
     category: {
-      border: 'border-green-200',
-      bg: 'bg-green-50',
-      hover: 'hover:bg-green-100',
-      active: 'active:bg-green-200',
-      text: 'text-green-700',
-      dot: 'bg-green-600'
+      border: 'border-emerald-500/30',
+      bg: 'bg-emerald-950/30',
+      hover: 'hover:bg-emerald-950/50',
+      active: 'active:bg-emerald-950/70',
+      text: 'text-emerald-300',
+      dot: 'bg-emerald-500'
     }
   };
   let loading = true;
@@ -493,8 +493,8 @@
     const price = Number(row.price);
     const rrp = Number(row.rrp);
     if (!Number.isFinite(price) || !Number.isFinite(rrp)) return '';
-    if (price < rrp) return 'bg-green-50 text-green-800 font-semibold';
-    if (price > rrp) return 'bg-red-50 text-red-800 font-semibold';
+    if (price < rrp) return 'bg-lime-950/40 text-lime-300 font-semibold';
+    if (price > rrp) return 'bg-red-950/30 text-red-400 font-semibold';
     return '';
   };
 
@@ -911,30 +911,31 @@
   });
 </script>
 
-<div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
-  <div class="max-w-[98%] mx-auto space-y-6">
-    <div class="flex items-center justify-between">
+<svelte:head>
+  <title>Build Price List - RapidTools</title>
+</svelte:head>
+
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+  <div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8 space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h1 class="text-2xl font-semibold text-gray-900">Build Price List</h1>
-        <p class="text-sm text-gray-600">Review and finalize the latest saved price list.</p>
+        <h1 class="text-2xl font-bold text-white tracking-tight">Build Price List</h1>
+        <p class="mt-1 text-sm text-gray-400">Review and finalize the latest saved price list.</p>
       </div>
       <div class="flex flex-wrap items-center gap-3">
-        <a
-          class="inline-flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          href="{base}/price-lists"
-        >
-          ← Back
-        </a>
+        <a class="btn-secondary text-sm inline-flex items-center gap-2" href="{base}/price-lists">← Back</a>
       </div>
     </div>
 
-    <div class="bg-white shadow p-5 rounded-lg space-y-4">
+    <div class="space-y-4">
       <div class="space-y-2">
-        <label class="text-sm font-semibold text-gray-800" for="filename">Filename</label>
+        <label class="form-label" for="filename">Filename</label>
         <input
           id="filename"
-          class={`w-full rounded-md border px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            filenameError ? 'border-red-400 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500'
+          class={`w-full bg-[#0e1012] text-gray-200 rounded-lg px-3 py-2 text-sm placeholder-gray-600 transition-colors focus:outline-none focus:ring-1 ${
+            filenameError
+              ? 'border border-red-500/50 focus:border-red-500 focus:ring-red-500'
+              : 'border border-[#262a30] focus:border-lime-500 focus:ring-lime-500'
           }`}
           placeholder="Enter filename"
           bind:value={filename}
@@ -942,23 +943,23 @@
           required
         />
         {#if filenameError}
-          <p class="text-xs text-red-600">{filenameError}</p>
+          <p class="text-xs text-red-400">{filenameError}</p>
         {/if}
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <label for="order-id-build" class="text-sm font-medium text-gray-700 sr-only">Order IDs</label>
+        <label for="order-id-build" class="form-label sr-only">Order IDs</label>
         <input
           id="order-id-build"
           type="text"
-          class="rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
           placeholder="Order IDs (e.g. 26-0012347, 26-0012348)"
           bind:value={orderId}
           on:keydown={(e) => e.key === 'Enter' && loadFromOrder()}
         />
         <button
           type="button"
-          class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+          class="btn-secondary text-sm disabled:opacity-60 disabled:cursor-not-allowed"
           on:click={loadFromOrder}
           disabled={loadingOrder}
         >
@@ -966,26 +967,26 @@
         </button>
       </div>
       {#if orderError}
-        <p class="text-sm text-red-600">{orderError}</p>
+        <p class="text-sm text-red-400">{orderError}</p>
       {/if}
 
       <div class="grid gap-4 lg:grid-cols-2">
-        <div class="bg-white px-4 py-3 border border-gray-200 rounded-lg space-y-3">
+        <div class="bg-[#181b20] px-4 py-3 border border-[#262a30] rounded-xl space-y-3">
           <div class="grid gap-3 sm:grid-cols-[2fr,1fr,auto] items-end">
             <div>
-              <label class="text-xs font-semibold text-gray-700" for="new-sku">SKU</label>
+              <label class="form-label" for="new-sku">SKU</label>
               <input
                 id="new-sku"
-                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                 placeholder="Enter SKU"
                 bind:value={newSku}
               />
             </div>
             <div>
-              <label class="text-xs font-semibold text-gray-700" for="new-price">Discounted Price</label>
+              <label class="form-label" for="new-price">Discounted Price</label>
               <input
                 id="new-price"
-                class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
                 placeholder="0.00"
                 bind:value={newPrice}
                 inputmode="decimal"
@@ -994,7 +995,7 @@
             <div class="flex sm:justify-end">
               <button
                 type="button"
-                class="w-full sm:w-auto inline-flex items-center justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                class="w-full sm:w-auto btn-primary text-sm disabled:opacity-60 disabled:cursor-not-allowed"
                 on:click={addSkuRow}
                 disabled={checkingSku}
               >
@@ -1003,23 +1004,23 @@
             </div>
           </div>
           {#if addSkuError}
-            <p class="text-xs text-red-600">{addSkuError}</p>
+            <p class="text-xs text-red-400">{addSkuError}</p>
           {/if}
           {#if addSkuSuccess}
-            <p class="text-xs text-green-700">{addSkuSuccess}</p>
+            <p class="text-xs text-lime-400">{addSkuSuccess}</p>
           {/if}
           {#if detailError}
-            <p class="text-xs text-orange-600">{detailError}</p>
+            <p class="text-xs text-amber-400">{detailError}</p>
           {/if}
         </div>
 
-        <div class="bg-white px-4 py-3 border border-gray-200 rounded-lg space-y-3">
-          <p class="text-sm font-semibold text-gray-800">Static blocks</p>
+        <div class="bg-[#181b20] px-4 py-3 border border-[#262a30] rounded-xl space-y-3">
+          <p class="text-sm font-semibold text-white">Static blocks</p>
           <div class="flex flex-wrap gap-2">
             {#each staticItems as item}
               {@const styles = getStaticStyle(item.type)}
               <button
-                class={`flex items-center gap-2 rounded-md border ${styles.border} ${styles.bg} px-3 py-2 text-xs font-semibold ${styles.text} shadow-sm transition ${styles.hover} ${styles.active}`}
+                class={`flex items-center gap-2 rounded-lg border ${styles.border} ${styles.bg} px-3 py-2 text-xs font-semibold ${styles.text} transition ${styles.hover} ${styles.active}`}
                 draggable="true"
                 on:dragstart={(e) => handleStaticDragStart(e, item)}
               >
@@ -1032,42 +1033,42 @@
       </div>
 
       <div class="grid gap-6 lg:grid-cols-2 items-stretch lg:min-h-[70vh]">
-        <div class="space-y-0 rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-          <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
+        <div class="space-y-0 rounded-2xl border border-[#262a30] shadow-xl overflow-hidden">
+          <div class="bg-[#181b20] px-4 py-3 flex items-center justify-between">
             <div>
-              <p class="text-sm font-semibold text-gray-800">SKU & Prices</p>
+              <p class="text-sm font-semibold text-white">SKU & Prices</p>
             </div>
             {#if loading}
-              <span class="text-xs text-blue-600">Loading…</span>
+              <span class="text-xs text-lime-400">Loading…</span>
             {:else if errorMessage}
-              <span class="text-xs text-red-600">Error</span>
+              <span class="text-xs text-red-400">Error</span>
             {:else}
               <span class="text-xs text-gray-500">{rows.length} items</span>
             {/if}
           </div>
 
           <div class="max-h-[500px] overflow-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-              <thead class="bg-gray-50">
+            <table class="w-full min-w-full divide-y divide-[#262a30] text-sm text-gray-200">
+              <thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
                 <tr>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">#</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.sku}</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.discPrice}</th>
-                  <th class="px-4 py-3 text-left font-semibold text-gray-700">{columnLabels.rrp}</th>
+                  <th class="px-4 py-3 text-left">#</th>
+                  <th class="px-4 py-3 text-left">{columnLabels.sku}</th>
+                  <th class="px-4 py-3 text-left">{columnLabels.discPrice}</th>
+                  <th class="px-4 py-3 text-left">{columnLabels.rrp}</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-100 bg-white">
+              <tbody class="divide-y divide-[#262a30] bg-[#141619]">
                 {#if loading}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-gray-600" colspan="4">Loading...</td>
+                    <td class="px-4 py-3.5 text-sm text-gray-400" colspan="4">Loading...</td>
                   </tr>
                 {:else if errorMessage}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-red-600" colspan="4">{errorMessage}</td>
+                    <td class="px-4 py-3.5 text-sm text-red-400" colspan="4">{errorMessage}</td>
                   </tr>
                 {:else if rows.length === 0}
                   <tr>
-                    <td class="px-4 py-3 text-sm text-gray-600" colspan="4">No price list data found.</td>
+                    <td class="px-4 py-3.5 text-sm text-gray-400" colspan="4">No price list data found.</td>
                   </tr>
                 {:else}
                   {#each rows as row, index}
@@ -1075,12 +1076,12 @@
                     <tr
                       draggable="true"
                       on:dragstart={(e) => handleDragStart(e, row, index)}
-                      class="hover:bg-gray-50"
+                      class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors"
                     >
-                      <td class="px-4 py-3 text-gray-700">{index + 1}</td>
-                      <td class="px-4 py-3 text-gray-800">
+                      <td class="px-4 py-3.5 text-gray-400">{index + 1}</td>
+                      <td class="px-4 py-3.5">
                         <div class="flex items-center gap-3">
-                          <div class="h-12 w-12 overflow-hidden rounded border border-gray-200 bg-gray-50 flex items-center justify-center">
+                          <div class="h-12 w-12 overflow-hidden rounded-lg border border-[#262a30] bg-[#0e1012] flex items-center justify-center">
                             {#if row.imageUrl}
                               <img src={row.imageUrl} alt={row.sku} class="h-full w-full object-cover" loading="lazy" />
                             {:else}
@@ -1088,22 +1089,22 @@
                             {/if}
                           </div>
                           <div class="space-y-1">
-                            <p class="font-semibold text-gray-900">{row.sku}</p>
+                            <p class="font-semibold text-white">{row.sku}</p>
                             {#if row.model}
-                              <p class="text-xs text-gray-600">{row.model}</p>
+                              <p class="text-xs text-gray-400">{row.model}</p>
                             {/if}
                             {#if row.hasDescription}
-                              <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200">
+                              <span class="inline-flex items-center rounded-full bg-lime-950/40 px-2 py-0.5 text-[11px] font-semibold text-lime-300 border border-lime-500/30">
                                 Has description
                               </span>
                             {/if}
                           </div>
                         </div>
                       </td>
-                      <td class="px-4 py-3">
+                      <td class="px-4 py-3.5">
                         <input
                           id={`source-price-${row.sku}-${index}`}
-                          class={`w-full rounded-md border border-gray-300 px-2 py-1 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${priceClass}`}
+                          class={`w-full bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-sm transition-colors focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 ${priceClass}`}
                           type="text"
                           inputmode="decimal"
                           placeholder="0.00"
@@ -1111,7 +1112,7 @@
                           on:input={(e) => updateSourceRowPrice(index, e.currentTarget.value)}
                         />
                       </td>
-                      <td class="px-4 py-3 text-gray-800">{row.rrp ?? '—'}</td>
+                      <td class="px-4 py-3.5 text-gray-300">{row.rrp ?? '—'}</td>
                     </tr>
                   {/each}
                 {/if}
@@ -1121,7 +1122,7 @@
         </div>
 
         <div
-          class="rounded-lg border border-dashed border-blue-300 bg-blue-50/40 p-4 text-sm text-gray-800 min-h-[300px] flex flex-col gap-3 h-full min-h-0 lg:h-[70vh] lg:max-h-[70vh] overflow-hidden"
+          class="rounded-2xl border border-dashed border-lime-500/30 bg-lime-950/10 p-4 text-sm text-gray-200 min-h-[300px] flex flex-col gap-3 h-full min-h-0 lg:h-[70vh] lg:max-h-[70vh] overflow-hidden"
           role="list"
           aria-label="Builder dropzone"
           on:dragover={handleDragOver}
@@ -1129,12 +1130,12 @@
         >
           <div class="flex items-center justify-between">
             <div>
-              <p class="font-semibold text-gray-900">Builder</p>
-              <p class="text-xs text-gray-600">Drag SKUs or static blocks to add here.</p>
+              <p class="font-semibold text-white">Builder</p>
+              <p class="text-xs text-gray-400">Drag SKUs or static blocks to add here.</p>
             </div>
             <span class="text-xs text-gray-500">{builderItems.length} items</span>
           </div>
-          <div class="flex-1 rounded-md border border-dashed border-gray-200 bg-white/70 p-3 overflow-auto min-h-0 max-h-full">
+          <div class="flex-1 rounded-lg border border-dashed border-[#262a30] bg-[#0e1012] p-3 overflow-auto min-h-0 max-h-full">
             {#if builderItems.length === 0}
               <p class="text-xs text-gray-500">Drop SKUs or static blocks here to build your list.</p>
             {:else}
@@ -1150,10 +1151,10 @@
                 {#each builderItems as item, idx (item.id)}
                   {@const staticStyle = getStaticStyle(item.staticType ?? 'page_break')}
                   <li
-                    class={`flex items-start justify-between rounded-md border px-3 py-2 shadow-sm text-sm cursor-move gap-3 ${
+                    class={`flex items-start justify-between rounded-lg border px-3 py-2 text-sm cursor-move gap-3 ${
                       item.kind === 'static'
                         ? `${staticStyle.bg} ${staticStyle.border}`
-                        : 'bg-white border-gray-200'
+                        : 'bg-[#141619] border-[#262a30]'
                     }`}
                     draggable="true"
                     on:dragstart={(e) => handleBuilderDragStart(e, idx)}
@@ -1162,7 +1163,7 @@
                   >
                     <div class="flex-1 flex gap-3">
                       {#if item.kind === 'sku'}
-                        <div class="h-12 w-12 overflow-hidden rounded border border-gray-200 bg-gray-50 flex items-center justify-center shrink-0">
+                        <div class="h-12 w-12 overflow-hidden rounded-lg border border-[#262a30] bg-[#0e1012] flex items-center justify-center shrink-0">
                           {#if item.imageUrl}
                             <img src={item.imageUrl} alt={item.sku} class="h-full w-full object-cover" loading="lazy" />
                           {:else}
@@ -1173,36 +1174,36 @@
                       <div class="space-y-1 flex-1">
                         <div class="flex items-center gap-2">
                           {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
-                            <p class="font-semibold text-gray-900 sr-only">{item.sku}</p>
+                            <p class="font-semibold text-white sr-only">{item.sku}</p>
                           {:else}
-                            <p class="font-semibold text-gray-900">{item.sku}</p>
+                            <p class="font-semibold text-white">{item.sku}</p>
                           {/if}
                           {#if item.kind === 'static' && item.staticType === 'page_break'}
-                            <span class="text-xs rounded bg-gray-100 px-2 py-0.5 text-gray-700">Page Break</span>
+                            <span class="text-xs rounded bg-[#1f2329] px-2 py-0.5 text-gray-300 border border-[#333842]">Page Break</span>
                           {:else if item.kind === 'sku' && item.hasDescription}
-                            <span class="text-[11px] inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700 border border-blue-200">
+                            <span class="text-[11px] inline-flex items-center rounded-full bg-lime-950/40 px-2 py-0.5 font-semibold text-lime-300 border border-lime-500/30">
                               Has description
                             </span>
                           {/if}
                         </div>
                         {#if item.kind === 'sku' && item.model}
-                          <p class="text-xs text-gray-700">{item.model}</p>
+                          <p class="text-xs text-gray-400">{item.model}</p>
                         {/if}
 
                         {#if item.kind === 'static' && (item.staticType === 'range' || item.staticType === 'category')}
                           <input
-                            class="w-full rounded-md border border-gray-300 px-3 py-2 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="w-full bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-3 py-2 text-xs transition-colors focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600"
                             placeholder={item.staticType === 'range' ? 'Enter range' : 'Enter category'}
                             bind:value={item.value}
                           />
                         {:else if item.kind === 'static' && item.staticType === 'page_break'}
-                          <p class="text-xs text-gray-600">Page separator</p>
+                          <p class="text-xs text-gray-400">Page separator</p>
                         {:else}
                           <div class="flex items-center gap-2">
-                            <label for={`price-${item.id}`} class="text-xs text-gray-700">Price:</label>
+                            <label for={`price-${item.id}`} class="text-xs text-gray-400">Price:</label>
                             <input
                               id={`price-${item.id}`}
-                              class="w-20 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              class="w-20 bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-xs transition-colors focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600"
                               type="text"
                               inputmode="decimal"
                               placeholder="0.00"
@@ -1211,13 +1212,13 @@
                             />
                           </div>
                           {#if item.rrp}
-                            <p class="text-[11px] text-gray-600">RRP: {item.rrp}</p>
+                            <p class="text-[11px] text-gray-500">RRP: {item.rrp}</p>
                           {/if}
                           <div class="flex items-center gap-2 min-w-0">
-                            <label for={`moq-${item.id}`} class="text-xs text-gray-700 shrink-0">{columnLabels.moq}:</label>
+                            <label for={`moq-${item.id}`} class="text-xs text-gray-400 shrink-0">{columnLabels.moq}:</label>
                             <input
                               id={`moq-${item.id}`}
-                              class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              class="min-w-0 flex-1 bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-xs transition-colors focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600"
                               type="text"
                               placeholder="—"
                               value={item.moq ?? ''}
@@ -1227,11 +1228,11 @@
                             />
                           </div>
                           <div class="flex flex-col gap-0.5">
-                            <label for={`note-${item.id}`} class="text-xs text-gray-600">Note (shows on print)</label>
+                            <label for={`note-${item.id}`} class="text-xs text-gray-400">Note (shows on print)</label>
                             <input
                               id={`note-${item.id}`}
                               type="text"
-                              class="w-full rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              class="w-full bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-xs transition-colors focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600"
                               placeholder="Add note..."
                               bind:value={item.note}
                               on:mousedown|stopPropagation
@@ -1242,10 +1243,10 @@
                       </div>
                     </div>
                     <div class="flex items-center gap-3">
-                      <span class="text-xs text-gray-400">#{idx + 1}</span>
+                      <span class="text-xs text-gray-500">#{idx + 1}</span>
                       <button
                         type="button"
-                        class="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 active:bg-red-200"
+                        class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition"
                         aria-label={`Remove ${item.sku}`}
                         on:click|stopPropagation={() => removeBuilderItem(idx)}
                       >
@@ -1260,18 +1261,18 @@
         </div>
       </div>
 
-      <div class="rounded-lg border border-gray-200 bg-gray-50/80 p-4 space-y-4">
+      <div class="rounded-xl border border-[#262a30] bg-[#181b20] p-4 space-y-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 class="text-sm font-semibold text-gray-900">Column modifier</h2>
-            <p class="text-xs text-gray-600 mt-0.5">
+            <h2 class="text-sm font-semibold text-white">Column modifier</h2>
+            <p class="text-xs text-gray-400 mt-0.5">
               Rename table headers for the SKU list above and for list-style print output. Extra columns print
               blank cells for handwriting or notes.
             </p>
           </div>
           <button
             type="button"
-            class="text-xs font-semibold text-blue-700 hover:text-blue-900 underline-offset-2 hover:underline shrink-0"
+            class="text-xs font-semibold text-lime-400 hover:text-lime-300 underline-offset-2 hover:underline shrink-0"
             on:click={() => (columnLabels = { ...DEFAULT_COLUMN_LABELS })}
           >
             Reset to defaults
@@ -1279,87 +1280,83 @@
         </div>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-sku">SKU (list / source)</label>
+            <label class="form-label" for="col-sku">SKU (list / source)</label>
             <input
               id="col-sku"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.sku}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-disc">Discounted price (source table)</label>
+            <label class="form-label" for="col-disc">Discounted price (source table)</label>
             <input
               id="col-disc"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.discPrice}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-rrp">RRP</label>
+            <label class="form-label" for="col-rrp">RRP</label>
             <input
               id="col-rrp"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.rrp}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-image">Image (list print)</label>
+            <label class="form-label" for="col-image">Image (list print)</label>
             <input
               id="col-image"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.image}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-name">Name (list print)</label>
+            <label class="form-label" for="col-name">Name (list print)</label>
             <input
               id="col-name"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.name}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-desc">Description (list print)</label>
+            <label class="form-label" for="col-desc">Description (list print)</label>
             <input
               id="col-desc"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.description}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-price">Price (list print)</label>
+            <label class="form-label" for="col-price">Price (list print)</label>
             <input
               id="col-price"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.price}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-qty">Qty (list print)</label>
+            <label class="form-label" for="col-qty">Qty (list print)</label>
             <input
               id="col-qty"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.qty}
             />
           </div>
           <div>
-            <label class="text-xs font-semibold text-gray-700" for="col-moq">MOQ (list &amp; thumb print)</label>
+            <label class="form-label" for="col-moq">MOQ (list &amp; thumb print)</label>
             <input
               id="col-moq"
-              class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="mt-1 w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={columnLabels.moq}
             />
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-4 mt-2 space-y-3">
+        <div class="border-t border-[#262a30] pt-4 mt-2 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <p class="text-xs font-semibold text-gray-800">Extra columns (list &amp; thumb print)</p>
-            <button
-              type="button"
-              class="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-              on:click={addCustomColumn}
-            >
+            <p class="text-xs font-semibold text-gray-300">Extra columns (list &amp; thumb print)</p>
+            <button type="button" class="btn-secondary text-xs px-2.5 py-1" on:click={addCustomColumn}>
               Add column
             </button>
           </div>
@@ -1368,13 +1365,11 @@
           {:else}
             <ul class="space-y-2">
               {#each columnLabels.customColumns ?? [] as cc (cc.id)}
-                <li
-                  class="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 bg-white px-3 py-2"
-                >
+                <li class="flex flex-wrap items-center gap-3 rounded-lg border border-[#262a30] bg-[#141619] px-3 py-2">
                   <label class="sr-only" for={`custom-col-label-${cc.id}`}>Column label</label>
                   <input
                     id={`custom-col-label-${cc.id}`}
-                    class="min-w-[8rem] flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="min-w-[8rem] flex-1 bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1.5 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600"
                     placeholder="Header label"
                     value={cc.label}
                     on:input={(e) => {
@@ -1387,10 +1382,10 @@
                       };
                     }}
                   />
-                  <label class="inline-flex items-center gap-2 text-xs text-gray-700 shrink-0">
+                  <label class="inline-flex items-center gap-2 text-xs text-gray-300 shrink-0">
                     <input
                       type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                       checked={cc.visible}
                       on:change={(e) => {
                         const v = e.currentTarget.checked;
@@ -1406,7 +1401,7 @@
                   </label>
                   <button
                     type="button"
-                    class="text-xs font-semibold text-red-700 hover:text-red-900 shrink-0"
+                    class="text-xs font-semibold text-red-400 hover:text-red-300 shrink-0"
                     on:click={() => removeCustomColumn(cc.id)}
                   >
                     Remove
@@ -1419,79 +1414,79 @@
       </div>
 
       <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
               id="include-rrp"
               bind:checked={includeRrpInPrint}
-              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
             />
-            <label for="include-rrp" class="text-sm text-gray-700">Include RRP in print</label>
+            <label for="include-rrp" class="text-sm text-gray-300">Include RRP in print</label>
           </div>
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
               id="cross-rrp"
               bind:checked={crossOutRrpInPrint}
-              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
             />
-            <label for="cross-rrp" class="text-sm text-gray-700">Cross out RRP</label>
+            <label for="cross-rrp" class="text-sm text-gray-300">Cross out RRP</label>
           </div>
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
               id="show-description"
               bind:checked={showDescription}
-              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
             />
-            <label for="show-description" class="text-sm text-gray-700">Show description</label>
+            <label for="show-description" class="text-sm text-gray-300">Show description</label>
           </div>
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
               id="show-price"
               bind:checked={showPriceInPrint}
-              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
             />
-            <label for="show-price" class="text-sm text-gray-700">Show price</label>
+            <label for="show-price" class="text-sm text-gray-300">Show price</label>
           </div>
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
               id="show-qty-column"
               bind:checked={showQuantityColumnInPrint}
-              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
             />
-            <label for="show-qty-column" class="text-sm text-gray-700">Include quantity column (blank)</label>
+            <label for="show-qty-column" class="text-sm text-gray-300">Include quantity column (blank)</label>
           </div>
           <div class="flex items-center gap-2">
             <input
               type="checkbox"
               id="show-moq"
               bind:checked={showMoqInPrint}
-              class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
             />
-            <label for="show-moq" class="text-sm text-gray-700">Show MOQ column</label>
+            <label for="show-moq" class="text-sm text-gray-300">Show MOQ column</label>
           </div>
           <div class="flex items-center gap-2">
-            <label for="note-font-size" class="text-sm text-gray-700">Note font size</label>
+            <label for="note-font-size" class="text-sm text-gray-300">Note font size</label>
             <input
               id="note-font-size"
               type="number"
               min="8"
               max="24"
               step="1"
-              class="w-20 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-20 bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={noteFontSizeInPrint}
             />
             <span class="text-sm text-gray-500">px</span>
           </div>
           <div class="flex items-center gap-2">
-            <label for="note-font-weight" class="text-sm text-gray-700">Note weight</label>
+            <label for="note-font-weight" class="text-sm text-gray-300">Note weight</label>
             <select
               id="note-font-weight"
-              class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={noteFontWeightInPrint}
             >
               <option value="normal">Normal</option>
@@ -1499,10 +1494,10 @@
             </select>
           </div>
           <div class="flex items-center gap-2">
-            <label for="note-font-style" class="text-sm text-gray-700">Note style</label>
+            <label for="note-font-style" class="text-sm text-gray-300">Note style</label>
             <select
               id="note-font-style"
-              class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="bg-[#0e1012] text-gray-200 rounded-lg border border-[#262a30] px-2 py-1 text-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
               bind:value={noteFontStyleInPrint}
             >
               <option value="normal">Normal</option>
@@ -1511,32 +1506,19 @@
           </div>
         </div>
         {#if saveMessage}
-          <span class="text-xs text-gray-600">{saveMessage}</span>
+          <span class="text-xs text-gray-400">{saveMessage}</span>
         {/if}
-        <button
-          type="button"
-          class={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-            saving ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
-          }`}
-          on:click={saveBuilderRemote}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-          on:click={() => printBuilder('thumb')}
-        >
-          Print as Thumb
-        </button>
-        <button
-          type="button"
-          class="inline-flex items-center gap-2 rounded-md bg-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2"
-          on:click={() => printBuilder('list')}
-        >
-          Print as List
-        </button>
+        <div class="flex flex-wrap items-center gap-3">
+          <button type="button" class="btn-primary text-sm disabled:opacity-60" on:click={saveBuilderRemote} disabled={saving}>
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          <button type="button" class="btn-secondary text-sm" on:click={() => printBuilder('thumb')}>
+            Print as Thumb
+          </button>
+          <button type="button" class="btn-secondary text-sm" on:click={() => printBuilder('list')}>
+            Print as List
+          </button>
+        </div>
       </div>
     </div>
   </div>

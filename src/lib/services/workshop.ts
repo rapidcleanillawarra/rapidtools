@@ -286,29 +286,34 @@ async function getWorkshopHistoryFromTable(
   const map = new Map<string, WorkshopHistoryEntry[]>();
   if (!workshopIds.length) return map;
 
-  const { data: rows, error } = await supabase
-    .from('workshop_status_history')
-    .select('id, workshop_id, timestamp, user_name, status, is_creation')
-    .in('workshop_id', workshopIds)
-    .order('timestamp', { ascending: true });
+  const CHUNK_SIZE = 50;
+  for (let i = 0; i < workshopIds.length; i += CHUNK_SIZE) {
+    const chunk = workshopIds.slice(i, i + CHUNK_SIZE);
+    const { data: rows, error } = await supabase
+      .from('workshop_status_history')
+      .select('id, workshop_id, timestamp, user_name, status, is_creation')
+      .in('workshop_id', chunk)
+      .order('timestamp', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching workshop status history:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching workshop status history:', error);
+      throw error;
+    }
+
+    for (const row of rows ?? []) {
+      const entry: WorkshopHistoryEntry = {
+        id: row.id,
+        timestamp: row.timestamp,
+        user: row.user_name,
+        status: row.status,
+        isCreation: row.is_creation ?? false
+      };
+      const list = map.get(row.workshop_id) ?? [];
+      list.push(entry);
+      map.set(row.workshop_id, list);
+    }
   }
 
-  for (const row of rows ?? []) {
-    const entry: WorkshopHistoryEntry = {
-      id: row.id,
-      timestamp: row.timestamp,
-      user: row.user_name,
-      status: row.status,
-      isCreation: row.is_creation ?? false
-    };
-    const list = map.get(row.workshop_id) ?? [];
-    list.push(entry);
-    map.set(row.workshop_id, list);
-  }
   return map;
 }
 
@@ -1279,6 +1284,7 @@ export async function getWorkshops(filters?: {
   limit?: number;
   excludeStatuses?: string[];
   select?: string[];
+  includeHistory?: boolean;
 }): Promise<WorkshopRecord[]> {
   try {
     const selectColumns = filters?.select?.length ? filters.select.join(',') : '*';
@@ -1314,7 +1320,8 @@ export async function getWorkshops(filters?: {
 
     const list = (data ?? []) as WorkshopRecord[];
     const needsHistory =
-      !filters?.select?.length || filters.select.includes('history');
+      filters?.includeHistory !== false &&
+      (!filters?.select?.length || filters.select.includes('history'));
     if (needsHistory && list.length > 0) {
       const ids = list.map((w) => w.id);
       const historyMap = await getWorkshopHistoryFromTable(ids);

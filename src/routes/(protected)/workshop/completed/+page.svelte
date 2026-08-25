@@ -1,10 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { getWorkshops, type WorkshopRecord } from '$lib/services/workshop';
   import PhotoViewer from '$lib/components/PhotoViewer.svelte';
   import { toastError } from '$lib/utils/toast';
+
+  // Status filter
+  type StatusFilter = 'completed' | 'to_be_scrapped';
+
+  function parseStatus(value: string | null): StatusFilter {
+    return value === 'to_be_scrapped' ? 'to_be_scrapped' : 'completed';
+  }
+
+  let activeFilter: StatusFilter = parseStatus(get(page).url.searchParams.get('status'));
 
   // Data stores
   let workshops: WorkshopRecord[] = [];
@@ -29,19 +40,28 @@
   // Search
   let searchTerm = '';
 
-  async function loadCompletedWorkshops() {
+  async function loadWorkshops() {
     try {
       loading = true;
       error = null;
-      workshops = await getWorkshops({ status: 'completed', includeHistory: false });
+      workshops = await getWorkshops({ status: activeFilter, includeHistory: false });
       sortWorkshops();
     } catch (err) {
-      console.error('Error loading completed workshops:', err);
-      error = err instanceof Error ? err.message : 'Failed to load completed workshops';
+      console.error('Error loading workshops:', err);
+      error = err instanceof Error ? err.message : 'Failed to load workshops';
       toastError(error);
     } finally {
       loading = false;
     }
+  }
+
+  function switchFilter(filter: StatusFilter) {
+    if (activeFilter === filter) return;
+    activeFilter = filter;
+    searchTerm = '';
+    currentPage = 1;
+    goto(`${base}/workshop/completed?status=${filter}`, { replaceState: true, keepFocus: true, noScroll: true });
+    loadWorkshops();
   }
 
   function sortWorkshops() {
@@ -160,13 +180,30 @@
     goto(`${base}/workshop/form?workshop_id=${workshop.id}`);
   }
 
+  $: pageTitle = activeFilter === 'completed' ? 'Completed Jobs' : 'To Be Scrapped';
+  $: pageSubtitle = activeFilter === 'completed' ? 'View all completed workshop jobs' : 'View all workshops marked for scrapping';
+  $: dateColumnLabel = activeFilter === 'completed' ? 'Completed' : 'Marked for Scrap';
+  $: emptyIconPath = activeFilter === 'completed'
+    ? 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'
+    : 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16';
+  $: emptyTitle = activeFilter === 'completed' ? 'No completed jobs found' : 'No scrapped jobs found';
+  $: emptyMessage = activeFilter === 'completed'
+    ? (workshops.length === 0 ? 'No jobs have been completed yet.' : 'Try adjusting your search terms.')
+    : (workshops.length === 0 ? 'No jobs have been marked for scrapping yet.' : 'Try adjusting your search terms.');
+  $: countBadgeClass = activeFilter === 'completed'
+    ? 'bg-lime-950/40 text-lime-400 border border-lime-500/30'
+    : 'bg-red-950/40 text-red-400 border border-red-500/30';
+  $: countLabel = activeFilter === 'completed'
+    ? `${filteredWorkshops.length} completed job${filteredWorkshops.length !== 1 ? 's' : ''}`
+    : `${filteredWorkshops.length} to be scrapped job${filteredWorkshops.length !== 1 ? 's' : ''}`;
+
   onMount(() => {
-    loadCompletedWorkshops();
+    loadWorkshops();
   });
 </script>
 
 <svelte:head>
-  <title>Completed Jobs - RapidTools</title>
+  <title>{pageTitle} - RapidTools</title>
 </svelte:head>
 
 <div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
@@ -174,8 +211,8 @@
     <!-- Header -->
     <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">Completed Jobs</h1>
-        <p class="mt-1 text-sm text-gray-400">View all completed workshop jobs</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">{pageTitle}</h1>
+        <p class="mt-1 text-sm text-gray-400">{pageSubtitle}</p>
       </div>
       <div class="flex items-center gap-3">
         <a
@@ -188,6 +225,30 @@
           Workshop Board
         </a>
       </div>
+    </div>
+
+    <!-- Status Filter Toggle -->
+    <div class="flex items-center gap-1 p-1 bg-[#0e1012] rounded-xl border border-[#262a30] w-fit mb-6">
+      <button
+        type="button"
+        on:click={() => switchFilter('completed')}
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 {activeFilter === 'completed' ? 'bg-lime-500 text-gray-950 shadow' : 'text-gray-400 hover:text-white'}"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Completed
+      </button>
+      <button
+        type="button"
+        on:click={() => switchFilter('to_be_scrapped')}
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 {activeFilter === 'to_be_scrapped' ? 'bg-red-500 text-white shadow' : 'text-gray-400 hover:text-white'}"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        To Be Scrapped
+      </button>
     </div>
 
     {#if error}
@@ -203,11 +264,11 @@
     <div class="bg-[#181b20] rounded-xl border border-[#262a30] p-4 sm:p-5 mb-6 shadow-sm">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div class="max-w-md w-full">
-          <label for="search-completed" class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
-            Search Completed Jobs
+          <label for="search-jobs" class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+            Search {pageTitle}
           </label>
           <input
-            id="search-completed"
+            id="search-jobs"
             type="text"
             bind:value={searchTerm}
             placeholder="Search customer, product, serial, order ID..."
@@ -215,8 +276,8 @@
           />
         </div>
         <div class="flex items-center gap-4">
-          <span class="bg-lime-950/40 text-lime-400 border border-lime-500/30 px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide">
-            {filteredWorkshops.length} completed job{filteredWorkshops.length !== 1 ? 's' : ''}
+          <span class="{countBadgeClass} px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide">
+            {countLabel}
           </span>
         </div>
       </div>
@@ -227,17 +288,15 @@
       {#if loading}
         <div class="flex items-center justify-center py-16">
           <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-400"></div>
-          <span class="ml-3 text-sm text-gray-400">Loading completed jobs...</span>
+          <span class="ml-3 text-sm text-gray-400">Loading {pageTitle.toLowerCase()}...</span>
         </div>
       {:else if filteredWorkshops.length === 0}
         <div class="text-center py-16">
           <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={emptyIconPath}/>
           </svg>
-          <h3 class="mt-3 text-sm font-semibold text-white">No completed jobs found</h3>
-          <p class="mt-1 text-sm text-gray-400">
-            {workshops.length === 0 ? 'No jobs have been completed yet.' : 'Try adjusting your search terms.'}
-          </p>
+          <h3 class="mt-3 text-sm font-semibold text-white">{emptyTitle}</h3>
+          <p class="mt-1 text-sm text-gray-400">{emptyMessage}</p>
         </div>
       {:else}
         <div class="overflow-x-auto">
@@ -280,7 +339,7 @@
                   class="px-5 py-3.5 text-left cursor-pointer hover:bg-[#1f2329] hover:text-white transition-colors"
                   on:click={() => handleSort('updated_at')}
                 >
-                  Completed {getSortIcon('updated_at')}
+                  {dateColumnLabel} {getSortIcon('updated_at')}
                 </th>
                 <th scope="col" class="px-5 py-3.5 text-left">
                   Photos

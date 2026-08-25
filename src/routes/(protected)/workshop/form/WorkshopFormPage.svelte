@@ -420,7 +420,9 @@
 
 	// Determine docket info background color based on quote or repair selection
 	$: docketInfoBackgroundClass =
-		quoteOrRepair === 'Quote' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800';
+		quoteOrRepair === 'Quote'
+			? 'bg-purple-950/20 border border-purple-500/30 text-purple-300'
+			: 'bg-emerald-950/20 border border-emerald-500/30 text-emerald-300';
 
 	// Determine if pickup schedule is required (new jobs with Pickup action)
 	$: isPickupScheduleRequired =
@@ -2460,8 +2462,8 @@
 	}
 </script>
 
-<div class="container mx-auto px-4 py-8" in:fade>
-	<div class="overflow-hidden rounded-lg bg-white shadow-lg">
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6" in:fade>
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
 		<WorkshopHeader
 			{existingWorkshopId}
 			{workshopStatus}
@@ -2470,9 +2472,9 @@
 			{startedWith}
 		/>
 
-		<form class="space-y-8 p-6">
-			<div class="mb-4 text-sm text-gray-600">
-				Fields marked with <span class="text-red-500">*</span> are required
+		<form class="space-y-8 mt-6">
+			<div class="mb-4 text-sm text-gray-400">
+				Fields marked with <span class="text-red-400">*</span> are required
 			</div>
 			<!-- Two Column Layout for Machine and User Information -->
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

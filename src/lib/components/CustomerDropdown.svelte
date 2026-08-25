@@ -124,13 +124,13 @@
       on:input={handleInput}
       on:focus={handleFocus}
       on:blur={handleBlur}
-      class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 pr-10 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
       autocomplete="off"
     />
     <button
       type="button"
       on:click={toggleDropdown}
-      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+      class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-200 transition-colors"
       aria-label="Toggle customer dropdown"
     >
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +140,7 @@
   </div>
 
   {#if isOpen}
-    <div class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+    <div class="absolute z-10 w-full mt-1 bg-[#141619] border border-[#262a30] rounded-xl shadow-2xl max-h-60 overflow-auto">
       {#if isLoading}
         <div class="p-4">
           <SkeletonLoader type="text" height="1.25rem" className="mb-2" />
@@ -148,18 +148,18 @@
           <SkeletonLoader type="text" height="1rem" width="60%" />
         </div>
       {:else if error}
-        <div class="p-4 text-red-600 text-sm">
+        <div class="p-4 text-red-400 text-sm">
           {error}
           <button
             type="button"
             on:click={loadCustomers}
-            class="ml-2 text-blue-600 hover:text-blue-800 underline"
+            class="ml-2 text-lime-400 hover:text-lime-300 underline"
           >
             Retry
           </button>
         </div>
       {:else if filteredCustomers.length === 0}
-        <div class="p-4 text-gray-500 text-sm">
+        <div class="p-4 text-gray-400 text-sm">
           {#if searchTerm}
             No customers found matching "{searchTerm}"
           {:else}
@@ -171,16 +171,16 @@
           <button
             type="button"
             on:click={() => selectCustomer(customer)}
-            class="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-gray-50"
+            class="w-full text-left px-4 py-3 hover:bg-[#1f2329] border-b border-[#262a30] last:border-b-0 focus:outline-none focus:bg-[#1f2329] transition-colors"
           >
-            <div class="font-medium text-gray-900">
+            <div class="font-medium text-gray-100">
               {getCustomerDisplayName(customer)}
             </div>
-            <div class="text-sm text-gray-500">
+            <div class="text-sm text-gray-400">
               {customer.EmailAddress}
             </div>
             {#if getCustomerDetails(customer)}
-              <div class="text-xs text-gray-400 mt-1">
+              <div class="text-xs text-gray-500 mt-1">
                 {getCustomerDetails(customer)}
               </div>
             {/if}

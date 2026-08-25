@@ -130,25 +130,22 @@
 
 {#if workshopStatus === 'pickup' || workshopStatus === 'return'}
   <div class="transport-section">
-    <div
-      class="flex items-center justify-between px-4 py-3 rounded"
-      style="background-color: rgb(30, 30, 30);"
-    >
-      <h2 class="font-medium text-white">{sectionTitle}</h2>
+    <div class="flex items-center justify-between px-4 py-3 rounded-xl bg-[#181b20] border border-[#262a30]">
+      <h2 class="font-semibold text-white">{sectionTitle}</h2>
     </div>
 
-    <div class="space-y-4 bg-gray-50 border border-gray-200 border-t-0 px-4 py-3 rounded">
-      <p class="text-sm text-gray-600">
+    <div class="space-y-4 bg-[#181b20] border border-[#262a30] p-5 rounded-xl mt-3">
+      <p class="text-sm text-gray-400">
         Assign a person for this transport and set the scheduled date and time.
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="relative" bind:this={dropdownNode}>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="transport-assigned-input">
+          <label class="block text-sm font-medium text-gray-300 mb-1.5" for="transport-assigned-input">
             Assigned to
           </label>
           <div
-            class="flex rounded-lg border border-gray-300 bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 {!canEdit ? 'opacity-50 pointer-events-none' : ''}"
+            class="flex rounded-lg border border-[#262a30] bg-[#0e1012] focus-within:ring-1 focus-within:ring-lime-500 focus-within:border-lime-500 transition-colors {!canEdit ? 'opacity-50 pointer-events-none' : ''}"
           >
             <input
               id="transport-assigned-input"
@@ -159,7 +156,7 @@
               }}
               on:focus={openDropdown}
               on:click|stopPropagation={openDropdown}
-              class="flex-1 min-w-0 rounded-lg border-0 px-4 py-3 focus:ring-0 focus:outline-none"
+              class="flex-1 min-w-0 bg-transparent text-gray-200 border-0 px-4 py-3 text-sm focus:ring-0 focus:outline-none placeholder-gray-600"
               placeholder="Search by name or email..."
               disabled={!canEdit}
               role="combobox"
@@ -170,7 +167,7 @@
             {#if assignedTo && canEdit}
               <button
                 type="button"
-                class="px-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                class="px-3 text-gray-400 hover:text-gray-200 focus:outline-none transition-colors"
                 on:click|stopPropagation={clearAssignment}
                 title="Clear selection"
                 aria-label="Clear selection"
@@ -182,13 +179,13 @@
           {#if dropdownOpen}
             <ul
               id="transport-user-list"
-              class="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg py-1"
+              class="absolute z-10 mt-1 w-full max-h-60 overflow-auto rounded-xl border border-[#262a30] bg-[#141619] shadow-2xl py-1"
               role="listbox"
             >
               {#if usersLoading}
-                <li class="px-4 py-3 text-sm text-gray-500">Loading users...</li>
+                <li class="px-4 py-3 text-sm text-gray-400">Loading users...</li>
               {:else if filteredUsers.length === 0}
-                <li class="px-4 py-3 text-sm text-gray-500">
+                <li class="px-4 py-3 text-sm text-gray-400">
                   {searchQuery ? 'No users match your search.' : 'No users found.'}
                 </li>
               {:else}
@@ -196,13 +193,13 @@
                   <li>
                     <button
                       type="button"
-                      class="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none {user.email === assignedTo ? 'bg-blue-50 text-blue-800' : ''}"
+                      class="w-full text-left px-4 py-2.5 text-sm hover:bg-[#1f2329] focus:bg-[#1f2329] focus:outline-none transition-colors text-gray-200 {user.email === assignedTo ? 'bg-lime-950/30 text-lime-400 font-medium' : ''}"
                       role="option"
                       aria-selected={user.email === assignedTo}
                       on:click|stopPropagation={() => selectUser(user)}
                     >
-                      <span class="font-medium">{user.full_name}</span>
-                      <span class="text-gray-500 ml-1">({user.email})</span>
+                      <span class="font-medium text-gray-100">{user.full_name}</span>
+                      <span class="text-gray-400 ml-1 text-xs">({user.email})</span>
                     </button>
                   </li>
                 {/each}
@@ -213,7 +210,7 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1" for="transport-schedule">
+        <label class="block text-sm font-medium text-gray-300 mb-1.5" for="transport-schedule">
           {scheduleLabel}
         </label>
         <input
@@ -222,7 +219,7 @@
           value={scheduleLocal}
           on:input={handleScheduleInput}
           min={minDateTime}
-          class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Select date and time"
           disabled={!canEdit}
         />

@@ -100,24 +100,30 @@
 <div class="space-y-4">
   <!-- Existing Contacts List -->
   {#if contacts.length > 0}
-    <div class="overflow-hidden border border-gray-200 rounded">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
+    <div class="overflow-hidden border border-[#262a30] rounded-xl bg-[#141619]">
+      <table class="min-w-full divide-y divide-[#262a30]">
+        <thead class="bg-[#181b20]">
           <tr>
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Number</th>
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Actions</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Number</th>
+            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider">Email</th>
+            <th class="px-4 py-3 text-right text-xs font-semibold text-gray-400 uppercase tracking-wider w-20">Actions</th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="bg-[#141619] divide-y divide-[#262a30]">
           {#each contacts as contact, i}
-            <tr>
-              <td class="px-4 py-3 text-sm text-gray-900">{contact.name}</td>
-              <td class="px-4 py-3 text-sm text-gray-900">{contact.number}</td>
-              <td class="px-4 py-3 text-sm text-gray-900">{contact.email}</td>
+            <tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
+              <td class="px-4 py-3 text-sm text-gray-200 font-medium">{contact.name}</td>
+              <td class="px-4 py-3 text-sm text-gray-300">{contact.number || '—'}</td>
+              <td class="px-4 py-3 text-sm text-gray-300">{contact.email || '—'}</td>
               <td class="px-4 py-3 text-right">
-                <button type="button" class="text-red-600 hover:text-red-800 text-sm" on:click={() => removeOptionalContact(i)}>Remove</button>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
+                  on:click={() => removeOptionalContact(i)}
+                >
+                  Remove
+                </button>
               </td>
             </tr>
           {/each}
@@ -128,42 +134,42 @@
 
   <!-- Add New Contact Form -->
   {#if workshopStatus !== 'pickup'}
-    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+    <div class="bg-[#181b20] p-4 rounded-xl border border-[#262a30]">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="new-contact-name">Name</label>
+          <label class="block text-sm font-medium text-gray-300 mb-1" for="new-contact-name">Name</label>
           <input
             id="new-contact-name"
             type="text"
             bind:value={newContact.name}
             placeholder="Enter name"
-            class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="new-contact-phone">Phone Number</label>
+          <label class="block text-sm font-medium text-gray-300 mb-1" for="new-contact-phone">Phone Number</label>
           <input
             id="new-contact-phone"
             type="tel"
             bind:value={newContact.number}
             placeholder="Numbers, spaces, and + only"
-            class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
           />
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1" for="new-contact-email">Email</label>
+          <label class="block text-sm font-medium text-gray-300 mb-1" for="new-contact-email">Email</label>
           <input
             id="new-contact-email"
             type="email"
             bind:value={newContact.email}
             placeholder="Enter email"
-            class="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
           />
         </div>
         <div>
           <button
             type="button"
-            class="w-full px-4 py-2 bg-indigo-500 text-white text-sm rounded hover:bg-indigo-600 transition-colors"
+            class="btn-primary w-full py-2 text-sm justify-center"
             on:click={addOptionalContact}
           >
             Add Contact
@@ -174,7 +180,7 @@
   {/if}
 
   {#if error}
-    <div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+    <div class="p-3 bg-red-950/30 border border-red-500/30 text-red-300 rounded-lg text-sm">
       {error}
     </div>
   {/if}

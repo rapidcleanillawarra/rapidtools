@@ -122,16 +122,16 @@
 </script>
 
 <div id="files-section">
-  <div class="flex items-center justify-between px-4 py-3 rounded" style="background-color: rgb(30, 30, 30);">
-    <h3 class="font-medium text-white">
+  <div class="flex items-center justify-between px-4 py-3 rounded-xl bg-[#181b20] border border-[#262a30]">
+    <h3 class="font-semibold text-white">
       Files
-      <span class="text-sm text-gray-300 ml-2">
-        ({files.length} uploaded) <span class="text-gray-400">(optional)</span>
+      <span class="text-sm text-gray-400 ml-2">
+        ({files.length} uploaded) <span class="text-gray-500">(optional)</span>
       </span>
     </h3>
     {#if workshopStatus !== 'pickup'}
       <div class="flex gap-2">
-        <button type="button" class="px-3 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700" on:click={triggerUploadFile}>Upload Files</button>
+        <button type="button" class="btn-primary text-xs sm:text-sm px-3 py-1.5" on:click={triggerUploadFile}>Upload Files</button>
       </div>
     {/if}
   </div>
@@ -142,23 +142,28 @@
   {#if files.length > 0}
     <div class="mt-4 space-y-3">
       {#each files as f, i}
-        <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-md">
+        <div class="flex items-center justify-between p-3.5 bg-[#181b20] border border-[#262a30] rounded-xl hover:border-[#333842] transition-colors">
           <div class="flex items-center gap-3 flex-1 min-w-0">
             <div class="text-2xl">{getFileIcon(f.type)}</div>
             <div class="flex-1 min-w-0">
               <button
                 type="button"
-                class="text-left w-full hover:text-blue-600 transition-colors"
+                class="text-left w-full hover:text-lime-400 transition-colors"
                 on:click={(e) => handleFileClick(i, e)}
                 aria-label="View file {f.name}"
               >
-                <div class="font-medium text-gray-900 truncate">{f.name}</div>
-                <div class="text-sm text-gray-500">{formatFileSize(f.size)} • {f.type || 'Unknown type'}</div>
+                <div class="font-medium text-gray-200 truncate">{f.name}</div>
+                <div class="text-xs text-gray-400 mt-0.5">{formatFileSize(f.size)} • {f.type || 'Unknown type'}</div>
               </button>
             </div>
           </div>
           {#if workshopStatus !== 'pickup'}
-            <button type="button" class="ml-2 p-1 text-red-600 hover:text-red-800 rounded" aria-label="Remove file" on:click={() => removeFile(i)}>
+            <button
+              type="button"
+              class="ml-2 p-1.5 text-gray-400 hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-colors"
+              aria-label="Remove file"
+              on:click={() => removeFile(i)}
+            >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
@@ -168,19 +173,19 @@
       {/each}
     </div>
   {:else}
-    <div class="mt-4 p-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-md text-center">
-      <div class="text-gray-400 mb-2">
-        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+    <div class="mt-4 p-8 bg-[#181b20]/50 border-2 border-dashed border-[#262a30] rounded-xl text-center">
+      <div class="text-gray-500 mb-2">
+        <svg class="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
         </svg>
       </div>
-      <p class="text-gray-500 text-sm">No files uploaded yet</p>
-      <p class="text-gray-400 text-xs mt-1">Use the upload button above to add files</p>
+      <p class="text-gray-300 text-sm font-medium">No files uploaded yet</p>
+      <p class="text-gray-500 text-xs mt-1">Use the upload button above to add files</p>
     </div>
   {/if}
 
   {#if error}
-    <div class="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+    <div class="mt-4 p-3 bg-red-950/30 border border-red-500/30 text-red-300 rounded-lg text-sm">
       {error}
     </div>
   {/if}

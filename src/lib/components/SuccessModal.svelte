@@ -18,30 +18,30 @@
 
 <Modal {show} onClose={handleClose}>
   <div slot="header" class="text-center">
-    <h3 class="text-lg font-medium text-gray-900">Success!</h3>
+    <h3 class="text-lg font-bold text-white">Success!</h3>
   </div>
 
   <div slot="body" class="text-center">
-    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-      <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-lime-950/40 border border-lime-500/30 mb-4">
+      <svg class="h-6 w-6 text-lime-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
       </svg>
     </div>
 
-    <p class="text-sm text-gray-600 mb-4">{message}</p>
+    <p class="text-sm text-gray-300 mb-4">{message}</p>
 
     {#if orderId}
-      <div class="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-        <div class="text-sm text-blue-800">
-          <strong>Order ID:</strong> <span class="font-mono text-blue-900">{orderId}</span>
+      <div class="bg-[#181b20] border border-[#262a30] rounded-xl p-4 mb-4">
+        <div class="text-sm text-gray-300">
+          <strong>Order ID:</strong> <span class="font-mono text-lime-400 font-semibold">{orderId}</span>
         </div>
       </div>
     {/if}
 
-    <div class="flex justify-center space-x-3">
+    <div class="flex justify-center">
       <button
         type="button"
-        class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+        class="btn-primary px-6 py-2 text-sm font-semibold"
         on:click={handleClose}
       >
         Continue

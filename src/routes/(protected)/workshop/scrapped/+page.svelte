@@ -11,6 +11,11 @@
   let loading = true;
   let error: string | null = null;
 
+  // Pagination
+  let currentPage = 1;
+  let pageSize = 25;
+  const pageSizeOptions = [10, 25, 50, 100];
+
   // Sorting
   type SortField = 'customer_name' | 'product_name' | 'serial_number' | 'order_id' | 'created_at' | 'updated_at';
   let sortField: SortField = 'updated_at';
@@ -28,7 +33,7 @@
     try {
       loading = true;
       error = null;
-      workshops = await getWorkshops({ status: 'to_be_scrapped' });
+      workshops = await getWorkshops({ status: 'to_be_scrapped', includeHistory: false });
       sortWorkshops();
     } catch (err) {
       console.error('Error loading scrapped workshops:', err);
@@ -75,6 +80,7 @@
       sortDirection = 'asc';
     }
     sortWorkshops();
+    currentPage = 1;
   }
 
   function getSortIcon(field: SortField): string {
@@ -96,6 +102,31 @@
       workshop.serial_number?.toLowerCase().includes(searchLower)
     );
   });
+
+  // Reset page when search term changes
+  $: if (searchTerm !== undefined) {
+    currentPage = 1;
+  }
+
+  // Pagination calculations
+  $: totalPages = Math.max(1, Math.ceil(filteredWorkshops.length / pageSize));
+  $: if (currentPage > totalPages) {
+    currentPage = totalPages;
+  }
+  $: startItem = filteredWorkshops.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  $: endItem = Math.min(currentPage * pageSize, filteredWorkshops.length);
+  $: paginatedWorkshops = filteredWorkshops.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      currentPage = page;
+    }
+  }
+
+  function handlePageSizeChange(newSize: number) {
+    pageSize = newSize;
+    currentPage = 1;
+  }
 
   // Photo viewer functions
   function openPhotoViewer(workshop: WorkshopRecord, photoIndex: number = 0) {
@@ -138,55 +169,53 @@
   <title>To Be Scrapped - RapidTools</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+  <div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
     <!-- Header -->
-    <div class="mb-8">
-      <div class="flex justify-between items-center mb-4">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">To Be Scrapped</h1>
-          <p class="text-gray-600">View all workshops marked for scrapping</p>
-        </div>
-        <div class="flex items-center gap-3">
-          <a
-            href="{base}/workshop/workshop-board"
-            class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-            </svg>
-            Workshop Board
-          </a>
-        </div>
+    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-white tracking-tight">To Be Scrapped</h1>
+        <p class="mt-1 text-sm text-gray-400">View all workshops marked for scrapping</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a
+          href="{base}/workshop/workshop-board"
+          class="btn-secondary inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg hover:text-lime-300 transition-colors"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+          Workshop Board
+        </a>
       </div>
     </div>
 
     {#if error}
-      <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <div class="flex">
-          <svg class="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
-          </svg>
-          <span class="text-red-800">{error}</span>
-        </div>
+      <div class="bg-red-950/30 border border-red-500/40 rounded-xl p-4 mb-6 text-red-300 flex items-center">
+        <svg class="w-5 h-5 text-red-400 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>
+        <span>{error}</span>
       </div>
     {/if}
 
     <!-- Search and Stats -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+    <div class="bg-[#181b20] rounded-xl border border-[#262a30] p-4 sm:p-5 mb-6 shadow-sm">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div class="max-w-md">
-          <label for="search-scrapped" class="block text-sm font-medium text-gray-700 mb-1">Search To Be Scrapped</label>
+        <div class="max-w-md w-full">
+          <label for="search-scrapped" class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+            Search To Be Scrapped
+          </label>
           <input
             id="search-scrapped"
             type="text"
             bind:value={searchTerm}
             placeholder="Search customer, product, serial, order ID..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3.5 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
           />
         </div>
-        <div class="flex items-center gap-4 text-sm text-gray-600">
-          <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full font-medium">
+        <div class="flex items-center gap-4">
+          <span class="bg-red-950/40 text-red-400 border border-red-500/30 px-3.5 py-1.5 rounded-full text-xs font-medium tracking-wide">
             {filteredWorkshops.length} to be scrapped job{filteredWorkshops.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -194,136 +223,139 @@
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div class="rounded-xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
       {#if loading}
-        <div class="flex items-center justify-center py-12">
-          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-400"></div>
-          <span class="ml-2 text-gray-600">Loading scrapped jobs...</span>
+        <div class="flex items-center justify-center py-16">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-lime-400"></div>
+          <span class="ml-3 text-sm text-gray-400">Loading scrapped jobs...</span>
         </div>
       {:else if filteredWorkshops.length === 0}
-        <div class="text-center py-12">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div class="text-center py-16">
+          <svg class="mx-auto h-12 w-12 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
           </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">No scrapped jobs found</h3>
-          <p class="mt-1 text-sm text-gray-500">
+          <h3 class="mt-3 text-sm font-semibold text-white">No scrapped jobs found</h3>
+          <p class="mt-1 text-sm text-gray-400">
             {workshops.length === 0 ? 'No jobs have been marked for scrapping yet.' : 'Try adjusting your search terms.'}
           </p>
         </div>
       {:else}
         <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+          <table class="w-full min-w-full divide-y divide-[#262a30] text-sm text-gray-200">
+            <thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
               <tr>
                 <th
                   scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  class="px-5 py-3.5 text-left cursor-pointer hover:bg-[#1f2329] hover:text-white transition-colors"
                   on:click={() => handleSort('customer_name')}
                 >
                   Customer {getSortIcon('customer_name')}
                 </th>
                 <th
                   scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  class="px-5 py-3.5 text-left cursor-pointer hover:bg-[#1f2329] hover:text-white transition-colors"
                   on:click={() => handleSort('product_name')}
                 >
                   Product {getSortIcon('product_name')}
                 </th>
                 <th
                   scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  class="px-5 py-3.5 text-left cursor-pointer hover:bg-[#1f2329] hover:text-white transition-colors"
                   on:click={() => handleSort('serial_number')}
                 >
                   Serial No. {getSortIcon('serial_number')}
                 </th>
                 <th
                   scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  class="px-5 py-3.5 text-left cursor-pointer hover:bg-[#1f2329] hover:text-white transition-colors"
                   on:click={() => handleSort('order_id')}
                 >
                   Order ID {getSortIcon('order_id')}
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3.5 text-left">
                   Work Order
                 </th>
                 <th
                   scope="col"
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  class="px-5 py-3.5 text-left cursor-pointer hover:bg-[#1f2329] hover:text-white transition-colors"
                   on:click={() => handleSort('updated_at')}
                 >
                   Marked for Scrap {getSortIcon('updated_at')}
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3.5 text-left">
                   Photos
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" class="px-5 py-3.5 text-right">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              {#each filteredWorkshops as workshop (workshop.id)}
-                <tr class="hover:bg-gray-50 cursor-pointer" on:click={() => handleWorkshopClick(workshop)}>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">
+            <tbody class="divide-y divide-[#262a30] bg-[#141619]">
+              {#each paginatedWorkshops as workshop (workshop.id)}
+                <tr
+                  class="even:bg-[#181b20]/40 hover:bg-[#1f2329]/70 transition-colors cursor-pointer"
+                  on:click={() => handleWorkshopClick(workshop)}
+                >
+                  <td class="px-5 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-white">
                       {workshop.customer_name || 'N/A'}
                     </div>
                     {#if workshop.contact_email}
-                      <div class="text-sm text-gray-500">{workshop.contact_email}</div>
+                      <div class="text-xs text-gray-400 mt-0.5">{workshop.contact_email}</div>
                     {/if}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm text-gray-900">
+                  <td class="px-5 py-4 whitespace-nowrap">
+                    <div class="text-sm text-gray-200">
                       {workshop.product_name || 'N/A'}
                     </div>
                     {#if workshop.make_model}
-                      <div class="text-sm text-gray-500">{workshop.make_model}</div>
+                      <div class="text-xs text-gray-400 mt-0.5">{workshop.make_model}</div>
                     {/if}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-300">
                     {workshop.serial_number || 'N/A'}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-5 py-4 whitespace-nowrap">
                     {#if workshop.order_id}
                       <a
                         href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={workshop.order_id}"
                         target="_blank"
-                        class="text-blue-600 hover:text-blue-800 underline font-medium"
+                        class="text-lime-400 hover:text-lime-300 hover:underline font-medium text-sm"
                         on:click|stopPropagation
                       >
                         #{workshop.order_id}
                       </a>
                     {:else}
-                      <span class="text-gray-400">No order</span>
+                      <span class="text-gray-500 text-sm">No order</span>
                     {/if}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-300">
                     {workshop.clients_work_order || 'N/A'}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td class="px-5 py-4 whitespace-nowrap text-sm text-gray-400">
                     {formatDate(workshop.updated_at)}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-5 py-4 whitespace-nowrap">
                     {#if workshop.photo_urls && workshop.photo_urls.length > 0}
                       <button
                         type="button"
                         on:click|stopPropagation={() => openPhotoViewer(workshop)}
-                        class="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200"
+                        class="inline-flex items-center px-2.5 py-1 border border-lime-500/30 rounded-md text-xs font-medium text-lime-400 bg-lime-950/40 hover:bg-lime-900/40 transition-colors"
                       >
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                         {workshop.photo_urls.length}
                       </button>
                     {:else}
-                      <span class="text-gray-400 text-xs">No photos</span>
+                      <span class="text-gray-500 text-xs">No photos</span>
                     {/if}
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <td class="px-5 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       type="button"
                       on:click|stopPropagation={() => handleWorkshopClick(workshop)}
-                      class="text-blue-600 hover:text-blue-900"
+                      class="btn-secondary text-xs px-2.5 py-1 hover:text-lime-300"
                     >
                       View Details
                     </button>
@@ -333,6 +365,103 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Controls -->
+        {#if filteredWorkshops.length > 0}
+          <div class="bg-[#181b20] px-4 py-3 flex flex-col sm:flex-row items-center justify-between border-t border-[#262a30] gap-3 sm:px-6">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400">Show</span>
+              <select
+                value={pageSize}
+                on:change={(e) => handlePageSizeChange(Number(e.currentTarget.value))}
+                class="bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2.5 py-1 text-xs focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
+              >
+                {#each pageSizeOptions as option}
+                  <option value={option}>{option}</option>
+                {/each}
+              </select>
+              <span class="text-xs text-gray-400">per page</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <span class="text-xs text-gray-400">
+                Showing <span class="font-medium text-gray-200">{startItem}</span> to <span class="font-medium text-gray-200">{endItem}</span> of <span class="font-medium text-gray-200">{filteredWorkshops.length}</span> results
+              </span>
+
+              {#if totalPages > 1}
+                <nav class="isolate inline-flex -space-x-px rounded-lg shadow-sm" aria-label="Pagination">
+                  <button
+                    type="button"
+                    on:click={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    class="relative inline-flex items-center rounded-l-lg px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-[#262a30] bg-[#141619] hover:bg-[#1f2329] hover:text-gray-200 focus:z-20 disabled:opacity-30 disabled:cursor-not-allowed text-xs transition-colors"
+                  >
+                    <span class="sr-only">Previous</span>
+                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+
+                  {#if totalPages <= 7}
+                    {#each Array(totalPages) as _, i}
+                      <button
+                        type="button"
+                        on:click={() => goToPage(i + 1)}
+                        class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold transition-colors {currentPage === i + 1 ? 'bg-lime-500 text-gray-950 font-bold focus:z-20' : 'text-gray-300 ring-1 ring-inset ring-[#262a30] bg-[#141619] hover:bg-[#1f2329] hover:text-lime-300'}"
+                      >
+                        {i + 1}
+                      </button>
+                    {/each}
+                  {:else}
+                    <button
+                      type="button"
+                      on:click={() => goToPage(1)}
+                      class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold transition-colors {currentPage === 1 ? 'bg-lime-500 text-gray-950 font-bold' : 'text-gray-300 ring-1 ring-inset ring-[#262a30] bg-[#141619] hover:bg-[#1f2329] hover:text-lime-300'}"
+                    >
+                      1
+                    </button>
+                    {#if currentPage > 3}
+                      <span class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-500 ring-1 ring-inset ring-[#262a30] bg-[#141619]">...</span>
+                    {/if}
+                    {#each Array(3) as _, i}
+                      {#if currentPage - 1 + i > 1 && currentPage - 1 + i < totalPages}
+                        <button
+                          type="button"
+                          on:click={() => goToPage(currentPage - 1 + i)}
+                          class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold transition-colors {currentPage === currentPage - 1 + i ? 'bg-lime-500 text-gray-950 font-bold' : 'text-gray-300 ring-1 ring-inset ring-[#262a30] bg-[#141619] hover:bg-[#1f2329] hover:text-lime-300'}"
+                        >
+                          {currentPage - 1 + i}
+                        </button>
+                      {/if}
+                    {/each}
+                    {#if currentPage < totalPages - 2}
+                      <span class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold text-gray-500 ring-1 ring-inset ring-[#262a30] bg-[#141619]">...</span>
+                    {/if}
+                    <button
+                      type="button"
+                      on:click={() => goToPage(totalPages)}
+                      class="relative inline-flex items-center px-3 py-1.5 text-xs font-semibold transition-colors {currentPage === totalPages ? 'bg-lime-500 text-gray-950 font-bold' : 'text-gray-300 ring-1 ring-inset ring-[#262a30] bg-[#141619] hover:bg-[#1f2329] hover:text-lime-300'}"
+                    >
+                      {totalPages}
+                    </button>
+                  {/if}
+
+                  <button
+                    type="button"
+                    on:click={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    class="relative inline-flex items-center rounded-r-lg px-2 py-1.5 text-gray-400 ring-1 ring-inset ring-[#262a30] bg-[#141619] hover:bg-[#1f2329] hover:text-gray-200 focus:z-20 disabled:opacity-30 disabled:cursor-not-allowed text-xs transition-colors"
+                  >
+                    <span class="sr-only">Next</span>
+                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </nav>
+              {/if}
+            </div>
+          </div>
+        {/if}
       {/if}
     </div>
   </div>

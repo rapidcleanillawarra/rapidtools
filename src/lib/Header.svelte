@@ -259,8 +259,10 @@
 
 	// Dynamic menu definitions for submenus
 	$: assetsLinks = [
-		{ href: `${base}/assets`, label: 'Overview' },
-		{ href: `${base}/assets/create`, label: 'Create' }
+		{ href: 'https://rapidcleantools.vercel.app/admin/assets', label: 'Assets' },
+		{ href: 'https://rapidcleantools.vercel.app/admin/assets/customers', label: 'Customers' },
+		{ href: 'https://rapidcleantools.vercel.app/admin/assets/qr', label: 'QR codes' },
+		{ href: 'https://rapidcleantools.vercel.app/admin/assets/qr/design', label: 'QR design' }
 	];
 
 	$: productsLinks = [

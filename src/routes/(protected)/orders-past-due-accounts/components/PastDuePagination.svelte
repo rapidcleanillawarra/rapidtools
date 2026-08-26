@@ -14,31 +14,31 @@
 	}>();
 </script>
 
-<div class="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
+<div class="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row text-sm text-gray-400">
 	<!-- Items per page selector -->
 	<div class="flex items-center gap-2">
-		<label for="items-per-page" class="text-sm text-gray-700 dark:text-gray-300"> Show: </label>
+		<label for="items-per-page" class="text-sm text-gray-400"> Show: </label>
 		<select
 			id="items-per-page"
 			value={itemsPerPage}
 			on:change={(e) => dispatch('changeItemsPerPage', Number(e.currentTarget.value))}
-			class="rounded-md border border-gray-300 py-1 pl-3 pr-8 text-sm text-gray-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+			class="rounded-lg border border-[#262a30] bg-[#0e1012] py-1 pl-3 pr-8 text-sm text-gray-200 shadow-sm focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
 		>
 			<option value={10}>10</option>
 			<option value={25}>25</option>
 			<option value={50}>50</option>
 			<option value={100}>100</option>
 		</select>
-		<span class="text-sm text-gray-700 dark:text-gray-300"> entries per page </span>
+		<span class="text-sm text-gray-400"> entries per page </span>
 	</div>
 
 	<!-- Pagination info and controls -->
 	<div class="flex items-center gap-4">
-		<div class="text-sm text-gray-700 dark:text-gray-300">
-			Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredCount)} to {Math.min(
+		<div class="text-sm text-gray-400">
+			Showing <span class="font-medium text-gray-200">{Math.min((currentPage - 1) * itemsPerPage + 1, filteredCount)}</span> to <span class="font-medium text-gray-200">{Math.min(
 				currentPage * itemsPerPage,
 				filteredCount
-			)} of {filteredCount} entries
+			)}</span> of <span class="font-medium text-gray-200">{filteredCount}</span> entries
 		</div>
 
 		<div class="flex items-center gap-1">
@@ -46,7 +46,7 @@
 				type="button"
 				on:click={() => dispatch('previous')}
 				disabled={currentPage === 1}
-				class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				class="rounded-lg border border-[#333842] bg-[#1f2329] px-3 py-1.5 text-sm font-medium text-gray-300 shadow-sm hover:bg-[#262a30] hover:text-white focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-[#141619] disabled:cursor-not-allowed disabled:opacity-30 transition"
 				title="Previous page"
 			>
 				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -63,9 +63,9 @@
 				<button
 					type="button"
 					on:click={() => dispatch('goToPage', pageNum)}
-					class="rounded-md px-3 py-1.5 text-sm font-medium {pageNum === currentPage
-						? 'border border-indigo-500 bg-indigo-50 text-indigo-600 dark:border-indigo-400 dark:bg-indigo-900/30 dark:text-indigo-400'
-						: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+					class="rounded-lg px-3 py-1.5 text-sm font-medium transition {pageNum === currentPage
+						? 'border border-lime-500 bg-lime-500 text-gray-950 font-bold shadow-sm'
+						: 'border border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
 				>
 					{pageNum}
 				</button>
@@ -75,7 +75,7 @@
 				type="button"
 				on:click={() => dispatch('next')}
 				disabled={currentPage === totalPages}
-				class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+				class="rounded-lg border border-[#333842] bg-[#1f2329] px-3 py-1.5 text-sm font-medium text-gray-300 shadow-sm hover:bg-[#262a30] hover:text-white focus:outline-none focus:ring-2 focus:ring-lime-500 focus:ring-offset-2 focus:ring-offset-[#141619] disabled:cursor-not-allowed disabled:opacity-30 transition"
 				title="Next page"
 			>
 				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -184,222 +184,205 @@
 
 {#if showModal && order}
 	<div
-		class="fixed inset-0 z-50 overflow-y-auto"
+		class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
 		aria-labelledby="modal-title"
 		role="dialog"
 		aria-modal="true"
 	>
+		<div class="fixed inset-0" aria-hidden="true" on:click={closeModal}></div>
+
 		<div
-			class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
+			class="relative w-full max-w-2xl rounded-2xl border border-[#262a30] bg-[#141619] p-6 text-left shadow-2xl transition-all"
 		>
-			<div
-				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-				aria-hidden="true"
-				on:click={closeModal}
-			></div>
+			<div>
+				<h3
+					class="text-lg font-bold text-white"
+					id="modal-title"
+				>
+					Email Conversations - Invoice {order.invoice}
+				</h3>
+				<p class="mt-1 mb-4 text-sm text-gray-400">
+					Customer: <span class="text-gray-200 font-medium">{order.customer}</span>
+				</p>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
-				>&#8203;</span
-			>
+				<!-- Email Filters Section -->
+				<div class="mb-6 rounded-xl border border-[#262a30] bg-[#181b20] p-4">
+					<h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
+						Email Filters
+					</h4>
 
-			<div
-				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-2xl sm:align-middle"
-			>
-				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
-					<div class="sm:flex sm:items-start">
-						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<h3
-								class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-								id="modal-title"
-							>
-								Email Conversations - Invoice {order.invoice}
-							</h3>
-							<div class="mt-4">
-								<p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
-									Customer: {order.customer}
-								</p>
+					<!-- Filter Input -->
+					<div class="mb-3 flex gap-2">
+						<input
+							type="text"
+							bind:value={newFilter}
+							on:keydown={handleKeydown}
+							placeholder="Enter keyword to filter emails..."
+							class="flex-1 rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						/>
+						<button
+							type="button"
+							on:click={addFilter}
+							disabled={!newFilter.trim()}
+							class="btn-primary text-sm"
+						>
+							Add
+						</button>
+					</div>
 
-								<!-- Email Filters Section -->
-								<div class="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50">
-									<h4 class="mb-3 text-sm font-medium text-gray-900 dark:text-gray-100">
-										Email Filters
-									</h4>
-
-									<!-- Filter Input -->
-									<div class="mb-3 flex gap-2">
-										<input
-											type="text"
-											bind:value={newFilter}
-											on:keydown={handleKeydown}
-											placeholder="Enter keyword to filter emails..."
-											class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-										/>
-										<button
-											type="button"
-											on:click={addFilter}
-											disabled={!newFilter.trim()}
-											class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-										>
-											Add
-										</button>
-									</div>
-
-									<!-- Active Filters -->
-									{#if filters.length > 0}
-										<div class="flex flex-wrap gap-2">
-											{#each filters as filter}
-												<span class="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-													{filter}
-													<button
-														type="button"
-														on:click={() => removeFilter(filter)}
-														class="ml-1 inline-flex items-center justify-center rounded-full p-0.5 text-indigo-600 hover:bg-indigo-200 hover:text-indigo-900 dark:text-indigo-400 dark:hover:bg-indigo-800 dark:hover:text-indigo-100"
-													>
-														<span class="sr-only">Remove filter</span>
-														<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-														</svg>
-													</button>
-												</span>
-											{/each}
-										</div>
-									{:else}
-										<p class="text-xs text-gray-500 dark:text-gray-400">
-											No filters applied. All emails will be shown.
-										</p>
-									{/if}
-								</div>
-
-								<!-- Loading State -->
-								{#if apiLoading}
-									<div class="flex items-center justify-center py-8">
-										<div class="flex items-center space-x-2">
-											<svg
-												class="h-5 w-5 animate-spin text-gray-400"
-												xmlns="http://www.w3.org/2000/svg"
-												fill="none"
-												viewBox="0 0 24 24"
-											>
-												<circle
-													class="opacity-25"
-													cx="12"
-													cy="12"
-													r="10"
-													stroke="currentColor"
-													stroke-width="4"
-												></circle>
-												<path
-													class="opacity-75"
-													fill="currentColor"
-													d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-												></path>
-											</svg>
-											<span class="text-sm text-gray-500 dark:text-gray-400">Loading conversations...</span>
-										</div>
-									</div>
-								{:else if filteredConversations.length === 0}
-									<div class="py-8 text-center">
-										<svg
-											class="mx-auto h-12 w-12 text-gray-400"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-											xmlns="http://www.w3.org/2000/svg"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-											></path>
+					<!-- Active Filters -->
+					{#if filters.length > 0}
+						<div class="flex flex-wrap gap-2">
+							{#each filters as filter}
+								<span class="inline-flex items-center rounded-full border border-lime-500/40 bg-lime-500/10 px-2.5 py-0.5 text-xs font-medium text-lime-400">
+									{filter}
+									<button
+										type="button"
+										on:click={() => removeFilter(filter)}
+										class="ml-1.5 inline-flex items-center justify-center rounded-full p-0.5 hover:bg-lime-500/20 text-lime-400 focus:outline-none"
+									>
+										<span class="sr-only">Remove filter</span>
+										<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
 										</svg>
-										<h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-											{filters.length > 0 ? 'No matching conversations' : 'No conversations found'}
-										</h3>
-										<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-											{filters.length > 0
-												? 'Try adjusting your filters or remove them to see all conversations.'
-												: 'There are no email conversations for this order.'
-											}
-										</p>
-									</div>
-								{:else}
-									<!-- Email Conversations List -->
-									<div class="mb-2 text-sm text-gray-600 dark:text-gray-400">
-										Showing {filteredConversations.length} conversations
-										{filters.length > 0 ? ` (searched for: ${filters.join(', ')})` : ''}
-									</div>
-									<div class="max-h-96 overflow-y-auto">
-										<div class="space-y-3">
-											{#each filteredConversations as conversation}
-												<div class="rounded-md border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/50">
-													<div class="flex items-start justify-between">
-														<div class="flex-1 min-w-0">
-															<p class="text-sm font-medium text-gray-900 dark:text-gray-100">
-																From: {conversation.from}
-															</p>
-															{#if conversation.to}
-																<p class="text-sm text-gray-600 dark:text-gray-400">
-																	To: {conversation.to}
-																</p>
-															{/if}
-															{#if conversation.subject}
-																<p class="mt-1 text-sm font-medium text-gray-800 dark:text-gray-200">
-																	Subject: {conversation.subject}
-																</p>
-															{/if}
-															{#if conversation.received_datetime}
-																<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-																	{formatReceivedDate(conversation.received_datetime)}
-																</p>
-															{/if}
-															<p class="mt-1 text-sm text-gray-700 dark:text-gray-300">
-																{conversation.body_preview}
-															</p>
-														</div>
-														<div class="ml-4 flex-shrink-0">
-															<a
-																href={conversation.web_link}
-																target="_blank"
-																rel="noopener noreferrer"
-																class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-3 py-2 text-sm font-medium leading-4 text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-															>
-																<svg
-																	class="mr-2 h-4 w-4"
-																	fill="none"
-																	stroke="currentColor"
-																	viewBox="0 0 24 24"
-																	xmlns="http://www.w3.org/2000/svg"
-																>
-																	<path
-																		stroke-linecap="round"
-																		stroke-linejoin="round"
-																		stroke-width="2"
-																		d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-																	></path>
-																</svg>
-																Open
-															</a>
-														</div>
-													</div>
-												</div>
-											{/each}
-										</div>
-									</div>
-								{/if}
-							</div>
+									</button>
+								</span>
+							{/each}
+						</div>
+					{:else}
+						<p class="text-xs text-gray-500">
+							No filters applied. All emails will be shown.
+						</p>
+					{/if}
+				</div>
+
+				<!-- Loading State -->
+				{#if apiLoading}
+					<div class="flex items-center justify-center py-8">
+						<div class="flex items-center space-x-2">
+							<svg
+								class="h-5 w-5 animate-spin text-lime-400"
+								xmlns="http://www.w3.org/2000/svg"
+								fill="none"
+								viewBox="0 0 24 24"
+							>
+								<circle
+									class="opacity-25"
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									stroke-width="4"
+								></circle>
+								<path
+									class="opacity-75"
+									fill="currentColor"
+									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+								></path>
+							</svg>
+							<span class="text-sm text-gray-400">Loading conversations...</span>
 						</div>
 					</div>
-				</div>
-				<div class="bg-gray-50 px-4 py-3 dark:bg-gray-700 sm:flex sm:flex-row-reverse sm:px-6">
-					<button
-						type="button"
-						class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
-						on:click={closeModal}
-					>
-						Close
-					</button>
-				</div>
+				{:else if filteredConversations.length === 0}
+					<div class="py-8 text-center">
+						<svg
+							class="mx-auto h-12 w-12 text-gray-600"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							xmlns="http://www.w3.org/2000/svg"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+							></path>
+						</svg>
+						<h3 class="mt-2 text-sm font-semibold text-gray-200">
+							{filters.length > 0 ? 'No matching conversations' : 'No conversations found'}
+						</h3>
+						<p class="mt-1 text-sm text-gray-500">
+							{filters.length > 0
+								? 'Try adjusting your filters or remove them to see all conversations.'
+								: 'There are no email conversations for this order.'
+							}
+						</p>
+					</div>
+				{:else}
+					<!-- Email Conversations List -->
+					<div class="mb-2 text-sm text-gray-400">
+						Showing {filteredConversations.length} conversations
+						{filters.length > 0 ? ` (searched for: ${filters.join(', ')})` : ''}
+					</div>
+					<div class="max-h-96 overflow-y-auto pr-1">
+						<div class="space-y-3">
+							{#each filteredConversations as conversation}
+								<div class="rounded-xl border border-[#262a30] bg-[#181b20] p-4">
+									<div class="flex items-start justify-between">
+										<div class="flex-1 min-w-0">
+											<p class="text-sm font-medium text-white">
+												From: {conversation.from}
+											</p>
+											{#if conversation.to}
+												<p class="text-sm text-gray-400">
+													To: {conversation.to}
+												</p>
+											{/if}
+											{#if conversation.subject}
+												<p class="mt-1 text-sm font-semibold text-lime-400">
+													Subject: {conversation.subject}
+												</p>
+											{/if}
+											{#if conversation.received_datetime}
+												<p class="mt-1 text-xs text-gray-500">
+													{formatReceivedDate(conversation.received_datetime)}
+												</p>
+											{/if}
+											<p class="mt-1 text-sm text-gray-300">
+												{conversation.body_preview}
+											</p>
+										</div>
+										<div class="ml-4 flex-shrink-0">
+											<a
+												href={conversation.web_link}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="btn-secondary text-xs inline-flex items-center gap-1.5"
+											>
+												<svg
+													class="h-3.5 w-3.5"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+													></path>
+												</svg>
+												Open
+											</a>
+										</div>
+									</div>
+								</div>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<div class="mt-6 flex justify-end border-t border-[#262a30] pt-4">
+				<button
+					type="button"
+					class="btn-secondary text-sm"
+					on:click={closeModal}
+				>
+					Close
+				</button>
 			</div>
 		</div>
 	</div>

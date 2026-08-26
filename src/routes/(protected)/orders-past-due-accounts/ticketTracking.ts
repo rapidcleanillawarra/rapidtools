@@ -117,15 +117,15 @@ export function groupTicketsByStatus(
 export function getTicketPriorityColor(priority: string): string {
     switch (priority?.toLowerCase()) {
         case 'critical':
-            return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+            return 'border border-red-500/30 bg-red-950/30 text-red-400';
         case 'high':
-            return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+            return 'border border-amber-500/30 bg-amber-950/30 text-amber-400';
         case 'medium':
-            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+            return 'border border-yellow-500/30 bg-yellow-950/30 text-yellow-400';
         case 'low':
-            return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+            return 'border border-emerald-500/30 bg-emerald-950/30 text-emerald-400';
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+            return 'border border-[#333842] bg-[#1f2329] text-gray-300';
     }
 }
 
@@ -138,15 +138,15 @@ export function getTicketPriorityColor(priority: string): string {
 export function getTicketStatusColor(status: string): string {
     switch (status?.toLowerCase()) {
         case 'open':
-            return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+            return 'border border-sky-500/30 bg-sky-950/30 text-sky-400';
         case 'in progress':
-            return 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400';
+            return 'border border-purple-500/30 bg-purple-950/30 text-purple-400';
         case 'resolved':
-            return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+            return 'border border-emerald-500/30 bg-emerald-950/30 text-emerald-400';
         case 'closed':
-            return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+            return 'border border-[#333842] bg-[#1f2329] text-gray-400';
         default:
-            return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+            return 'border border-[#333842] bg-[#1f2329] text-gray-400';
     }
 }
 

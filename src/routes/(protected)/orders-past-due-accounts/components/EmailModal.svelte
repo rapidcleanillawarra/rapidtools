@@ -421,259 +421,275 @@
 
 {#if showModal}
 	<div
-		class="fixed inset-0 z-50 overflow-y-auto"
+		class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
 		aria-labelledby="email-modal-title"
 		role="dialog"
 		aria-modal="true"
 		on:click={handleBackdropClick}
 	>
-		<div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
-			<div
-				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-				aria-hidden="true"
-			></div>
+		<div
+			class="relative w-full max-w-2xl rounded-2xl border border-[#262a30] bg-[#141619] p-6 text-left shadow-2xl transition-all"
+		>
+			<div class="flex items-center justify-between">
+				<h3
+					class="text-lg font-bold text-white"
+					id="email-modal-title"
+				>
+					Compose Email - {order?.customer}
+				</h3>
+				{#if settingsLoading}
+					<span class="text-xs text-gray-400">Loading settings...</span>
+				{/if}
+			</div>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
+			<div class="mt-4 space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+				<!-- Sender Field -->
+				<div>
+					<label for="email-sender" class="block text-sm font-medium text-gray-300 mb-1.5">
+						From:
+					</label>
+					<input
+						type="email"
+						id="email-sender"
+						bind:value={sender}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						placeholder="sender@example.com"
+						required
+					/>
+				</div>
 
-			<div
-				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-2xl sm:align-middle"
-			>
-				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
-					<div class="sm:flex sm:items-start">
-						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<div class="flex items-center justify-between">
-								<h3
-									class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-									id="email-modal-title"
-								>
-									Compose Email - {order?.customer}
-								</h3>
-								{#if settingsLoading}
-									<span class="text-xs text-gray-500 dark:text-gray-400">Loading settings...</span>
-								{/if}
+				<!-- To Field -->
+				<div>
+					<label for="email-to" class="block text-sm font-medium text-gray-300 mb-1.5">
+						To:
+					</label>
+					<input
+						type="email"
+						id="email-to"
+						bind:value={to}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						placeholder="recipient@example.com"
+						required
+					/>
+				</div>
+
+				<!-- CC Field -->
+				<div>
+					<label for="email-cc" class="block text-sm font-medium text-gray-300 mb-1.5">
+						CC:
+					</label>
+					<div>
+						<!-- CC Pills -->
+						{#if cc.length > 0}
+							<div class="flex flex-wrap gap-2 mb-2">
+								{#each cc as email}
+									<span class="inline-flex items-center rounded-full border border-lime-500/30 bg-lime-500/10 px-2.5 py-0.5 text-xs font-medium text-lime-400">
+										{email}
+										<button
+											type="button"
+											class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-lime-500/20 focus:outline-none"
+											on:click={() => cc = removeEmailFromList(cc, email)}
+											aria-label="Remove {email}"
+										>
+											<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+											</svg>
+										</button>
+									</span>
+								{/each}
 							</div>
-							<div class="mt-4 space-y-4">
-								<!-- Sender Field -->
-								<div>
-									<label for="email-sender" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										From:
-									</label>
-									<input
-										type="email"
-										id="email-sender"
-										bind:value={sender}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="sender@example.com"
-										required
-									/>
-								</div>
-
-								<!-- To Field -->
-								<div>
-									<label for="email-to" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										To:
-									</label>
-									<input
-										type="email"
-										id="email-to"
-										bind:value={to}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="recipient@example.com"
-										required
-									/>
-								</div>
-
-								<!-- CC Field -->
-								<div>
-									<label for="email-cc" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										CC:
-									</label>
-									<div class="mt-1">
-										<!-- CC Pills -->
-										<div class="flex flex-wrap gap-2 mb-2">
-											{#each cc as email}
-												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-													{email}
-													<button
-														type="button"
-														class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-														on:click={() => cc = removeEmailFromList(cc, email)}
-														aria-label="Remove {email}"
-													>
-														<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-															<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-														</svg>
-													</button>
-												</span>
-											{/each}
-										</div>
-										<!-- CC Input -->
-										<input
-											type="email"
-											id="email-cc"
-											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											placeholder="Type email and press Enter, comma, or leave field to add"
-											on:keydown={(event) => handleEmailKeydown(event, cc, event.target)}
-											on:blur={(event) => handleEmailBlur(event, cc)}
-										/>
-									</div>
-								</div>
-
-								<!-- BCC Field -->
-								<div>
-									<label for="email-bcc" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										BCC:
-									</label>
-									<div class="mt-1">
-										<!-- BCC Pills -->
-										<div class="flex flex-wrap gap-2 mb-2">
-											{#each bcc as email}
-												<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-													{email}
-													<button
-														type="button"
-														class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-green-200 dark:hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500"
-														on:click={() => bcc = removeEmailFromList(bcc, email)}
-														aria-label="Remove {email}"
-													>
-														<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-															<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-														</svg>
-													</button>
-												</span>
-											{/each}
-										</div>
-										<!-- BCC Input -->
-										<input
-											type="email"
-											id="email-bcc"
-											class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											placeholder="Type email and press Enter, comma, or leave field to add"
-											on:keydown={(event) => handleEmailKeydown(event, bcc, event.target)}
-											on:blur={(event) => handleEmailBlur(event, bcc)}
-										/>
-									</div>
-								</div>
-
-								<!-- Attachments Field -->
-								<div>
-									<label for="email-attachments" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										Attachments:
-									</label>
-									<div class="mt-1">
-										<input
-											type="file"
-											id="email-attachments"
-											bind:this={fileInput}
-											on:change={handleFileSelect}
-											multiple
-											class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 dark:file:bg-indigo-900 dark:file:text-indigo-300 dark:hover:file:bg-indigo-800"
-											accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-										/>
-										{#if attachments.length > 0}
-											<div class="mt-2 space-y-1">
-												<p class="text-xs text-gray-500 dark:text-gray-400">Selected files:</p>
-												{#each attachments as attachment, index}
-													<div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-md">
-														<span class="text-sm text-gray-900 dark:text-gray-100 truncate">{attachment.name}</span>
-														<button
-															type="button"
-															on:click={() => removeAttachment(index)}
-															class="ml-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-															title="Remove attachment"
-														>
-															<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-															</svg>
-														</button>
-													</div>
-												{/each}
-											</div>
-										{/if}
-									</div>
-								</div>
-
-								<!-- Subject Field -->
-								<div>
-									<label for="email-subject" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										Subject:
-									</label>
-									<input
-										type="text"
-										id="email-subject"
-										bind:value={subject}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										required
-									/>
-								</div>
-
-								<!-- Body Field with Quill Editor -->
-								<div>
-									<label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-										Message:
-									</label>
-									<div bind:this={editorElement} class="mt-1 min-h-[250px] bg-white"></div>
-								</div>
-
-								<!-- Invoice Details Summary -->
-								{#if order}
-									<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-700">
-										<p class="text-sm text-gray-600 dark:text-gray-400">
-											<strong>Invoice:</strong> {order.invoice} |
-											<strong>Amount:</strong> ${order.amount} |
-											<strong>Days Past Due:</strong> {order.pdCounter}
-										</p>
-									</div>
-								{/if}
-							</div>
-						</div>
+						{/if}
+						<!-- CC Input -->
+						<input
+							type="email"
+							id="email-cc"
+							class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+							placeholder="Type email and press Enter, comma, or leave field to add"
+							on:keydown={(event) => handleEmailKeydown(event, cc, event.target)}
+							on:blur={(event) => handleEmailBlur(event, cc)}
+						/>
 					</div>
 				</div>
-				<div class="bg-gray-50 px-4 py-3 dark:bg-gray-700 sm:flex sm:flex-row-reverse sm:px-6">
-					<button
-						type="button"
-						on:click={sendEmail}
-						disabled={!sender || !to || !subject || isLoading}
-						class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm"
-					>
-						{#if isLoading}
-							Sending...
-						{:else}
-							Send Email
+
+				<!-- BCC Field -->
+				<div>
+					<label for="email-bcc" class="block text-sm font-medium text-gray-300 mb-1.5">
+						BCC:
+					</label>
+					<div>
+						<!-- BCC Pills -->
+						{#if bcc.length > 0}
+							<div class="flex flex-wrap gap-2 mb-2">
+								{#each bcc as email}
+									<span class="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-400">
+										{email}
+										<button
+											type="button"
+											class="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full hover:bg-emerald-500/20 focus:outline-none"
+											on:click={() => bcc = removeEmailFromList(bcc, email)}
+											aria-label="Remove {email}"
+										>
+											<svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+											</svg>
+										</button>
+									</span>
+								{/each}
+							</div>
 						{/if}
-					</button>
-					<button
-						type="button"
-						on:click={closeModal}
-						class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
-					>
-						Cancel
-					</button>
+						<!-- BCC Input -->
+						<input
+							type="email"
+							id="email-bcc"
+							class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+							placeholder="Type email and press Enter, comma, or leave field to add"
+							on:keydown={(event) => handleEmailKeydown(event, bcc, event.target)}
+							on:blur={(event) => handleEmailBlur(event, bcc)}
+						/>
+					</div>
 				</div>
+
+				<!-- Attachments Field -->
+				<div>
+					<label for="email-attachments" class="block text-sm font-medium text-gray-300 mb-1.5">
+						Attachments:
+					</label>
+					<div>
+						<input
+							type="file"
+							id="email-attachments"
+							bind:this={fileInput}
+							on:change={handleFileSelect}
+							multiple
+							class="block w-full text-sm text-gray-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#1f2329] file:text-lime-400 hover:file:bg-[#262a30]"
+							accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+						/>
+						{#if attachments.length > 0}
+							<div class="mt-2 space-y-1">
+								<p class="text-xs text-gray-400">Selected files:</p>
+								{#each attachments as attachment, index}
+									<div class="flex items-center justify-between bg-[#181b20] border border-[#262a30] px-3 py-2 rounded-lg">
+										<span class="text-sm text-gray-200 truncate">{attachment.name}</span>
+										<button
+											type="button"
+											on:click={() => removeAttachment(index)}
+											class="ml-2 text-red-400 hover:text-red-300"
+											title="Remove attachment"
+										>
+											<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+											</svg>
+										</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Subject Field -->
+				<div>
+					<label for="email-subject" class="block text-sm font-medium text-gray-300 mb-1.5">
+						Subject:
+					</label>
+					<input
+						type="text"
+						id="email-subject"
+						bind:value={subject}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						required
+					/>
+				</div>
+
+				<!-- Body Field with Quill Editor -->
+				<div>
+					<label class="block text-sm font-medium text-gray-300 mb-1.5">
+						Message:
+					</label>
+					<div bind:this={editorElement} class="rounded-lg overflow-hidden border border-[#262a30]"></div>
+				</div>
+
+				<!-- Invoice Details Summary -->
+				{#if order}
+					<div class="rounded-xl border border-[#262a30] bg-[#181b20] p-3 text-sm text-gray-300">
+						<p>
+							<strong class="text-white">Invoice:</strong> {order.invoice} |
+							<strong class="text-white">Amount:</strong> ${order.amount} |
+							<strong class="text-white">Days Past Due:</strong> {order.pdCounter}
+						</p>
+					</div>
+				{/if}
+			</div>
+
+			<div class="mt-6 flex justify-end gap-3 border-t border-[#262a30] pt-4">
+				<button
+					type="button"
+					on:click={closeModal}
+					class="btn-secondary text-sm"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					on:click={sendEmail}
+					disabled={!sender || !to || !subject || isLoading}
+					class="btn-primary text-sm"
+				>
+					{#if isLoading}
+						Sending...
+					{:else}
+						Send Email
+					{/if}
+				</button>
 			</div>
 		</div>
 	</div>
 {/if}
 
 <style>
-	:global(.ql-container) {
+	:global(.ql-toolbar.ql-snow) {
+		background-color: #181b20;
+		border-color: #262a30 !important;
+		border-top-left-radius: 0.5rem;
+		border-top-right-radius: 0.5rem;
+	}
+	:global(.ql-toolbar.ql-snow .ql-stroke) {
+		stroke: #9ca3af !important;
+	}
+	:global(.ql-toolbar.ql-snow .ql-fill) {
+		fill: #9ca3af !important;
+	}
+	:global(.ql-toolbar.ql-snow .ql-picker) {
+		color: #9ca3af !important;
+	}
+	:global(.ql-toolbar.ql-snow .ql-picker-options) {
+		background-color: #181b20 !important;
+		border-color: #262a30 !important;
+	}
+	:global(.ql-toolbar.ql-snow button:hover .ql-stroke),
+	:global(.ql-toolbar.ql-snow button.ql-active .ql-stroke) {
+		stroke: #84cc16 !important;
+	}
+	:global(.ql-toolbar.ql-snow button:hover .ql-fill),
+	:global(.ql-toolbar.ql-snow button.ql-active .ql-fill) {
+		fill: #84cc16 !important;
+	}
+	:global(.ql-container.ql-snow) {
+		background-color: #0e1012;
+		color: #e5e7eb;
+		border-color: #262a30 !important;
+		border-bottom-left-radius: 0.5rem;
+		border-bottom-right-radius: 0.5rem;
 		min-height: 200px;
 		font-size: 14px;
 	}
-	
 	:global(.ql-editor) {
 		min-height: 200px;
 		max-height: 300px;
 		overflow-y: auto;
 	}
-	
-	:global(.ql-toolbar) {
-		border-top-left-radius: 0.375rem;
-		border-top-right-radius: 0.375rem;
-	}
-	
-	:global(.ql-container) {
-		border-bottom-left-radius: 0.375rem;
-		border-bottom-right-radius: 0.375rem;
+	:global(.ql-editor.ql-blank::before) {
+		color: #6b7280 !important;
+		font-style: normal;
 	}
 </style>

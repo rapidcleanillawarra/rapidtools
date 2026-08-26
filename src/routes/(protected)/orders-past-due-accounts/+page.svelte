@@ -1121,78 +1121,93 @@
 	});
 </script>
 
-<div class="px-4 sm:px-6 lg:px-8">
-	<!-- Header -->
-	<div class="mb-4">
-		<h1 class="text-xl font-semibold text-gray-900 dark:text-gray-100">Past Due Accounts</h1>
-		<p class="mt-2 text-sm text-gray-700 dark:text-gray-400">A list of all past due accounts.</p>
+<svelte:head>
+	<title>Past Due Accounts - RapidTools</title>
+</svelte:head>
+
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
+		<!-- Header -->
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+			<div>
+				<h1 class="text-2xl font-bold text-white tracking-tight">Past Due Accounts</h1>
+				<p class="mt-1 text-sm text-gray-400">A list of all past due accounts.</p>
+			</div>
+			{#if profile}
+				<div class="text-sm text-gray-400">
+					<span class="font-medium text-gray-300">User:</span>{' '}
+					<span class="text-lime-400 font-semibold">{profile.firstName} {profile.lastName}</span>
+				</div>
+			{/if}
+		</div>
+
+		<PastDueToolbar
+			bind:operator={tempPdFilterOperator}
+			bind:value={tempPdFilterValue}
+			bind:showLegend
+			bind:showColumnVisibility
+			bind:invoiceIds
+			bind:showInvoiceFilter
+			disableActions={filteredOrders.length === 0}
+			on:apply={applyPdFilter}
+			on:exportCsv={exportToCSV}
+			on:print={printTable}
+			on:manualTrigger={manualTriggerTracking}
+		/>
+
+		<!-- Collapsible Legend Section -->
+		{#if showLegend}
+			<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
+				<PastDueLegend />
+			</div>
+		{/if}
+
+		<!-- Collapsible Column Visibility Section -->
+		{#if showColumnVisibility}
+			<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
+				<ColumnVisibilityPills
+					{columns}
+					{columnVisibility}
+					on:toggle={(e) => toggleColumnVisibility(e.detail.key)}
+				/>
+			</div>
+		{/if}
+
+		<!-- Pagination Controls -->
+		{#if filteredOrders.length > 0}
+			<PastDuePagination
+				filteredCount={filteredOrders.length}
+				{currentPage}
+				{itemsPerPage}
+				{totalPages}
+				on:previous={previousPage}
+				on:next={nextPage}
+				on:goToPage={(e) => goToPage(e.detail)}
+				on:changeItemsPerPage={(e) => changeItemsPerPage(e.detail)}
+			/>
+		{/if}
+
+		<!-- Orders Table -->
+		<PastDueOrdersTable
+			{loading}
+			{error}
+			{paginatedOrders}
+			{nonCustomerColumns}
+			{searchFilters}
+			{sortField}
+			{sortDirection}
+			filteredCount={filteredOrders.length}
+			userEmail={user?.email || null}
+			on:sort={(e) => handleSort(e.detail)}
+			on:searchChange={(e) => handleSearchChange(e.detail.key, e.detail.value)}
+			on:openNotes={(e) => openNotesModal(e.detail)}
+			on:openEmail={(e) => openEmailModal(e.detail)}
+			on:openTicket={(e) => openTicketModal(e.detail)}
+			on:openViewTickets={(e) => openViewTicketsModal(e.detail)}
+			on:openEmailConversations={(e) => openEmailConversationsModal(e.detail)}
+		/>
 	</div>
 
-	<PastDueToolbar
-		bind:operator={tempPdFilterOperator}
-		bind:value={tempPdFilterValue}
-		bind:showLegend
-		bind:showColumnVisibility
-		bind:invoiceIds
-		bind:showInvoiceFilter
-		disableActions={filteredOrders.length === 0}
-		on:apply={applyPdFilter}
-		on:exportCsv={exportToCSV}
-		on:print={printTable}
-		on:manualTrigger={manualTriggerTracking}
-	/>
-
-	<!-- Collapsible Legend Section -->
-	{#if showLegend}
-		<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
-			<PastDueLegend />
-		</div>
-	{/if}
-
-	<!-- Collapsible Column Visibility Section -->
-	{#if showColumnVisibility}
-		<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
-			<ColumnVisibilityPills
-				{columns}
-				{columnVisibility}
-				on:toggle={(e) => toggleColumnVisibility(e.detail.key)}
-			/>
-		</div>
-	{/if}
-
-	<!-- Pagination Controls -->
-	{#if filteredOrders.length > 0}
-		<PastDuePagination
-			filteredCount={filteredOrders.length}
-			{currentPage}
-			{itemsPerPage}
-			{totalPages}
-			on:previous={previousPage}
-			on:next={nextPage}
-			on:goToPage={(e) => goToPage(e.detail)}
-			on:changeItemsPerPage={(e) => changeItemsPerPage(e.detail)}
-		/>
-	{/if}
-
-	<!-- Orders Table -->
-	<PastDueOrdersTable
-		{loading}
-		{error}
-		{paginatedOrders}
-		{nonCustomerColumns}
-		{searchFilters}
-		{sortField}
-		{sortDirection}
-		filteredCount={filteredOrders.length}
-		userEmail={user?.email || null}
-		on:sort={(e) => handleSort(e.detail)}
-		on:searchChange={(e) => handleSearchChange(e.detail.key, e.detail.value)}
-		on:openNotes={(e) => openNotesModal(e.detail)}
-		on:openEmail={(e) => openEmailModal(e.detail)}
-		on:openTicket={(e) => openTicketModal(e.detail)}
-		on:openViewTickets={(e) => openViewTicketsModal(e.detail)}
-		on:openEmailConversations={(e) => openEmailConversationsModal(e.detail)}
-	/>
 	<!-- Notes Modal -->
 	<NotesModal
 		show={showNotesModal}

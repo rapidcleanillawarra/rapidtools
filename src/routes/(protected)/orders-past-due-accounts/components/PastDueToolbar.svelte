@@ -23,12 +23,12 @@
 	<div class="flex flex-wrap items-center gap-3">
 		<!-- PD Counter Filter -->
 		<div class="flex items-center gap-2">
-			<label for="pd-filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+			<label for="pd-filter" class="text-sm font-medium text-gray-300">
 				PD Counter:
 			</label>
 			<select
 				bind:value={operator}
-				class="rounded-md border-gray-300 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600"
+				class="rounded-lg bg-[#0e1012] text-gray-200 border border-[#262a30] px-2.5 py-1.5 text-sm font-semibold focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
 			>
 				<option value=">">&gt;</option>
 				<option value="<">&lt;</option>
@@ -38,13 +38,13 @@
 				id="pd-filter"
 				type="number"
 				placeholder="Days"
-				class="block w-24 rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+				class="w-24 rounded-lg bg-[#0e1012] text-gray-200 border border-[#262a30] px-3 py-1.5 text-sm placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
 				bind:value
 			/>
 			<button
 				type="button"
 				on:click={() => dispatch('apply')}
-				class="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+				class="btn-primary text-xs font-semibold px-3 py-1.5"
 			>
 				Apply
 			</button>
@@ -54,9 +54,9 @@
 		<button
 			type="button"
 			on:click={() => (showLegend = !showLegend)}
-			class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {showLegend
-				? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50'
-				: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors {showLegend
+				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+				: 'border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
 			title={showLegend ? 'Hide Legend' : 'Show Legend'}
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,9 +87,9 @@
 		<button
 			type="button"
 			on:click={() => (showColumnVisibility = !showColumnVisibility)}
-			class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {showColumnVisibility
-				? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50'
-				: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors {showColumnVisibility
+				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+				: 'border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
 			title={showColumnVisibility ? 'Hide Columns' : 'Show Columns'}
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,38 +114,15 @@
 						d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
 					></path>
 				{/if}
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					{#if showColumnVisibility}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-						></path>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-						></path>
-					{:else}
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-						></path>
-					{/if}
-				</svg>
-				Columns
-			</svg></button
-		>
+			</svg>
+			Columns
+		</button>
 		<button
 			type="button"
 			on:click={() => (showInvoiceFilter = !showInvoiceFilter)}
-			class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors {showInvoiceFilter
-				? 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50'
-				: 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'}"
+			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors {showInvoiceFilter
+				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+				: 'border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
 			title={showInvoiceFilter ? 'Hide Invoice Filter' : 'Show Invoice Filter'}
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,28 +143,37 @@
 			type="button"
 			on:click={() => dispatch('exportCsv')}
 			disabled={disableActions}
-			class="rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 disabled:cursor-not-allowed disabled:opacity-50"
+			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5"
 		>
+			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+			</svg>
 			Export CSV
 		</button>
 		<button
 			type="button"
 			on:click={() => dispatch('print')}
 			disabled={disableActions}
-			class="rounded-md bg-gray-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-gray-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5"
 		>
+			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+			</svg>
 			Print Report
 		</button>
 		<button
 			type="button"
 			on:click={() => dispatch('manualTrigger')}
-			class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5 hover:text-lime-400"
 		>
+			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+			</svg>
 			Invoice Synch
 		</button>
 		<a
 			href="{base}/orders-past-due-accounts/settings"
-			class="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5 hover:text-lime-400"
 			title="Email Settings"
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,11 +198,11 @@
 {#if showInvoiceFilter}
 	<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
 		<div
-			class="relative rounded-md border border-gray-300 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
+			class="relative rounded-2xl border border-[#262a30] bg-[#181b20] p-4 shadow-xl"
 		>
 			<label
 				for="invoice-filter"
-				class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
+				class="mb-2 block text-sm font-medium text-gray-300"
 			>
 				Filter by Invoice IDs (one per line):
 			</label>
@@ -226,21 +212,21 @@
 					bind:value={invoiceIds}
 					rows="4"
 					placeholder="24-004437&#10;24-004439"
-					class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 dark:bg-gray-900 dark:text-white dark:ring-gray-600 sm:text-sm sm:leading-6"
+					class="block w-full rounded-lg bg-[#0e1012] text-gray-200 border border-[#262a30] p-3 text-sm placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 font-mono"
 				></textarea>
 				{#if invoiceIds}
-					<div class="absolute bottom-2 right-2">
+					<div class="absolute bottom-3 right-3">
 						<button
 							type="button"
 							on:click={() => (invoiceIds = '')}
-							class="rounded bg-red-100 px-2 py-1 text-xs font-semibold text-red-600 shadow-sm hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
+							class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-900/60 hover:text-red-300 transition"
 						>
 							Clear
 						</button>
 					</div>
 				{/if}
 			</div>
-			<p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+			<p class="mt-2 text-xs text-gray-400">
 				Only orders with these specific Invoice IDs will be shown in the table.
 			</p>
 		</div>

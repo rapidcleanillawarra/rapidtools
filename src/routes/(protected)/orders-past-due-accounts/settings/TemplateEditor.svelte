@@ -22,38 +22,38 @@
 <div class="space-y-3">
 	<div class="flex items-center justify-between">
 		<div>
-			<label class="block text-sm font-medium text-gray-900 dark:text-gray-100">
+			<label class="block text-sm font-semibold text-white">
 				{label}
 			</label>
-			<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{rangeDescription}</p>
+			<p class="mt-1 text-xs text-gray-400">{rangeDescription}</p>
 		</div>
 		<button
 			type="button"
 			on:click={() => (showPreview = !showPreview)}
-			class="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+			class="text-sm font-medium text-lime-400 hover:text-lime-300 transition"
 		>
 			{showPreview ? 'Hide Preview' : 'Show Preview'}
 		</button>
 	</div>
 
 	<!-- Placeholder Reference -->
-	<div class="rounded-md bg-blue-50 p-3 dark:bg-blue-900/20">
-		<p class="text-xs font-medium text-blue-800 dark:text-blue-300">Available Placeholders:</p>
-		<div class="mt-1 flex flex-wrap gap-2">
+	<div class="rounded-xl border border-sky-500/20 bg-sky-950/20 p-3">
+		<p class="text-xs font-semibold text-sky-400">Available Placeholders:</p>
+		<div class="mt-1.5 flex flex-wrap gap-2">
 			<code
-				class="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+				class="rounded-md border border-sky-500/30 bg-sky-950/40 px-2 py-0.5 text-xs font-mono text-sky-300"
 				>&#123;customer&#125;</code
 			>
 			<code
-				class="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+				class="rounded-md border border-sky-500/30 bg-sky-950/40 px-2 py-0.5 text-xs font-mono text-sky-300"
 				>&#123;invoice&#125;</code
 			>
 			<code
-				class="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+				class="rounded-md border border-sky-500/30 bg-sky-950/40 px-2 py-0.5 text-xs font-mono text-sky-300"
 				>&#123;amount&#125;</code
 			>
 			<code
-				class="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
+				class="rounded-md border border-sky-500/30 bg-sky-950/40 px-2 py-0.5 text-xs font-mono text-sky-300"
 				>&#123;days&#125;</code
 			>
 		</div>
@@ -64,23 +64,23 @@
 		<textarea
 			bind:value
 			rows="12"
-			class="block w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+			class="w-full rounded-xl bg-[#0e1012] border border-[#262a30] p-3 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
 			placeholder="Enter email template here..."
 		></textarea>
-		<div class="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+		<div class="mt-1 text-right text-xs text-gray-500">
 			{characterCount} characters
 		</div>
 	</div>
 
 	<!-- Preview Section -->
 	{#if showPreview}
-		<div class="rounded-md border border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-800">
-			<p class="mb-2 text-xs font-medium text-gray-700 dark:text-gray-300">Preview (with sample data):</p>
-			<div class="whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-100">
+		<div class="rounded-xl border border-[#262a30] bg-[#0e1012] p-4 text-gray-200">
+			<p class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">Preview (with sample data):</p>
+			<div class="whitespace-pre-wrap text-sm text-gray-200">
 				{previewText}
 			</div>
-			<div class="mt-3 border-t border-gray-200 pt-2 dark:border-gray-700">
-				<p class="text-xs text-gray-500 dark:text-gray-400">
+			<div class="mt-3 border-t border-[#262a30] pt-2">
+				<p class="text-xs text-gray-500">
 					Sample: Customer="{sampleValues.customer}", Invoice="{sampleValues.invoice}", Amount="${sampleValues.amount}",
 					Days={sampleValues.days}
 				</p>

@@ -37,8 +37,8 @@
 		const orderDue = order?.dueDate || null;
 		const isPast = isPastDue(ticketDue, orderDue);
 		return isPast
-			? 'text-red-600 dark:text-red-400 font-medium'
-			: 'text-gray-500 dark:text-gray-300';
+			? 'text-red-400 font-medium'
+			: 'text-gray-300';
 	}
 
 	export let showModal = false;
@@ -108,22 +108,22 @@
 	function getStatusColor(status: string) {
 		switch (status) {
 			case 'Completed':
-				return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+				return 'border border-emerald-500/30 bg-emerald-950/30 text-emerald-400';
 			case 'In Progress':
-				return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300';
+				return 'border border-sky-500/30 bg-sky-950/30 text-sky-400';
 			default:
-				return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+				return 'border border-[#333842] bg-[#1f2329] text-gray-400';
 		}
 	}
 
 	function getPriorityColor(priority: string) {
 		switch (priority) {
 			case 'High':
-				return 'text-red-600 dark:text-red-400 font-medium';
+				return 'text-red-400 font-medium';
 			case 'Medium':
-				return 'text-yellow-600 dark:text-yellow-400';
+				return 'text-yellow-400';
 			default:
-				return 'text-gray-600 dark:text-gray-400';
+				return 'text-gray-400';
 		}
 	}
 
@@ -327,149 +327,174 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 
 {#if showModal && order}
 	<div
-		class="fixed inset-0 z-50 overflow-y-auto"
+		class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
 		aria-labelledby="view-tickets-modal-title"
 		role="dialog"
 		aria-modal="true"
 		on:click={handleBackdropClick}
 	>
 		<div
-			class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
+			class="relative flex max-h-[90vh] w-full max-w-6xl flex-col rounded-2xl border border-[#262a30] bg-[#141619] p-6 text-left shadow-2xl transition-all"
 		>
-			<div
-				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-				aria-hidden="true"
-			></div>
+			<div class="flex items-center justify-between pb-4 border-b border-[#262a30]">
+				<h3
+					class="text-lg font-bold text-white"
+					id="view-tickets-modal-title"
+				>
+					Tickets for {order.customer}
+					<span class="ml-2 text-sm font-normal text-gray-400"
+						>(Invoice: {order.invoice})</span
+					>
+				</h3>
+			</div>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
-				>&#8203;</span
-			>
-
-			<div
-				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:h-[90vh] sm:w-full sm:max-w-7xl sm:align-middle"
-			>
-				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
-					<div class="sm:flex sm:items-start">
-						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<h3
-								class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-								id="view-tickets-modal-title"
+			<div class="mt-4 flex-1 overflow-y-auto pr-1">
+				{#if sortedTickets.length === 0}
+					<p class="py-8 text-center text-sm italic text-gray-500">
+						No tickets found for this order.
+					</p>
+				{:else}
+					<div class="overflow-x-auto rounded-xl border border-[#262a30] bg-[#141619] shadow-xl">
+						<table class="w-full min-w-full divide-y divide-[#262a30] text-sm text-gray-200">
+							<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+								<tr>
+									<th
+										scope="col"
+										class="py-3.5 pl-4 pr-3 text-left sm:pl-6"
+										>Ticket #</th
+									>
+									<th
+										scope="col"
+										class="px-3 py-3.5 text-left"
+										>Title</th
+									>
+									<th
+										scope="col"
+										class="px-3 py-3.5 text-left"
+										>Status</th
+									>
+									<th
+										scope="col"
+										class="px-3 py-3.5 text-left"
+										>Mark Complete</th
+									>
+									<th
+										scope="col"
+										class="px-3 py-3.5 text-left"
+										>Due Date</th
+									>
+									<th
+										scope="col"
+										class="px-3 py-3.5 text-left"
+										>Assigned To</th
+									>
+									<th
+										scope="col"
+										class="w-32 px-3 py-3.5 text-left"
+										>Actions</th
+									>
+								</tr>
+							</thead>
+							<tbody
+								class="divide-y divide-[#262a30] bg-[#141619]"
 							>
-								Tickets for {order.customer}
-								<span class="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400"
-									>(Invoice: {order.invoice})</span
-								>
-							</h3>
-						</div>
-					</div>
-				</div>
-
-				<div class="overflow-y-auto px-4 pt-4 dark:bg-gray-800 sm:px-6" style="max-height: 60vh;">
-					{#if sortedTickets.length === 0}
-						<p class="text-sm italic text-gray-500 dark:text-gray-400">
-							No tickets found for this order.
-						</p>
-					{:else}
-						<div class="overflow-x-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-							<table class="min-w-full divide-y divide-gray-300 dark:divide-gray-700">
-								<thead class="bg-gray-50 dark:bg-gray-900">
-									<tr>
-										<th
-											scope="col"
-											class="py-3.5 pl-4 pr-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 sm:pl-6"
-											>Ticket #</th
+								{#each sortedTickets as ticket}
+									<tr class="hover:bg-[#1f2329]/60 transition-colors">
+										<td
+											class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-semibold text-lime-400 sm:pl-6"
 										>
-										<th
-											scope="col"
-											class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
-											>Title</th
-										>
-										<th
-											scope="col"
-											class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
-											>Status</th
-										>
-										<th
-											scope="col"
-											class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
-											>Mark Complete</th
-										>
-										<th
-											scope="col"
-											class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
-											>Due Date</th
-										>
-										<th
-											scope="col"
-											class="px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
-											>Assigned To</th
-										>
-										<th
-											scope="col"
-											class="w-32 px-3 py-3.5 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
-											>Actions</th
-										>
-									</tr>
-								</thead>
-								<tbody
-									class="divide-y divide-gray-200 bg-white dark:divide-gray-800 dark:bg-gray-900"
-								>
-									{#each sortedTickets as ticket}
-										<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-											<td
-												class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-gray-100 sm:pl-6"
+											#{ticket.ticket_number}
+										</td>
+										<td class="px-3 py-4 text-sm font-medium text-gray-200">
+											{ticket.ticket_title}
+										</td>
+										<td class="whitespace-nowrap px-3 py-4 text-sm">
+											<span
+												class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold leading-5 {getStatusColor(
+													ticket.status
+												)}"
 											>
-												#{ticket.ticket_number}
-											</td>
-											<td class="px-3 py-4 text-sm text-gray-500 dark:text-gray-300">
-												{ticket.ticket_title}
-											</td>
-											<td class="whitespace-nowrap px-3 py-4 text-sm">
-												<span
-													class="inline-flex rounded-full px-2 text-xs font-semibold leading-5 {getStatusColor(
-														ticket.status
-													)}"
-												>
-													{ticket.status}
-												</span>
-											</td>
-											<td class="whitespace-nowrap px-3 py-4 text-sm">
-												{#if ticket.status !== 'Completed'}
-													{#if $currentUser?.email === ticket.assigned_to || $currentUser?.email === 'marketing@rapidcleanillawarra.com.au'}
-														<button
-															type="button"
-															on:click={() => markAsComplete(ticket)}
-															class="inline-flex items-center rounded border border-transparent bg-indigo-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-														>
-															Mark Complete
-														</button>
-													{/if}
-												{:else}
-													<span class="text-xs font-medium text-green-600 dark:text-green-400"
-														>Completed</span
+												{ticket.status}
+											</span>
+										</td>
+										<td class="whitespace-nowrap px-3 py-4 text-sm">
+											{#if ticket.status !== 'Completed'}
+												{#if $currentUser?.email === ticket.assigned_to || $currentUser?.email === 'marketing@rapidcleanillawarra.com.au'}
+													<button
+														type="button"
+														on:click={() => markAsComplete(ticket)}
+														class="inline-flex items-center rounded-lg border border-emerald-500/30 bg-emerald-950/30 px-2.5 py-1 text-xs font-semibold text-emerald-400 hover:bg-emerald-900/40 hover:text-emerald-300 transition"
 													>
+														Mark Complete
+													</button>
 												{/if}
-											</td>
-											<td
-												class="whitespace-nowrap px-3 py-4 text-sm {getDueDateColor(ticket, order)}"
-											>
-												{formatDueDate((ticket as any).due_date || null, order?.dueDate || null)}
-											</td>
-											<td
-												class="whitespace-nowrap px-3 py-4 text-sm text-gray-500 dark:text-gray-300"
-											>
-												{ticket.assigned_to
-													? availableUsers.find((u) => u.email === ticket.assigned_to)?.full_name ||
-														ticket.assigned_to
-													: 'Unassigned'}
-											</td>
-											<td class="w-32 whitespace-nowrap px-3 py-4 text-sm">
-												<div class="flex items-center space-x-2">
+											{:else}
+												<span class="text-xs font-semibold text-emerald-400"
+													>Completed</span
+												>
+											{/if}
+										</td>
+										<td
+											class="whitespace-nowrap px-3 py-4 text-sm {getDueDateColor(ticket, order)}"
+										>
+											{formatDueDate((ticket as any).due_date || null, order?.dueDate || null)}
+										</td>
+										<td
+											class="whitespace-nowrap px-3 py-4 text-sm text-gray-300"
+										>
+											{ticket.assigned_to
+												? availableUsers.find((u) => u.email === ticket.assigned_to)?.full_name ||
+													ticket.assigned_to
+												: 'Unassigned'}
+										</td>
+										<td class="w-32 whitespace-nowrap px-3 py-4 text-sm">
+											<div class="flex items-center space-x-2">
+												<button
+													type="button"
+													on:click={() => copyTicket(ticket)}
+													class="inline-flex items-center rounded-lg border border-[#333842] bg-[#1f2329] p-1.5 text-xs font-medium text-gray-300 hover:bg-[#262a30] hover:text-white transition"
+													title="Copy ticket data"
+												>
+													<svg
+														class="h-4 w-4"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+														/>
+													</svg>
+												</button>
+												<button
+													type="button"
+													on:click={() => editTicket(ticket)}
+													class="inline-flex items-center rounded-lg border border-[#333842] bg-[#1f2329] p-1.5 text-xs font-medium text-gray-300 hover:bg-[#262a30] hover:text-white transition"
+													title="Edit ticket"
+												>
+													<svg
+														class="h-4 w-4"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+														/>
+													</svg>
+												</button>
+												{#if $currentUser?.email === 'marketing@rapidcleanillawarra.com.au'}
 													<button
 														type="button"
-														on:click={() => copyTicket(ticket)}
-														class="inline-flex items-center rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-														title="Copy ticket data"
+														on:click={() => deleteTicket(ticket)}
+														class="inline-flex items-center rounded-lg border border-red-500/30 bg-red-950/30 p-1.5 text-xs font-medium text-red-400 hover:bg-red-900/40 hover:text-red-300 transition"
+														title="Delete ticket"
 													>
 														<svg
 															class="h-4 w-4"
@@ -481,77 +506,36 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 																stroke-linecap="round"
 																stroke-linejoin="round"
 																stroke-width="2"
-																d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+																d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
 															/>
 														</svg>
 													</button>
-													<button
-														type="button"
-														on:click={() => editTicket(ticket)}
-														class="inline-flex items-center rounded border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-														title="Edit ticket"
-													>
-														<svg
-															class="h-4 w-4"
-															fill="none"
-															stroke="currentColor"
-															viewBox="0 0 24 24"
-														>
-															<path
-																stroke-linecap="round"
-																stroke-linejoin="round"
-																stroke-width="2"
-																d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-															/>
-														</svg>
-													</button>
-													{#if $currentUser?.email === 'marketing@rapidcleanillawarra.com.au'}
-														<button
-															type="button"
-															on:click={() => deleteTicket(ticket)}
-															class="inline-flex items-center rounded border border-red-300 bg-white px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:border-red-600 dark:bg-gray-700 dark:text-red-300 dark:hover:bg-red-900/50"
-															title="Delete ticket"
-														>
-															<svg
-																class="h-4 w-4"
-																fill="none"
-																stroke="currentColor"
-																viewBox="0 0 24 24"
-															>
-																<path
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
-																	stroke-width="2"
-																	d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-																/>
-															</svg>
-														</button>
-													{/if}
-												</div>
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						</div>
-					{/if}
-				</div>
-				<div class="bg-gray-50 px-4 py-3 dark:bg-gray-700 sm:flex sm:flex-row-reverse sm:px-6">
-					<button
-						type="button"
-						on:click={createNewTicket}
-						class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
-					>
-						Create New Ticket
-					</button>
-					<button
-						type="button"
-						on:click={closeModal}
-						class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
-					>
-						Close
-					</button>
-				</div>
+												{/if}
+											</div>
+										</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
+				{/if}
+			</div>
+
+			<div class="mt-6 flex justify-end gap-3 border-t border-[#262a30] pt-4">
+				<button
+					type="button"
+					on:click={closeModal}
+					class="btn-secondary text-sm"
+				>
+					Close
+				</button>
+				<button
+					type="button"
+					on:click={createNewTicket}
+					class="btn-primary text-sm"
+				>
+					Create New Ticket
+				</button>
 			</div>
 		</div>
 	</div>

@@ -149,18 +149,18 @@ export function parseDate(dateStr: string): number {
 }
 
 export function getPdCounterColor(pdValue: number): string {
-	if (pdValue >= 15 && pdValue <= 25) return 'text-blue-600 dark:text-blue-400';
-	if (pdValue >= 26 && pdValue <= 40) return 'text-yellow-600 dark:text-yellow-400';
-	if (pdValue >= 41 && pdValue <= 59) return 'text-orange-600 dark:text-orange-400';
-	if (pdValue >= 60) return 'text-red-600 dark:text-red-400';
-	return 'text-gray-500 dark:text-gray-400';
+	if (pdValue >= 15 && pdValue <= 25) return 'text-blue-400';
+	if (pdValue >= 26 && pdValue <= 40) return 'text-yellow-400';
+	if (pdValue >= 41 && pdValue <= 59) return 'text-orange-400';
+	if (pdValue >= 60) return 'text-red-400';
+	return 'text-gray-400';
 }
 
 export function getPdCounterBgColor(pdValue: number): string {
-	if (pdValue >= 15 && pdValue <= 25) return 'bg-blue-50 dark:bg-blue-900/20';
-	if (pdValue >= 26 && pdValue <= 40) return 'bg-yellow-50 dark:bg-yellow-900/20';
-	if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-50 dark:bg-orange-900/20';
-	if (pdValue >= 60) return 'bg-red-50 dark:bg-red-900/20';
+	if (pdValue >= 15 && pdValue <= 25) return 'bg-blue-950/30 border border-blue-500/30';
+	if (pdValue >= 26 && pdValue <= 40) return 'bg-yellow-950/30 border border-yellow-500/30';
+	if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-950/30 border border-orange-500/30';
+	if (pdValue >= 60) return 'bg-red-950/30 border border-red-500/30';
 	return '';
 }
 

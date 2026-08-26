@@ -40,20 +40,24 @@
     'id',
     'status',
     'created_at',
+    'created_by',
     'customer_name',
+    'contact_email',
+    'contact_number',
+    'customer_data',
+    'optional_contacts',
     'order_id',
     'clients_work_order',
     'product_name',
     'make_model',
     'serial_number',
     'photo_urls',
-    'customer_data',
     'site_location',
-    'history',
+    'location_of_machine',
     'fault_description',
-    'contact_number',
-    'optional_contacts',
-    'location_of_machine'
+    'docket_info',
+    'comments',
+    'history'
   ];
 
   const STATUS_VISIBILITY_KEY = 'workshop-status-visibility';

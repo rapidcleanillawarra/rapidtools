@@ -432,270 +432,253 @@ Updated: ${formatPlain(formatSydneyDateTime(new Date()))}</p>`;
 
 {#if showModal}
 	<div
-		class="fixed inset-0 z-50 overflow-y-auto"
+		class="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
 		aria-labelledby="edit-ticket-modal-title"
 		role="dialog"
 		aria-modal="true"
 		on:click={handleBackdropClick}
 	>
 		<div
-			class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0"
+			class="relative w-full max-w-lg rounded-2xl border border-[#262a30] bg-[#141619] p-6 text-left shadow-2xl transition-all"
 		>
-			<div
-				class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-				aria-hidden="true"
-			></div>
+			<div class="flex items-center justify-between">
+				<h3
+					class="text-lg font-bold text-white"
+					id="edit-ticket-modal-title"
+				>
+					Edit Ticket #{ticket?.ticket_number}
+				</h3>
+				<button
+					type="button"
+					on:click={copyTicketData}
+					class="btn-secondary text-xs inline-flex items-center gap-1.5"
+				>
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+						/>
+					</svg>
+					Copy Data
+				</button>
+			</div>
 
-			<span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true"
-				>&#8203;</span
-			>
+			<div class="mt-4 space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+				<!-- Ticket Title -->
+				<div>
+					<label
+						for="edit-ticket-title"
+						class="block text-sm font-medium text-gray-300 mb-1.5"
+					>
+						Ticket Title <span class="text-red-400">*</span>
+					</label>
+					<input
+						type="text"
+						id="edit-ticket-title"
+						bind:value={ticketTitle}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						placeholder="Enter ticket title..."
+						required
+						disabled={isLoading}
+					/>
+				</div>
 
-			<div
-				class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-gray-800 sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
-			>
-				<div class="bg-white px-4 pb-4 pt-5 dark:bg-gray-800 sm:p-6 sm:pb-4">
-					<div class="sm:flex sm:items-start">
-						<div class="mt-3 w-full text-center sm:mt-0 sm:text-left">
-							<div class="flex items-center justify-between">
-								<h3
-									class="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100"
-									id="edit-ticket-modal-title"
-								>
-									Edit Ticket #{ticket?.ticket_number}
-								</h3>
-								<button
-									type="button"
-									on:click={copyTicketData}
-									class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-								>
-									<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
-										/>
-									</svg>
-									Copy Data
-								</button>
-							</div>
-							<div class="mt-4 space-y-4">
-								<!-- Ticket Title -->
-								<div>
-									<label
-										for="edit-ticket-title"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>
-										Ticket Title <span class="text-red-500">*</span>
-									</label>
-									<input
-										type="text"
-										id="edit-ticket-title"
-										bind:value={ticketTitle}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="Enter ticket title..."
-										required
-										disabled={isLoading}
-									/>
-								</div>
+				<!-- Ticket Description -->
+				<div>
+					<label
+						for="edit-ticket-description"
+						class="block text-sm font-medium text-gray-300 mb-1.5"
+					>
+						Description
+					</label>
+					<textarea
+						id="edit-ticket-description"
+						rows="3"
+						bind:value={ticketDescription}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] p-3 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						placeholder="Enter ticket description..."
+						disabled={isLoading}
+					></textarea>
+				</div>
 
-								<!-- Ticket Description -->
-								<div>
-									<label
-										for="edit-ticket-description"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>
-										Description
-									</label>
-									<textarea
-										id="edit-ticket-description"
-										rows="3"
-										bind:value={ticketDescription}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="Enter ticket description..."
-										disabled={isLoading}
-									></textarea>
-								</div>
-
-								<!-- Assigned To -->
-								<div>
-									<label
-										for="edit-assigned-to"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>
-										Assign To
-									</label>
-									{#if usersLoading}
-										<div class="mt-1 flex items-center">
-											<div
-												class="h-4 w-4 animate-spin rounded-full border-b-2 border-indigo-600"
-											></div>
-											<span class="ml-2 text-sm text-gray-500 dark:text-gray-400"
-												>Loading users...</span
-											>
-										</div>
-									{:else}
-										<select
-											id="edit-assigned-to"
-											bind:value={assignedTo}
-											class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											disabled={isLoading}
-										>
-											<option value="">Unassigned</option>
-											{#each availableUsers as user}
-												<option value={user.email}>{user.full_name} ({user.email})</option>
-											{/each}
-										</select>
-									{/if}
-								</div>
-
-								<!-- Priority and Status Row -->
-								<div class="grid grid-cols-2 gap-4">
-									<div>
-										<label
-											for="edit-priority"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>
-											Priority <span class="text-red-500">*</span>
-										</label>
-										<select
-											id="edit-priority"
-											bind:value={priority}
-											class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											required
-											disabled={isLoading}
-										>
-											<option value="Low">Low</option>
-											<option value="Medium">Medium</option>
-											<option value="High">High</option>
-										</select>
-									</div>
-
-									<div>
-										<label
-											for="edit-status"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>
-											Status <span class="text-red-500">*</span>
-										</label>
-										<select
-											id="edit-status"
-											bind:value={status}
-											class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-											required
-											disabled={isLoading}
-										>
-											<option value="Not Started">Not Started</option>
-											<option value="In Progress">In Progress</option>
-											<option value="Completed">Completed</option>
-											<option value="Closed">Closed</option>
-										</select>
-									</div>
-								</div>
-
-								<!-- Due Date -->
-								<div>
-									<div class="mb-1 flex items-center justify-between">
-										<label
-											for="edit-due-date"
-											class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-										>
-											Due Date & Time
-										</label>
-										<span class="text-xs text-gray-500 dark:text-gray-400">
-											Sydney: {currentSydneyTime}
-										</span>
-									</div>
-									<input
-										type="datetime-local"
-										id="edit-due-date"
-										bind:value={dueDate}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										disabled={isLoading}
-									/>
-									<div class="mt-2 flex flex-wrap gap-2">
-										<button
-											type="button"
-											on:click={setDueDateEndOfDay}
-											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-											disabled={isLoading}
-										>
-											End of Day (5PM)
-										</button>
-										<button
-											type="button"
-											on:click={setDueDateTwoHours}
-											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-											disabled={isLoading}
-										>
-											2 Hours
-										</button>
-										<button
-											type="button"
-											on:click={setDueDateEndOfMonth}
-											class="inline-flex items-center rounded border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-											disabled={isLoading}
-										>
-											End of Month
-										</button>
-									</div>
-								</div>
-
-								<!-- Notes -->
-								<div>
-									<label
-										for="edit-ticket-notes"
-										class="block text-sm font-medium text-gray-700 dark:text-gray-300"
-									>
-										Notes
-									</label>
-									<textarea
-										id="edit-ticket-notes"
-										rows="2"
-										bind:value={notes}
-										class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 sm:text-sm"
-										placeholder="Additional notes..."
-										disabled={isLoading}
-									></textarea>
-								</div>
-
-								<!-- Order Details Summary -->
-								{#if order}
-									<div class="rounded-md bg-gray-50 p-3 dark:bg-gray-700">
-										<p class="text-sm text-gray-600 dark:text-gray-400">
-											<strong>Invoice:</strong>
-											{order.invoice} |
-											<strong>Amount:</strong> ${order.amount} |
-											<strong>Days Past Due:</strong>
-											{order.pdCounter}
-										</p>
-									</div>
-								{/if}
-							</div>
+				<!-- Assigned To -->
+				<div>
+					<label
+						for="edit-assigned-to"
+						class="block text-sm font-medium text-gray-300 mb-1.5"
+					>
+						Assign To
+					</label>
+					{#if usersLoading}
+						<div class="mt-1 flex items-center">
+							<div
+								class="h-4 w-4 animate-spin rounded-full border-b-2 border-lime-500"
+							></div>
+							<span class="ml-2 text-sm text-gray-400"
+								>Loading users...</span
+							>
 						</div>
+					{:else}
+						<select
+							id="edit-assigned-to"
+							bind:value={assignedTo}
+							class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+							disabled={isLoading}
+						>
+							<option value="">Unassigned</option>
+							{#each availableUsers as user}
+								<option value={user.email}>{user.full_name} ({user.email})</option>
+							{/each}
+						</select>
+					{/if}
+				</div>
+
+				<!-- Priority and Status Row -->
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label
+							for="edit-priority"
+							class="block text-sm font-medium text-gray-300 mb-1.5"
+						>
+							Priority <span class="text-red-400">*</span>
+						</label>
+						<select
+							id="edit-priority"
+							bind:value={priority}
+							class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+							required
+							disabled={isLoading}
+						>
+							<option value="Low">Low</option>
+							<option value="Medium">Medium</option>
+							<option value="High">High</option>
+						</select>
+					</div>
+
+					<div>
+						<label
+							for="edit-status"
+							class="block text-sm font-medium text-gray-300 mb-1.5"
+						>
+							Status <span class="text-red-400">*</span>
+						</label>
+						<select
+							id="edit-status"
+							bind:value={status}
+							class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+							required
+							disabled={isLoading}
+						>
+							<option value="Not Started">Not Started</option>
+							<option value="In Progress">In Progress</option>
+							<option value="Completed">Completed</option>
+							<option value="Closed">Closed</option>
+						</select>
 					</div>
 				</div>
-				<div class="bg-gray-50 px-4 py-3 dark:bg-gray-700 sm:flex sm:flex-row-reverse sm:px-6">
-					<button
-						type="button"
-						on:click={updateTicketRecord}
-						disabled={!ticketTitle.trim() || isLoading}
-						class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-3 sm:w-auto sm:text-sm"
-					>
-						{#if isLoading}
-							Updating...
-						{:else}
-							Update Ticket
-						{/if}
-					</button>
-					<button
-						type="button"
-						on:click={closeModal}
-						class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-500 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
-					>
-						Cancel
-					</button>
+
+				<!-- Due Date -->
+				<div>
+					<div class="mb-1 flex items-center justify-between">
+						<label
+							for="edit-due-date"
+							class="block text-sm font-medium text-gray-300 mb-1.5"
+						>
+							Due Date &amp; Time
+						</label>
+						<span class="text-xs text-gray-400">
+							Sydney: {currentSydneyTime}
+						</span>
+					</div>
+					<input
+						type="datetime-local"
+						id="edit-due-date"
+						bind:value={dueDate}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] px-3 py-2 text-sm text-gray-200 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						disabled={isLoading}
+					/>
+					<div class="mt-2 flex flex-wrap gap-2">
+						<button
+							type="button"
+							on:click={setDueDateEndOfDay}
+							class="inline-flex items-center rounded-lg border border-[#333842] bg-[#1f2329] px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:bg-[#262a30] hover:text-white transition"
+							disabled={isLoading}
+						>
+							End of Day (5PM)
+						</button>
+						<button
+							type="button"
+							on:click={setDueDateTwoHours}
+							class="inline-flex items-center rounded-lg border border-[#333842] bg-[#1f2329] px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:bg-[#262a30] hover:text-white transition"
+							disabled={isLoading}
+						>
+							2 Hours
+						</button>
+						<button
+							type="button"
+							on:click={setDueDateEndOfMonth}
+							class="inline-flex items-center rounded-lg border border-[#333842] bg-[#1f2329] px-2.5 py-1.5 text-xs font-medium text-gray-300 hover:bg-[#262a30] hover:text-white transition"
+							disabled={isLoading}
+						>
+							End of Month
+						</button>
+					</div>
 				</div>
+
+				<!-- Notes -->
+				<div>
+					<label
+						for="edit-ticket-notes"
+						class="block text-sm font-medium text-gray-300 mb-1.5"
+					>
+						Notes
+					</label>
+					<textarea
+						id="edit-ticket-notes"
+						rows="2"
+						bind:value={notes}
+						class="w-full rounded-lg bg-[#0e1012] border border-[#262a30] p-3 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+						placeholder="Additional notes..."
+						disabled={isLoading}
+					></textarea>
+				</div>
+
+				<!-- Order Details Summary -->
+				{#if order}
+					<div class="rounded-xl border border-[#262a30] bg-[#181b20] p-3 text-sm text-gray-300">
+						<p>
+							<strong class="text-white">Invoice:</strong>
+							{order.invoice} |
+							<strong class="text-white">Amount:</strong> ${order.amount} |
+							<strong class="text-white">Days Past Due:</strong>
+							{order.pdCounter}
+						</p>
+					</div>
+				{/if}
+			</div>
+
+			<div class="mt-6 flex justify-end gap-3 border-t border-[#262a30] pt-4">
+				<button
+					type="button"
+					on:click={closeModal}
+					class="btn-secondary text-sm"
+				>
+					Cancel
+				</button>
+				<button
+					type="button"
+					on:click={updateTicketRecord}
+					disabled={!ticketTitle.trim() || isLoading}
+					class="btn-primary text-sm"
+				>
+					{#if isLoading}
+						Updating...
+					{:else}
+						Update Ticket
+					{/if}
+				</button>
 			</div>
 		</div>
 	</div>

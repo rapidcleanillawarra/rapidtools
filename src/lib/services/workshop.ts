@@ -1488,6 +1488,84 @@ export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
 }
 
 /**
+ * Get all tech schedule records (full assignment history) for a workshop.
+ */
+export async function getWorkshopTechScheduleHistory(
+  workshopId: string
+): Promise<WorkshopTechScheduleRecord[]> {
+  try {
+    const { data, error } = await supabase
+      .from('workshop_tech_schedule')
+      .select('*')
+      .eq('workshop_id', workshopId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as WorkshopTechScheduleRecord[]) ?? [];
+  } catch (error) {
+    console.error('Error fetching tech schedule history:', error);
+    throw error;
+  }
+}
+
+/**
+ * Append a comment/note to a workshop record.
+ */
+export async function addWorkshopComment(
+  workshopId: string,
+  text: string,
+  author: string
+): Promise<Array<{ id: string; text: string; author: string; created_at: string }>> {
+  try {
+    const { data: existingWorkshop, error: fetchError } = await supabase
+      .from('workshop')
+      .select('comments')
+      .eq('id', workshopId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    let existingComments: Array<{ id: string; text: string; author: string; created_at: string }> = [];
+    if (existingWorkshop?.comments) {
+      if (Array.isArray(existingWorkshop.comments)) {
+        existingComments = existingWorkshop.comments;
+      } else if (typeof existingWorkshop.comments === 'string') {
+        try {
+          existingComments = JSON.parse(existingWorkshop.comments);
+        } catch {
+          existingComments = [];
+        }
+      }
+    }
+
+    const newComment = {
+      id: Date.now().toString(),
+      text: text.trim(),
+      author: author.trim() || 'Unknown User',
+      created_at: new Date().toISOString()
+    };
+
+    const updatedComments = [...existingComments, newComment];
+
+    const { error: updateError } = await supabase
+      .from('workshop')
+      .update({
+        comments: updatedComments,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', workshopId);
+
+    if (updateError) throw updateError;
+
+    return updatedComments;
+  } catch (error) {
+    console.error('Error adding workshop comment:', error);
+    throw error;
+  }
+}
+
+
+/**
  * Close the current active schedule row (superseded or cancelled).
  * When cancelling (unassign), optional changeReason is stored on the closed row.
  */

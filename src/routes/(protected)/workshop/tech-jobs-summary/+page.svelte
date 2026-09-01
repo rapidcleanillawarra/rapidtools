@@ -17,6 +17,7 @@
   import ToastContainer from '$lib/components/ToastContainer.svelte';
   import AssignTechModal from '../workshop-board/components/AssignTechModal.svelte';
   import CancelJobModal from './components/CancelJobModal.svelte';
+  import JobNotesHistoryModal from './components/JobNotesHistoryModal.svelte';
   import {
     originalData,
     isLoading,
@@ -91,6 +92,8 @@
   let showCancelJobModal = $state(false);
   let cancelJobSubmitting = $state(false);
   let rowForCancelJob = $state.raw<TechJobsSummaryRow | null>(null);
+  let showNotesHistoryModal = $state(false);
+  let rowForNotesHistory = $state.raw<TechJobsSummaryRow | null>(null);
 
   function handleSortClick(field: SortField) {
     if ($sortField === field) {
@@ -140,6 +143,17 @@
   function closeCancelJobModal() {
     showCancelJobModal = false;
     rowForCancelJob = null;
+  }
+
+  function openNotesHistoryModal(row: TechJobsSummaryRow, event: MouseEvent) {
+    event.stopPropagation();
+    rowForNotesHistory = row;
+    showNotesHistoryModal = true;
+  }
+
+  function closeNotesHistoryModal() {
+    showNotesHistoryModal = false;
+    rowForNotesHistory = null;
   }
 
   async function loadTechJobs(silent = false) {
@@ -362,6 +376,26 @@
   {/if}
 {/snippet}
 
+{#snippet notesHistoryButton(row: TechJobsSummaryRow)}
+  <button
+    type="button"
+    class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-1 transition-colors"
+    title="Check notes and history"
+    aria-label="Check notes and history"
+    onclick={(event) => openNotesHistoryModal(row, event)}
+  >
+    <svg class="h-3.5 w-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+      ></path>
+    </svg>
+    Notes & History
+  </button>
+{/snippet}
+
 <svelte:head>
   <title>Tech Jobs Summary - RapidTools</title>
 </svelte:head>
@@ -516,6 +550,7 @@
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Board status</th>
+                    <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes & History</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reschedule</th>
                     <th scope="col" class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cancel</th>
                   </tr>
@@ -599,6 +634,9 @@
                       </td>
                       <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-900">
                         {formatStatusLabel(row.current_workshop_status)}
+                      </td>
+                      <td class="px-3 py-2 whitespace-nowrap">
+                        {@render notesHistoryButton(row)}
                       </td>
                       <td class="px-3 py-2 whitespace-nowrap">
                         {@render assignScheduleButton(row)}
@@ -876,6 +914,9 @@
                   </button>
                 </th>
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Notes & History
+                </th>
+                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Reschedule
                 </th>
                 <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -958,6 +999,9 @@
                     {row.assigned_by_name || '—'}
                   </td>
                   <td class="px-4 py-3 whitespace-nowrap">
+                    {@render notesHistoryButton(row)}
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
                     {@render assignScheduleButton(row)}
                   </td>
                   <td class="px-4 py-3 whitespace-nowrap">
@@ -1036,6 +1080,14 @@
     submitting={cancelJobSubmitting}
     onconfirm={handleCancelJobConfirm}
     oncancel={closeCancelJobModal}
+  />
+{/if}
+
+{#if showNotesHistoryModal && rowForNotesHistory}
+  <JobNotesHistoryModal
+    workshopId={rowForNotesHistory.workshop_id}
+    row={rowForNotesHistory}
+    onclose={closeNotesHistoryModal}
   />
 {/if}
 

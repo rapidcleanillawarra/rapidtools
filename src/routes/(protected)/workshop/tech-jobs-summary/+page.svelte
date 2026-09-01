@@ -45,7 +45,8 @@
     simpleDay,
     setSimpleDay,
     simpleJobs,
-    simpleJobsByTech
+    simpleJobsByTech,
+    simpleOverdueCount
   } from './stores';
   import {
     getSortIcon,
@@ -76,11 +77,13 @@
   const cancelledCount = $derived($simpleJobs.filter((row) => isJobCancelled(row)).length);
   const overdueCount = $derived($simpleJobs.filter((row) => isOverdueJob(row, nowMillis)).length);
   const simpleDayDescription = $derived(
-    $simpleDay === 'yesterday'
-      ? 'Jobs for yesterday, including completed and cancelled'
-      : $simpleDay === 'tomorrow'
-        ? 'Jobs for tomorrow, including completed and cancelled'
-        : 'Jobs for today, including completed and cancelled'
+    $simpleDay === 'overdue'
+      ? 'All overdue and past-due active jobs'
+      : $simpleDay === 'yesterday'
+        ? 'Jobs for yesterday, including completed and cancelled'
+        : $simpleDay === 'tomorrow'
+          ? 'Jobs for tomorrow, including completed and cancelled'
+          : 'Jobs for today, including completed and cancelled'
   );
   const selectedDayLabel = $derived(
     SIMPLE_DAY_OPTIONS.find((option) => option.value === $simpleDay)?.label ?? 'Today'
@@ -484,27 +487,38 @@
                 : 'text-gray-600 hover:text-gray-900'}"
             >
               {option.label}
+              {#if option.value === 'overdue' && $simpleOverdueCount > 0}
+                <span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                  {$simpleOverdueCount}
+                </span>
+              {/if}
             </button>
           {/each}
         </div>
-        <span class="text-sm text-gray-600">{sydneyDateLabel}</span>
+        {#if $simpleDay !== 'overdue'}
+          <span class="text-sm text-gray-600">{sydneyDateLabel}</span>
+        {/if}
         <span class="text-lg font-semibold tabular-nums text-gray-900">{sydneyTimeLabel}</span>
         <span class="text-xs text-gray-400">Sydney</span>
-        <span class="text-sm font-medium text-gray-900">{remainingCount} remaining</span>
-        {#if completedCount > 0}
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-            {completedCount} completed
-          </span>
-        {/if}
-        {#if cancelledCount > 0}
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            {cancelledCount} cancelled
-          </span>
-        {/if}
-        {#if overdueCount > 0}
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            {overdueCount} overdue
-          </span>
+        {#if $simpleDay === 'overdue'}
+          <span class="text-sm font-medium text-gray-900">{$simpleJobs.length} overdue</span>
+        {:else}
+          <span class="text-sm font-medium text-gray-900">{remainingCount} remaining</span>
+          {#if completedCount > 0}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              {completedCount} completed
+            </span>
+          {/if}
+          {#if cancelledCount > 0}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              {cancelledCount} cancelled
+            </span>
+          {/if}
+          {#if overdueCount > 0}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+              {overdueCount} overdue
+            </span>
+          {/if}
         {/if}
       </div>
 
@@ -530,7 +544,11 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200">
           <div class="text-center py-12">
             <h3 class="text-sm font-medium text-gray-900">No jobs for {selectedDayLabel}</h3>
-            <p class="mt-1 text-sm text-gray-500">There are no remaining, completed, or cancelled technician jobs for this day.</p>
+            <p class="mt-1 text-sm text-gray-500">
+              {$simpleDay === 'overdue'
+                ? 'There are no overdue active jobs.'
+                : 'There are no remaining, completed, or cancelled technician jobs for this day.'}
+            </p>
           </div>
         </div>
       {:else}

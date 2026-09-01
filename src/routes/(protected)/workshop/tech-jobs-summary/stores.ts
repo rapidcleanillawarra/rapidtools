@@ -31,7 +31,7 @@ function loadSimpleDay(): SimpleDay {
   if (typeof window === 'undefined') return 'today';
   try {
     const stored = localStorage.getItem(SIMPLE_DAY_KEY);
-    if (stored === 'yesterday' || stored === 'tomorrow') return stored;
+    if (stored === 'overdue' || stored === 'yesterday' || stored === 'tomorrow') return stored;
   } catch {
     /* ignore */
   }
@@ -174,15 +174,24 @@ export const simpleJobs = derived(
   [originalData, searchQuery, simpleDay],
   ([$originalData, $searchQuery, $simpleDay]) => {
     const today = sydneyToday();
-    const day = sydneyDateForSimpleDay($simpleDay);
-    const remaining = $originalData.filter((row) => isRemainingJobForDay(row, day, today));
-    const completed = $originalData.filter((row) => isCompletedTodayJob(row, day));
-    const cancelled = $originalData.filter((row) => isCancelledTodayJob(row, day));
-    const combined = [
-      ...sortData(remaining, 'schedule', 'asc'),
-      ...sortData(completed, 'schedule', 'asc'),
-      ...sortData(cancelled, 'schedule', 'asc')
-    ];
+    const now = Date.now();
+    let combined: TechJobsSummaryRow[] = [];
+
+    if ($simpleDay === 'overdue') {
+      const overdue = $originalData.filter((row) => isOverdueJob(row, now));
+      combined = sortData(overdue, 'schedule', 'asc');
+    } else {
+      const day = sydneyDateForSimpleDay($simpleDay);
+      const remaining = $originalData.filter((row) => isRemainingJobForDay(row, day, today));
+      const completed = $originalData.filter((row) => isCompletedTodayJob(row, day));
+      const cancelled = $originalData.filter((row) => isCancelledTodayJob(row, day));
+      combined = [
+        ...sortData(remaining, 'schedule', 'asc'),
+        ...sortData(completed, 'schedule', 'asc'),
+        ...sortData(cancelled, 'schedule', 'asc')
+      ];
+    }
+
     return filterTechJobs(combined, {
       searchQuery: $searchQuery,
       selectedTech: '',
@@ -196,7 +205,7 @@ export const simpleJobs = derived(
 
 export const simpleJobsByTech = derived(simpleJobs, ($simpleJobs) => groupJobsByTech($simpleJobs));
 
-export const simpleOverdueCount = derived(simpleJobs, ($simpleJobs) => {
+export const simpleOverdueCount = derived(originalData, ($originalData) => {
   const now = Date.now();
-  return $simpleJobs.filter((row) => isOverdueJob(row, now)).length;
+  return $originalData.filter((row) => isOverdueJob(row, now)).length;
 });

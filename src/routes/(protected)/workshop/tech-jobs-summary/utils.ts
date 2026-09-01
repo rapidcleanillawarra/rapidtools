@@ -59,11 +59,13 @@ export function sydneyToday(): string {
 }
 
 export function sydneyDateForSimpleDay(day: SimpleDay, millis = Date.now()): string {
+  if (day === 'overdue') return DateTime.fromMillis(millis).setZone(SYDNEY_ZONE).toFormat('yyyy-LL-dd');
   const offset = day === 'yesterday' ? -1 : day === 'tomorrow' ? 1 : 0;
   return DateTime.fromMillis(millis).setZone(SYDNEY_ZONE).plus({ days: offset }).toFormat('yyyy-LL-dd');
 }
 
 export function formatSydneyDayLabel(day: SimpleDay, millis = Date.now()): string {
+  if (day === 'overdue') return 'Overdue';
   const offset = day === 'yesterday' ? -1 : day === 'tomorrow' ? 1 : 0;
   return DateTime.fromMillis(millis)
     .setZone(SYDNEY_ZONE)
@@ -114,7 +116,7 @@ export function isRemainingJobForDay(
   const scheduleDate = scheduleDateInSydney(row.schedule);
   if (day === today) {
     if (!scheduleDate) return true;
-    return scheduleDate <= today;
+    return scheduleDate === today;
   }
   return scheduleDate === day;
 }
@@ -133,6 +135,7 @@ export function isCancelledTodayJob(row: TechJobsSummaryRow, day = sydneyToday()
 
 export function isOverdueJob(row: TechJobsSummaryRow, nowMillis = Date.now()): boolean {
   if (isJobCompleted(row) || isJobCancelled(row)) return false;
+  if (row.assignment_status !== 'active') return false;
   const now = DateTime.fromMillis(nowMillis).setZone(SYDNEY_ZONE);
   if (!now.isValid) return false;
 

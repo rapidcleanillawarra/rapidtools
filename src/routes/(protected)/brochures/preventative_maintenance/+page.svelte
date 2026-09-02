@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { loadBrochureImages, type BrochureImageSlot } from '$lib/brochures/brochureImages';
-	import { exportBrochurePdf } from '$lib/brochures/exportBrochurePdf';
+	import { exportBrochurePdf, resolveBrochureImageUrl } from '$lib/brochures/exportBrochurePdf';
 	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
 	import { toastError } from '$lib/utils/toast';
 
-	const brandTag = 'orders@rapidcleanillawarra.com.au · (02) 4227 2833';
+	const brandTag = 'contact@rapidcleanillawarra.com.au · (02) 4227 2833';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
 
 	const SLUG = 'preventative_maintenance';
@@ -13,24 +14,23 @@
 		{
 			key: 'logo',
 			label: 'Company logo',
-			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png',
+			defaultUrl: `${base}/brochures/shared/company_logo_white.png`,
 			hint: 'Appears on every page header and both covers.'
 		},
 		{
 			key: 'cover_hero',
 			label: 'Front cover background',
-			defaultUrl:
-				'https://www.rapidsupplies.com.au/assets/images/industries_industrial_and_warehousing.png'
+			defaultUrl: `${base}/brochures/preventative_maintenance/cover_hero.png`
 		},
 		{
 			key: 'intro_image',
 			label: 'Page 1 · Introduction image',
-			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/preventative_maintenance_1.png'
+			defaultUrl: `${base}/brochures/preventative_maintenance/intro_image.png`
 		},
 		{
 			key: 'approach_image',
 			label: 'Page 3 · Approach image',
-			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/third_brochure.png'
+			defaultUrl: `${base}/brochures/preventative_maintenance/approach_image.png`
 		},
 		{
 			key: 'next_steps_image',
@@ -41,8 +41,7 @@
 		{
 			key: 'back_cover_hero',
 			label: 'Back cover background',
-			defaultUrl:
-				'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80'
+			defaultUrl: `${base}/brochures/preventative_maintenance/back_cover_hero.jpg`
 		}
 	];
 
@@ -57,7 +56,13 @@
 
 	onMount(async () => {
 		const overrides = await loadBrochureImages(SLUG);
-		images = { ...defaults, ...overrides };
+		const sanitizedOverrides: Record<string, string> = {};
+		for (const [key, value] of Object.entries(overrides)) {
+			if (value) {
+				sanitizedOverrides[key] = resolveBrochureImageUrl(value);
+			}
+		}
+		images = { ...defaults, ...sanitizedOverrides };
 	});
 
 	async function downloadPdf() {
@@ -358,69 +363,69 @@
 			</p>
 			<div class="logo-grid">
 				<div class="logo-tile">
-					<img src="https://www.rapidsupplies.com.au/assets/images/rapidclean.jpg" alt="RapidClean logo" />
+					<img src="{base}/brochures/preventative_maintenance/brands/rapidclean.jpg" alt="RapidClean logo" />
 					<span>RapidClean / MZL</span>
 				</div>
 				<div class="logo-tile">
-					<img src="https://rapidclean.com.au/wp-content/uploads/PoliVac.png" alt="IPC logo" />
+					<img src="{base}/brochures/preventative_maintenance/brands/polivac.png" alt="IPC logo" />
 					<span>RapidClean IPC</span>
 				</div>
 				<div class="logo-tile">
 					<img
-						src="https://rapidclean.com.au/wp-content/uploads/Nilfisk_wordmark_CMYK_Dark.png"
+						src="{base}/brochures/preventative_maintenance/brands/nilfisk.png"
 						alt="Nilfisk logo"
 					/>
 					<span>Nilfisk</span>
 				</div>
 				<div class="logo-tile">
 					<img
-						src="https://s1.kaercher-media.com/versions/2026.3.0/static/img/kaercher_logo.svg"
+						src="{base}/brochures/preventative_maintenance/brands/kaercher.svg"
 						alt="Kärcher logo"
 					/>
 					<span>Kärcher</span>
 				</div>
 				<div class="logo-tile">
-					<img src="https://rapidclean.com.au/wp-content/uploads/Pacvac.png" alt="Pacvac logo" />
+					<img src="{base}/brochures/preventative_maintenance/brands/pacvac.png" alt="Pacvac logo" />
 					<span>Pacvac</span>
 				</div>
 				<div class="logo-tile">
-					<img src="https://rapidclean.com.au/wp-content/uploads/Numatic.png" alt="Numatic logo" />
+					<img src="{base}/brochures/preventative_maintenance/brands/numatic.png" alt="Numatic logo" />
 					<span>Numatic</span>
 				</div>
 				<div class="logo-tile">
 					<img
-						src="https://madeblue.org/wp-content/uploads/2021/09/Logo.i-team.Blue_.Pantone312C.print_.svg"
+						src="{base}/brochures/preventative_maintenance/brands/iteam.svg"
 						alt="i-team logo"
 					/>
 					<span>i-team / i-mop</span>
 				</div>
 				<div class="logo-tile">
 					<img
-						src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/Hako-Logo.svg/500px-Hako-Logo.svg.png?_=20120116174703"
+						src="{base}/brochures/preventative_maintenance/brands/hako.png"
 						alt="Hako logo"
 					/>
 					<span>Hako</span>
 				</div>
 				<div class="logo-tile">
-					<img src="https://www.kranzle.co.uk/files/Logo.svg" alt="Kranzle logo" />
+					<img src="{base}/brochures/preventative_maintenance/brands/kranzle.svg" alt="Kranzle logo" />
 					<span>Kranzle</span>
 				</div>
 				<div class="logo-tile">
 					<img
-						src="https://www.ramcarbatteries.com/wp-content/uploads/2023/04/Ramcar-logo.png"
+						src="{base}/brochures/preventative_maintenance/brands/ramcar.png"
 						alt="Ramcar Batteries logo"
 					/>
 					<span>Ramcar Batteries</span>
 				</div>
 				<div class="logo-tile">
 					<img
-						src="https://www.ritarpower.com/uploads/image/20251212/ritar-power-logo.webp"
+						src="{base}/brochures/preventative_maintenance/brands/ritar.webp"
 						alt="Ritar Batteries logo"
 					/>
 					<span>Ritar Batteries</span>
 				</div>
 				<div class="logo-tile">
-					<img src="https://rapidclean.com.au/wp-content/uploads/PoliVac.png" alt="Polivac logo" />
+					<img src="{base}/brochures/preventative_maintenance/brands/polivac.png" alt="Polivac logo" />
 					<span>Polivac</span>
 				</div>
 			</div>
@@ -552,7 +557,7 @@
 						</span>
 						<div>
 							<span class="label">Email</span>
-							<span class="value">orders@rapidcleanillawarra.com.au</span>
+							<span class="value">contact@rapidcleanillawarra.com.au</span>
 						</div>
 					</div>
 					<div class="next-cta-item">
@@ -616,7 +621,7 @@
 				</div>
 				<div class="contact-card">
 					<h4>Email</h4>
-					<p>orders@rapidcleanillawarra.com.au</p>
+					<p>contact@rapidcleanillawarra.com.au</p>
 				</div>
 				<div class="contact-card">
 					<h4>Website</h4>
@@ -1465,6 +1470,12 @@
 		align-items: center;
 		justify-content: center;
 		font-size: 9.5pt;
+		letter-spacing: 0;
+		line-height: 1;
+		padding: 0;
+		margin: 0;
+		box-sizing: border-box;
+		flex-shrink: 0;
 		color: var(--rapid-green-dark);
 	}
 

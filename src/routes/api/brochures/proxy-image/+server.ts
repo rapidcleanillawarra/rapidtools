@@ -36,7 +36,10 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	const response = await fetch(imageUrl, {
-		headers: { Accept: 'image/*,*/*' }
+		headers: {
+			'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+			Accept: 'image/*,*/*'
+		}
 	});
 	if (!response.ok) {
 		throw error(response.status, 'Failed to fetch image');

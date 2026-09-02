@@ -209,3 +209,10 @@ export const simpleOverdueCount = derived(originalData, ($originalData) => {
   const now = Date.now();
   return $originalData.filter((row) => isOverdueJob(row, now)).length;
 });
+
+export const simpleYesterdayOverdueCount = derived(originalData, ($originalData) => {
+  const now = Date.now();
+  const today = sydneyToday();
+  const yesterday = sydneyDateForSimpleDay('yesterday', now);
+  return $originalData.filter((row) => isRemainingJobForDay(row, yesterday, today)).length;
+});

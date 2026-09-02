@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { loadBrochureImages, type BrochureImageSlot } from '$lib/brochures/brochureImages';
-	import { exportBrochurePdf } from '$lib/brochures/exportBrochurePdf';
+	import { exportBrochurePdf, resolveBrochureImageUrl } from '$lib/brochures/exportBrochurePdf';
 	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
 	import { toastError } from '$lib/utils/toast';
 
-	const brandTag = 'orders@rapidcleanillawarra.com.au · (02) 4227 2833';
+	const brandTag = 'contact@rapidcleanillawarra.com.au · (02) 4227 2833';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
 
 	const svgDataUri = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;
@@ -25,14 +26,13 @@
 		{
 			key: 'logo',
 			label: 'Company logo',
-			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/company_logo_white.png',
+			defaultUrl: `${base}/brochures/shared/company_logo_white.png`,
 			hint: 'Appears on every page header and both covers.'
 		},
 		{
 			key: 'cover_hero',
 			label: 'Front cover background',
-			defaultUrl:
-				'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1600&q=80'
+			defaultUrl: `${base}/brochures/washroom_fitout/cover_hero.jpg`
 		},
 		{
 			key: 'product_soap',
@@ -55,14 +55,13 @@
 		{
 			key: 'support_logo',
 			label: 'Recognition card logo',
-			defaultUrl: 'https://www.rapidsupplies.com.au/assets/images/Company%20Logo%20New%20Black.png',
+			defaultUrl: `${base}/brochures/shared/company_logo_black.png`,
 			hint: 'Logo on the page 3 “Supplied By” recognition card.'
 		},
 		{
 			key: 'back_cover_hero',
 			label: 'Back cover background',
-			defaultUrl:
-				'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80'
+			defaultUrl: `${base}/brochures/preventative_maintenance/back_cover_hero.jpg`
 		}
 	];
 
@@ -77,7 +76,13 @@
 
 	onMount(async () => {
 		const overrides = await loadBrochureImages(SLUG);
-		images = { ...defaults, ...overrides };
+		const sanitizedOverrides: Record<string, string> = {};
+		for (const [key, value] of Object.entries(overrides)) {
+			if (value) {
+				sanitizedOverrides[key] = resolveBrochureImageUrl(value);
+			}
+		}
+		images = { ...defaults, ...sanitizedOverrides };
 	});
 
 	async function downloadPdf() {
@@ -327,7 +332,7 @@
 
 			<div class="cta-banner">
 				To discuss a free club washroom fit-out: call <strong>(02) 4227 2833</strong> or email
-				<strong>orders@rapidcleanillawarra.com.au</strong>
+				<strong>contact@rapidcleanillawarra.com.au</strong>
 			</div>
 		</div>
 
@@ -368,7 +373,7 @@
 				</div>
 				<div class="contact-card">
 					<h4>Email</h4>
-					<p>orders@rapidcleanillawarra.com.au</p>
+					<p>contact@rapidcleanillawarra.com.au</p>
 				</div>
 				<div class="contact-card">
 					<h4>Website</h4>
@@ -1032,6 +1037,12 @@
 		align-items: center;
 		justify-content: center;
 		font-size: 9.5pt;
+		letter-spacing: 0;
+		line-height: 1;
+		padding: 0;
+		margin: 0;
+		box-sizing: border-box;
+		flex-shrink: 0;
 		color: var(--rapid-green-dark);
 	}
 

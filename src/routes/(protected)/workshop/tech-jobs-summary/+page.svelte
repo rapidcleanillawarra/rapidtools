@@ -46,7 +46,8 @@
     setSimpleDay,
     simpleJobs,
     simpleJobsByTech,
-    simpleOverdueCount
+    simpleOverdueCount,
+    simpleYesterdayOverdueCount
   } from './stores';
   import {
     getSortIcon,
@@ -490,6 +491,10 @@
               {#if option.value === 'overdue' && $simpleOverdueCount > 0}
                 <span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
                   {$simpleOverdueCount}
+                </span>
+              {:else if option.value === 'yesterday' && $simpleYesterdayOverdueCount > 0}
+                <span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                  {$simpleYesterdayOverdueCount}
                 </span>
               {/if}
             </button>

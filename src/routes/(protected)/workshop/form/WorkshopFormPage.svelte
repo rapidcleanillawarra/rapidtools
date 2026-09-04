@@ -90,12 +90,9 @@
 	let fileError = '';
 	const MIN_FILES_REQUIRED = 0; // Files are now optional
 
-	// Drawings (shown when status is drawing request, stored in workshop-files bucket)
+	// Drawings (stored in workshop-files bucket)
 	let drawings: FileItem[] = [];
 	let drawingError = '';
-
-	// Reactive check for drawing request status or action
-	$: isDrawingRequest = workshopStatus === 'drawing_request' || action === 'Drawing Request';
 
 	// Docket Info (new section)
 	let quoteDescription: string = '';
@@ -2647,17 +2644,15 @@
 				</div>
 			</div>
 
-			<!-- Drawings Section - shown when status is drawing request -->
-			{#if isDrawingRequest}
-				<DrawingsSection
-					bind:drawings
-					bind:error={drawingError}
-					{workshopStatus}
-					on:drawingsUpdated={(event) => (drawings = event.detail.drawings)}
-					on:error={(event) => (drawingError = event.detail.message)}
-					on:drawingClick={handleDrawingClick}
-				/>
-			{/if}
+			<!-- Drawings Section - shown across all board statuses -->
+			<DrawingsSection
+				bind:drawings
+				bind:error={drawingError}
+				{workshopStatus}
+				on:drawingsUpdated={(event) => (drawings = event.detail.drawings)}
+				on:error={(event) => (drawingError = event.detail.message)}
+				on:drawingClick={handleDrawingClick}
+			/>
 
 			<DocketInfoSection
 				{workshopStatus}

@@ -250,7 +250,7 @@
         </div>
         <p class="text-sm font-semibold text-gray-200">No drawings uploaded yet</p>
         <p class="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
-          Click here or drag and drop drawings (PDF, DWG, DXF, images, CAD files) to attach them to this drawing request.
+          Click here or drag and drop drawings (PDF, DWG, DXF, images, CAD files) to attach them to this job.
         </p>
       </div>
     {/if}

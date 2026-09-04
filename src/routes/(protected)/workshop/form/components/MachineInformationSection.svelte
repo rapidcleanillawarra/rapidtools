@@ -121,8 +121,18 @@
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-300 mb-1.5" for="make-model">Make/Model</label>
-        <input id="make-model" type="text" bind:value={makeModel} placeholder="Enter make / model" class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}" disabled={!currentJobStatus.canEditMachineInfo} />
+        <label class="block text-sm font-medium text-gray-300 mb-1.5" for="make-model">
+          Make/Model <span class="text-red-400">*</span>
+        </label>
+        <input
+          id="make-model"
+          type="text"
+          bind:value={makeModel}
+          placeholder="Enter make / model"
+          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors {!makeModel?.trim() ? 'border-red-500/40' : ''} {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
+          required
+          disabled={!currentJobStatus.canEditMachineInfo}
+        />
       </div>
 
       <div>

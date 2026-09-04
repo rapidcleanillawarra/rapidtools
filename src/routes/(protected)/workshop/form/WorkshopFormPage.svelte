@@ -761,6 +761,7 @@
 			customerName,
 			locationOfMachine,
 			action,
+			makeModel,
 			siteLocation,
 			pickupSchedule,
 			isNewPickupJob
@@ -1070,6 +1071,7 @@
 			customerName,
 			locationOfMachine,
 			action,
+			makeModel,
 			siteLocation,
 			pickupSchedule,
 			isNewPickupJob

@@ -12,6 +12,7 @@ export interface WorkshopFormData {
   customerName: string;
   locationOfMachine: string;
   action: string;
+  makeModel: string;
   siteLocation?: string;
   pickupSchedule?: string;
   isNewPickupJob?: boolean;
@@ -33,6 +34,10 @@ export function validateRequiredFields(formData: WorkshopFormData): ValidationRe
 
   if (!formData.action || !formData.action.trim()) {
     errors.push('Action is required');
+  }
+
+  if (!formData.makeModel || !formData.makeModel.trim()) {
+    errors.push('Make/Model is required');
   }
 
   return {

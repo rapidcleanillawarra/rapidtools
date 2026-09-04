@@ -204,7 +204,7 @@
     };
   }
 
-  function submitAssignment(save: boolean, sendNotice: boolean) {
+  function submitAssignment(save: boolean, sendNotice: boolean, action: 'save' | 'notice' = 'save') {
     if (needsChangeReason && step === 'assign') {
       step = 'explain';
       return;
@@ -213,19 +213,19 @@
       changeReasonTouched = true;
       return;
     }
-    const shouldNotify = sendNotice || needsChangeReason;
-    actionInProgress = shouldNotify ? 'notice' : 'save';
+    const shouldNotify = (sendNotice && !!selectedEmail) || needsChangeReason;
+    actionInProgress = action;
     dispatch('confirm', assignmentDetail(save, shouldNotify));
   }
 
   function handleConfirm() {
     if (!canSave) return;
-    submitAssignment(true, false);
+    submitAssignment(true, true, 'save');
   }
 
   function handleSendNotice() {
     if (!canSendNotice) return;
-    submitAssignment(canSave, true);
+    submitAssignment(canSave, true, 'notice');
   }
 
   function handleExplainBack() {
@@ -236,7 +236,7 @@
   function handleExplainConfirm() {
     changeReasonTouched = true;
     if (!changeReason.trim() || !canSave) return;
-    submitAssignment(true, true);
+    submitAssignment(true, true, 'save');
   }
 
   function handleCancel() {

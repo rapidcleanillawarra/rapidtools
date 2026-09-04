@@ -663,7 +663,8 @@ export async function notifyAssignTechToTeams(
     });
 
     return response.ok;
-  } catch {
+  } catch (error) {
+    console.error('[WORKSHOP] Failed to notify Teams for tech assignment:', error);
     return false;
   }
 }

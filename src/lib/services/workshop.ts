@@ -451,7 +451,11 @@ function buildAssignTechHtmlBody(
   const isCancelled =
     options.cancelled === true ||
     (!options.assignedToName?.trim() && !!options.changeReason?.trim());
-  const isUpdate = !isCancelled && !!options.changeReason?.trim();
+  const isUpdate =
+    !isCancelled &&
+    (options.isUpdate === true ||
+      (options.isUpdate !== false &&
+        (!!options.changeReason?.trim() || !!workshop.assigned_tech || !!workshop.tech_schedule)));
   const headingKind: TeamsHeadingKind = isCancelled
     ? 'cancelled'
     : isUpdate
@@ -640,6 +644,7 @@ export async function notifyAssignTechToTeams(
     assignedByName?: string | null;
     changeReason?: string | null;
     cancelled?: boolean;
+    isUpdate?: boolean;
   }
 ): Promise<boolean> {
   try {

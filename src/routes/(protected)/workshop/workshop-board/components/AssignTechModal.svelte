@@ -48,6 +48,7 @@
       changeReason: string;
       save: boolean;
       sendNotice: boolean;
+      isUpdate: boolean;
     };
   }>();
 
@@ -67,8 +68,14 @@
   $: scheduleChanged =
     utcIsoToSydneyInput(schedule || '') !== utcIsoToSydneyInput(initialSchedule || '');
   $: jobTypeChanged = (jobType || '') !== (initialJobType || '');
+  $: anyFieldChanged = techChanged || scheduleChanged || jobTypeChanged;
   $: hasExistingSchedule = !!(initialSchedule || '').trim();
-  $: needsChangeReason = hasExistingSchedule && (techChanged || scheduleChanged);
+  $: hasExistingAssignment =
+    !!(initialAssignedTo || '').trim() ||
+    hasExistingSchedule ||
+    !!(initialJobType || '').trim();
+  $: isUpdate = hasExistingAssignment && anyFieldChanged;
+  $: needsChangeReason = hasExistingSchedule && anyFieldChanged;
   $: changeReasonValid = !needsChangeReason || !!changeReason.trim();
   $: scheduleRequired = !!selectedEmail;
   $: scheduleValid = !scheduleRequired || !!schedule.trim();
@@ -200,7 +207,8 @@
       jobType: assignedTo ? jobType.trim() : '',
       changeReason: needsChangeReason ? changeReason.trim() : '',
       save,
-      sendNotice
+      sendNotice,
+      isUpdate
     };
   }
 
@@ -213,7 +221,7 @@
       changeReasonTouched = true;
       return;
     }
-    const shouldNotify = (sendNotice && !!selectedEmail) || needsChangeReason;
+    const shouldNotify = (sendNotice && !!selectedEmail) || needsChangeReason || isUpdate;
     actionInProgress = action;
     dispatch('confirm', assignmentDetail(save, shouldNotify));
   }
@@ -286,7 +294,7 @@
         </h2>
         <p class="mt-1 text-sm text-gray-400">
           {#if step === 'explain'}
-            An existing schedule is being changed. Add a reason, then save to notify Teams.
+            An existing technician assignment or schedule is being changed. Add a reason, then save to notify Teams.
           {:else if workshopLabel}
             Assign a technician for <span class="font-medium text-gray-200">{workshopLabel}</span>.
           {:else}
@@ -310,6 +318,12 @@
                 {formatScheduleLabel(initialSchedule)} → {formatScheduleLabel(schedule)}
               </p>
             {/if}
+            {#if jobTypeChanged}
+              <p class={techChanged || scheduleChanged ? 'mt-1' : ''}>
+                <span class="font-medium">Job type:</span>
+                {initialJobType || 'None'} → {jobType || 'None'}
+              </p>
+            {/if}
           </div>
 
           <div>
@@ -321,11 +335,11 @@
               bind:value={changeReason}
               rows="4"
               class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
-              placeholder="Explain why the technician or schedule is changing..."
+              placeholder="Explain why the technician, schedule, or job type is changing..."
               on:input={() => (changeReasonTouched = true)}
             ></textarea>
             {#if changeReasonTouched && !changeReason.trim()}
-              <p class="mt-1 text-sm text-red-400">A reason is required when changing an existing schedule.</p>
+              <p class="mt-1 text-sm text-red-400">A reason is required when changing an existing schedule or assignment.</p>
             {/if}
           </div>
         </div>

@@ -189,7 +189,7 @@
     const row = rowForAssignTech;
     if (!row) return;
 
-    const { assignedTo, assignedToName, schedule, jobType, changeReason, save, sendNotice } =
+    const { assignedTo, assignedToName, schedule, jobType, changeReason, save, sendNotice, isUpdate } =
       event.detail;
     const user = $currentUser;
     const profile = $userProfile;
@@ -223,7 +223,8 @@
               schedule,
               jobType: jobType || null,
               assignedByName: assignedByName || null,
-              changeReason: changeReason || null
+              changeReason: changeReason || null,
+              isUpdate: isUpdate ?? (!!row.assigned_tech || !!row.schedule)
             })
           : false;
         if (!teamsOk) {
@@ -245,12 +246,14 @@
       if (save && sendNotice) {
         toastSuccess(
           assignedTo
-            ? 'Technician assigned and Teams notice sent.'
+            ? (isUpdate ? 'Technician assignment updated and Teams notice sent.' : 'Technician assigned and Teams notice sent.')
             : 'Technician assignment removed and Teams notice sent.'
         );
       } else if (save) {
         toastSuccess(
-          assignedTo ? 'Technician assigned successfully.' : 'Technician assignment removed.'
+          assignedTo
+            ? (isUpdate ? 'Technician assignment updated.' : 'Technician assigned successfully.')
+            : 'Technician assignment removed.'
         );
       } else if (sendNotice) {
         toastSuccess('Teams notice sent.');

@@ -180,6 +180,9 @@
 	// Track if this was originally a pickup job
 	let wasPickupJob = false;
 
+	// Track if current submission was from drawing request
+	let wasDrawingRequestSubmission = false;
+
 	// Incomplete contact modal state
 	let showIncompleteContactModal = false;
 	let pendingAction: (() => void) | null = null;
@@ -1391,9 +1394,10 @@
 			(formData as any).status = 'completed';
 			addHistoryEntry('completed', false); // false = status change
 		} else if (existingWorkshopId && workshopStatus === 'drawing_request') {
-			// For existing "drawing_request" jobs, preserve status
-			(formData as any).status = 'drawing_request';
-			addHistoryEntry('drawing_request', false); // false = status change
+			// For existing "drawing_request" jobs, transition status to "to_be_quoted"
+			(formData as any).status = 'to_be_quoted';
+			wasDrawingRequestSubmission = true;
+			addHistoryEntry('to_be_quoted', false); // false = status change
 		} else {
 			// Default: set to "to_be_quoted"
 			(formData as any).status = 'to_be_quoted';
@@ -1506,7 +1510,7 @@
 				} else if (existingWorkshopId && workshopStatus === 'return') {
 					successMessage = 'Workshop job has been completed successfully!';
 				} else if (existingWorkshopId && workshopStatus === 'drawing_request') {
-					successMessage = 'Workshop drawing request updated successfully!';
+					successMessage = 'Workshop drawings saved and job moved to "To Be Quoted"!';
 				} else {
 					successMessage = isUpdate
 						? wasToBeQuoted
@@ -1745,6 +1749,10 @@
 			return 'Processing...';
 		}
 
+		if (existingWorkshopId && workshopStatus === 'drawing_request') {
+			return 'Moving to To Be Quoted...';
+		}
+
 		// Default for other actions
 		return 'Next...';
 	}
@@ -1813,12 +1821,17 @@
 		showSuccessModal = false;
 		successMessage = '';
 		generatedOrderId = '';
+		wasDrawingRequestSubmission = false;
 	}
 
 	function closeSuccessModal() {
 		showSuccessModal = false;
 		successMessage = '';
 		generatedOrderId = '';
+		if (wasDrawingRequestSubmission) {
+			wasDrawingRequestSubmission = false;
+			navigateToWorkshopBoard();
+		}
 	}
 
 

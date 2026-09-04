@@ -239,7 +239,7 @@ export function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
 			canEditContacts: true, // Can edit contacts for drawing request
 			canCreateOrder: false,
 			canPickup: false,
-			buttonText: 'Update Job',
+			buttonText: 'To Be Quoted',
 			statusDisplay: 'Drawing Request',
 			priority: 4.95
 		};

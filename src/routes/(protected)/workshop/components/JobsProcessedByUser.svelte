@@ -23,7 +23,8 @@
     'workshop_pickup',
     'return',
     'pending_jobs',
-    'warranty_claim'
+    'warranty_claim',
+    'drawing_request'
   ];
 
   const BAR_PALETTE = [

@@ -43,6 +43,7 @@
       case 'return': return 'border-t-2 border-t-lime-400';
       case 'pending_jobs': return 'border-t-2 border-t-red-400';
       case 'warranty_claim': return 'border-t-2 border-t-rose-400';
+      case 'drawing_request': return 'border-t-2 border-t-violet-400';
       default: return 'border-t-2 border-t-gray-500';
     }
   }
@@ -62,6 +63,7 @@
       case 'return': return 'bg-lime-400/10 text-lime-400';
       case 'pending_jobs': return 'bg-red-400/10 text-red-400';
       case 'warranty_claim': return 'bg-rose-400/10 text-rose-400';
+      case 'drawing_request': return 'bg-violet-400/10 text-violet-400';
       default: return 'bg-gray-500/10 text-gray-400';
     }
   }

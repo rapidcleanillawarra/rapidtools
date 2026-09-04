@@ -21,7 +21,8 @@
     'workshop_pickup',
     'return',
     'pending_jobs',
-    'warranty_claim'
+    'warranty_claim',
+    'drawing_request'
   ];
 
   type PresetKey = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | '';

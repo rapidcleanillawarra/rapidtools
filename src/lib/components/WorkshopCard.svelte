@@ -48,6 +48,10 @@
 				return 'bg-indigo-400/10 text-indigo-400';
 			case 'pending_jobs':
 				return 'bg-red-400/10 text-red-400';
+			case 'warranty_claim':
+				return 'bg-rose-400/10 text-rose-400';
+			case 'drawing_request':
+				return 'bg-violet-400/10 text-violet-400';
 			default:
 				return 'bg-gray-500/10 text-gray-400';
 		}

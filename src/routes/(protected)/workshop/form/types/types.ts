@@ -21,6 +21,7 @@ export type JobStatus =
 	| 'to_be_scrapped'
 	| 'pickup_from_workshop'
 	| 'warranty_claim'
+	| 'drawing_request'
 	| null;
 
 export interface JobStatusContext {

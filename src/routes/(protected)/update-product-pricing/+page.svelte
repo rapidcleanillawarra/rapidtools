@@ -123,22 +123,22 @@
 
 	type PercentHint = { text: string; cls: string };
 	function percentHint(pct: number): PercentHint {
-		if (pct > 0) return { text: `Adjustment: +${pct}%`, cls: 'text-green-700' };
-		if (pct < 0) return { text: `Adjustment: ${pct}%`, cls: 'text-red-700' };
-		return { text: 'No change', cls: 'text-gray-500' };
+		if (pct > 0) return { text: `Adjustment: +${pct}%`, cls: 'text-lime-400 font-medium' };
+		if (pct < 0) return { text: `Adjustment: ${pct}%`, cls: 'text-red-400 font-medium' };
+		return { text: 'No change', cls: 'text-gray-400' };
 	}
 
 	function markupHint(value: number): PercentHint {
-		if (value > 0) return { text: `Adjustment: +${value}%`, cls: 'text-green-700' };
-		if (value < 0) return { text: `Adjustment: ${value}%`, cls: 'text-red-700' };
-		return { text: 'No change', cls: 'text-gray-500' };
+		if (value > 0) return { text: `Adjustment: +${value}%`, cls: 'text-lime-400 font-medium' };
+		if (value < 0) return { text: `Adjustment: ${value}%`, cls: 'text-red-400 font-medium' };
+		return { text: 'No change', cls: 'text-gray-400' };
 	}
 
 	function gppHint(value: number): PercentHint {
-		if (value >= 100) return { text: 'GPP must be below 100%', cls: 'text-red-700' };
-		if (value > 0) return { text: `Set GPP to ${value}%`, cls: 'text-green-700' };
-		if (value < 0) return { text: `Set GPP to ${value}%`, cls: 'text-red-700' };
-		return { text: 'No change', cls: 'text-gray-500' };
+		if (value >= 100) return { text: 'GPP must be below 100%', cls: 'text-red-400 font-medium' };
+		if (value > 0) return { text: `Set GPP to ${value}%`, cls: 'text-lime-400 font-medium' };
+		if (value < 0) return { text: `Set GPP to ${value}%`, cls: 'text-red-400 font-medium' };
+		return { text: 'No change', cls: 'text-gray-400' };
 	}
 
 	function getSelectedSkusOrToast(): string[] | null {
@@ -431,9 +431,18 @@
 	}
 </script>
 
-<div class="min-h-screen bg-gray-100 px-2 py-8 sm:px-3">
-	<div class="mx-auto max-w-[98%] bg-white p-6 shadow" transition:fade>
-		<h2 class="mb-6 text-2xl font-bold text-gray-900">Update Product Pricing</h2>
+<svelte:head>
+	<title>Update Product Pricing - RapidTools</title>
+</svelte:head>
+
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8" transition:fade>
+		<div class="flex justify-between items-center mb-6">
+			<div>
+				<h1 class="text-2xl font-bold text-white tracking-tight">Update Product Pricing</h1>
+				<p class="mt-1 text-sm text-gray-400">Review and adjust product pricing, markup, and margins</p>
+			</div>
+		</div>
 
 		<div class="three-col-layout" class:collapsed={leftCollapsed}>
 			<FiltersPanel
@@ -458,18 +467,18 @@
 			<!-- Middle column: table -->
 			<section class="middle-col">
 				<div
-					class="mass-price-change-toolbar mb-3 flex flex-wrap items-center gap-2 rounded-md bg-white p-3 shadow-sm ring-1 ring-gray-200"
+					class="mass-price-change-toolbar mb-4 flex flex-wrap items-center gap-2.5 rounded-xl bg-[#181b20] p-3 border border-[#262a30] shadow-sm"
 				>
 					<button
 						type="button"
-						class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700"
+						class="btn-primary text-xs py-2 px-3 inline-flex items-center gap-1.5"
 						on:click={() => (showMassPriceChangeModal = true)}
 					>
 						Mass Price Change
 					</button>
 					<button
 						type="button"
-						class="inline-flex items-center rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-secondary text-xs py-2 px-3 inline-flex items-center gap-1.5"
 						disabled={$selectedRows.size === 0}
 						on:click={handlePrintBarcode}
 					>
@@ -532,10 +541,10 @@
 	on:close={() => (showMassPriceChangeModal = false)}
 >
 	<svelte:fragment slot="header">Mass Price Change</svelte:fragment>
-	<div slot="body" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+	<div slot="body" class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		<div>
 			<label
-				class="mb-1 block text-xs font-medium text-gray-700"
+				class="mb-1.5 block text-xs font-medium text-gray-300"
 				for="purchase_price_increase_modal"
 			>
 				Purchase Price Adjustment
@@ -545,7 +554,7 @@
 					id="purchase_price_increase_modal"
 					type="number"
 					bind:value={purchasePriceIncrease}
-					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					class="no-spinner block h-8 w-full rounded-lg border border-[#262a30] bg-[#0e1012] px-2.5 text-xs text-gray-200 shadow-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
 					step="0.01"
 					on:change={applyPurchasePricePercentChange}
 				/>
@@ -555,7 +564,7 @@
 			</div>
 		</div>
 		<div>
-			<label class="mb-1 block text-xs font-medium text-gray-700" for="markup_increase_modal">
+			<label class="mb-1.5 block text-xs font-medium text-gray-300" for="markup_increase_modal">
 				Markup
 			</label>
 			<div class="flex items-center gap-2">
@@ -563,7 +572,7 @@
 					id="markup_increase_modal"
 					type="number"
 					bind:value={markupIncrease}
-					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					class="no-spinner block h-8 w-full rounded-lg border border-[#262a30] bg-[#0e1012] px-2.5 text-xs text-gray-200 shadow-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
 					step="0.01"
 					on:change={applyMarkupAddition}
 				/>
@@ -573,7 +582,7 @@
 			</div>
 		</div>
 		<div>
-			<label class="mb-1 block text-xs font-medium text-gray-700" for="list_price_increase_modal">
+			<label class="mb-1.5 block text-xs font-medium text-gray-300" for="list_price_increase_modal">
 				List Price Adjustment
 			</label>
 			<div class="flex items-center gap-2">
@@ -581,7 +590,7 @@
 					id="list_price_increase_modal"
 					type="number"
 					bind:value={listPriceIncrease}
-					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					class="no-spinner block h-8 w-full rounded-lg border border-[#262a30] bg-[#0e1012] px-2.5 text-xs text-gray-200 shadow-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
 					step="0.01"
 					on:change={applyListPricePercentChange}
 				/>
@@ -591,7 +600,7 @@
 			</div>
 		</div>
 		<div>
-			<label class="mb-1 block text-xs font-medium text-gray-700" for="gpp_increase_modal">
+			<label class="mb-1.5 block text-xs font-medium text-gray-300" for="gpp_increase_modal">
 				GPP
 			</label>
 			<div class="flex items-center gap-2">
@@ -599,7 +608,7 @@
 					id="gpp_increase_modal"
 					type="number"
 					bind:value={gppIncrease}
-					class="no-spinner block h-8 w-full rounded-md border border-gray-300 px-2 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+					class="no-spinner block h-8 w-full rounded-lg border border-[#262a30] bg-[#0e1012] px-2.5 text-xs text-gray-200 shadow-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
 					step="0.01"
 					max="99.99"
 					on:change={applyGppChange}
@@ -610,10 +619,10 @@
 			</div>
 		</div>
 	</div>
-	<div slot="footer" class="flex flex-wrap items-center justify-end gap-2">
+	<div slot="footer" class="flex flex-wrap items-center justify-end gap-2.5">
 		<button
 			type="button"
-			class="inline-flex items-center rounded-md bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+			class="btn-secondary text-xs py-2 px-3"
 			disabled={$selectedRows.size === 0}
 			on:click={handlePrintBarcode}
 		>
@@ -621,7 +630,7 @@
 		</button>
 		<button
 			type="button"
-			class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+			class="btn-primary text-xs py-2 px-3"
 			disabled={$selectedRows.size === 0}
 			on:click={applyAdjustments}
 		>

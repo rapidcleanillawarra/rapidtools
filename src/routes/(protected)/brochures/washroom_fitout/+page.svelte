@@ -106,6 +106,22 @@
 	/>
 </svelte:head>
 
+{#snippet sectionBadge(num: string)}
+	<svg class="section-badge" viewBox="0 0 34 34" width="9mm" height="9mm" aria-hidden="true">
+		<circle cx="17" cy="17" r="15.5" fill="none" stroke="#78be20" stroke-width="2" />
+		<text
+			x="17"
+			y="17"
+			text-anchor="middle"
+			dominant-baseline="central"
+			font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+			font-size="13.5"
+			font-weight="700"
+			fill="#5ea015"
+		>{num}</text>
+	</svg>
+{/snippet}
+
 <div class="brochure" bind:this={brochureEl}>
 	<!-- ========== FRONT COVER ========== -->
 	<section class="page cover-page" aria-label="Front cover">
@@ -157,7 +173,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>01</span> The Offer</div>
+			<div class="section-num">{@render sectionBadge('01')} The Offer</div>
 			<h1>Upgrade your club amenities at no upfront cost</h1>
 			<p class="subtitle">
 				RapidClean Illawarra is partnering with local sporting clubs to improve washroom hygiene,
@@ -206,7 +222,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>02</span> Product Benefits</div>
+			<div class="section-num">{@render sectionBadge('02')} Product Benefits</div>
 			<h2>Installed washroom systems</h2>
 			<p class="subtitle">Cleaner washrooms. Less waste. Better club presentation.</p>
 
@@ -297,7 +313,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>03</span> Program Details</div>
+			<div class="section-num">{@render sectionBadge('03')} Program Details</div>
 			<h2>What we ask in return</h2>
 			<p>
 				There are no hidden costs and no long-term lock-in &mdash; just a cleaner, better-presented
@@ -1026,6 +1042,14 @@
 		text-transform: uppercase;
 		font-weight: 700;
 		margin-bottom: 4mm;
+	}
+
+	.section-num :global(.section-badge) {
+		width: 9mm;
+		height: 9mm;
+		flex-shrink: 0;
+		display: inline-block;
+		vertical-align: middle;
 	}
 
 	.section-num span {

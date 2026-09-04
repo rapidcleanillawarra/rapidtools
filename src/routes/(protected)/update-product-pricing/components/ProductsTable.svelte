@@ -183,8 +183,8 @@
   }
 
   function deltaClass(delta: number): string {
-    if (delta > 0) return 'text-green-700';
-    if (delta < 0) return 'text-red-700';
+    if (delta > 0) return 'text-lime-400 font-medium';
+    if (delta < 0) return 'text-red-400 font-medium';
     return 'text-gray-400';
   }
 
@@ -285,155 +285,156 @@
 </script>
 
 <!-- Products Table -->
-<div class="overflow-x-auto">
+<div class="rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden">
   {#if loading}
-    <div class="flex justify-center items-center py-8">
-      <div class="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+    <div class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-500 border-t-transparent"></div>
     </div>
   {:else}
-    <table class="min-w-full divide-y divide-gray-200" style="table-layout: fixed;">
-      <thead class="bg-gray-50">
-        <tr>
-          {#each columnDefs as col, i}
-            <th
-              class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider relative select-none"
-              style="width: {col.width}px; min-width: {col.minWidth}px;"
-            >
-              {#if col.key === 'select'}
-                <input
-                  type="checkbox"
-                  checked={selectAll}
-                  on:change={(e) => {
-                    const target = e.target as HTMLInputElement | null;
-                    if (target) onSelectAll(target.checked);
-                  }}
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-              {:else if col.key === 'img'}
-                {col.label}
-              {:else if col.key === 'sku'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('sku')}
-                >
-                  {col.label} {getSortIcon('sku')}
-                </div>
-              {:else if col.key === 'brand'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('brand')}
-                >
-                  {col.label} {getSortIcon('brand')}
-                </div>
-              {:else if col.key === 'supplier'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('primary_supplier')}
-                >
-                  {col.label} {getSortIcon('primary_supplier')}
-                </div>
-              {:else if col.key === 'product_name'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('product_name')}
-                >
-                  {col.label} {getSortIcon('product_name')}
-                </div>
-              {:else if col.key === 'last_price'}
-                {col.label}
-              {:else if col.key === 'price_info'}
-                {col.label}
-              {:else if col.key === 'purchase_price'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('purchase_price')}
-                >
-                  {col.label} {getSortIcon('purchase_price')}
-                </div>
-              {:else if col.key === 'markup'}
-                {col.label}
-              {:else if col.key === 'rrp'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('rrp')}
-                >
-                  {col.label} {getSortIcon('rrp')}
-                </div>
-              {:else if col.key === 'plus_gst'}
-                {col.label}
-              {:else if col.key === 'gpp'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('gpp')}
-                >
-                  {col.label} {getSortIcon('gpp')}
-                </div>
-              {:else if col.key === 'difference'}
-                {col.label}
-              {:else if col.key === 'remove_pricegroups'}
-                {col.label}
-              {:else if col.key === 'tax_free'}
-                {col.label}
-              {:else if col.key === 'tax_inclusive'}
-                {col.label}
-              {:else if col.key === 'status'}
-                <div
-                  class="cursor-pointer hover:bg-gray-100 -mx-2 px-2 py-1 rounded"
-                  on:click={() => onSortClick('updated')}
-                >
-                  {col.label} {getSortIcon('updated')}
-                </div>
-              {/if}
-
-              <!-- Resize handle -->
-              {#if i < columnDefs.length - 1}
-                <div
-                  class="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-300 bg-gray-300 opacity-0 hover:opacity-100 transition-opacity"
-                  on:mousedown={(e) => startResize(e, i)}
-                  style="user-select: none;"
-                ></div>
-              {/if}
-            </th>
-          {/each}
-        </tr>
-        <tr class="bg-gray-50 border-t border-gray-200">
-          {#each columnDefs as col, i}
-            <th class="px-2 py-1 relative" style="width: {col.width}px; min-width: {col.minWidth}px;">
-              {#if col.key === 'sku'}
-                <input
-                  type="text"
-                  bind:value={searchSku}
-                  on:input={(e) => onSearchSkuChange(e.target.value)}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-2"
-                  placeholder="Search SKU"
-                />
-              {:else if col.key === 'product_name'}
-                <input
-                  type="text"
-                  bind:value={searchProductName}
-                  on:input={(e) => onSearchProductNameChange(e.target.value)}
-                  class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-2"
-                  placeholder="Search Product Name"
-                />
-              {:else if col.key === 'price_info'}
-                {#if searchSku.trim() || searchProductName.trim()}
-                  <button
-                    type="button"
-                    class="text-xs text-blue-600 hover:text-blue-800"
-                    on:click={onClearSearch}
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-full divide-y divide-[#262a30] text-sm text-gray-200" style="table-layout: fixed;">
+        <thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+          <tr>
+            {#each columnDefs as col, i}
+              <th
+                class="px-2 py-2 text-left text-xs font-semibold text-gray-400 uppercase tracking-wider relative select-none"
+                style="width: {col.width}px; min-width: {col.minWidth}px;"
+              >
+                {#if col.key === 'select'}
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    on:change={(e) => {
+                      const target = e.target as HTMLInputElement | null;
+                      if (target) onSelectAll(target.checked);
+                    }}
+                    class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+                  />
+                {:else if col.key === 'img'}
+                  {col.label}
+                {:else if col.key === 'sku'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('sku')}
                   >
-                    Clear search
-                  </button>
+                    {col.label} {getSortIcon('sku')}
+                  </div>
+                {:else if col.key === 'brand'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('brand')}
+                  >
+                    {col.label} {getSortIcon('brand')}
+                  </div>
+                {:else if col.key === 'supplier'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('primary_supplier')}
+                  >
+                    {col.label} {getSortIcon('primary_supplier')}
+                  </div>
+                {:else if col.key === 'product_name'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('product_name')}
+                  >
+                    {col.label} {getSortIcon('product_name')}
+                  </div>
+                {:else if col.key === 'last_price'}
+                  {col.label}
+                {:else if col.key === 'price_info'}
+                  {col.label}
+                {:else if col.key === 'purchase_price'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('purchase_price')}
+                  >
+                    {col.label} {getSortIcon('purchase_price')}
+                  </div>
+                {:else if col.key === 'markup'}
+                  {col.label}
+                {:else if col.key === 'rrp'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('rrp')}
+                  >
+                    {col.label} {getSortIcon('rrp')}
+                  </div>
+                {:else if col.key === 'plus_gst'}
+                  {col.label}
+                {:else if col.key === 'gpp'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('gpp')}
+                  >
+                    {col.label} {getSortIcon('gpp')}
+                  </div>
+                {:else if col.key === 'difference'}
+                  {col.label}
+                {:else if col.key === 'remove_pricegroups'}
+                  {col.label}
+                {:else if col.key === 'tax_free'}
+                  {col.label}
+                {:else if col.key === 'tax_inclusive'}
+                  {col.label}
+                {:else if col.key === 'status'}
+                  <div
+                    class="cursor-pointer hover:text-lime-300 hover:bg-[#1f2329] -mx-1 px-1 py-1 rounded transition-colors"
+                    on:click={() => onSortClick('updated')}
+                  >
+                    {col.label} {getSortIcon('updated')}
+                  </div>
                 {/if}
-              {/if}
-            </th>
-          {/each}
-        </tr>
-      </thead>
-      <tbody class="bg-white divide-y divide-gray-200">
+
+                <!-- Resize handle -->
+                {#if i < columnDefs.length - 1}
+                  <div
+                    class="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-lime-500 bg-[#333842] opacity-0 hover:opacity-100 transition-opacity"
+                    on:mousedown={(e) => startResize(e, i)}
+                    style="user-select: none;"
+                  ></div>
+                {/if}
+              </th>
+            {/each}
+          </tr>
+          <tr class="bg-[#181b20] border-t border-[#262a30]">
+            {#each columnDefs as col, i}
+              <th class="px-2 py-1.5 relative" style="width: {col.width}px; min-width: {col.minWidth}px;">
+                {#if col.key === 'sku'}
+                  <input
+                    type="text"
+                    bind:value={searchSku}
+                    on:input={(e) => onSearchSkuChange(e.target.value)}
+                    class="block w-full border border-[#262a30] bg-[#0e1012] text-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-lime-500 focus:border-lime-500 text-xs h-7 px-2 placeholder-gray-500 transition-colors"
+                    placeholder="Search SKU"
+                  />
+                {:else if col.key === 'product_name'}
+                  <input
+                    type="text"
+                    bind:value={searchProductName}
+                    on:input={(e) => onSearchProductNameChange(e.target.value)}
+                    class="block w-full border border-[#262a30] bg-[#0e1012] text-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-lime-500 focus:border-lime-500 text-xs h-7 px-2 placeholder-gray-500 transition-colors"
+                    placeholder="Search Product Name"
+                  />
+                {:else if col.key === 'price_info'}
+                  {#if searchSku.trim() || searchProductName.trim()}
+                    <button
+                      type="button"
+                      class="text-xs text-lime-400 hover:text-lime-300 hover:underline font-medium"
+                      on:click={onClearSearch}
+                    >
+                      Clear search
+                    </button>
+                  {/if}
+                {/if}
+              </th>
+            {/each}
+          </tr>
+        </thead>
+      <tbody class="divide-y divide-[#262a30] bg-[#141619]">
         {#if productsLength === 0}
           <tr>
-            <td colspan="18" class="px-2 py-8 text-center text-gray-500">
+            <td colspan="18" class="px-4 py-12 text-center text-gray-400">
               No products found
             </td>
           </tr>
@@ -445,10 +446,10 @@
             {@const originalDiff = (toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0)}
             {@const diffDelta = currentDiff - originalDiff}
             {@const gstPlusVal = displayGstInclusiveRrp(product)}
-            <tr class={product.updated ? 'bg-green-50' : ''} data-is-updated={product.updated ? 'true' : 'false'}>
+            <tr class="{product.updated ? 'bg-lime-950/20 hover:bg-lime-950/30' : 'even:bg-[#181b20]/40 hover:bg-[#1f2329]/60'} transition-colors" data-is-updated={product.updated ? 'true' : 'false'}>
               {#each columnDefs as col, i}
                 <td
-                  class="px-2 py-1 text-xs break-words"
+                  class="px-2 py-1 text-xs break-words text-gray-200"
                   style="width: {col.width}px; min-width: {col.minWidth}px;"
                 >
                   {#if col.key === 'select'}
@@ -459,7 +460,7 @@
                         const target = event.target as HTMLInputElement;
                         onToggleRowSelected(product.sku, target.checked);
                       }}
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                     />
                   {:else if col.key === 'img'}
                     {#if mainImage}
@@ -472,18 +473,18 @@
                         <img
                           src={mainImage}
                           alt={`Main image for ${product.product_name || product.sku}`}
-                          class="h-12 w-12 object-contain border rounded bg-gray-50 hover:ring-2 hover:ring-blue-500"
+                          class="h-12 w-12 object-contain border border-[#262a30] rounded-lg bg-[#0e1012] hover:ring-2 hover:ring-lime-500 transition-all"
                           loading="lazy"
                         />
                       </button>
                     {:else}
-                      <span class="text-[10px] text-gray-400">No image</span>
+                      <span class="text-[10px] text-gray-500">No image</span>
                     {/if}
                   {:else if col.key === 'sku'}
                     <a
                       href={`https://www.rapidsupplies.com.au/_cpanel/products/view?id=${product.inventory_id}`}
                       target="_blank"
-                      class="text-blue-600 hover:underline"
+                      class="text-lime-400 hover:text-lime-300 hover:underline font-medium font-mono"
                     >
                       {product.sku}
                     </a>
@@ -502,46 +503,46 @@
                       <table class="w-full text-[11px] text-left">
                         <tbody>
                           <tr>
-                            <td class="pr-2 text-gray-600 font-medium">Purchase</td>
-                            <td class="font-semibold">${lastAdj.purchase_price}</td>
+                            <td class="pr-2 text-gray-400 font-medium">Purchase</td>
+                            <td class="font-semibold text-gray-200">${lastAdj.purchase_price}</td>
                           </tr>
                           <tr>
-                            <td class="pr-2 text-gray-600 font-medium">Markup</td>
+                            <td class="pr-2 text-gray-400 font-medium">Markup</td>
                             <td
-                              class="font-semibold {lastMarkup >= 0 ? 'text-green-700' : 'text-red-700'}"
+                              class="font-semibold {lastMarkup >= 0 ? 'text-lime-400' : 'text-red-400'}"
                               >{formatMarkupDisplay(lastMarkup)}</td
                             >
                           </tr>
                           <tr>
-                            <td class="pr-2 text-gray-600 font-medium">List</td>
-                            <td class="font-semibold">${lastAdj.list_price}</td>
+                            <td class="pr-2 text-gray-400 font-medium">List</td>
+                            <td class="font-semibold text-gray-200">${lastAdj.list_price}</td>
                           </tr>
                           <tr>
-                            <td class="pr-2 text-gray-600 font-medium">Difference</td>
+                            <td class="pr-2 text-gray-400 font-medium">Difference</td>
                             <td class="font-semibold {deltaClass(lastDiff)}">${formatMoney(lastDiff)}</td>
                           </tr>
                         </tbody>
                       </table>
                     {:else}
-                      <span class="text-[10px] text-gray-400">—</span>
+                      <span class="text-[10px] text-gray-500">—</span>
                     {/if}
                   {:else if col.key === 'price_info'}
                     <table class="w-full text-[11px] text-left">
                       <tbody>
                         <tr>
-                          <td class="pr-2 text-gray-600 font-medium">Purchase</td>
-                          <td class="font-semibold">${original?.purchase_price}</td>
+                          <td class="pr-2 text-gray-400 font-medium">Purchase</td>
+                          <td class="font-semibold text-gray-200">${original?.purchase_price}</td>
                         </tr>
                         <tr>
-                          <td class="pr-2 text-gray-600 font-medium">Markup</td>
-                          <td class="font-semibold {(toNumber(original?.markup) ?? 0) >= 0 ? 'text-green-700' : 'text-red-700'}">{formatMarkupDisplay(original?.markup)}</td>
+                          <td class="pr-2 text-gray-400 font-medium">Markup</td>
+                          <td class="font-semibold {(toNumber(original?.markup) ?? 0) >= 0 ? 'text-lime-400' : 'text-red-400'}">{formatMarkupDisplay(original?.markup)}</td>
                         </tr>
                         <tr>
-                          <td class="pr-2 text-gray-600 font-medium">List</td>
-                          <td class="font-semibold">${original?.rrp}</td>
+                          <td class="pr-2 text-gray-400 font-medium">List</td>
+                          <td class="font-semibold text-gray-200">${original?.rrp}</td>
                         </tr>
                         <tr>
-                          <td class="pr-2 text-gray-600 font-medium">Difference</td>
+                          <td class="pr-2 text-gray-400 font-medium">Difference</td>
                           <td class="font-semibold {deltaClass((toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0))}">${formatMoney((toNumber(original?.rrp) ?? 0) - (toNumber(original?.purchase_price) ?? 0))}</td>
                         </tr>
                       </tbody>
@@ -552,7 +553,7 @@
                       value={product.purchase_price}
                       on:blur={(e) =>
                         onUpdateProductPricingBySku(product.sku, { purchase_price: onNumberInput(e) }, 'purchase_price')}
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
+                      class="block w-full border border-[#262a30] bg-[#0e1012] text-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-lime-500 focus:border-lime-500 text-xs h-7 px-1.5 no-spinner transition-colors"
                       step="0.01"
                     />
                     {#if true}
@@ -561,7 +562,7 @@
                     {/if}
                   {:else if col.key === 'markup'}
                     <div
-                      class="block w-full border border-gray-200 bg-gray-50 rounded-md text-xs h-7 px-1 leading-7 text-gray-700"
+                      class="block w-full border border-[#262a30] bg-[#1f2329] rounded-md text-xs h-7 px-1.5 leading-7 text-gray-200"
                     >
                       {formatMarkupDisplay(product.markup) || '—'}
                     </div>
@@ -574,7 +575,7 @@
                       type="number"
                       value={product.rrp}
                       on:blur={(e) => onUpdateProductPricingBySku(product.sku, { rrp: onNumberInput(e) }, 'rrp')}
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
+                      class="block w-full border border-[#262a30] bg-[#0e1012] text-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-lime-500 focus:border-lime-500 text-xs h-7 px-1.5 no-spinner transition-colors"
                       step="0.01"
                     />
                     {#if true}
@@ -593,7 +594,7 @@
                           'rrp_gst_inclusive'
                         );
                       }}
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
+                      class="block w-full border border-[#262a30] bg-[#0e1012] text-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-lime-500 focus:border-lime-500 text-xs h-7 px-1.5 no-spinner transition-colors"
                       step="0.01"
                     />
                     {#if true}
@@ -617,7 +618,7 @@
                         }
                         onUpdateProductPricingBySku(product.sku, { gpp: next }, 'gpp');
                       }}
-                      class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-xs h-7 px-1 no-spinner"
+                      class="block w-full border border-[#262a30] bg-[#0e1012] text-gray-200 rounded-md shadow-sm focus:ring-1 focus:ring-lime-500 focus:border-lime-500 text-xs h-7 px-1.5 no-spinner transition-colors"
                       step="0.01"
                       max="99.99"
                     />
@@ -631,7 +632,7 @@
                       <div class={`field_number_changes mt-0.5 text-[10px] ${gppDelta.cls}`}>{gppDelta.txt || '0%'}</div>
                     {/if}
                   {:else if col.key === 'difference'}
-                    <span class={diffDelta !== 0 ? deltaClass(diffDelta) : ''}>
+                    <span class="font-semibold {diffDelta !== 0 ? deltaClass(diffDelta) : 'text-gray-200'}">
                       ${formatMoney(currentDiff)}
                     </span>
                   {:else if col.key === 'remove_pricegroups'}
@@ -642,7 +643,7 @@
                         const target = e.target as HTMLInputElement;
                         onUpdateProductBySku(product.sku, { remove_pricegroups: target.checked });
                       }}
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                     />
                   {:else if col.key === 'tax_free'}
                     <input
@@ -652,7 +653,7 @@
                         const target = e.target as HTMLInputElement;
                         onUpdateProductBySku(product.sku, { tax_free: target.checked });
                       }}
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                     />
                   {:else if col.key === 'tax_inclusive'}
                     <input
@@ -662,14 +663,16 @@
                         const target = e.target as HTMLInputElement;
                         onUpdateProductBySku(product.sku, { tax_inclusive: target.checked });
                       }}
-                      class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                     />
                   {:else if col.key === 'status'}
-                    <div class="flex gap-2">
+                    <div class="flex gap-1.5 flex-wrap">
                       {#each getPriceComparisonStatus(product) as status}
                         <span
-                          class={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-white ${
-                            status === 'PP>RRP' ? 'bg-red-900' : 'bg-purple-900'
+                          class={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            status === 'PP>RRP'
+                              ? 'bg-red-950/40 border border-red-500/30 text-red-400'
+                              : 'bg-purple-950/40 border border-purple-500/30 text-purple-300'
                           }`}
                         >
                           {status}
@@ -677,7 +680,7 @@
                       {/each}
                       {#if product.updated}
                         <span
-                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                          class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-lime-950/40 border border-lime-500/30 text-lime-400"
                         >
                           Updated
                         </span>
@@ -691,5 +694,6 @@
         {/if}
       </tbody>
     </table>
+  </div>
   {/if}
 </div>

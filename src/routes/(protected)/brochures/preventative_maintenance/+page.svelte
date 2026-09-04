@@ -86,6 +86,22 @@
 	/>
 </svelte:head>
 
+{#snippet sectionBadge(num: string)}
+	<svg class="section-badge" viewBox="0 0 34 34" width="9mm" height="9mm" aria-hidden="true">
+		<circle cx="17" cy="17" r="15.5" fill="none" stroke="#78be20" stroke-width="2" />
+		<text
+			x="17"
+			y="17"
+			text-anchor="middle"
+			dominant-baseline="central"
+			font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+			font-size="13.5"
+			font-weight="700"
+			fill="#5ea015"
+		>{num}</text>
+	</svg>
+{/snippet}
+
 <div class="brochure" bind:this={brochureEl}>
 	<!-- ========== FRONT COVER ========== -->
 	<section class="page cover-page" aria-label="Front cover">
@@ -137,7 +153,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>01</span> Introduction</div>
+			<div class="section-num">{@render sectionBadge('01')} Introduction</div>
 			<h1>Designed to keep your facility running</h1>
 			<p class="subtitle">
 				Structured servicing, asset management, test &amp; tag, equipment transport and fleet
@@ -182,7 +198,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>02</span> The Challenge</div>
+			<div class="section-num">{@render sectionBadge('02')} The Challenge</div>
 			<h2>The problem with reactive maintenance</h2>
 			<p>
 				Many facilities have purchased machines over many years from different suppliers, brands and
@@ -234,7 +250,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>03</span> Our Approach</div>
+			<div class="section-num">{@render sectionBadge('03')} Our Approach</div>
 			<h2>Our preventative maintenance model</h2>
 			<p>
 				We start by building a clear picture of your site, your equipment and your operational risk.
@@ -321,7 +337,7 @@
 		<div class="corner-accent"></div>
 
 		<div class="page-inner">
-			<div class="section-num"><span>04</span> Partnership</div>
+			<div class="section-num">{@render sectionBadge('04')} Partnership</div>
 			<h2>Why RapidClean Illawarra?</h2>
 			<p>
 				RapidClean Illawarra is not just a product supplier. We provide a full support model for
@@ -468,7 +484,7 @@
 
 		<div class="page-inner next-inner">
 			<div class="next-content">
-				<div class="section-num"><span>05</span> Next Steps</div>
+				<div class="section-num">{@render sectionBadge('05')} Next Steps</div>
 				<h2 class="next-headline">
 					<span class="next-headline-dark">Book a site</span>
 					<span class="next-headline-green">assessment</span>
@@ -1459,6 +1475,14 @@
 		text-transform: uppercase;
 		font-weight: 700;
 		margin-bottom: 4mm;
+	}
+
+	.section-num :global(.section-badge) {
+		width: 9mm;
+		height: 9mm;
+		flex-shrink: 0;
+		display: inline-block;
+		vertical-align: middle;
 	}
 
 	.section-num span {

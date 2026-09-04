@@ -6,29 +6,29 @@
 </script>
 
 {#if open}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-    <div class="w-full max-w-md rounded-lg bg-white shadow-xl">
-      <div class="border-b px-4 py-3">
-        <h3 class="text-base font-semibold text-gray-900">Confirm Save</h3>
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md rounded-2xl bg-[#141619] border border-[#262a30] shadow-2xl p-6 text-gray-200">
+      <div class="border-b border-[#262a30] pb-3 mb-4">
+        <h3 class="text-lg font-bold text-white">Confirm Save</h3>
       </div>
-      <div class="px-4 py-3 text-sm text-gray-700">
+      <div class="text-sm text-gray-300 mb-6 leading-relaxed">
         Are you sure you want to save updates for the selected rows?
       </div>
-      <div class="flex justify-end gap-2 border-t px-4 py-3">
+      <div class="flex justify-end gap-3 border-t border-[#262a30] pt-4">
         <button
-          class="rounded border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="btn-secondary text-sm"
           on:click={onCancel}
           disabled={loading}
         >
           Cancel
         </button>
         <button
-          class="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+          class="btn-primary text-sm font-bold inline-flex items-center justify-center gap-2"
           on:click={onConfirm}
           disabled={loading}
         >
           {#if loading}
-            <div class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+            <div class="animate-spin rounded-full h-4 w-4 border-2 border-gray-950 border-t-transparent"></div>
           {/if}
           Save
         </button>

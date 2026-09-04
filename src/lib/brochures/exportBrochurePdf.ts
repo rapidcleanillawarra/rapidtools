@@ -166,7 +166,49 @@ async function inlineImagesForCapture(root: HTMLElement, liveRoot?: HTMLElement)
 		}
 	);
 
-	await Promise.all([...imgTasks, ...bgTasks]);
+	// Convert any remaining .section-num span badges into SVG badges to eliminate html2canvas text baseline displacement
+	const numSpans = Array.from(root.querySelectorAll<HTMLSpanElement>('.section-num span'));
+	for (const span of numSpans) {
+		const text = span.textContent?.trim() || '';
+		if (!text) continue;
+		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+		svg.setAttribute('viewBox', '0 0 34 34');
+		svg.setAttribute('width', '34');
+		svg.setAttribute('height', '34');
+		svg.classList.add('section-badge');
+		svg.innerHTML = `<circle cx="17" cy="17" r="15.5" fill="none" stroke="#78be20" stroke-width="2"/><text x="17" y="17" text-anchor="middle" dominant-baseline="central" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="13.5" font-weight="700" fill="#5ea015">${text}</text>`;
+		span.parentNode?.replaceChild(svg, span);
+	}
+
+	// Rasterize all .section-badge SVGs to high-DPI PNGs so html2canvas renders them perfectly centered
+	const badgeTasks = Array.from(root.querySelectorAll<SVGSVGElement>('svg.section-badge')).map(
+		async (svg) => {
+			const s = new XMLSerializer();
+			let svgStr = s.serializeToString(svg);
+			if (!svgStr.includes('xmlns=')) {
+				svgStr = svgStr.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+			}
+			svgStr = svgStr.replace(/stroke="currentColor"/g, 'stroke="#78be20"');
+			svgStr = svgStr.replace(/fill="currentColor"/g, 'fill="#5ea015"');
+			const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgStr)}`;
+			try {
+				const pngDataUrl = await svgSrcToPng(dataUrl, 34, 34);
+				const img = document.createElement('img');
+				img.src = pngDataUrl;
+				img.className = 'section-badge';
+				img.style.width = '9mm';
+				img.style.height = '9mm';
+				img.style.display = 'inline-block';
+				img.style.verticalAlign = 'middle';
+				img.style.flexShrink = '0';
+				svg.parentNode?.replaceChild(img, svg);
+			} catch (err) {
+				console.warn('Brochure PDF: could not rasterize section badge SVG', err);
+			}
+		}
+	);
+
+	await Promise.all([...imgTasks, ...bgTasks, ...badgeTasks]);
 }
 
 async function waitForImages(root: HTMLElement): Promise<void> {

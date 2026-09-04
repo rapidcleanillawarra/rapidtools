@@ -35,6 +35,9 @@ export interface WorkshopFormData {
   // Files (File objects)
   files: File[];
 
+  // Drawings (File objects - stored in workshop-files bucket for drawing request status)
+  drawings?: File[];
+
   // Workflow tracking
   startedWith: 'form' | 'camera';
   quoteOrRepaired: 'Quote' | 'Repaired';
@@ -70,6 +73,9 @@ export interface WorkshopFormData {
 
   // File handling
   existingFileUrls?: string[];
+
+  // Drawing handling
+  existingDrawingUrls?: string[];
 }
 
 // Database record interfaces
@@ -114,6 +120,9 @@ export interface WorkshopRecord {
 
   // File references
   file_urls: string[] | string;
+
+  // Drawing references (stored in workshop-files bucket)
+  drawing_urls?: string[] | string;
 
   // Cold storage backup (B2 migration record)
   backup_files?: { migratedAt: string; photoUrls: string[]; fileUrls: string[] } | null;
@@ -711,11 +720,12 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       }
     }
 
-    // Upload photos and files first (B2 if configured, else Supabase)
-    const { photoUrls, fileUrls } = await uploadWorkshopPhotosAndFiles(
+    // Upload photos, files, and drawings first (B2 if configured, else Supabase)
+    const { photoUrls, fileUrls, drawingUrls } = await uploadWorkshopPhotosAndFiles(
       data.photos,
       data.files,
-      data.clientsWorkOrder || 'workshop'
+      data.clientsWorkOrder || 'workshop',
+      data.drawings
     );
 
     // Debug optional contacts
@@ -758,6 +768,7 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
       started_with: data.startedWith,
       photo_urls: photoUrls,
       file_urls: fileUrls,
+      drawing_urls: drawingUrls,
       order_id: data.order_id || null,
       comments: data.comments || []
     };
@@ -812,19 +823,20 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
 }
 
 /**
- * Upload workshop photos and files. Uses Backblaze B2 when configured (server env),
- * otherwise falls back to Supabase storage.
+ * Upload workshop photos, files, and drawings. Uses Backblaze B2 when configured (server env),
+ * otherwise falls back to Supabase storage. All files and drawings are stored in the 'workshop-files' bucket.
  */
 export async function uploadWorkshopPhotosAndFiles(
   photos: File[],
   files: File[],
-  workOrder: string
-): Promise<{ photoUrls: string[]; fileUrls: string[] }> {
+  workOrder: string,
+  drawings?: File[]
+): Promise<{ photoUrls: string[]; fileUrls: string[]; drawingUrls: string[] }> {
   const dynamicWorkOrder =
     workOrder === 'workshop' ? `workshop_${Date.now().toString().slice(-6)}` : workOrder;
 
-  if (!photos?.length && !files?.length) {
-    return { photoUrls: [], fileUrls: [] };
+  if (!photos?.length && !files?.length && !drawings?.length) {
+    return { photoUrls: [], fileUrls: [], drawingUrls: [] };
   }
 
   try {
@@ -832,6 +844,7 @@ export async function uploadWorkshopPhotosAndFiles(
     formData.set('workOrder', dynamicWorkOrder);
     photos?.forEach((p) => formData.append('photos', p));
     files?.forEach((f) => formData.append('files', f));
+    drawings?.forEach((d) => formData.append('drawings', d));
 
     const res = await fetch('/api/storage/upload-workshop', {
       method: 'POST',
@@ -842,14 +855,16 @@ export async function uploadWorkshopPhotosAndFiles(
       const body = await res.json();
       return {
         photoUrls: Array.isArray(body.photoUrls) ? body.photoUrls : [],
-        fileUrls: Array.isArray(body.fileUrls) ? body.fileUrls : []
+        fileUrls: Array.isArray(body.fileUrls) ? body.fileUrls : [],
+        drawingUrls: Array.isArray(body.drawingUrls) ? body.drawingUrls : []
       };
     }
 
     if (res.status === 503) {
       const photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
       const fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
-      return { photoUrls, fileUrls };
+      const drawingUrls = await uploadWorkshopDrawings(drawings ?? [], workOrder);
+      return { photoUrls, fileUrls, drawingUrls };
     }
 
     const errText = await res.text();
@@ -858,7 +873,8 @@ export async function uploadWorkshopPhotosAndFiles(
     console.error('B2 upload failed, falling back to Supabase:', err);
     const photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
     const fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
-    return { photoUrls, fileUrls };
+    const drawingUrls = await uploadWorkshopDrawings(drawings ?? [], workOrder);
+    return { photoUrls, fileUrls, drawingUrls };
   }
 }
 
@@ -980,6 +996,60 @@ export async function uploadWorkshopFiles(files: File[], workOrder: string): Pro
     return uploadedUrls;
   } catch (error) {
     console.error('Error uploading files:', error);
+    throw error;
+  }
+}
+
+/**
+ * Upload drawings to Supabase storage (stored in the same 'workshop-files' bucket)
+ */
+export async function uploadWorkshopDrawings(drawings: File[], workOrder: string): Promise<string[]> {
+  const dynamicWorkOrder = workOrder === 'workshop'
+    ? `workshop_${Date.now().toString().slice(-6)}`
+    : workOrder;
+
+  console.log('uploadWorkshopDrawings called with:', {
+    drawingCount: drawings?.length,
+    originalWorkOrder: workOrder,
+    dynamicWorkOrder
+  });
+
+  if (!drawings || drawings.length === 0) {
+    return [];
+  }
+
+  try {
+    const uploadedUrls: string[] = [];
+
+    for (let i = 0; i < drawings.length; i++) {
+      const drawing = drawings[i];
+      const timestamp = Date.now() + Math.random() * 1000;
+      const sanitizedFileName = drawing.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const fileName = `${dynamicWorkOrder}_drawing_${timestamp}_${i + 1}_${sanitizedFileName}`;
+
+      console.log(`Generated filename for drawing ${i + 1}:`, fileName);
+
+      const { data, error } = await supabase.storage
+        .from('workshop-files')
+        .upload(fileName, drawing);
+
+      if (error) {
+        console.error(`Error uploading drawing ${i + 1}:`, error);
+        throw error;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('workshop-files')
+        .getPublicUrl(fileName);
+
+      console.log(`Drawing ${i + 1} uploaded successfully:`, urlData.publicUrl);
+      uploadedUrls.push(urlData.publicUrl);
+    }
+
+    console.log('All drawings uploaded successfully:', uploadedUrls);
+    return uploadedUrls;
+  } catch (error) {
+    console.error('Error uploading drawings:', error);
     throw error;
   }
 }
@@ -1694,19 +1764,23 @@ export async function assignWorkshopTech(
  */
 export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>): Promise<WorkshopRecord> {
   try {
-    // Handle photo and file uploads if new files are provided (B2 if configured, else Supabase)
+    // Handle photo, file, and drawing uploads if new files are provided (B2 if configured, else Supabase)
     const hasNewPhotos = data.photos && data.photos.length > 0;
     const hasNewFiles = data.files && data.files.length > 0;
+    const hasNewDrawings = data.drawings && data.drawings.length > 0;
     let newPhotoUrls: string[] = [];
     let newFileUrls: string[] = [];
-    if (hasNewPhotos || hasNewFiles) {
+    let newDrawingUrls: string[] = [];
+    if (hasNewPhotos || hasNewFiles || hasNewDrawings) {
       const result = await uploadWorkshopPhotosAndFiles(
         data.photos ?? [],
         data.files ?? [],
-        data.clientsWorkOrder || 'workshop'
+        data.clientsWorkOrder || 'workshop',
+        data.drawings ?? []
       );
       newPhotoUrls = result.photoUrls;
       newFileUrls = result.fileUrls;
+      newDrawingUrls = result.drawingUrls;
     }
 
     // Debug optional contacts
@@ -1869,6 +1943,36 @@ export async function updateWorkshop(id: string, data: Partial<WorkshopFormData>
         hasExistingFiles,
         existingFileUrlsLength: data.existingFileUrls?.length || 0,
         newFileUrlsLength: newFileUrls.length
+      });
+    }
+
+    // Update drawing_urls - only update when there are actual changes
+    const hasExistingDrawings = data.existingDrawingUrls && data.existingDrawingUrls.length > 0;
+    const hasNewDrawingUrls = newDrawingUrls.length > 0;
+
+    // Only update drawing_urls if:
+    // 1. There are new drawings to upload (merge with existing)
+    // 2. existingDrawingUrls is explicitly provided (even if empty, to allow clearing drawings)
+    if (hasNewDrawingUrls || data.existingDrawingUrls !== undefined) {
+      let finalDrawingUrls: string[] = [];
+
+      if (hasNewDrawingUrls && hasExistingDrawings) {
+        // Merge new drawings with existing drawings
+        finalDrawingUrls = [...(data.existingDrawingUrls || []), ...newDrawingUrls];
+      } else if (hasNewDrawingUrls && !hasExistingDrawings) {
+        // Only new drawings
+        finalDrawingUrls = newDrawingUrls;
+      } else if (!hasNewDrawingUrls && data.existingDrawingUrls !== undefined) {
+        // No new drawings, use existing drawings as-is (or empty if clearing)
+        finalDrawingUrls = data.existingDrawingUrls || [];
+      }
+
+      updateData.drawing_urls = finalDrawingUrls;
+      console.log('Updating drawing_urls with:', finalDrawingUrls, {
+        hasNewDrawingUrls,
+        hasExistingDrawings,
+        existingDrawingUrlsLength: data.existingDrawingUrls?.length || 0,
+        newDrawingUrlsLength: newDrawingUrls.length
       });
     }
 

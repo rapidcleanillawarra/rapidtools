@@ -25,6 +25,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const photoUrls: string[] = [];
   const fileUrls: string[] = [];
+  const drawingUrls: string[] = [];
 
   const photos = formData.getAll('photos').filter((f): f is File => f instanceof File);
   for (let i = 0; i < photos.length; i++) {
@@ -48,5 +49,16 @@ export const POST: RequestHandler = async ({ request }) => {
     fileUrls.push(url);
   }
 
-  return json({ photoUrls, fileUrls });
+  const drawings = formData.getAll('drawings').filter((f): f is File => f instanceof File);
+  for (let i = 0; i < drawings.length; i++) {
+    const file = drawings[i];
+    const timestamp = Date.now() + Math.random() * 1000;
+    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const key = `${WORKSHOP_FILES_PREFIX}/${workOrder}_drawing_${timestamp}_${i + 1}_${sanitized}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { url } = await uploadToB2(key, buffer, file.type || 'application/octet-stream');
+    drawingUrls.push(url);
+  }
+
+  return json({ photoUrls, fileUrls, drawingUrls });
 };

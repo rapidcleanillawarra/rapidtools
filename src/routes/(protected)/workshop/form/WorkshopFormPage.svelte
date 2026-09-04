@@ -27,6 +27,7 @@
 	import WorkshopHeader from './components/WorkshopHeader.svelte';
 	import MachineInformationSection from './components/MachineInformationSection.svelte';
 	import UserInformationSection from './components/UserInformationSection.svelte';
+	import DrawingsSection from './components/DrawingsSection.svelte';
 	import DocketInfoSection from './components/DocketInfoSection.svelte';
 	import TransportSection from './components/TransportSection.svelte';
 	import CommentsSection from './components/CommentsSection.svelte';
@@ -88,6 +89,13 @@
 	let files: FileItem[] = [];
 	let fileError = '';
 	const MIN_FILES_REQUIRED = 0; // Files are now optional
+
+	// Drawings (shown when status is drawing request, stored in workshop-files bucket)
+	let drawings: FileItem[] = [];
+	let drawingError = '';
+
+	// Reactive check for drawing request status or action
+	$: isDrawingRequest = workshopStatus === 'drawing_request' || action === 'Drawing Request';
 
 	// Docket Info (new section)
 	let quoteDescription: string = '';
@@ -625,6 +633,32 @@
 				}
 			}
 
+			// Load existing drawings (stored in workshop-files bucket)
+			if (workshop.drawing_urls) {
+				let drawingUrlsArray: string[] = [];
+				if (Array.isArray(workshop.drawing_urls)) {
+					drawingUrlsArray = workshop.drawing_urls;
+				} else if (typeof workshop.drawing_urls === 'string') {
+					try {
+						drawingUrlsArray = JSON.parse(workshop.drawing_urls);
+					} catch (error) {
+						console.warn('Failed to parse drawing_urls JSON:', error);
+						drawingUrlsArray = [];
+					}
+				}
+
+				if (drawingUrlsArray.length > 0) {
+					drawings = drawingUrlsArray.map((url) => ({
+						file: new File([], 'existing-drawing', { type: 'application/octet-stream' }),
+						url: url,
+						name: decodeURIComponent(url.split('/').pop() || 'Drawing File'),
+						size: 0,
+						type: 'application/octet-stream',
+						isExisting: true
+					}));
+				}
+			}
+
 			// Load transport assignment when status is pickup or return
 			if (
 				(workshop.status === 'pickup' || workshop.status === 'return') &&
@@ -842,6 +876,10 @@
 		const newFiles = files.filter((f) => !f.isExisting).map((f) => f.file);
 		const existingFileUrls = files.filter((f) => f.isExisting).map((f) => f.url);
 
+		// Separate new drawings from existing drawings
+		const newDrawings = drawings.filter((d) => !d.isExisting).map((d) => d.file);
+		const existingDrawingUrls = drawings.filter((d) => d.isExisting).map((d) => d.url);
+
 		// Debug: Log order creation status before saving
 		console.log('Preparing form data in handleUpdateJob:', {
 			existingWorkshopId,
@@ -868,8 +906,10 @@
 			optionalContacts: optionalContacts || [],
 			photos: newPhotos,
 			files: newFiles,
+			drawings: newDrawings,
 			existingPhotoUrls,
 			existingFileUrls,
+			existingDrawingUrls,
 			startedWith,
 			quoteOrRepaired: quoteOrRepair,
 			comments,
@@ -1211,6 +1251,10 @@
 		const newFiles = files.filter((f) => !f.isExisting).map((f) => f.file);
 		const existingFileUrls = files.filter((f) => f.isExisting).map((f) => f.url);
 
+		// Separate new drawings from existing drawings
+		const newDrawings = drawings.filter((d) => !d.isExisting).map((d) => d.file);
+		const existingDrawingUrls = drawings.filter((d) => d.isExisting).map((d) => d.url);
+
 		// Debug: Log order creation status before saving
 		console.log('Preparing form data for database save:', {
 			existingWorkshopId,
@@ -1237,8 +1281,10 @@
 			optionalContacts: optionalContacts || [],
 			photos: newPhotos,
 			files: newFiles,
+			drawings: newDrawings,
 			existingPhotoUrls,
 			existingFileUrls,
+			existingDrawingUrls,
 			startedWith,
 			quoteOrRepaired: quoteOrRepair,
 			comments,
@@ -1297,6 +1343,9 @@
 			} else if (action === 'Deliver to Workshop') {
 				(formData as any).status = 'deliver_to_workshop';
 				addHistoryEntry('deliver_to_workshop', false); // false = status change (not creation)
+			} else if (action === 'Drawing Request') {
+				(formData as any).status = 'drawing_request';
+				addHistoryEntry('drawing_request', false); // false = status change (not creation)
 			}
 		} else if (existingWorkshopId && workshopStatus === 'pickup') {
 			// For existing pickup jobs being submitted, update to "to_be_quoted"
@@ -1341,6 +1390,10 @@
 			// For existing "return" jobs, change status to completed
 			(formData as any).status = 'completed';
 			addHistoryEntry('completed', false); // false = status change
+		} else if (existingWorkshopId && workshopStatus === 'drawing_request') {
+			// For existing "drawing_request" jobs, preserve status
+			(formData as any).status = 'drawing_request';
+			addHistoryEntry('drawing_request', false); // false = status change
 		} else {
 			// Default: set to "to_be_quoted"
 			(formData as any).status = 'to_be_quoted';
@@ -1431,6 +1484,8 @@
 					action === 'Deliver to Workshop'
 				) {
 					successMessage = `Workshop created successfully and scheduled for delivery to workshop${generatedOrderId ? ` - Order #${generatedOrderId} generated` : ''}!`;
+				} else if ((workshopStatus === 'new' || !existingWorkshopId) && action === 'Drawing Request') {
+					successMessage = `Workshop drawing request created successfully${generatedOrderId ? ` - Order #${generatedOrderId} generated` : ''}!`;
 				} else if (wasPickupJob) {
 					successMessage = 'Pickup job submitted successfully and moved to "To Be Quoted" status!';
 				} else if (existingWorkshopId && workshopStatus === 'to_be_quoted') {
@@ -1450,6 +1505,8 @@
 					successMessage = 'Workshop successfully prepared for return to customer!';
 				} else if (existingWorkshopId && workshopStatus === 'return') {
 					successMessage = 'Workshop job has been completed successfully!';
+				} else if (existingWorkshopId && workshopStatus === 'drawing_request') {
+					successMessage = 'Workshop drawing request updated successfully!';
 				} else {
 					successMessage = isUpdate
 						? wasToBeQuoted
@@ -1734,9 +1791,18 @@
 		});
 		files = [];
 
+		// Clear drawings - only revoke URLs for new drawings created with URL.createObjectURL
+		drawings.forEach((d) => {
+			if (!d.isExisting) {
+				URL.revokeObjectURL(d.url);
+			}
+		});
+		drawings = [];
+
 		// Clear errors
 		photoError = '';
 		fileError = '';
+		drawingError = '';
 		contactError = '';
 
 		// Clear comments
@@ -1909,6 +1975,28 @@
 		}
 		// Fallback to direct URL
 		window.open(file.url, '_blank');
+	}
+
+	async function handleDrawingClick(event: CustomEvent<{ drawingIndex: number }>) {
+		const drawing = drawings[event.detail.drawingIndex];
+		if (drawing?.url) {
+			try {
+				const fileName = drawing.url.split('/storage/v1/object/public/workshop-files/')[1];
+				if (fileName) {
+					const { supabase } = await import('$lib/supabase');
+					const { data, error } = await supabase.storage
+						.from('workshop-files')
+						.createSignedUrl(fileName, 3600); // 1 hour expiry
+
+					if (error) throw error;
+					window.open(data.signedUrl, '_blank');
+					return;
+				}
+			} catch (error) {
+				console.error('Failed to create signed URL for drawing:', error);
+			}
+			window.open(drawing.url, '_blank');
+		}
 	}
 
 	/**
@@ -2543,6 +2631,18 @@
 					/>
 				</div>
 			</div>
+
+			<!-- Drawings Section - shown when status is drawing request -->
+			{#if isDrawingRequest}
+				<DrawingsSection
+					bind:drawings
+					bind:error={drawingError}
+					{workshopStatus}
+					on:drawingsUpdated={(event) => (drawings = event.detail.drawings)}
+					on:error={(event) => (drawingError = event.detail.message)}
+					on:drawingClick={handleDrawingClick}
+				/>
+			{/if}
 
 			<DocketInfoSection
 				{workshopStatus}

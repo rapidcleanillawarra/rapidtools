@@ -58,7 +58,8 @@
     'fault_description',
     'docket_info',
     'comments',
-    'history'
+    'history',
+    'drawing_urls'
   ];
 
   const STATUS_VISIBILITY_KEY = 'workshop-status-visibility';

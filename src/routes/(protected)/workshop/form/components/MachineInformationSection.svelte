@@ -96,6 +96,7 @@
           <option value="Pickup">Pickup</option>
           <option value="Repair">Repair</option>
           <option value="Deliver to Workshop">Deliver to Workshop</option>
+          <option value="Drawing Request">Drawing Request</option>
         </select>
       </div>
 

@@ -57,7 +57,9 @@ export function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
 					? 'Schedule Pickup'
 					: action === 'Repair'
 						? 'Schedule Repair'
-						: 'Schedule Delivery',
+						: action === 'Drawing Request'
+							? 'Submit Drawing Request'
+							: 'Schedule Delivery',
 			statusDisplay: 'New',
 			priority: 2
 		};
@@ -82,7 +84,9 @@ export function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
 					? 'Schedule Pickup'
 					: action === 'Repair'
 						? 'Schedule Repair'
-						: 'Schedule Delivery',
+						: action === 'Drawing Request'
+							? 'Submit Drawing Request'
+							: 'Schedule Delivery',
 			statusDisplay: 'New',
 			priority: 3
 		};
@@ -221,6 +225,23 @@ export function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
 			buttonText: 'Job Completed',
 			statusDisplay: 'Completed',
 			priority: 4.9
+		};
+	}
+
+	// ============================================
+	// PRIORITY 4.95: DRAWING REQUEST STATUS
+	// ============================================
+	// Jobs that are in drawing request status
+	if (existingWorkshopId && workshopStatus === 'drawing_request') {
+		return {
+			canEditMachineInfo: true, // Can edit machine info for drawing request
+			canEditUserInfo: true, // Can edit user info for drawing request
+			canEditContacts: true, // Can edit contacts for drawing request
+			canCreateOrder: false,
+			canPickup: false,
+			buttonText: 'Update Job',
+			statusDisplay: 'Drawing Request',
+			priority: 4.95
 		};
 	}
 

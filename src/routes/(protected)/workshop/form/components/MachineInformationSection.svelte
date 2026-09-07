@@ -8,6 +8,7 @@
   export let productName: string;
   export let clientsWorkOrder: string;
   export let makeModel: string;
+  export let initialMakeModel: string = '';
   export let serialNumber: string;
   export let siteLocation: string;
   export let faultDescription: string;
@@ -17,6 +18,9 @@
   export let pickupSchedule: string;
   export let minDateTime: string;
   export let updatePickupSchedule: (value: string) => void;
+
+  $: canEditProductName = Boolean(currentJobStatus?.canEditMachineInfo || !productName?.trim());
+  $: canEditMakeModel = Boolean(currentJobStatus?.canEditMachineInfo || !initialMakeModel?.trim() || !makeModel?.trim());
 </script>
 
 <!-- Machine Information -->
@@ -62,7 +66,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
           </svg>
-          {!currentJobStatus.canEditUserInfo ? 'View Details' : 'Edit Details'}
+          {!currentJobStatus.canEditMachineInfo && !canEditMakeModel ? 'View Details' : 'Edit Details'}
         </button>
       </div>
     </div>
@@ -108,10 +112,10 @@
           id="product-name"
           type="text"
           bind:value={productName}
-          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors {!productName.trim() ? 'border-red-500/40' : ''} {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
+          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors {!productName.trim() ? 'border-red-500/40' : ''} {!canEditProductName ? 'cursor-not-allowed opacity-50' : ''}"
           placeholder="Enter product name"
           required
-          disabled={!currentJobStatus.canEditMachineInfo}
+          disabled={!canEditProductName}
         />
       </div>
 
@@ -129,9 +133,9 @@
           type="text"
           bind:value={makeModel}
           placeholder="Enter make / model"
-          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors {!makeModel?.trim() ? 'border-red-500/40' : ''} {!currentJobStatus.canEditMachineInfo ? 'cursor-not-allowed opacity-50' : ''}"
+          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-4 py-3 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors {!makeModel?.trim() ? 'border-red-500/40' : ''} {!canEditMakeModel ? 'cursor-not-allowed opacity-50' : ''}"
           required
-          disabled={!currentJobStatus.canEditMachineInfo}
+          disabled={!canEditMakeModel}
         />
       </div>
 

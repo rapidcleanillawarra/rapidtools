@@ -85,7 +85,7 @@ export function validatePickupSchedule(isNewPickupJob: boolean, pickupSchedule?:
  */
 export function validateWorkshopForm(formData: WorkshopFormData): ValidationResult {
   const requiredValidation = validateRequiredFields(formData);
-  const siteLocationValidation = validateSiteLocation(formData.locationOfRepair, formData.siteLocation);
+  const siteLocationValidation = validateSiteLocation(formData.locationOfMachine, formData.siteLocation);
   const pickupScheduleValidation = validatePickupSchedule(
     formData.isNewPickupJob || false,
     formData.pickupSchedule

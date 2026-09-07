@@ -17,7 +17,7 @@
 		upsertWorkshopTransport
 	} from '$lib/services/workshop';
 	import { fetchCustomerData, createOrder, cancelOrder } from '$lib/services/maropost';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount, onDestroy, tick } from 'svelte';
 	import { validateWorkshopForm } from '$lib/utils/validation';
 	import { page } from '$app/stores';
 	import { currentUser } from '$lib/firebase';
@@ -44,6 +44,7 @@
 	let productName = '';
 	let clientsWorkOrder = '';
 	let makeModel = '';
+	let initialMakeModel = '';
 	let serialNumber = '';
 	let siteLocation = '';
 	let faultDescription = '';
@@ -387,8 +388,10 @@
 	let isUserInfoExpanded = true;
 
 	// Auto-collapse sections for non-new workshops
-	$: if (existingWorkshopId && workshopStatus && workshopStatus !== 'new') {
-		isMachineInfoExpanded = false;
+	let hasAutoCollapsedSections = false;
+	$: if (existingWorkshopId && workshopStatus && workshopStatus !== 'new' && !hasAutoCollapsedSections) {
+		hasAutoCollapsedSections = true;
+		isMachineInfoExpanded = !makeModel?.trim();
 		isUserInfoExpanded = false;
 	}
 
@@ -528,6 +531,7 @@
 			productName = workshop.product_name || '';
 			clientsWorkOrder = workshop.clients_work_order || '';
 			makeModel = workshop.make_model || '';
+			initialMakeModel = workshop.make_model || '';
 			serialNumber = workshop.serial_number || '';
 			siteLocation = workshop.site_location || '';
 			schedules = workshop.schedules || null;
@@ -765,6 +769,16 @@
 		});
 
 		if (!validation.isValid) {
+			if (!makeModel?.trim() || !productName?.trim()) {
+				isMachineInfoExpanded = true;
+				await tick();
+				const targetId = !productName?.trim() ? 'product-name' : 'make-model';
+				const targetInput = document.getElementById(targetId) as HTMLInputElement | null;
+				if (targetInput) {
+					targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					targetInput.focus();
+				}
+			}
 			toastError(`Please fill in all required fields: ${validation.errors.join(', ')}`);
 			return;
 		}
@@ -1029,6 +1043,7 @@
 
 			// Show toast notification
 			toastSuccess(successMessage);
+			initialMakeModel = makeModel;
 
 			if (existingWorkshopId) {
 				// For updates, show the regular success modal
@@ -1075,6 +1090,16 @@
 		});
 
 		if (!validation.isValid) {
+			if (!makeModel?.trim() || !productName?.trim()) {
+				isMachineInfoExpanded = true;
+				await tick();
+				const targetId = !productName?.trim() ? 'product-name' : 'make-model';
+				const targetInput = document.getElementById(targetId) as HTMLInputElement | null;
+				if (targetInput) {
+					targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					targetInput.focus();
+				}
+			}
 			toastError(`Please fill in all required fields: ${validation.errors.join(', ')}`);
 			return;
 		}
@@ -1522,6 +1547,7 @@
 
 				// Show toast notification
 				toastSuccess(successMessage);
+				initialMakeModel = makeModel;
 
 				// Generate tag automatically if workshop status is "to_be_quoted"
 				if (workshop.status === 'to_be_quoted') {
@@ -1765,6 +1791,7 @@
 		productName = '';
 		clientsWorkOrder = '';
 		makeModel = '';
+		initialMakeModel = '';
 		serialNumber = '';
 		siteLocation = '';
 		schedules = null;
@@ -1777,6 +1804,7 @@
 		workshopStatus = null;
 		existingOrderId = null;
 		repairedStatusTransition = '';
+		hasAutoCollapsedSections = false;
 
 		transportAssignedTo = '';
 		transportAssignedToName = '';
@@ -2587,6 +2615,7 @@
 					bind:productName
 					bind:clientsWorkOrder
 					bind:makeModel
+					{initialMakeModel}
 					bind:serialNumber
 					bind:siteLocation
 					bind:faultDescription

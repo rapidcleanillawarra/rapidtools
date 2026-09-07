@@ -6,7 +6,8 @@
 	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
 	import { toastError } from '$lib/utils/toast';
 
-	const brandTag = 'contact@rapidcleanillawarra.com.au · (02) 4227 2833';
+	const DEFAULT_EMAIL = 'contact@rapidcleanillawarra.com.au';
+	const EMAIL_STORAGE_KEY = 'brochure_pm_contact_email';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
 
 	const SLUG = 'preventative_maintenance';
@@ -54,7 +55,48 @@
 	let exporting = $state(false);
 	let brochureEl = $state<HTMLDivElement | null>(null);
 
+	let contactEmail = $state(DEFAULT_EMAIL);
+	let emailModalOpen = $state(false);
+	let displayEmail = $derived(contactEmail.trim() || DEFAULT_EMAIL);
+	let isCustomEmail = $derived(contactEmail.trim() !== '' && contactEmail.trim() !== DEFAULT_EMAIL);
+	let brandTag = $derived(`${displayEmail} · (02) 4227 2833`);
+
+	function handleEmailInput(value: string) {
+		contactEmail = value;
+		try {
+			if (value.trim() && value.trim() !== DEFAULT_EMAIL) {
+				localStorage.setItem(EMAIL_STORAGE_KEY, value.trim());
+			} else {
+				localStorage.removeItem(EMAIL_STORAGE_KEY);
+			}
+		} catch {
+			// ignore storage errors
+		}
+	}
+
+	function resetEmailToDefault() {
+		contactEmail = DEFAULT_EMAIL;
+		try {
+			localStorage.removeItem(EMAIL_STORAGE_KEY);
+		} catch {
+			// ignore storage errors
+		}
+	}
+
 	onMount(async () => {
+		try {
+			const searchEmail = new URLSearchParams(window.location.search).get('email');
+			const storedEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
+			if (searchEmail && searchEmail.trim()) {
+				contactEmail = searchEmail.trim();
+				localStorage.setItem(EMAIL_STORAGE_KEY, contactEmail);
+			} else if (storedEmail && storedEmail.trim()) {
+				contactEmail = storedEmail.trim();
+			}
+		} catch {
+			// ignore storage/url errors
+		}
+
 		const overrides = await loadBrochureImages(SLUG);
 		const sanitizedOverrides: Record<string, string> = {};
 		for (const [key, value] of Object.entries(overrides)) {
@@ -573,7 +615,16 @@
 						</span>
 						<div>
 							<span class="label">Email</span>
-							<span class="value">contact@rapidcleanillawarra.com.au</span>
+							<span
+								class="value clickable-email"
+								role="button"
+								tabindex="0"
+								onclick={() => (emailModalOpen = true)}
+								onkeydown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') emailModalOpen = true;
+								}}
+								title="Click to change email address"
+							>{displayEmail}</span>
 						</div>
 					</div>
 					<div class="next-cta-item">
@@ -637,7 +688,16 @@
 				</div>
 				<div class="contact-card">
 					<h4>Email</h4>
-					<p>contact@rapidcleanillawarra.com.au</p>
+					<p
+						class="clickable-email"
+						role="button"
+						tabindex="0"
+						onclick={() => (emailModalOpen = true)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') emailModalOpen = true;
+						}}
+						title="Click to change email address"
+					>{displayEmail}</p>
 				</div>
 				<div class="contact-card">
 					<h4>Website</h4>
@@ -657,10 +717,98 @@
 	<button type="button" class="tool-btn" onclick={downloadPdf} disabled={exporting}>
 		{exporting ? 'Generating…' : 'Download PDF'}
 	</button>
+	<button
+		type="button"
+		class="tool-btn"
+		onclick={() => (emailModalOpen = true)}
+		title="Change brochure contact email"
+	>
+		Change email{#if isCustomEmail}&nbsp;<span class="toolbar-badge">Custom</span>{/if}
+	</button>
 	<button type="button" class="tool-btn primary" onclick={() => (editorOpen = true)}>Edit images</button>
 </div>
 
 <BrochureImageEditor slug={SLUG} slots={imageSlots} bind:images bind:open={editorOpen} />
+
+{#if emailModalOpen}
+	<div
+		class="email-modal-backdrop"
+		onclick={() => (emailModalOpen = false)}
+		onkeydown={(e) => {
+			if (e.key === 'Escape') emailModalOpen = false;
+		}}
+		role="button"
+		tabindex="0"
+		aria-label="Close modal backdrop"
+	></div>
+
+	<div
+		class="email-modal"
+		role="dialog"
+		aria-labelledby="email-modal-title"
+		tabindex="-1"
+		onkeydown={(e) => {
+			if (e.key === 'Escape') emailModalOpen = false;
+		}}
+	>
+		<div class="email-modal-header">
+			<h3 id="email-modal-title">Change Contact Email</h3>
+			<button
+				type="button"
+				class="email-modal-close"
+				onclick={() => (emailModalOpen = false)}
+				aria-label="Close dialog"
+			>&times;</button>
+		</div>
+
+		<div class="email-modal-body">
+			<label for="contact-email-input">Brochure contact email</label>
+			<div class="email-input-wrapper">
+				<input
+					id="contact-email-input"
+					type="email"
+					class="email-input-field"
+					value={contactEmail}
+					placeholder={DEFAULT_EMAIL}
+					oninput={(e) => handleEmailInput((e.target as HTMLInputElement).value)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							emailModalOpen = false;
+						}
+					}}
+				/>
+			</div>
+
+			<p class="email-modal-hint">
+				Default: <code>{DEFAULT_EMAIL}</code><br />
+				Updates the header brand bar on all pages, the Page 5 contact card, and the back cover.
+			</p>
+		</div>
+
+		<div class="email-modal-footer">
+			<div>
+				{#if isCustomEmail}
+					<button
+						type="button"
+						class="btn-reset-text"
+						onclick={resetEmailToDefault}
+					>
+						Reset to default
+					</button>
+				{/if}
+			</div>
+			<div>
+				<button
+					type="button"
+					class="btn-primary"
+					onclick={() => (emailModalOpen = false)}
+				>
+					Done
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	/* ---------- Floating toolbar (screen only) ---------- */
@@ -701,8 +849,196 @@
 		cursor: not-allowed;
 	}
 
+	.toolbar-badge {
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.4px;
+		text-transform: uppercase;
+		color: #2f6f2f;
+		background: #e7f3da;
+		border-radius: 999px;
+		padding: 2px 7px;
+	}
+
+	/* ---------- Email editor modal (screen only) ---------- */
+	.email-modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(15, 23, 31, 0.45);
+		z-index: 998;
+	}
+
+	.email-modal {
+		position: fixed;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		width: 460px;
+		max-width: 90vw;
+		background: #ffffff;
+		border-radius: 16px;
+		box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+		z-index: 999;
+		overflow: hidden;
+		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		color: #11181f;
+		animation: modalFadeIn 0.18s ease-out;
+	}
+
+	@keyframes modalFadeIn {
+		from {
+			opacity: 0;
+			transform: translate(-50%, -47%) scale(0.97);
+		}
+		to {
+			opacity: 1;
+			transform: translate(-50%, -50%) scale(1);
+		}
+	}
+
+	.email-modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 16px 20px;
+		background: linear-gradient(135deg, #2f6f2f 0%, #78be20 100%);
+		color: #fff;
+	}
+
+	.email-modal-header h3 {
+		margin: 0;
+		font-size: 16px;
+		font-weight: 800;
+	}
+
+	.email-modal-close {
+		background: rgba(255, 255, 255, 0.18);
+		border: none;
+		color: #fff;
+		font-size: 20px;
+		line-height: 1;
+		width: 28px;
+		height: 28px;
+		border-radius: 6px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.email-modal-close:hover {
+		background: rgba(255, 255, 255, 0.32);
+	}
+
+	.email-modal-body {
+		padding: 20px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.email-modal-body label {
+		font-size: 13px;
+		font-weight: 700;
+		color: #1f2933;
+	}
+
+	.email-input-wrapper {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.email-input-field {
+		width: 100%;
+		font-size: 14px;
+		padding: 10px 12px;
+		border: 1.5px solid #d6ddd2;
+		border-radius: 8px;
+		color: #1f2933;
+		box-sizing: border-box;
+		transition: border-color 0.15s;
+	}
+
+	.email-input-field:focus {
+		outline: none;
+		border-color: #78be20;
+		box-shadow: 0 0 0 3px rgba(120, 190, 32, 0.15);
+	}
+
+	.email-modal-hint {
+		margin: 0;
+		font-size: 12px;
+		color: #6b7680;
+		line-height: 1.45;
+	}
+
+	.email-modal-hint code {
+		background: #f0f4ec;
+		padding: 2px 6px;
+		border-radius: 4px;
+		font-family: monospace;
+		font-size: 11px;
+		color: #2f6f2f;
+	}
+
+	.email-modal-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 14px 20px;
+		background: #f8faf6;
+		border-top: 1px solid #eef2eb;
+	}
+
+	.btn-primary {
+		background: linear-gradient(135deg, #2f6f2f 0%, #78be20 100%);
+		border: none;
+		color: #fff;
+		border-radius: 8px;
+		padding: 8px 18px;
+		font-size: 13px;
+		font-weight: 700;
+		cursor: pointer;
+		box-shadow: 0 2px 6px rgba(47, 111, 47, 0.25);
+	}
+
+	.btn-primary:hover {
+		filter: brightness(1.05);
+	}
+
+	.btn-reset-text {
+		background: none;
+		border: none;
+		color: #b91c1c;
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+		padding: 4px 6px;
+		text-decoration: underline;
+	}
+
+	.btn-reset-text:hover {
+		color: #991b1b;
+	}
+
+	.clickable-email {
+		cursor: pointer;
+		transition: color 0.15s;
+	}
+
+	@media screen {
+		.clickable-email:hover {
+			color: #5ea015;
+			text-decoration: underline;
+			text-underline-offset: 2px;
+		}
+	}
+
 	@media print {
-		.brochure-toolbar {
+		.brochure-toolbar,
+		.email-modal-backdrop,
+		.email-modal {
 			display: none !important;
 		}
 	}

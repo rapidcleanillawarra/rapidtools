@@ -33,7 +33,7 @@
 	const customerGroupsUrl =
 		'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
 	const categoriesUrl =
-		'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
+		'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
 	let productRequests: ProductRequest[] = [];
 	let brands: SelectOption[] = [];
@@ -562,18 +562,77 @@
 		}
 	}
 
+	interface RawContentItem {
+		ContentID: string;
+		ContentName: string;
+		ContentType?: string;
+		ContentParentID?: string;
+		ParentContentID?: string;
+		[key: string]: any;
+	}
+
+	function buildCategoryHierarchyOptions(items: RawContentItem[]): Category[] {
+		const itemMap = new Map<string, RawContentItem>();
+		items.forEach((item) => {
+			if (item.ContentID) {
+				itemMap.set(String(item.ContentID), item);
+			}
+		});
+
+		const pathCache = new Map<string, string>();
+
+		function getPath(id: string, visited = new Set<string>()): string {
+			if (pathCache.has(id)) return pathCache.get(id)!;
+			if (visited.has(id)) return '';
+
+			const item = itemMap.get(id);
+			if (!item) return '';
+
+			visited.add(id);
+			const parentId = item.ContentParentID || item.ParentContentID;
+
+			let fullPath = item.ContentName;
+			if (parentId && parentId !== '0' && parentId !== id && itemMap.has(String(parentId))) {
+				const parentPath = getPath(String(parentId), visited);
+				if (parentPath) {
+					fullPath = `${parentPath} > ${item.ContentName}`;
+				}
+			}
+
+			pathCache.set(id, fullPath);
+			return fullPath;
+		}
+
+		return items
+			.filter((item) => item.ContentID && item.ContentName)
+			.map((item) => {
+				const id = String(item.ContentID);
+				const fullPath = getPath(id);
+				return {
+					id,
+					name: item.ContentName,
+					value: id,
+					label: fullPath || item.ContentName
+				};
+			})
+			.sort((a, b) => a.label.localeCompare(b.label));
+	}
+
 	// Fetch data from APIs
 	async function loadData() {
+		console.log('[Page Load] Starting loadData() for categories...');
 		try {
 			const payload = {
-				action: 'GetCategory',
-				data: {
-					Filter: {
-						Active: true,
-						OutputSelector: ['CategoryID', 'CategoryName']
-					}
-				}
+				Filter: {
+					Active: true,
+					ContentType: 1,
+					OutputSelector: ['ContentID', 'ContentName', 'ContentType', 'ContentParentID']
+				},
+				action: 'GetContent'
 			};
+
+			console.log('[Categories] Fetching from URL:', categoriesUrl);
+			console.log('[Categories] Request payload:', payload);
 
 			const response = await fetch(categoriesUrl, {
 				method: 'POST',
@@ -581,25 +640,32 @@
 				body: JSON.stringify(payload)
 			});
 
+			console.log('[Categories] HTTP response status:', response.status, response.statusText);
+
 			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
+				const errorBody = await response.text();
+				console.error('[Categories] HTTP error body:', errorBody);
+				throw new Error(`HTTP error! status: ${response.status} - ${errorBody}`);
 			}
 
 			const data = await response.json();
-			const rawCategories = data.Category || data.message?.Category;
+			console.log('[Categories] Raw response data:', data);
 
-			if (Array.isArray(rawCategories)) {
-				categoriesList = rawCategories
-					.map((category: { CategoryID: string; CategoryName: string }) => ({
-						value: category.CategoryID,
-						label: category.CategoryName
-					}))
-					.sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
+			const rawContent =
+				data.Content || data.message?.Content || data.Category || data.message?.Category;
+
+			if (Array.isArray(rawContent)) {
+				categoriesList = buildCategoryHierarchyOptions(rawContent);
+				console.log(
+					'[Categories] Successfully loaded and mapped categories with hierarchy:',
+					categoriesList
+				);
 			} else {
+				console.warn('[Categories] Content array missing from response structure:', data);
 				throw new Error('Failed to load categories: Invalid response format');
 			}
 		} catch (err: unknown) {
-			console.error('Error fetching categories:', err);
+			console.error('[Categories] Exception in loadData:', err);
 			toastError('Failed to load reference data');
 		}
 	}
@@ -1247,6 +1313,7 @@
 	}
 
 	onMount(() => {
+		console.log('[Page Load] onMount triggered in product-request-approval');
 		const unsubProfile = userProfile.subscribe((value) => {
 			profile = value;
 		});
@@ -1258,7 +1325,9 @@
 			loadData(),
 			loadProductRequests(),
 			searchMarkups()
-		]).then(() => {
+		])
+			.then(() => {
+				console.log('[Page Load] Promise.all completed. Categories count in state:', categoriesList.length);
 			// Ensure client_mup and client_price match retail_mup and list_price for all requests
 			productRequests.forEach((request) => {
 				if (
@@ -1285,6 +1354,9 @@
 				}
 			});
 
+			loading = false;
+		}).catch((err) => {
+			console.error('[Page Load] Error during onMount Promise.all:', err);
 			loading = false;
 		});
 

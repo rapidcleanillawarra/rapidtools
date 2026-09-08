@@ -1881,6 +1881,10 @@
 			return 'Moving to To Be Quoted...';
 		}
 
+		if (existingWorkshopId && workshopStatus === 'return') {
+			return 'Completing Job...';
+		}
+
 		// Default for other actions
 		return 'Next...';
 	}

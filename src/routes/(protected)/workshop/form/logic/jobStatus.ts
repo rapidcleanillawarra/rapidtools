@@ -1,4 +1,4 @@
-import type { JobStatus, JobStatusContext, JobStatusResult } from './types';
+import type { JobStatus, JobStatusContext, JobStatusResult } from '../types/types';
 
 /**
  * CRITICAL: Evaluates job status and determines allowed actions
@@ -208,6 +208,23 @@ export function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
 			buttonText: 'Proceed',
 			statusDisplay: 'Repaired',
 			priority: 4.8
+		};
+	}
+
+	// ============================================
+	// PRIORITY 4.85: RETURN STATUS
+	// ============================================
+	// Jobs that are in return status (being returned to customer)
+	if (existingWorkshopId && workshopStatus === 'return') {
+		return {
+			canEditMachineInfo: false, // Cannot edit machine info for return jobs
+			canEditUserInfo: false, // Cannot edit user info for return jobs
+			canEditContacts: false, // Cannot edit contacts for return jobs
+			canCreateOrder: false, // Already processed
+			canPickup: false, // Return is delivery back, not pickup
+			buttonText: 'Complete Job',
+			statusDisplay: 'Return',
+			priority: 4.85
 		};
 	}
 

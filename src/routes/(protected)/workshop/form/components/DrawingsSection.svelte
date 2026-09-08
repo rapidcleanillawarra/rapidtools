@@ -84,8 +84,10 @@
     const item = drawings[index];
     if (item.url) {
       try {
-        const fileName = item.url.split('/storage/v1/object/public/workshop-files/')[1];
-        if (fileName) {
+        const rawFileName = item.url.split('/storage/v1/object/public/workshop-files/')[1]
+          || (item.url.includes('/workshop-files/') ? item.url.split('/workshop-files/')[1].split('?')[0] : null);
+        if (rawFileName) {
+          const fileName = decodeURIComponent(rawFileName.split('?')[0]);
           const { supabase } = await import('$lib/supabase');
           const { data, error } = await supabase.storage
             .from('workshop-files')
@@ -98,6 +100,8 @@
       } catch (err) {
         console.error('Failed to create signed URL for drawing:', err);
       }
+      window.open(item.url, '_blank');
+      return;
     }
     dispatch('drawingClick', { drawingIndex: index });
   }

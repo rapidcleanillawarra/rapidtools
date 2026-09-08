@@ -655,7 +655,7 @@
 					drawings = drawingUrlsArray.map((url) => ({
 						file: new File([], 'existing-drawing', { type: 'application/octet-stream' }),
 						url: url,
-						name: decodeURIComponent(url.split('/').pop() || 'Drawing File'),
+						name: decodeURIComponent((url.split('/').pop() || 'Drawing File').split('?')[0]),
 						size: 0,
 						type: 'application/octet-stream',
 						isExisting: true
@@ -2021,8 +2021,10 @@
 		const drawing = drawings[event.detail.drawingIndex];
 		if (drawing?.url) {
 			try {
-				const fileName = drawing.url.split('/storage/v1/object/public/workshop-files/')[1];
-				if (fileName) {
+				const rawFileName = drawing.url.split('/storage/v1/object/public/workshop-files/')[1]
+					|| (drawing.url.includes('/workshop-files/') ? drawing.url.split('/workshop-files/')[1].split('?')[0] : null);
+				if (rawFileName) {
+					const fileName = decodeURIComponent(rawFileName.split('?')[0]);
 					const { supabase } = await import('$lib/supabase');
 					const { data, error } = await supabase.storage
 						.from('workshop-files')

@@ -32,6 +32,8 @@
 		'https://prod-41.australiasoutheast.logic.azure.com:443/workflows/c616bc7890dc4174877af4a47898eca2/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=Fgu75prN-vWpPg5JKVcWpt3zcOL4V76TI_ssXhgPk8I';
 	const customerGroupsUrl =
 		'https://prod-56.australiasoutheast.logic.azure.com:443/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=G8m_h5Dl8GpIRQtlN0oShby5zrigLKTWEddou-zGQIs';
+	const categoriesUrl =
+		'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/25/workflows/ef89e5969a8f45778307f167f435253c/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=pPhk80gODQOi843ixLjZtPPWqTeXIbIt9ifWZP6CJfY';
 
 	let productRequests: ProductRequest[] = [];
 	let brands: SelectOption[] = [];
@@ -563,32 +565,41 @@
 	// Fetch data from APIs
 	async function loadData() {
 		try {
-			const response = await fetch(
-				'https://prod-47.australiasoutheast.logic.azure.com:443/workflows/0d67bc8f1bb64e78a2495f13a7498081/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=fJJzmNyuARuwEcNCoMuWwMS9kmWZQABw9kJXsUj9Wk8',
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({})
+			const payload = {
+				action: 'GetCategory',
+				data: {
+					Filter: {
+						Active: true,
+						OutputSelector: ['CategoryID', 'CategoryName']
+					}
 				}
-			);
+			};
+
+			const response = await fetch(categoriesUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 
 			const data = await response.json();
+			const rawCategories = data.Category || data.message?.Category;
 
-			if (
-				data.status === 200 &&
-				data.message?.Ack === 'Success' &&
-				Array.isArray(data.message.Category)
-			) {
-				categoriesList = data.message.Category.map(
-					(category: { CategoryID: string; CategoryName: string }) => ({
+			if (Array.isArray(rawCategories)) {
+				categoriesList = rawCategories
+					.map((category: { CategoryID: string; CategoryName: string }) => ({
 						value: category.CategoryID,
 						label: category.CategoryName
-					})
-				).sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
+					}))
+					.sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label));
 			} else {
 				throw new Error('Failed to load categories: Invalid response format');
 			}
 		} catch (err: unknown) {
+			console.error('Error fetching categories:', err);
 			toastError('Failed to load reference data');
 		}
 	}

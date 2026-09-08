@@ -823,8 +823,8 @@ export async function createWorkshop(data: WorkshopFormData, userId?: string): P
 }
 
 /**
- * Upload workshop photos, files, and drawings. Uses Backblaze B2 when configured (server env),
- * otherwise falls back to Supabase storage. All files and drawings are stored in the 'workshop-files' bucket.
+ * Upload workshop photos, files, and drawings. Photos and files use Backblaze B2 when configured (server env),
+ * otherwise fall back to Supabase storage. Drawings and schematics are always uploaded directly to Supabase storage ('workshop-files' bucket).
  */
 export async function uploadWorkshopPhotosAndFiles(
   photos: File[],
@@ -839,43 +839,48 @@ export async function uploadWorkshopPhotosAndFiles(
     return { photoUrls: [], fileUrls: [], drawingUrls: [] };
   }
 
-  try {
-    const formData = new FormData();
-    formData.set('workOrder', dynamicWorkOrder);
-    photos?.forEach((p) => formData.append('photos', p));
-    files?.forEach((f) => formData.append('files', f));
-    drawings?.forEach((d) => formData.append('drawings', d));
+  // Drawings and schematics are always uploaded directly to Supabase storage
+  const drawingUrlsPromise = drawings && drawings.length > 0
+    ? uploadWorkshopDrawings(drawings, workOrder)
+    : Promise.resolve([] as string[]);
 
-    const res = await fetch('/api/storage/upload-workshop', {
-      method: 'POST',
-      body: formData
-    });
+  let photoUrls: string[] = [];
+  let fileUrls: string[] = [];
 
-    if (res.ok) {
-      const body = await res.json();
-      return {
-        photoUrls: Array.isArray(body.photoUrls) ? body.photoUrls : [],
-        fileUrls: Array.isArray(body.fileUrls) ? body.fileUrls : [],
-        drawingUrls: Array.isArray(body.drawingUrls) ? body.drawingUrls : []
-      };
+  const hasPhotosOrFiles = (photos && photos.length > 0) || (files && files.length > 0);
+
+  if (hasPhotosOrFiles) {
+    try {
+      const formData = new FormData();
+      formData.set('workOrder', dynamicWorkOrder);
+      photos?.forEach((p) => formData.append('photos', p));
+      files?.forEach((f) => formData.append('files', f));
+
+      const res = await fetch('/api/storage/upload-workshop', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (res.ok) {
+        const body = await res.json();
+        photoUrls = Array.isArray(body.photoUrls) ? body.photoUrls : [];
+        fileUrls = Array.isArray(body.fileUrls) ? body.fileUrls : [];
+      } else if (res.status === 503) {
+        photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
+        fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
+      } else {
+        const errText = await res.text();
+        throw new Error(errText || `Upload failed: ${res.status}`);
+      }
+    } catch (err) {
+      console.error('B2 upload failed, falling back to Supabase:', err);
+      photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
+      fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
     }
-
-    if (res.status === 503) {
-      const photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
-      const fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
-      const drawingUrls = await uploadWorkshopDrawings(drawings ?? [], workOrder);
-      return { photoUrls, fileUrls, drawingUrls };
-    }
-
-    const errText = await res.text();
-    throw new Error(errText || `Upload failed: ${res.status}`);
-  } catch (err) {
-    console.error('B2 upload failed, falling back to Supabase:', err);
-    const photoUrls = await uploadWorkshopPhotos(photos ?? [], workOrder);
-    const fileUrls = await uploadWorkshopFiles(files ?? [], workOrder);
-    const drawingUrls = await uploadWorkshopDrawings(drawings ?? [], workOrder);
-    return { photoUrls, fileUrls, drawingUrls };
   }
+
+  const drawingUrls = await drawingUrlsPromise;
+  return { photoUrls, fileUrls, drawingUrls };
 }
 
 /**

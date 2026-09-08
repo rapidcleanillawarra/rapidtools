@@ -18,6 +18,7 @@
 		dragstart: { workshop: WorkshopRecord; event: DragEvent };
 		completed: { workshop: WorkshopRecord };
 		assignTech: { workshop: WorkshopRecord };
+		assignDelivery: { workshop: WorkshopRecord };
 	}>();
 
 	function formatDateShort(dateString: string) {
@@ -103,12 +104,21 @@
 		dispatch('assignTech', { workshop });
 	}
 
+	function handleAssignDeliveryClick(event: Event) {
+		event.stopPropagation();
+		dispatch('assignDelivery', { workshop });
+	}
+
 	function showCompletedButton(status: string): boolean {
 		return ['repaired', 'pickup_from_workshop', 'return'].includes(status);
 	}
 
 	function showAssignTechButton(status: string): boolean {
 		return ['to_be_quoted', 'booked_in_for_repair_service'].includes(status);
+	}
+
+	function showAssignDeliveryButton(status: string): boolean {
+		return ['pickup', 'return'].includes(status);
 	}
 
 	function getLocationPillClass(location: string | null | undefined): string {
@@ -412,6 +422,17 @@
 					</div>
 				{/if}
 			{/if}
+			{#if viewMode === 'board' && (workshop.assigned_delivery_name || workshop.delivery_schedule)}
+				<div class="mt-1 truncate text-sky-400">Delivery: {workshop.assigned_delivery_name || 'Assigned'}</div>
+				{#if workshop.delivery_type}
+					<div class="mt-0.5 truncate text-sky-500/70">Type: {workshop.delivery_type}</div>
+				{/if}
+				{#if workshop.delivery_schedule}
+					<div class="mt-0.5 truncate text-sky-500/70">
+						Sched: {formatSydneyDisplay(workshop.delivery_schedule)}
+					</div>
+				{/if}
+			{/if}
 		</div>
 
 		<!-- Completed button for specific statuses -->
@@ -465,6 +486,26 @@
 					/>
 				</svg>
 				Assign Tech
+			</button>
+		{/if}
+
+		{#if showAssignDeliveryButton(workshop.status)}
+			<button
+				type="button"
+				class="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#333842] bg-[#1f2329] px-3 py-1.5 text-xs font-medium text-gray-300 transition-colors duration-200 hover:bg-[#262a30] hover:text-sky-300 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:ring-offset-1 focus:ring-offset-[#141619]"
+				on:click={handleAssignDeliveryClick}
+				title="Assign delivery"
+				aria-label="Assign delivery to workshop"
+			>
+				<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+					/>
+				</svg>
+				Assign Delivery
 			</button>
 		{/if}
 

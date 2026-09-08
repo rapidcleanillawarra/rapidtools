@@ -2,7 +2,21 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
-  import { deleteWorkshop as deleteWorkshopService, getWorkshops, getTechSchedulesByWorkshopIds, notifyAssignTechToTeams, notifyCompletedToTeams, notifyPickupToTeams, updateWorkshop, upsertWorkshopTransport, assignWorkshopTech, type WorkshopRecord } from '$lib/services/workshop';
+  import {
+    deleteWorkshop as deleteWorkshopService,
+    getWorkshops,
+    getTechSchedulesByWorkshopIds,
+    getDeliverySchedulesByWorkshopIds,
+    notifyAssignTechToTeams,
+    notifyAssignDeliveryToTeams,
+    notifyCompletedToTeams,
+    notifyPickupToTeams,
+    updateWorkshop,
+    upsertWorkshopTransport,
+    assignWorkshopTech,
+    assignWorkshopDelivery,
+    type WorkshopRecord
+  } from '$lib/services/workshop';
   import { toastError, toastSuccess } from '$lib/utils/toast';
   import { currentUser } from '$lib/firebase';
   import { userProfile } from '$lib/userProfile';
@@ -11,7 +25,7 @@
   import DeleteConfirmationModal from '$lib/components/DeleteConfirmationModal.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import StatusColumn from '$lib/components/StatusColumn.svelte';
-  import PickupReturnTransportModal from './components/PickupReturnTransportModal.svelte';
+  import AssignDeliveryModal from './components/AssignDeliveryModal.svelte';
   import AssignTechModal from './components/AssignTechModal.svelte';
 
   const BOARD_STATUSES = [
@@ -78,11 +92,11 @@
   let workshopToDelete: WorkshopRecord | null = null;
   let isDeletingWorkshop = false;
 
-  // Pickup/Return transport modal state (assign person + schedule before notifying)
-  let showPickupReturnModal = false;
-  let workshopForTransport: WorkshopRecord | null = null;
-  let nextStatusForTransport: 'pickup' | 'return' | null = null;
-  let pickupReturnSubmitting = false;
+  // Assign Delivery modal state (assign person + schedule before notifying)
+  let showAssignDeliveryModal = false;
+  let workshopForAssignDelivery: WorkshopRecord | null = null;
+  let deliveryJobStatus: 'pickup' | 'return' = 'pickup';
+  let assignDeliverySubmitting = false;
 
   // Assign Tech modal state
   let showAssignTechModal = false;
@@ -180,15 +194,24 @@
       loading = true;
       error = null;
       const rows = await getWorkshops({ excludeStatuses: ['completed', 'to_be_scrapped'], select: BOARD_SELECT });
-      const schedules = await getTechSchedulesByWorkshopIds(rows.map((w) => w.id));
+      const workshopIds = rows.map((w) => w.id);
+      const [techSchedules, deliverySchedules] = await Promise.all([
+        getTechSchedulesByWorkshopIds(workshopIds),
+        getDeliverySchedulesByWorkshopIds(workshopIds)
+      ]);
       workshops = rows.map((w) => {
-        const tech = schedules.get(w.id);
+        const tech = techSchedules.get(w.id);
+        const delivery = deliverySchedules.get(w.id);
         return {
           ...w,
           assigned_tech: tech?.assigned_tech ?? null,
           assigned_tech_name: tech?.assigned_tech_name ?? null,
           tech_schedule: tech?.schedule ?? null,
-          tech_job_type: tech?.job_type ?? null
+          tech_job_type: tech?.job_type ?? null,
+          assigned_delivery: delivery?.assigned_to ?? null,
+          assigned_delivery_name: delivery?.assigned_to_name ?? null,
+          delivery_schedule: delivery?.schedule ?? null,
+          delivery_type: delivery?.delivery_type ?? null
         };
       });
     } catch (err) {
@@ -285,18 +308,34 @@
     closeDeleteModal();
   }
 
-  function closePickupReturnModal() {
-    showPickupReturnModal = false;
-    workshopForTransport = null;
-    nextStatusForTransport = null;
+  function handleAssignDeliveryClick(event: CustomEvent<{ workshop: WorkshopRecord }>) {
+    workshopForAssignDelivery = event.detail.workshop;
+    deliveryJobStatus = event.detail.workshop.status === 'return' ? 'return' : 'pickup';
+    showAssignDeliveryModal = true;
   }
 
-  async function handlePickupReturnConfirm(event: CustomEvent<{ assignedTo: string; assignedToName: string; schedule: string }>) {
-    const workshop = workshopForTransport;
-    const status = nextStatusForTransport;
-    if (!workshop || !status) return;
+  function closeAssignDeliveryModal() {
+    showAssignDeliveryModal = false;
+    workshopForAssignDelivery = null;
+  }
 
-    const { assignedTo, assignedToName, schedule } = event.detail;
+  async function handleAssignDeliveryConfirm(
+    event: CustomEvent<{
+      assignedTo: string;
+      assignedToName: string;
+      schedule: string;
+      deliveryType: string;
+      changeReason: string;
+      save: boolean;
+      sendNotice: boolean;
+      isUpdate?: boolean;
+    }>
+  ) {
+    const workshop = workshopForAssignDelivery;
+    if (!workshop) return;
+
+    const { assignedTo, assignedToName, schedule, deliveryType, changeReason, save, sendNotice, isUpdate } =
+      event.detail;
     const user = $currentUser;
     const profile = $userProfile;
     const assignedByName = user
@@ -305,29 +344,78 @@
     const assignedBy = user?.email ?? null;
 
     try {
-      pickupReturnSubmitting = true;
-      await upsertWorkshopTransport({
-        workshopId: workshop.id,
-        jobStatus: status,
-        assignedTo: assignedTo || null,
-        assignedToName: assignedToName || null,
-        schedule: schedule || null,
-        assignedBy: assignedBy ?? undefined,
-        assignedByName: assignedByName || undefined
-      });
-      const ok = await notifyPickupToTeams(workshop, status, {
-        assignedToName: assignedToName || null,
-        schedule: schedule || null
-      });
-      closePickupReturnModal();
-      if (!ok) {
-        toastError('Teams notification failed. Transport was saved.');
+      assignDeliverySubmitting = true;
+
+      if (save) {
+        await assignWorkshopDelivery(workshop.id, assignedTo || null, assignedToName || null, {
+          schedule: schedule || null,
+          deliveryType: deliveryType || null,
+          jobStatus: deliveryJobStatus,
+          workshopStatus: workshop.status,
+          assignedBy,
+          assignedByName: assignedByName || null,
+          changeReason: changeReason || null
+        });
+        workshops = workshops.map((w) =>
+          w.id === workshop.id
+            ? {
+                ...w,
+                assigned_delivery: assignedTo || null,
+                assigned_delivery_name: assignedToName || null,
+                delivery_schedule: assignedTo ? schedule || null : null,
+                delivery_type: assignedTo ? deliveryType || null : null
+              }
+            : w
+        );
+      }
+
+      let teamsOk = true;
+      if (sendNotice) {
+        teamsOk = await notifyAssignDeliveryToTeams(workshop, {
+          assignedToName: assignedToName || null,
+          schedule: schedule || null,
+          deliveryType: deliveryType || null,
+          assignedByName: assignedByName || null,
+          changeReason: changeReason || null,
+          isUpdate: isUpdate ?? (!!workshop.assigned_delivery || !!workshop.delivery_schedule),
+          jobStatus: deliveryJobStatus
+        });
+        if (!teamsOk) {
+          toastError(
+            save
+              ? 'Teams notification failed. Delivery was assigned.'
+              : 'Teams notification failed. Please try again.'
+          );
+          if (save) closeAssignDeliveryModal();
+          return;
+        }
+      }
+
+      closeAssignDeliveryModal();
+      if (save && sendNotice) {
+        toastSuccess(
+          assignedTo
+            ? (isUpdate ? 'Delivery assignment updated and Teams notice sent.' : 'Delivery assigned and Teams notice sent.')
+            : 'Delivery assignment removed and Teams notice sent.'
+        );
+      } else if (save) {
+        toastSuccess(
+          assignedTo
+            ? (isUpdate ? 'Delivery assignment updated.' : 'Delivery assigned successfully.')
+            : 'Delivery assignment removed.'
+        );
+      } else if (sendNotice) {
+        toastSuccess('Teams notice sent.');
       }
     } catch (err) {
-      console.error('[WORKSHOP_BOARD] Failed to save transport or notify:', err);
-      toastError('Failed to save transport. Please try again.');
+      console.error('[WORKSHOP_BOARD] Failed to assign delivery:', err);
+      toastError(
+        sendNotice && !save
+          ? 'Failed to send Teams notice. Please try again.'
+          : 'Failed to assign delivery. Please try again.'
+      );
     } finally {
-      pickupReturnSubmitting = false;
+      assignDeliverySubmitting = false;
     }
   }
 
@@ -527,9 +615,9 @@
         'Status Updated'
       );
       if (nextStatus === 'pickup' || nextStatus === 'return') {
-        workshopForTransport = workshop;
-        nextStatusForTransport = nextStatus;
-        showPickupReturnModal = true;
+        workshopForAssignDelivery = workshop;
+        deliveryJobStatus = nextStatus;
+        showAssignDeliveryModal = true;
       }
     } catch (err) {
       console.error('[WORKSHOP_BOARD] Failed to update workshop status:', workshopId, 'Error:', err);
@@ -745,6 +833,7 @@
                   on:drop={handleWorkshopDrop}
                   on:completed={handleWorkshopCompleted}
                   on:assignTech={handleAssignTechClick}
+                  on:assignDelivery={handleAssignDeliveryClick}
                 />
               {/if}
             {/each}
@@ -784,13 +873,19 @@
   on:cancel={handleDeleteCancel}
 />
 
-<!-- Pickup/Return transport modal: assign person + schedule, then save and notify -->
-<PickupReturnTransportModal
-  show={showPickupReturnModal}
-  jobStatus={nextStatusForTransport ?? 'pickup'}
-  submitting={pickupReturnSubmitting}
-  on:confirm={handlePickupReturnConfirm}
-  on:cancel={closePickupReturnModal}
+<!-- Assign Delivery modal: list users + schedule + delivery type -->
+<AssignDeliveryModal
+  show={showAssignDeliveryModal}
+  workshopLabel={workshopForAssignDelivery?.customer_name || workshopForAssignDelivery?.order_id || ''}
+  initialAssignedTo={workshopForAssignDelivery?.assigned_delivery || ''}
+  initialAssignedToName={workshopForAssignDelivery?.assigned_delivery_name || ''}
+  initialSchedule={workshopForAssignDelivery?.delivery_schedule || ''}
+  initialDeliveryType={workshopForAssignDelivery?.delivery_type ||
+    (deliveryJobStatus === 'return' ? 'Return' : 'Pickup')}
+  jobStatus={deliveryJobStatus}
+  submitting={assignDeliverySubmitting}
+  on:confirm={handleAssignDeliveryConfirm}
+  on:cancel={closeAssignDeliveryModal}
 />
 
 <!-- Assign Tech modal: list users + schedule + job type -->

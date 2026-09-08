@@ -1,0 +1,561 @@
+<script lang="ts">
+  import { beforeUpdate, createEventDispatcher } from 'svelte';
+  import { supabase } from '$lib/supabase';
+  import {
+    sydneyInputToUtcIso,
+    utcIsoToSydneyInput
+  } from '../../../orders-past-due-accounts/utils/dueDate';
+  import { WORKSHOP_DELIVERY_TYPES } from '$lib/services/workshop';
+
+  export let show: boolean = false;
+  /** Optional label shown under the title (e.g. customer name or order ID) */
+  export let workshopLabel: string = '';
+  /** Preselect current assignment email when opening */
+  export let initialAssignedTo: string = '';
+  /** Display name of the currently assigned delivery person */
+  export let initialAssignedToName: string = '';
+  /** Optional ISO datetime string to prefill schedule when opening */
+  export let initialSchedule: string = '';
+  /** Prefill delivery type when opening (Pickup / Return) */
+  export let initialDeliveryType: string = '';
+  /** Current job status: pickup or return */
+  export let jobStatus: 'pickup' | 'return' = 'pickup';
+  export let submitting: boolean = false;
+
+  type UserOption = { email: string; full_name: string };
+
+  const PRIORITY_EMAIL = 'service@rapidcleanillawarra.com.au';
+
+  let users: UserOption[] = [];
+  let usersLoading = false;
+  let usersError: string | null = null;
+  let searchQuery = '';
+  let selectedEmail = '';
+  let schedule = '';
+  let deliveryType = '';
+  let loadSeq = 0;
+  let wasShown = false;
+  let actionInProgress: 'save' | 'notice' | null = null;
+  let step: 'assign' | 'explain' = 'assign';
+  let changeReason = '';
+  let changeReasonTouched = false;
+
+  const dispatch = createEventDispatcher<{
+    cancel: void;
+    confirm: {
+      assignedTo: string;
+      assignedToName: string;
+      schedule: string;
+      deliveryType: string;
+      changeReason: string;
+      save: boolean;
+      sendNotice: boolean;
+      isUpdate: boolean;
+    };
+  }>();
+
+  $: scheduleLocal = schedule ? utcIsoToSydneyInput(schedule) : '';
+
+  $: filteredUsers = !searchQuery.trim()
+    ? users
+    : users.filter((u) => {
+        const q = searchQuery.trim().toLowerCase();
+        return (
+          (u.full_name ?? '').toLowerCase().includes(q) ||
+          (u.email ?? '').toLowerCase().includes(q)
+        );
+      });
+
+  $: defaultDeliveryType = initialDeliveryType || (jobStatus === 'return' ? 'Return' : 'Pickup');
+  $: personChanged = selectedEmail !== (initialAssignedTo || '');
+  $: scheduleChanged =
+    utcIsoToSydneyInput(schedule || '') !== utcIsoToSydneyInput(initialSchedule || '');
+  $: deliveryTypeChanged = (deliveryType || '') !== (initialDeliveryType || '');
+  $: anyFieldChanged = personChanged || scheduleChanged || deliveryTypeChanged;
+  $: hasExistingSchedule = !!(initialSchedule || '').trim();
+  $: hasExistingAssignment =
+    !!(initialAssignedTo || '').trim() ||
+    hasExistingSchedule ||
+    !!(initialDeliveryType || '').trim();
+  $: isUpdate = hasExistingAssignment && anyFieldChanged;
+  $: needsChangeReason = hasExistingSchedule && anyFieldChanged;
+  $: changeReasonValid = !needsChangeReason || !!changeReason.trim();
+  $: scheduleRequired = !!selectedEmail;
+  $: scheduleValid = !scheduleRequired || !!schedule.trim();
+  $: deliveryTypeRequired = !!selectedEmail;
+  $: deliveryTypeValid = !deliveryTypeRequired || !!deliveryType.trim();
+  $: canSave =
+    !submitting &&
+    scheduleValid &&
+    deliveryTypeValid &&
+    (personChanged || scheduleChanged || deliveryTypeChanged) &&
+    (step !== 'explain' || changeReasonValid);
+  $: canSendNotice =
+    !submitting &&
+    !!selectedEmail &&
+    scheduleValid &&
+    deliveryTypeValid &&
+    (step !== 'explain' || changeReasonValid);
+  $: previousPersonLabel =
+    initialAssignedToName ||
+    users.find((u) => u.email === initialAssignedTo)?.full_name ||
+    initialAssignedTo ||
+    'Unassigned';
+  $: nextPersonLabel = selectedEmail
+    ? users.find((u) => u.email === selectedEmail)?.full_name || selectedEmail
+    : 'Unassigned';
+
+  $: modalTitle =
+    step === 'explain'
+      ? 'Explain delivery assignment change'
+      : jobStatus === 'return'
+        ? 'Assign Return Delivery'
+        : 'Assign Pickup Delivery';
+
+  beforeUpdate(() => {
+    if (show && !wasShown) {
+      searchQuery = '';
+      selectedEmail = initialAssignedTo || '';
+      schedule = initialSchedule || '';
+      deliveryType = initialDeliveryType || (jobStatus === 'return' ? 'Return' : 'Pickup');
+      actionInProgress = null;
+      step = 'assign';
+      changeReason = '';
+      changeReasonTouched = false;
+      users = [];
+      usersError = null;
+      fetchUsers();
+    }
+    wasShown = show;
+  });
+
+  function sortUsers(list: UserOption[]): UserOption[] {
+    const priority: UserOption[] = [];
+    const rest: UserOption[] = [];
+    for (const user of list) {
+      if ((user.email ?? '').toLowerCase() === PRIORITY_EMAIL) {
+        priority.push(user);
+      } else {
+        rest.push(user);
+      }
+    }
+    rest.sort((a, b) =>
+      (a.full_name ?? '').localeCompare(b.full_name ?? '', undefined, { sensitivity: 'base' })
+    );
+    return [...priority, ...rest];
+  }
+
+  async function fetchUsers() {
+    const seq = ++loadSeq;
+    usersLoading = true;
+    usersError = null;
+
+    try {
+      const response = await supabase
+        .from('users')
+        .select('email, full_name')
+        .order('full_name', { ascending: true });
+
+      if (seq !== loadSeq) return;
+
+      if (response.error) throw response.error;
+
+      users = sortUsers(response.data ?? []);
+      if (initialAssignedTo) {
+        selectedEmail = initialAssignedTo;
+      }
+    } catch (e) {
+      console.error('[AssignDelivery] Failed to fetch users:', e);
+      if (seq !== loadSeq) return;
+      users = [];
+      usersError =
+        e && typeof e === 'object' && 'message' in e
+          ? String((e as { message: unknown }).message)
+          : e instanceof Error
+            ? e.message
+            : 'Failed to load users';
+    } finally {
+      if (seq === loadSeq) usersLoading = false;
+    }
+  }
+
+  function selectUser(user: UserOption) {
+    selectedEmail = user.email;
+  }
+
+  function clearSelection() {
+    selectedEmail = '';
+  }
+
+  function handleScheduleInput(e: Event) {
+    const value = (e.target as HTMLInputElement).value;
+    schedule = sydneyInputToUtcIso(value) ?? '';
+  }
+
+  function formatScheduleLabel(iso: string): string {
+    if (!iso.trim()) return 'None';
+    try {
+      const date = new Date(iso);
+      if (isNaN(date.getTime())) return iso;
+      return date.toLocaleString('en-AU', {
+        timeZone: 'Australia/Sydney',
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+    } catch {
+      return iso;
+    }
+  }
+
+  function assignmentDetail(save: boolean, sendNotice: boolean) {
+    const user = users.find((u) => u.email === selectedEmail);
+    const assignedTo = selectedEmail;
+    return {
+      assignedTo,
+      assignedToName: user?.full_name ?? '',
+      schedule: assignedTo ? schedule.trim() : '',
+      deliveryType: assignedTo ? deliveryType.trim() : '',
+      changeReason: needsChangeReason ? changeReason.trim() : '',
+      save,
+      sendNotice,
+      isUpdate
+    };
+  }
+
+  function submitAssignment(save: boolean, sendNotice: boolean, action: 'save' | 'notice' = 'save') {
+    if (needsChangeReason && step === 'assign') {
+      step = 'explain';
+      return;
+    }
+    if (needsChangeReason && !changeReason.trim()) {
+      changeReasonTouched = true;
+      return;
+    }
+    const shouldNotify = (sendNotice && !!selectedEmail) || needsChangeReason || isUpdate;
+    actionInProgress = action;
+    dispatch('confirm', assignmentDetail(save, shouldNotify));
+  }
+
+  function handleConfirm() {
+    if (!canSave) return;
+    submitAssignment(true, true, 'save');
+  }
+
+  function handleSendNotice() {
+    if (!canSendNotice) return;
+    submitAssignment(canSave, true, 'notice');
+  }
+
+  function handleExplainBack() {
+    step = 'assign';
+    changeReasonTouched = false;
+  }
+
+  function handleExplainConfirm() {
+    changeReasonTouched = true;
+    if (!changeReason.trim() || !canSave) return;
+    submitAssignment(true, true, 'save');
+  }
+
+  function handleCancel() {
+    dispatch('cancel');
+  }
+
+  function handleDialogKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Escape') return;
+    if (step === 'explain') {
+      handleExplainBack();
+      return;
+    }
+    handleCancel();
+  }
+
+  function handleBackdropClick(e: MouseEvent) {
+    if ((e.target as HTMLElement).getAttribute('data-backdrop') === 'true') {
+      handleCancel();
+    }
+  }
+</script>
+
+{#if show}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+    data-backdrop="true"
+    on:click={handleBackdropClick}
+    on:keydown={handleDialogKeydown}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="assign-delivery-modal-title"
+    tabindex="-1"
+  >
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <div
+      class="mx-4 flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-[#141619] border border-[#262a30] shadow-2xl"
+      role="document"
+      on:click|stopPropagation
+      on:keydown={(e) => {
+        e.stopPropagation();
+        handleDialogKeydown(e);
+      }}
+    >
+      <div class="flex-shrink-0 border-b border-[#262a30] px-6 py-4">
+        <h2 id="assign-delivery-modal-title" class="text-lg font-bold text-white">
+          {modalTitle}
+        </h2>
+        <p class="mt-1 text-sm text-gray-400">
+          {#if step === 'explain'}
+            An existing delivery assignment or schedule is being changed. Add a reason, then save to notify Teams.
+          {:else if workshopLabel}
+            Assign a person and schedule for <span class="font-medium text-gray-200">{workshopLabel}</span>.
+          {:else}
+            Select a person from the list below.
+          {/if}
+        </p>
+      </div>
+
+      {#if step === 'explain'}
+        <div class="space-y-4 overflow-y-auto px-6 py-4">
+          <div class="rounded-lg border border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-300">
+            {#if personChanged}
+              <p>
+                <span class="font-medium">Assigned to:</span>
+                {previousPersonLabel} → {nextPersonLabel}
+              </p>
+            {/if}
+            {#if scheduleChanged}
+              <p class={personChanged ? 'mt-1' : ''}>
+                <span class="font-medium">Schedule:</span>
+                {formatScheduleLabel(initialSchedule)} → {formatScheduleLabel(schedule)}
+              </p>
+            {/if}
+            {#if deliveryTypeChanged}
+              <p class={personChanged || scheduleChanged ? 'mt-1' : ''}>
+                <span class="font-medium">Delivery type:</span>
+                {initialDeliveryType || 'None'} → {deliveryType || 'None'}
+              </p>
+            {/if}
+          </div>
+
+          <div>
+            <label for="assign-delivery-change-reason" class="mb-1 block text-sm font-medium text-gray-300">
+              Reason for change<span class="text-red-400"> *</span>
+            </label>
+            <textarea
+              id="assign-delivery-change-reason"
+              bind:value={changeReason}
+              rows="4"
+              class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+              placeholder="Explain why the assignee, schedule, or delivery type is changing..."
+              on:input={() => (changeReasonTouched = true)}
+            ></textarea>
+            {#if changeReasonTouched && !changeReason.trim()}
+              <p class="mt-1 text-sm text-red-400">A reason is required when changing an existing schedule or assignment.</p>
+            {/if}
+          </div>
+        </div>
+      {:else}
+        <div class="space-y-4 overflow-y-auto px-6 py-4">
+          <div>
+            <label for="assign-delivery-search" class="mb-1 block text-sm font-medium text-gray-300">
+              Search
+            </label>
+            <input
+              id="assign-delivery-search"
+              type="text"
+              bind:value={searchQuery}
+              class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors"
+              placeholder="Search by name or email..."
+            />
+          </div>
+
+          {#if usersError}
+            <p class="text-sm text-red-400">{usersError}</p>
+          {/if}
+
+          <ul
+            class="h-80 divide-y divide-[#262a30] overflow-y-auto rounded-lg border border-[#262a30] bg-[#0e1012]"
+            role="listbox"
+            aria-label="Staff and drivers"
+          >
+            {#if usersLoading}
+              <li class="px-4 py-3 text-sm text-gray-400">Loading users...</li>
+            {:else}
+              <li>
+                <button
+                  type="button"
+                  class="w-full px-4 py-3 text-left text-sm transition-colors focus:outline-none {!selectedEmail
+                    ? 'bg-lime-500/10 text-lime-400'
+                    : 'text-gray-200 hover:bg-[#1f2329]'}"
+                  role="option"
+                  aria-selected={!selectedEmail}
+                  on:click={clearSelection}
+                >
+                  <span class="block font-medium">Unassigned</span>
+                  <span class="text-xs text-gray-500">Remove delivery assignment</span>
+                </button>
+              </li>
+              {#if filteredUsers.length === 0}
+                <li class="px-4 py-3 text-sm text-gray-400">
+                  {searchQuery ? 'No users match your search.' : 'No users found.'}
+                </li>
+              {:else}
+                {#each filteredUsers as user (user.email)}
+                  <li>
+                    <button
+                      type="button"
+                      class="w-full px-4 py-3 text-left text-sm transition-colors focus:outline-none {user.email ===
+                      selectedEmail
+                        ? 'bg-lime-500/10 text-lime-400'
+                        : 'text-gray-200 hover:bg-[#1f2329]'}"
+                      role="option"
+                      aria-selected={user.email === selectedEmail}
+                      on:click={() => selectUser(user)}
+                    >
+                      <span class="block font-medium">{user.full_name}</span>
+                      <span class="text-xs text-gray-500">{user.email}</span>
+                    </button>
+                  </li>
+                {/each}
+              {/if}
+            {/if}
+          </ul>
+
+          <div>
+            <label for="assign-delivery-schedule" class="mb-1 block text-sm font-medium text-gray-300">
+              Schedule{#if scheduleRequired}<span class="text-red-400"> *</span>{/if}
+            </label>
+            <input
+              id="assign-delivery-schedule"
+              type="datetime-local"
+              value={scheduleLocal}
+              on:input={handleScheduleInput}
+              required={scheduleRequired}
+              class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 transition-colors"
+              placeholder="Select date and time"
+            />
+            <p class="mt-1 text-xs text-gray-500">Times are Australia/Sydney</p>
+            {#if scheduleRequired && !schedule.trim()}
+              <p class="mt-1 text-sm text-red-400">Schedule is required when assigning delivery.</p>
+            {/if}
+          </div>
+
+          <div>
+            <label for="assign-delivery-type" class="mb-1 block text-sm font-medium text-gray-300">
+              Delivery type{#if deliveryTypeRequired}<span class="text-red-400"> *</span>{/if}
+            </label>
+            <select
+              id="assign-delivery-type"
+              bind:value={deliveryType}
+              required={deliveryTypeRequired}
+              class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] text-gray-200 px-4 py-3 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500 transition-colors"
+            >
+              <option value="">Select delivery type...</option>
+              {#each WORKSHOP_DELIVERY_TYPES as type (type)}
+                <option value={type}>{type}</option>
+              {/each}
+            </select>
+            {#if deliveryTypeRequired && !deliveryType.trim()}
+              <p class="mt-1 text-sm text-red-400">
+                Delivery type is required when assigning delivery.
+              </p>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <div
+        class="flex flex-shrink-0 flex-wrap justify-end gap-3 rounded-b-2xl border-t border-[#262a30] bg-[#181b20] px-6 py-4"
+      >
+        {#if step === 'explain'}
+          <button
+            type="button"
+            class="btn-secondary text-sm"
+            on:click={handleExplainBack}
+            disabled={submitting}
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            class="btn-primary text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canSave}
+            on:click={handleExplainConfirm}
+          >
+            {#if submitting}
+              <span class="inline-flex items-center">
+                <svg class="mr-2 -ml-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Saving...
+              </span>
+            {:else}
+              Save & notify
+            {/if}
+          </button>
+        {:else}
+          <button
+            type="button"
+            class="btn-secondary text-sm"
+            on:click={handleCancel}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="btn-primary text-sm min-w-[100px] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canSave}
+            on:click={handleConfirm}
+          >
+            {#if submitting && actionInProgress === 'save'}
+              <span class="inline-flex items-center">
+                <svg class="mr-2 -ml-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Saving...
+              </span>
+            {:else}
+              Save
+            {/if}
+          </button>
+          <button
+            type="button"
+            class="btn-primary text-sm min-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!canSendNotice}
+            on:click={handleSendNotice}
+          >
+            {#if submitting && actionInProgress === 'notice'}
+              <span class="inline-flex items-center">
+                <svg class="mr-2 -ml-1 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                Sending...
+              </span>
+            {:else}
+              Send Notice
+            {/if}
+          </button>
+        {/if}
+      </div>
+    </div>
+  </div>
+{/if}

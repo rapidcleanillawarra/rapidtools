@@ -159,6 +159,12 @@ export interface WorkshopRecord {
   /** From workshop_tech_schedule (board enrichment; not a workshop column) */
   tech_schedule?: string | null;
   tech_job_type?: string | null;
+
+  // Assigned delivery (from active workshop_delivery_schedule / workshop_transport; not workshop columns)
+  assigned_delivery?: string | null;
+  assigned_delivery_name?: string | null;
+  delivery_schedule?: string | null;
+  delivery_type?: string | null;
 }
 
 export interface WorkshopPhoto {
@@ -181,9 +187,45 @@ export interface WorkshopTransportRecord {
   schedule: string | null;
   assigned_by: string | null;
   assigned_by_name: string | null;
+  change_reason?: string | null;
+  delivery_type?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** Allowed delivery types for workshop delivery assignment */
+export const WORKSHOP_DELIVERY_TYPES = ['Pickup', 'Return'] as const;
+export type WorkshopDeliveryType = (typeof WORKSHOP_DELIVERY_TYPES)[number];
+
+/** assignment_status on workshop_delivery_schedule */
+export type WorkshopDeliveryAssignmentStatus = 'active' | 'superseded' | 'completed' | 'cancelled';
+
+/** workshop_delivery_schedule table record (assign person + schedule for delivery; history via assignment_status) */
+export interface WorkshopDeliveryScheduleRecord {
+  id: string;
+  workshop_id: string;
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  schedule: string | null;
+  delivery_type: string | null;
+  job_status: string;
+  workshop_status: string | null;
+  assignment_status: WorkshopDeliveryAssignmentStatus;
+  assigned_by: string | null;
+  assigned_by_name: string | null;
+  change_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Board enrichment row from workshop_delivery_schedule (active only) */
+export type WorkshopDeliveryScheduleSummary = {
+  assigned_to: string | null;
+  assigned_to_name: string | null;
+  schedule: string | null;
+  delivery_type: string | null;
+  job_status?: string | null;
+};
 
 /** Allowed job types for workshop tech assignment */
 export const WORKSHOP_TECH_JOB_TYPES = ['Quote', 'Repair', 'Service', 'Warranty'] as const;
@@ -520,6 +562,108 @@ function buildAssignTechHtmlBody(
   return lines.join('\n');
 }
 
+function deliveryTeamsHeadingLine(kind: 'cancelled' | 'updated' | 'assigned', deliveryType?: string | null): string {
+  const label = deliveryType ? `${deliveryType} Assignment` : 'Delivery Assignment';
+  switch (kind) {
+    case 'cancelled':
+      return `<p><strong>${label} is ${teamsColoredText('Cancelled', TEAMS_HEADING_COLORS.cancelled)}</strong></p>`;
+    case 'updated':
+      return `<p><strong>${label} ${teamsColoredText('Updated', TEAMS_HEADING_COLORS.updated)}</strong></p>`;
+    case 'assigned':
+      return `<p><strong>${teamsColoredText(label + ' Assigned', TEAMS_HEADING_COLORS.assigned)}</strong></p>`;
+  }
+}
+
+function buildAssignDeliveryHtmlBody(
+  workshop: WorkshopRecord,
+  options: {
+    assignedToName?: string | null;
+    schedule?: string | null;
+    deliveryType?: string | null;
+    assignedByName?: string | null;
+    changeReason?: string | null;
+    cancelled?: boolean;
+    isUpdate?: boolean;
+    jobStatus?: 'pickup' | 'return';
+  }
+): string {
+  const company =
+    workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
+  const firstName = workshop.customer_data?.BillingAddress?.BillFirstName ?? '';
+  const lastName = workshop.customer_data?.BillingAddress?.BillLastName ?? '';
+  const phone = workshop.customer_data?.BillingAddress?.BillPhone ?? workshop.contact_number ?? '';
+  const contactName =
+    (`${firstName} ${lastName}`.trim() || workshop.customer_name) ?? 'N/A';
+  const contactLine = phone ? `${contactName} - ${phone}` : contactName;
+  const orderId = workshop.order_id ?? 'N/A';
+  const product = [workshop.product_name, workshop.make_model].filter(Boolean).join(' ') || 'N/A';
+  const fault = workshop.fault_description ?? 'N/A';
+  const location = workshop.site_location?.trim() || 'N/A';
+
+  const isCancelled =
+    options.cancelled === true ||
+    (!options.assignedToName?.trim() && !!options.changeReason?.trim());
+  const isUpdate =
+    !isCancelled &&
+    (options.isUpdate === true ||
+      (options.isUpdate !== false &&
+        (!!options.changeReason?.trim() || !!workshop.assigned_delivery || !!workshop.delivery_schedule)));
+  const headingKind = isCancelled ? 'cancelled' : isUpdate ? 'updated' : 'assigned';
+
+  const subHeader = options.deliveryType === 'Return' || options.jobStatus === 'return' ? 'FOR RETURN' : 'FOR PICK UP';
+
+  const lines: string[] = [
+    deliveryTeamsHeadingLine(headingKind, options.deliveryType),
+    `<p><strong>${subHeader}</strong></p>`,
+    `<p>Order #${escapeHtml(orderId)}</p>`,
+    `<p>${escapeHtml(company)}</p>`,
+    `<p>${escapeHtml(contactLine)}</p>`,
+    '<p><br></p>',
+    `<p>${escapeHtml(product)}</p>`,
+    `<p>${escapeHtml(fault)}</p>`,
+    `<p><strong>Location: ${escapeHtml(location)}</strong></p>`
+  ];
+
+  const firstOptional = workshop.optional_contacts?.[0];
+  const whoToContact = firstOptional
+    ? [firstOptional.name, firstOptional.number, firstOptional.email].filter(Boolean).join(' - ') || null
+    : null;
+  if (whoToContact) {
+    lines.push(`<p><strong>Who to Contact: ${escapeHtml(whoToContact)}</strong></p>`);
+  }
+
+  if (options.assignedToName?.trim()) {
+    lines.push('<p><br></p>', `<p><strong>Assigned to: ${escapeHtml(options.assignedToName.trim())}</strong></p>`);
+  } else if (options.changeReason?.trim()) {
+    lines.push('<p><br></p>', '<p><strong>Assigned to: Unassigned</strong></p>');
+  }
+  if (options.deliveryType?.trim()) {
+    lines.push(`<p><strong>Delivery type: ${escapeHtml(options.deliveryType.trim())}</strong></p>`);
+  }
+  if (options.schedule?.trim()) {
+    const formatted = formatScheduleForTeams(options.schedule);
+    lines.push(`<p><strong>Scheduled: ${escapeHtml(formatted ?? options.schedule)}</strong></p>`);
+  }
+  if (options.assignedByName?.trim()) {
+    lines.push(`<p><strong>Assigned by: ${escapeHtml(options.assignedByName.trim())}</strong></p>`);
+  }
+  if (options.changeReason?.trim()) {
+    lines.push(
+      `<p><strong>Change reason: ${escapeHtml(options.changeReason.trim())}</strong></p>`
+    );
+  }
+
+  const deliveriesUrl = 'https://rapidcleanillawarra.github.io/rapidtools/workshop/deliveries';
+  lines.push(
+    '<p><br></p>',
+    `<p><a href="${deliveriesUrl}">Open Deliveries</a></p>`,
+    `<p>${deliveriesUrl}</p>`
+  );
+
+  return lines.join('\n');
+}
+
+
 function buildCompletedHtmlBody(workshop: WorkshopRecord, triggeredBy: string): string {
   const company =
     workshop.customer_data?.BillingAddress?.BillCompany ?? workshop.customer_name ?? 'N/A';
@@ -682,6 +826,51 @@ export async function notifyAssignTechToTeams(
     return false;
   }
 }
+
+/**
+ * Notify Teams via Power Automate when a delivery assignment is made or updated.
+ * Returns true on success, false on failure. Does not throw.
+ */
+export async function notifyAssignDeliveryToTeams(
+  workshop: WorkshopRecord,
+  options: {
+    assignedToName?: string | null;
+    schedule?: string | null;
+    deliveryType?: string | null;
+    assignedByName?: string | null;
+    changeReason?: string | null;
+    cancelled?: boolean;
+    isUpdate?: boolean;
+    jobStatus?: 'pickup' | 'return';
+  }
+): Promise<boolean> {
+  try {
+    const deliveriesUrl = 'https://rapidcleanillawarra.github.io/rapidtools/workshop/deliveries';
+    const body = buildAssignDeliveryHtmlBody(workshop, options);
+    const payload = {
+      body,
+      action: 'pickup_deliveries',
+      url: deliveriesUrl,
+      buttonUrl: deliveriesUrl,
+      button: {
+        title: 'Open Deliveries',
+        url: deliveriesUrl
+      }
+    };
+
+    const response = await fetch(PICKUP_POWER_AUTOMATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    return response.ok;
+  } catch (error) {
+    console.error('[WORKSHOP] Failed to notify Teams for delivery assignment:', error);
+    return false;
+  }
+}
+
 
 /**
  * Create a new workshop record
@@ -1188,10 +1377,12 @@ export async function upsertWorkshopTransport(params: {
   assignedBy?: string | null;
   assignedByName?: string | null;
   transportStatus?: 'new' | 'confirmed';
+  changeReason?: string | null;
+  deliveryType?: string | null;
 }): Promise<WorkshopTransportRecord> {
   try {
     const existing = await getTransportByWorkshopId(params.workshopId, params.jobStatus);
-    const payload = {
+    const payload: Record<string, unknown> = {
       workshop_id: params.workshopId,
       job_status: params.jobStatus,
       assigned_to: params.assignedTo ?? null,
@@ -1201,6 +1392,12 @@ export async function upsertWorkshopTransport(params: {
       assigned_by_name: params.assignedByName ?? null,
       transport_status: params.transportStatus ?? 'new'
     };
+    if (params.changeReason !== undefined) {
+      payload.change_reason = params.changeReason ?? null;
+    }
+    if (params.deliveryType !== undefined) {
+      payload.delivery_type = params.deliveryType ?? null;
+    }
 
     if (existing) {
       const { data, error } = await supabase
@@ -1495,6 +1692,70 @@ export async function getTechSchedulesByWorkshopIds(
 }
 
 /**
+ * Get active delivery schedules for many workshops (map of workshop_id → active assignment).
+ * Checks workshop_delivery_schedule first, and falls back to workshop_transport for any records
+ * that haven't yet been assigned via workshop_delivery_schedule.
+ */
+export async function getDeliverySchedulesByWorkshopIds(
+  workshopIds: string[]
+): Promise<Map<string, WorkshopDeliveryScheduleSummary>> {
+  const result = new Map<string, WorkshopDeliveryScheduleSummary>();
+  if (workshopIds.length === 0) return result;
+
+  try {
+    const { data: scheduleData, error: scheduleError } = await supabase
+      .from('workshop_delivery_schedule')
+      .select('workshop_id, assigned_to, assigned_to_name, schedule, delivery_type, job_status')
+      .in('workshop_id', workshopIds)
+      .eq('assignment_status', 'active');
+
+    if (scheduleError) {
+      console.warn('Error fetching workshop delivery schedules:', scheduleError);
+    } else {
+      for (const row of scheduleData ?? []) {
+        result.set(row.workshop_id, {
+          assigned_to: row.assigned_to ?? null,
+          assigned_to_name: row.assigned_to_name ?? null,
+          schedule: row.schedule ?? null,
+          delivery_type: row.delivery_type ?? null,
+          job_status: row.job_status ?? null
+        });
+      }
+    }
+
+    // For any workshop not found in workshop_delivery_schedule, fall back to workshop_transport
+    const missingIds = workshopIds.filter((id) => !result.has(id));
+    if (missingIds.length > 0) {
+      const { data: transportData, error: transportError } = await supabase
+        .from('workshop_transport')
+        .select('workshop_id, assigned_to, assigned_to_name, schedule, delivery_type, job_status')
+        .in('workshop_id', missingIds)
+        .order('created_at', { ascending: false });
+
+      if (!transportError && transportData) {
+        for (const row of transportData) {
+          if (!result.has(row.workshop_id) && (row.assigned_to || row.schedule)) {
+            result.set(row.workshop_id, {
+              assigned_to: row.assigned_to ?? null,
+              assigned_to_name: row.assigned_to_name ?? null,
+              schedule: row.schedule ?? null,
+              delivery_type: row.delivery_type ?? (row.job_status === 'return' ? 'Return' : 'Pickup'),
+              job_status: row.job_status ?? null
+            });
+          }
+        }
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error fetching workshop delivery schedules:', error);
+    return result;
+  }
+}
+
+
+/**
  * Get all workshop_tech_schedule rows joined with workshop job details.
  */
 export async function getTechJobsSummary(): Promise<TechJobsSummaryRow[]> {
@@ -1763,6 +2024,144 @@ export async function assignWorkshopTech(
     throw error;
   }
 }
+
+/**
+ * Close the current active delivery schedule row (superseded or cancelled).
+ * When cancelling (unassign), optional changeReason is stored on the closed row.
+ */
+async function closeActiveDeliverySchedule(
+  workshopId: string,
+  nextStatus: 'superseded' | 'cancelled',
+  changeReason?: string | null
+): Promise<void> {
+  const update: {
+    assignment_status: 'superseded' | 'cancelled';
+    updated_at: string;
+    change_reason?: string;
+  } = {
+    assignment_status: nextStatus,
+    updated_at: new Date().toISOString()
+  };
+  if (nextStatus === 'cancelled' && changeReason?.trim()) {
+    update.change_reason = changeReason.trim();
+  }
+
+  const { error } = await supabase
+    .from('workshop_delivery_schedule')
+    .update(update)
+    .eq('workshop_id', workshopId)
+    .eq('assignment_status', 'active');
+
+  if (error) throw error;
+}
+
+/**
+ * Create a new active workshop_delivery_schedule row, superseding any previous active row.
+ * Pass assignedTo null to unassign (cancels active; no new row).
+ */
+export async function createWorkshopDeliverySchedule(params: {
+  workshopId: string;
+  assignedTo?: string | null;
+  assignedToName?: string | null;
+  schedule?: string | null;
+  deliveryType?: string | null;
+  jobStatus: 'pickup' | 'return';
+  workshopStatus?: string | null;
+  assignedBy?: string | null;
+  assignedByName?: string | null;
+  changeReason?: string | null;
+}): Promise<WorkshopDeliveryScheduleRecord | null> {
+  try {
+    const assignedTo = params.assignedTo ?? null;
+    const changeReason = params.changeReason?.trim() || null;
+
+    if (!assignedTo) {
+      await closeActiveDeliverySchedule(params.workshopId, 'cancelled', changeReason);
+      return null;
+    }
+
+    await closeActiveDeliverySchedule(params.workshopId, 'superseded');
+
+    const payload = {
+      workshop_id: params.workshopId,
+      assigned_to: assignedTo,
+      assigned_to_name: params.assignedToName ?? null,
+      schedule: params.schedule ?? null,
+      delivery_type: params.deliveryType ?? (params.jobStatus === 'return' ? 'Return' : 'Pickup'),
+      job_status: params.jobStatus,
+      workshop_status: params.workshopStatus ?? null,
+      assignment_status: 'active' as const,
+      assigned_by: params.assignedBy ?? null,
+      assigned_by_name: params.assignedByName ?? null,
+      change_reason: changeReason,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('workshop_delivery_schedule')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as WorkshopDeliveryScheduleRecord;
+  } catch (error) {
+    console.error('Error creating workshop delivery schedule:', error);
+    throw error;
+  }
+}
+
+/**
+ * Assign delivery/transport via workshop_delivery_schedule and keep workshop_transport synchronized.
+ */
+export async function assignWorkshopDelivery(
+  workshopId: string,
+  assignedTo: string | null,
+  assignedToName: string | null,
+  options?: {
+    schedule?: string | null;
+    deliveryType?: string | null;
+    jobStatus?: 'pickup' | 'return';
+    workshopStatus?: string | null;
+    assignedBy?: string | null;
+    assignedByName?: string | null;
+    changeReason?: string | null;
+  }
+): Promise<void> {
+  try {
+    const jobStatus = options?.jobStatus ?? (options?.deliveryType?.toLowerCase() === 'return' ? 'return' : 'pickup');
+
+    // 1. Record in history schedule table
+    await createWorkshopDeliverySchedule({
+      workshopId,
+      assignedTo,
+      assignedToName,
+      schedule: options?.schedule ?? null,
+      deliveryType: options?.deliveryType ?? (jobStatus === 'return' ? 'Return' : 'Pickup'),
+      jobStatus,
+      workshopStatus: options?.workshopStatus ?? null,
+      assignedBy: options?.assignedBy ?? null,
+      assignedByName: options?.assignedByName ?? null,
+      changeReason: options?.changeReason ?? null
+    });
+
+    // 2. Also keep workshop_transport synchronized for deliveries tracking page
+    await upsertWorkshopTransport({
+      workshopId,
+      jobStatus,
+      assignedTo: assignedTo || null,
+      assignedToName: assignedToName || null,
+      schedule: options?.schedule || null,
+      assignedBy: options?.assignedBy || null,
+      assignedByName: options?.assignedByName || null,
+      changeReason: options?.changeReason || null,
+      deliveryType: options?.deliveryType || (jobStatus === 'return' ? 'Return' : 'Pickup')
+    });
+  } catch (error) {
+    console.error('Error assigning workshop delivery:', error);
+    throw error;
+  }
+}
+
 
 /**
  * Update workshop

@@ -319,6 +319,7 @@
             on:dragstart
             on:completed
             on:assignTech
+            on:assignDelivery
           />
         {/each}
       </div>

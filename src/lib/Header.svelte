@@ -676,6 +676,26 @@
 				{/if}
 			</div>
 
+			<!-- Pick Zone -->
+			<a
+				href="https://rapidcleantools.vercel.app"
+				class="group flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition-all duration-150 {isPathActive('https://rapidcleantools.vercel.app') ? 'bg-lime-500/10 text-lime-400 font-semibold border-l-[3px] border-lime-400 shadow-sm' : 'text-gray-300 hover:bg-[#1f2329] hover:text-lime-300'}"
+				class:px-3={!sidebarMinimized}
+				class:px-2={sidebarMinimized}
+				class:justify-center={sidebarMinimized}
+				on:click={closeSidebar}
+				on:mouseenter={(e) => showTooltip(e, 'Pick Zone')}
+				on:mouseleave={hideTooltip}
+			>
+				<svg class="h-5 w-5 flex-shrink-0 transition-transform duration-150 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+				</svg>
+				{#if !sidebarMinimized}
+					<span class="truncate">Pick Zone</span>
+				{/if}
+			</a>
+
 			<!-- New Promax -->
 			<a
 				href="{base}/promax"

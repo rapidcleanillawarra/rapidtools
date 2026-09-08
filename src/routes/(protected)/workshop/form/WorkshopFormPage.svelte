@@ -14,7 +14,8 @@
 		updateWorkshop,
 		deleteWorkshop,
 		getTransportByWorkshopId,
-		upsertWorkshopTransport
+		upsertWorkshopTransport,
+		type WorkshopFormData
 	} from '$lib/services/workshop';
 	import { fetchCustomerData, createOrder, cancelOrder } from '$lib/services/maropost';
 	import { onMount, onDestroy, tick } from 'svelte';
@@ -1422,6 +1423,11 @@
 			(formData as any).status = 'to_be_quoted';
 			wasDrawingRequestSubmission = true;
 			addHistoryEntry('to_be_quoted', false); // false = status change
+		} else if (existingWorkshopId && (workshopStatus === 'completed' || workshopStatus === 'to_be_scrapped')) {
+			toastInfo('Job is already ' + (workshopStatus === 'completed' ? 'completed' : 'scrapped') + '. Use the Undo button to revert its status.');
+			isSubmitting = false;
+			showProcessingModal = false;
+			return;
 		} else {
 			// Default: set to "to_be_quoted"
 			(formData as any).status = 'to_be_quoted';
@@ -1656,6 +1662,103 @@
 		'timestamp:',
 		new Date().toISOString()
 	);
+
+	// ============================================
+	// UNDO STATUS LOGIC (for completed & to_be_scrapped)
+	// ============================================
+	function getPreviousBoardStatus(historyEntries: typeof history): JobStatus {
+		if (Array.isArray(historyEntries) && historyEntries.length > 0) {
+			for (let i = historyEntries.length - 1; i >= 0; i--) {
+				const st = historyEntries[i]?.status as JobStatus;
+				if (st && st !== 'completed' && st !== 'to_be_scrapped') {
+					return st;
+				}
+			}
+		}
+		return 'repaired';
+	}
+
+	function getStatusDisplayName(status: string | null): string {
+		if (!status) return 'Unknown';
+		const displayNames: Record<string, string> = {
+			new: 'New',
+			pickup: 'Pickup',
+			to_be_quoted: 'To Be Quoted',
+			docket_ready: 'Docket Ready',
+			quoted: 'Quoted',
+			waiting_approval_po: 'Waiting Approval PO',
+			waiting_for_parts: 'Waiting For Parts',
+			booked_in_for_repair_service: 'Booked In For Repair/Service',
+			repaired: 'Repaired',
+			pickup_from_workshop: 'Workshop Pickup',
+			return: 'Return',
+			pending_jobs: 'Pending Jobs',
+			warranty_claim: 'Warranty Claim',
+			drawing_request: 'Drawing Request',
+			completed: 'Completed',
+			to_be_scrapped: 'To Be Scrapped',
+			deliver_to_workshop: 'Deliver to Workshop'
+		};
+		return displayNames[status] || status.replace(/_/g, ' ');
+	}
+
+	$: previousBoardStatus =
+		existingWorkshopId && (workshopStatus === 'completed' || workshopStatus === 'to_be_scrapped')
+			? getPreviousBoardStatus(history)
+			: null;
+
+	$: previousBoardStatusDisplay = previousBoardStatus
+		? getStatusDisplayName(previousBoardStatus)
+		: '';
+
+	// Undo status modal state
+	let showUndoModal = false;
+	let isUndoing = false;
+
+	function promptUndoStatus() {
+		showUndoModal = true;
+	}
+
+	function closeUndoModal() {
+		if (isUndoing) return;
+		showUndoModal = false;
+	}
+
+	async function handleConfirmUndo() {
+		if (!existingWorkshopId) return;
+
+		const targetStatus = previousBoardStatus || 'repaired';
+		isUndoing = true;
+		isSubmitting = true;
+
+		try {
+			// Add new history entry for reverting back to the target board status (keeps all prior history)
+			addHistoryEntry(targetStatus, false);
+
+			// Prepare data for updateWorkshop
+			const updatePayload: Partial<WorkshopFormData> = {
+				status: targetStatus,
+				history
+			};
+
+			// Save to Supabase
+			await updateWorkshop(existingWorkshopId, updatePayload);
+
+			// Update local status so the UI reflects the change immediately
+			workshopStatus = targetStatus;
+
+			const targetDisplayName = getStatusDisplayName(targetStatus);
+			toastSuccess(`Workshop job reverted to "${targetDisplayName}" and returned to Workshop Board!`);
+
+			showUndoModal = false;
+		} catch (error) {
+			console.error('Failed to undo workshop status:', error);
+			toastError('Failed to undo workshop status. Please try again.');
+		} finally {
+			isUndoing = false;
+			isSubmitting = false;
+		}
+	}
 
 	async function sendCommentEmailNotification(commentText: string, orderId: string, workshopId: string) {
 		try {
@@ -2600,6 +2703,9 @@
 			{existingOrderId}
 			{currentJobStatus}
 			{startedWith}
+			onUndoStatus={promptUndoStatus}
+			{previousBoardStatusDisplay}
+			{isSubmitting}
 		/>
 
 		<form class="space-y-8 mt-6">
@@ -2731,6 +2837,8 @@
 				{handleSubmit}
 				{getSubmitButtonLoadingText}
 				{submitButtonText}
+				onUndoStatus={promptUndoStatus}
+				{previousBoardStatusDisplay}
 			/>
 		</form>
 	</div>
@@ -2774,5 +2882,11 @@
 		{selectedCustomer}
 		bind:showDeleteJobModal
 		{handleDeleteJob}
+		{showUndoModal}
+		{closeUndoModal}
+		{handleConfirmUndo}
+		undoTargetStatusDisplay={previousBoardStatusDisplay}
+		currentStatusDisplay={currentJobStatus.statusDisplay}
+		{isUndoing}
 	/>
 </div>

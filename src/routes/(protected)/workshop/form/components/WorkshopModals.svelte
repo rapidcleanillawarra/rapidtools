@@ -58,6 +58,13 @@
 
   export let showDeleteJobModal: boolean;
   export let handleDeleteJob: () => void;
+
+  export let showUndoModal: boolean = false;
+  export let closeUndoModal: () => void = () => {};
+  export let handleConfirmUndo: () => void = () => {};
+  export let undoTargetStatusDisplay: string = '';
+  export let currentStatusDisplay: string = '';
+  export let isUndoing: boolean = false;
 </script>
 
   <!-- Success Modal -->
@@ -806,6 +813,88 @@
             class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/30 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors flex-1"
           >
             Delete Job
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Undo Status Confirmation Modal -->
+  {#if showUndoModal}
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div class="bg-[#141619] border border-[#262a30] rounded-2xl shadow-2xl max-w-md w-full text-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-[#262a30] bg-[#181b20]">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <svg class="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 0 1 5 5v2m0 0l-4-4m4 4l4-4" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <h3 class="text-lg font-bold text-white">Undo Job Status</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-5 text-sm text-gray-300 leading-relaxed">
+          <p class="mb-4">
+            Are you sure you want to revert this workshop job back to the Workshop Board?
+          </p>
+
+          <div class="bg-[#181b20] border border-[#262a30] rounded-xl p-3.5 mb-4 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="text-gray-400">Current Status:</span>
+              <span class="font-semibold text-red-400 capitalize">{currentStatusDisplay}</span>
+            </div>
+            <div class="flex items-center justify-between text-xs border-t border-[#262a30] pt-2">
+              <span class="text-gray-400">Reverting to:</span>
+              <span class="font-semibold text-lime-400 capitalize">{undoTargetStatusDisplay}</span>
+            </div>
+          </div>
+
+          <div class="bg-amber-950/30 border border-amber-500/30 rounded-xl p-3.5">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-amber-300">
+                  This job will move back to <strong class="font-semibold text-white">{undoTargetStatusDisplay}</strong> on the Workshop Board. All job history will be preserved.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-6 py-4 bg-[#181b20] border-t border-[#262a30] rounded-b-2xl flex space-x-3">
+          <button
+            type="button"
+            on:click={closeUndoModal}
+            disabled={isUndoing}
+            class="btn-secondary flex-1 py-2 text-sm justify-center"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            on:click={handleConfirmUndo}
+            disabled={isUndoing}
+            class="w-full flex-1 py-2 text-sm font-semibold rounded-lg border border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200 disabled:opacity-50 transition-colors inline-flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {#if isUndoing}
+              <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Reverting...
+            {:else}
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 0 1 5 5v2m0 0l-4-4m4 4l4-4" />
+              </svg>
+              Confirm Undo
+            {/if}
           </button>
         </div>
       </div>

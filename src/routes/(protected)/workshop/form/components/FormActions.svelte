@@ -13,6 +13,9 @@
 
   export let getSubmitButtonLoadingText: () => string;
   export let submitButtonText: string;
+
+  export let onUndoStatus: (() => void) | undefined = undefined;
+  export let previousBoardStatusDisplay: string = '';
 </script>
 
 <!-- Responsive button layout -->
@@ -38,8 +41,12 @@
 
   <!-- Right side buttons - responsive grid on small screens -->
   <div class="flex flex-col gap-3 sm:flex-row sm:gap-3 sm:flex-wrap sm:justify-end">
-    <!-- Cancel Button -->
-    <a href="{base}/workshop/workshop-board" class="btn-secondary w-full sm:w-auto px-4 py-2.5 text-sm text-center inline-flex items-center justify-center">Cancel</a>
+    <!-- Cancel / Back Button -->
+    {#if workshopStatus === 'completed' || workshopStatus === 'to_be_scrapped'}
+      <a href="{base}/workshop/completed{workshopStatus === 'to_be_scrapped' ? '?status=to_be_scrapped' : ''}" class="btn-secondary w-full sm:w-auto px-4 py-2.5 text-sm text-center inline-flex items-center justify-center">Back</a>
+    {:else}
+      <a href="{base}/workshop/workshop-board" class="btn-secondary w-full sm:w-auto px-4 py-2.5 text-sm text-center inline-flex items-center justify-center">Cancel</a>
+    {/if}
 
     <!-- Regenerate Tag Button - show for all existing workshops -->
     {#if existingWorkshopId}
@@ -90,8 +97,21 @@
       </select>
     {/if}
 
-    <!-- Submit Button - for order creation, status transitions, and updates -->
-    {#if existingWorkshopId}
+    <!-- Undo Button - for completed or to_be_scrapped jobs to return to previous board status -->
+    {#if existingWorkshopId && (workshopStatus === 'completed' || workshopStatus === 'to_be_scrapped')}
+      <button
+        type="button"
+        on:click={onUndoStatus}
+        disabled={isSubmitting}
+        class="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 hover:text-amber-200 disabled:opacity-50 transition-colors shadow-sm cursor-pointer"
+      >
+        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 0 1 5 5v2m0 0l-4-4m4 4l4-4" />
+        </svg>
+        <span>Undo to {previousBoardStatusDisplay || 'Previous Status'}</span>
+      </button>
+    {:else if existingWorkshopId}
+      <!-- Submit Button - for order creation, status transitions, and updates -->
       <button
         type="button"
         on:click={handleSubmit}

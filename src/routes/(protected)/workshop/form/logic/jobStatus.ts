@@ -229,6 +229,23 @@ export function evaluateJobStatus(context: JobStatusContext): JobStatusResult {
 	}
 
 	// ============================================
+	// PRIORITY 4.91: TO BE SCRAPPED STATUS
+	// ============================================
+	// Jobs marked to be scrapped
+	if (existingWorkshopId && workshopStatus === 'to_be_scrapped') {
+		return {
+			canEditMachineInfo: false, // Cannot edit machine info for scrapped jobs
+			canEditUserInfo: false, // Cannot edit user info for scrapped jobs
+			canEditContacts: false, // Cannot edit contacts for scrapped jobs
+			canCreateOrder: false, // Already processed
+			canPickup: false, // Scrapped jobs aren't pickups
+			buttonText: 'To Be Scrapped',
+			statusDisplay: 'To Be Scrapped',
+			priority: 4.91
+		};
+	}
+
+	// ============================================
 	// PRIORITY 4.95: DRAWING REQUEST STATUS
 	// ============================================
 	// Jobs that are in drawing request status

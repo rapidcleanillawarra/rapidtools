@@ -750,14 +750,26 @@
 		}
 	}
 
+	function getMissingFields(request: ProductRequest): string[] {
+		const missing: string[] = [];
+		if (!request.sku) missing.push('SKU');
+		if (!request.product_name) missing.push('Product Name');
+		if (!request.brand) missing.push('Brand');
+		if (!request.primary_supplier) missing.push('Supplier');
+		if (!request.category) missing.push('Category');
+		if (!request.purchase_price) missing.push('Purchase Price');
+		if (!request.retail_mup) missing.push('Markup %');
+		return missing;
+	}
+
 	const isDesktopLayout = new MediaQuery('min-width: 1024px');
 
 	const textInputClass =
 		'w-full min-w-0 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors';
 	const numberInputClass =
-		'w-full min-w-0 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-2 py-1.5 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors';
+		'w-full min-w-0 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 transition-colors';
 	const checkboxClass =
-		'h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]';
+		'h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619] cursor-pointer';
 
 	function handleSelectAll() {
 		if (selectAll) {
@@ -1398,7 +1410,19 @@
 			<div
 				class="sticky top-14 z-30 flex flex-col-reverse gap-3 border-b border-[#262a30] bg-[#141619]/95 py-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between lg:top-[64px]"
 			>
-				<div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+				<div class="flex min-w-0 flex-wrap items-center gap-3">
+					<label
+						class="inline-flex cursor-pointer select-none items-center gap-2 rounded-lg border border-[#262a30] bg-[#181b20] px-3.5 py-2 text-sm font-medium text-gray-300 transition hover:border-[#353a43] hover:bg-[#1f2329]"
+					>
+						<input
+							type="checkbox"
+							bind:checked={selectAll}
+							onchange={handleSelectAll}
+							class={checkboxClass}
+						/>
+						<span>Select All ({productRequests.length})</span>
+					</label>
+
 					<button
 						type="button"
 						class="inline-flex w-full items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 sm:w-auto sm:min-w-[160px]"
@@ -1415,7 +1439,11 @@
 						{/if}
 					</button>
 					{#if selectedRows.size > 0}
-						<span class="text-sm text-gray-400">{selectedRows.size} selected</span>
+						<span
+							class="inline-flex items-center gap-1.5 rounded-full border border-lime-500/20 bg-lime-500/10 px-3 py-1 text-xs font-semibold text-lime-400"
+						>
+							{selectedRows.size} selected
+						</span>
 					{/if}
 				</div>
 				<button
@@ -1445,7 +1473,7 @@
 						<button
 							type="button"
 							onclick={applyCategoryToAll}
-							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm transition hover:border-lime-500/50 hover:bg-lime-500/20"
 							title="Apply category to all rows"
 						>
 							{@html applyToAllIcon}
@@ -1454,7 +1482,7 @@
 						<button
 							type="button"
 							onclick={applyRetailMupToAll}
-							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm transition hover:border-lime-500/50 hover:bg-lime-500/20"
 							title="Apply Markup % to all rows"
 						>
 							{@html applyToAllIcon}
@@ -1463,7 +1491,7 @@
 						<button
 							type="button"
 							onclick={applyGPPToAll}
-							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm transition hover:border-lime-500/50 hover:bg-lime-500/20"
 							title="Apply GPP to all rows"
 						>
 							{@html applyToAllIcon}
@@ -1473,35 +1501,44 @@
 				</div>
 			</div>
 
-			{#snippet fieldLabel(id: string, text: string, labeled: boolean)}
-				<label class={labeled ? 'mb-1 block text-xs font-medium text-gray-400' : 'sr-only'} for={id}
-					>{text}</label
+			{#snippet skuField(request: ProductRequest)}
+				<label
+					class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-400"
+					for={`sku-${request.id}`}
 				>
-			{/snippet}
-
-			{#snippet skuField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`sku-${request.id}`, 'SKU', labeled)}
+					SKU <span class="text-red-400">*</span>
+				</label>
 				<input
 					id={`sku-${request.id}`}
 					type="text"
 					bind:value={request.sku}
 					class={textInputClass}
-					placeholder="SKU"
+					placeholder="e.g. SKU-1234"
 				/>
 			{/snippet}
 
-			{#snippet productNameField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`product-name-${request.id}`, 'Product Name', labeled)}
+			{#snippet productNameField(request: ProductRequest)}
+				<label
+					class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-400"
+					for={`product-name-${request.id}`}
+				>
+					Product Name <span class="text-red-400">*</span>
+				</label>
 				<input
 					id={`product-name-${request.id}`}
 					type="text"
 					bind:value={request.product_name}
 					class={textInputClass}
-					placeholder="Product Name"
+					placeholder="Enter product title..."
 				/>
 			{/snippet}
 
 			{#snippet imagesField(request: ProductRequest)}
+				<div class="mb-1.5 flex items-center justify-between">
+					<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+						Images <span class="text-[10px] font-normal normal-case text-gray-500">(Optional)</span>
+					</span>
+				</div>
 				<ProductRequestImages
 					bind:images={
 						() => request.imageDrafts ?? [],
@@ -1515,6 +1552,11 @@
 			{/snippet}
 
 			{#snippet brandField(request: ProductRequest)}
+				<div class="mb-1.5 flex items-center justify-between">
+					<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+						Brand <span class="text-red-400">*</span>
+					</span>
+				</div>
 				<div class="select-wrapper min-w-0">
 					{#if loadingBrands}
 						<div class="h-10 animate-pulse rounded-lg border border-[#262a30] bg-[#1f2329]"></div>
@@ -1543,6 +1585,11 @@
 			{/snippet}
 
 			{#snippet supplierField(request: ProductRequest)}
+				<div class="mb-1.5 flex items-center justify-between">
+					<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+						Supplier <span class="text-red-400">*</span>
+					</span>
+				</div>
 				<div class="select-wrapper min-w-0">
 					{#if loadingSuppliers}
 						<div class="h-10 animate-pulse rounded-lg border border-[#262a30] bg-[#1f2329]"></div>
@@ -1569,6 +1616,24 @@
 			{/snippet}
 
 			{#snippet categoryField(request: ProductRequest)}
+				<div class="mb-1.5 flex items-center justify-between">
+					<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+						Category <span class="text-red-400">*</span>
+					</span>
+					{#if productRequests.length > 1 && request.id !== productRequests[0].id && productRequests[0].category}
+						<button
+							type="button"
+							onclick={() => {
+								request.category = productRequests[0].category;
+							}}
+							class="inline-flex items-center gap-1 text-[11px] font-medium text-lime-400 hover:text-lime-300 hover:underline"
+							title="Copy category from Row #1"
+						>
+							{@html applyToAllIcon}
+							Copy from #1
+						</button>
+					{/if}
+				</div>
 				<div class="select-wrapper min-w-0">
 					<Select
 						items={categoriesList}
@@ -1594,8 +1659,13 @@
 				</div>
 			{/snippet}
 
-			{#snippet purchasePriceField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`purchase-price-${request.id}`, 'Purchase Price', labeled)}
+			{#snippet purchasePriceField(request: ProductRequest)}
+				<label
+					class="mb-1 block text-xs font-medium text-gray-400"
+					for={`purchase-price-${request.id}`}
+				>
+					Purchase Price ($) <span class="text-red-400">*</span>
+				</label>
 				<input
 					id={`purchase-price-${request.id}`}
 					type="number"
@@ -1607,8 +1677,13 @@
 				/>
 			{/snippet}
 
-			{#snippet markupPercentField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`markup-percent-${request.id}`, 'Markup %', labeled)}
+			{#snippet markupPercentField(request: ProductRequest)}
+				<label
+					class="mb-1 block text-xs font-medium text-gray-400"
+					for={`markup-percent-${request.id}`}
+				>
+					Markup % <span class="text-red-400">*</span>
+				</label>
 				<input
 					id={`markup-percent-${request.id}`}
 					type="number"
@@ -1620,8 +1695,13 @@
 				/>
 			{/snippet}
 
-			{#snippet gppField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`gpp-${request.id}`, 'GPP', labeled)}
+			{#snippet gppField(request: ProductRequest)}
+				<label
+					class="mb-1 block text-xs font-medium text-gray-400"
+					for={`gpp-${request.id}`}
+				>
+					GPP %
+				</label>
 				<input
 					id={`gpp-${request.id}`}
 					type="number"
@@ -1633,8 +1713,13 @@
 				/>
 			{/snippet}
 
-			{#snippet listPriceField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`list-price-${request.id}`, 'List Price', labeled)}
+			{#snippet listPriceField(request: ProductRequest)}
+				<label
+					class="mb-1 block text-xs font-medium text-gray-400"
+					for={`list-price-${request.id}`}
+				>
+					List Price ($)
+				</label>
 				<input
 					id={`list-price-${request.id}`}
 					type="number"
@@ -1646,21 +1731,30 @@
 				/>
 			{/snippet}
 
-			{#snippet rrpField(request: ProductRequest, labeled: boolean)}
-				{@render fieldLabel(`rrp-${request.id}`, 'RRP', labeled)}
+			{#snippet rrpField(request: ProductRequest)}
+				<label
+					class="mb-1 block text-xs font-semibold uppercase tracking-wider text-lime-400"
+					for={`rrp-${request.id}`}
+				>
+					RRP ($)
+				</label>
 				<input
 					id={`rrp-${request.id}`}
 					type="number"
 					bind:value={request.rrp}
 					onblur={() => applyRrp(request)}
 					step="0.01"
-					class={numberInputClass}
+					class={`${numberInputClass} font-semibold text-lime-400`}
 					placeholder="0.00"
 				/>
 			{/snippet}
 
-			{#snippet taxFreeField(request: ProductRequest, labeled: boolean)}
-				<div class={labeled ? 'flex items-center gap-2' : ''}>
+			{#snippet taxFreeField(request: ProductRequest)}
+				<label class="mb-1 block text-xs font-medium text-gray-400">Tax</label>
+				<label
+					for={`tax-${request.id}`}
+					class="flex h-[38px] cursor-pointer items-center gap-2 rounded-lg border border-[#262a30] bg-[#0e1012] px-3 transition hover:border-[#353a43]"
+				>
 					<input
 						id={`tax-${request.id}`}
 						type="checkbox"
@@ -1668,10 +1762,8 @@
 						onchange={() => calculatePrices(request, 'tax')}
 						class={checkboxClass}
 					/>
-					<label class={labeled ? 'text-sm text-gray-300' : 'sr-only'} for={`tax-${request.id}`}
-						>Tax Free</label
-					>
-				</div>
+					<span class="select-none text-xs font-medium text-gray-300">Tax Free</span>
+				</label>
 			{/snippet}
 
 			{#snippet requestCheckbox(request: ProductRequest)}
@@ -1690,165 +1782,127 @@
 				<div
 					class="rounded-2xl border border-[#262a30] bg-[#141619] px-6 py-16 text-center shadow-xl"
 				>
+					<div
+						class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#1f2329] text-lime-400"
+					>
+						<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 13l4 4L19 7"
+							/>
+						</svg>
+					</div>
 					<p class="font-medium text-gray-300">No pending product requests</p>
 					<p class="mt-1 text-sm text-gray-500">New requests will appear here for review.</p>
 				</div>
-			{:else if isDesktopLayout.current}
-				<div class="min-w-0 overflow-hidden rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl">
-					<div class="min-w-0 overflow-x-auto">
-						<table class="w-full min-w-[1200px] divide-y divide-[#262a30] text-sm">
-							<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
-								<tr>
-									<th class="w-10 py-3 pl-6 pr-3 text-left">
-										<input
-											type="checkbox"
-											bind:checked={selectAll}
-											onchange={handleSelectAll}
-											class={checkboxClass}
-										/>
-									</th>
-									<th class="w-32 px-3 py-3 text-left">Requestor</th>
-									<th class="w-28 px-3 py-3 text-left">SKU</th>
-									<th class="w-48 px-3 py-3 text-left">Product Name</th>
-									<th class="w-36 px-3 py-3 text-left">
-										Images
-										<span
-											class="mt-0.5 block text-[10px] font-normal normal-case tracking-normal text-gray-500"
-											>Optional</span
-										>
-									</th>
-									<th class="w-52 px-3 py-3 text-left">Brand</th>
-									<th class="w-52 px-3 py-3 text-left">Supplier</th>
-									<th class="w-52 px-3 py-3 text-left">
-										<div class="flex items-center gap-2">
-											<span>Category</span>
-											<button
-												type="button"
-												onclick={applyCategoryToAll}
-												class="inline-flex items-center justify-center rounded-md p-1 text-lime-400 transition-colors hover:bg-lime-500/20 hover:text-lime-300"
-												title="Apply to all rows"
-											>
-												{@html applyToAllIcon}
-											</button>
-										</div>
-									</th>
-									<th class="w-28 px-3 py-3 text-left">Purchase Price</th>
-									<th class="w-24 px-3 py-3 text-left">
-										<div class="flex items-center gap-2">
-											<span>Markup %</span>
-											<button
-												type="button"
-												onclick={applyRetailMupToAll}
-												class="inline-flex items-center justify-center rounded-md p-1 text-lime-400 transition-colors hover:bg-lime-500/20 hover:text-lime-300"
-												title="Apply to all rows"
-											>
-												{@html applyToAllIcon}
-											</button>
-										</div>
-									</th>
-									<th class="w-24 px-3 py-3 text-left">
-										<div class="flex items-center gap-2">
-											<span>GPP</span>
-											<button
-												type="button"
-												onclick={applyGPPToAll}
-												class="inline-flex items-center justify-center rounded-md p-1 text-lime-400 transition-colors hover:bg-lime-500/20 hover:text-lime-300"
-												title="Apply to all rows"
-											>
-												{@html applyToAllIcon}
-											</button>
-										</div>
-									</th>
-									<th class="w-28 px-3 py-3 text-left">List Price</th>
-									<th class="w-28 px-3 py-3 text-left">RRP</th>
-									<th class="w-20 py-3 pl-3 pr-6 text-center">Tax Free</th>
-								</tr>
-							</thead>
-							<tbody class="divide-y divide-[#262a30] bg-[#141619]">
-								{#each productRequests as request (request.id)}
-									<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
-										<td class="py-4 pl-6 pr-3 align-middle">{@render requestCheckbox(request)}</td>
-										<td class="w-32 px-3 py-4 align-middle">
-											<span class="text-xs font-medium text-gray-200">
-												{request.requestor_firstName}
-												{request.requestor_lastName}
-											</span>
-										</td>
-										<td class="w-28 px-3 py-4 align-top">{@render skuField(request, false)}</td>
-										<td class="w-48 px-3 py-4 align-top">{@render productNameField(request, false)}</td>
-										<td class="w-36 px-3 py-4 align-top">{@render imagesField(request)}</td>
-										<td class="w-52 px-3 py-4 align-top">{@render brandField(request)}</td>
-										<td class="w-52 px-3 py-4 align-top">{@render supplierField(request)}</td>
-										<td class="w-52 px-3 py-4 align-top">{@render categoryField(request)}</td>
-										<td class="w-28 px-3 py-4 align-top">{@render purchasePriceField(request, false)}</td>
-										<td class="w-24 px-3 py-4 align-top">{@render markupPercentField(request, false)}</td>
-										<td class="w-24 px-3 py-4 align-top">{@render gppField(request, false)}</td>
-										<td class="w-28 px-3 py-4 align-top">{@render listPriceField(request, false)}</td>
-										<td class="w-28 px-3 py-4 align-top">{@render rrpField(request, false)}</td>
-										<td class="w-20 py-4 pl-3 pr-6 text-center align-middle">
-											{@render taxFreeField(request, false)}
-										</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-				</div>
 			{:else}
-				<div class="flex items-center gap-3 px-1">
-					<input
-						type="checkbox"
-						bind:checked={selectAll}
-						onchange={handleSelectAll}
-						class={checkboxClass}
-						id="select-all-mobile"
-					/>
-					<label for="select-all-mobile" class="text-sm text-gray-300">Select all</label>
-				</div>
 				<div class="space-y-4">
-					{#each productRequests as request (request.id)}
+					{#each productRequests as request, index (request.id)}
+						{@const missing = getMissingFields(request)}
+						{@const isSelected = selectedRows.has(request.id)}
 						<article
-							class="min-w-0 space-y-4 rounded-2xl border border-[#262a30] bg-[#181b20] p-4 shadow-xl"
+							class="request-card rounded-2xl border transition-all duration-200 {isSelected
+								? 'border-lime-500/50 bg-[#16191e] shadow-lg shadow-lime-500/5 ring-1 ring-lime-500/30'
+								: 'border-[#262a30] bg-[#141619] hover:border-[#353a43]'}"
 						>
-							<div class="flex items-start gap-3">
-								<div class="pt-1">{@render requestCheckbox(request)}</div>
-								<div class="min-w-0 flex-1 space-y-1">
-									<p class="text-xs font-medium text-gray-400">
-										{request.requestor_firstName}
-										{request.requestor_lastName}
-									</p>
-									{@render skuField(request, true)}
+							<!-- Card Header -->
+							<div
+								class="flex flex-wrap items-center justify-between gap-3 border-b border-[#262a30] px-4 py-3 sm:px-6"
+							>
+								<div class="flex flex-wrap items-center gap-3">
+									<label class="flex cursor-pointer select-none items-center gap-2.5">
+										{@render requestCheckbox(request)}
+										<span class="text-xs font-bold uppercase tracking-wider text-lime-400">
+											Request #{index + 1}
+										</span>
+									</label>
+									<span class="text-gray-600">|</span>
+									<div class="flex items-center gap-1.5 text-xs text-gray-400">
+										<span class="text-gray-500">Requested by:</span>
+										<span class="font-medium text-gray-200">
+											{request.requestor_firstName || 'Unknown'} {request.requestor_lastName || 'User'}
+										</span>
+										{#if request.requestor_email}
+											<span class="hidden text-gray-500 sm:inline">({request.requestor_email})</span>
+										{/if}
+									</div>
+								</div>
+
+								<div class="flex items-center gap-2">
+									{#if missing.length === 0}
+										<span
+											class="inline-flex items-center gap-1.5 rounded-full border border-lime-500/30 bg-lime-500/10 px-2.5 py-0.5 text-xs font-medium text-lime-400"
+										>
+											<span class="h-1.5 w-1.5 rounded-full bg-lime-400"></span>
+											Ready
+										</span>
+									{:else}
+										<span
+											class="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-400"
+											title={`Missing: ${missing.join(', ')}`}
+										>
+											<span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+											Missing {missing.length} {missing.length === 1 ? 'field' : 'fields'}
+										</span>
+									{/if}
 								</div>
 							</div>
 
-							<div>{@render productNameField(request, true)}</div>
+							<!-- Card Body -->
+							<div class="space-y-4 p-4 sm:p-6">
+								<!-- Row 1: SKU, Product Name, Images -->
+								<div class="flex flex-col gap-4 lg:flex-row lg:items-start">
+									<div class="w-full shrink-0 sm:w-56 lg:w-60">
+										{@render skuField(request)}
+									</div>
+									<div class="w-full min-w-0 flex-1">
+										{@render productNameField(request)}
+									</div>
+									<div class="w-full shrink-0 lg:w-auto">
+										{@render imagesField(request)}
+									</div>
+								</div>
 
-							<div>
-								<p class="mb-1 text-xs font-medium text-gray-400">Images</p>
-								<p class="mb-2 text-[10px] text-gray-500">Optional</p>
-								{@render imagesField(request)}
-							</div>
+								<!-- Row 2: Brand, Supplier, Category (Expansive Dropdowns) -->
+								<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+									<div>{@render brandField(request)}</div>
+									<div>{@render supplierField(request)}</div>
+									<div>{@render categoryField(request)}</div>
+								</div>
 
-							<div>
-								<p class="mb-1 text-xs font-medium text-gray-400">Brand</p>
-								{@render brandField(request)}
-							</div>
-							<div>
-								<p class="mb-1 text-xs font-medium text-gray-400">Supplier</p>
-								{@render supplierField(request)}
-							</div>
-							<div>
-								<p class="mb-1 text-xs font-medium text-gray-400">Category</p>
-								{@render categoryField(request)}
-							</div>
-
-							<div class="grid grid-cols-2 gap-3">
-								<div>{@render purchasePriceField(request, true)}</div>
-								<div>{@render markupPercentField(request, true)}</div>
-								<div>{@render gppField(request, true)}</div>
-								<div>{@render listPriceField(request, true)}</div>
-								<div>{@render rrpField(request, true)}</div>
-								<div class="flex items-end pb-1">{@render taxFreeField(request, true)}</div>
+								<!-- Row 3: Pricing & Margins -->
+								<div class="rounded-xl border border-[#262a30] bg-[#0e1012]/70 p-3.5 sm:p-4">
+									<div
+										class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[#262a30]/60 pb-2"
+									>
+										<span
+											class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-lime-400"
+										>
+											<svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+												/>
+											</svg>
+											Pricing & Margins
+										</span>
+										<span class="text-[11px] text-gray-500">
+											Calculates automatically as values change
+										</span>
+									</div>
+									<div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-3 lg:grid-cols-6">
+										<div>{@render purchasePriceField(request)}</div>
+										<div>{@render markupPercentField(request)}</div>
+										<div>{@render gppField(request)}</div>
+										<div>{@render listPriceField(request)}</div>
+										<div>{@render rrpField(request)}</div>
+										<div>{@render taxFreeField(request)}</div>
+									</div>
+								</div>
 							</div>
 						</article>
 					{/each}
@@ -1951,7 +2005,7 @@
 
 <style>
 	:global(.svelte-select) {
-		--height: 38px;
+		--height: 40px;
 		--border: 1px solid #262a30;
 		--border-hover: 1px solid #84cc16;
 		--border-focused: 1px solid #a3e635;
@@ -1966,7 +2020,9 @@
 		--item-is-active-bg: #262a30;
 		--item-is-active-color: #a3e635;
 		--list-background: #141619;
-		--list-border: 1px solid #262a30;
+		--list-border: 1px solid #333842;
+		--list-z-index: 1000;
+		--list-max-height: 280px;
 		--clear-select-color: #9ca3af;
 		width: 100%;
 		position: relative;
@@ -1980,43 +2036,58 @@
 		min-height: var(--height);
 		padding: 0;
 		color: #e5e7eb;
+		transition:
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
 	}
 
+	:global(.svelte-select.focused .selectContainer) {
+		border-color: #a3e635;
+		box-shadow: 0 0 0 1px rgba(163, 230, 53, 0.3);
+	}
+
+	:global(.svelte-select-list),
 	:global(.svelte-select .items) {
-		position: absolute;
-		top: 100%;
-		left: 0;
-		right: 0;
-		border: var(--list-border, 1px solid #262a30);
-		border-radius: var(--border-radius);
-		background: var(--list-background, #141619);
-		margin-top: 4px;
+		position: absolute !important;
+		top: 100% !important;
+		left: 0 !important;
+		right: 0 !important;
+		border: 1px solid #333842 !important;
+		border-radius: 0.5rem !important;
+		background: #141619 !important;
+		margin-top: 4px !important;
 		box-shadow:
-			0 10px 15px -3px rgba(0, 0, 0, 0.5),
-			0 4px 6px -2px rgba(0, 0, 0, 0.4);
-		z-index: 999;
-		max-height: 300px;
-		overflow-y: auto;
-		color: #e5e7eb;
+			0 14px 28px rgba(0, 0, 0, 0.7),
+			0 10px 10px rgba(0, 0, 0, 0.5) !important;
+		z-index: 1000 !important;
+		max-height: 280px !important;
+		overflow-y: auto !important;
+		color: #e5e7eb !important;
 	}
 
+	:global(.svelte-select-list .item),
 	:global(.svelte-select .item) {
-		font-size: var(--font-size);
-		line-height: 1.25;
-		padding: 0.5rem 0.75rem;
-		white-space: normal;
-		word-break: break-word;
-		color: #e5e7eb;
+		font-size: 0.875rem !important;
+		line-height: 1.35 !important;
+		padding: 0.6rem 0.75rem !important;
+		white-space: normal !important;
+		word-break: break-word !important;
+		color: #e5e7eb !important;
+		height: auto !important;
+		min-height: 38px !important;
+		cursor: pointer !important;
 	}
 
+	:global(.svelte-select-list .item.hover),
 	:global(.svelte-select .item.hover) {
-		background-color: #1f2329;
-		color: #a3e635;
+		background-color: #1f2329 !important;
+		color: #a3e635 !important;
 	}
 
+	:global(.svelte-select-list .item.active),
 	:global(.svelte-select .item.active) {
-		background-color: #262a30;
-		color: #a3e635;
+		background-color: #262a30 !important;
+		color: #a3e635 !important;
 	}
 
 	#select-portal {
@@ -2035,7 +2106,16 @@
 	}
 
 	.select-wrapper:focus-within {
-		z-index: 20;
+		z-index: 50;
+	}
+
+	.request-card {
+		position: relative;
+		z-index: 1;
+	}
+
+	.request-card:focus-within {
+		z-index: 25;
 	}
 
 	:global(.svelte-select .value-container) {
@@ -2054,6 +2134,9 @@
 		height: 100%;
 		line-height: normal;
 		color: #e5e7eb;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	:global(.svelte-select input) {

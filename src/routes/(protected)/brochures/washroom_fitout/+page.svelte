@@ -7,7 +7,9 @@
 	import { toastError } from '$lib/utils/toast';
 
 	const DEFAULT_EMAIL = 'contact@rapidcleanillawarra.com.au';
+	const DEFAULT_PHONE = '(02) 4227 2833';
 	const EMAIL_STORAGE_KEY = 'brochure_wf_contact_email';
+	const PHONE_STORAGE_KEY = 'brochure_wf_contact_phone';
 	const address = '112a Industrial Road, Oak Flats NSW 2529';
 
 	const svgDataUri = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;
@@ -76,10 +78,14 @@
 	let brochureEl = $state<HTMLDivElement | null>(null);
 
 	let contactEmail = $state(DEFAULT_EMAIL);
-	let emailModalOpen = $state(false);
+	let contactPhone = $state(DEFAULT_PHONE);
+	let contactModalOpen = $state(false);
 	let displayEmail = $derived(contactEmail.trim() || DEFAULT_EMAIL);
+	let displayPhone = $derived(contactPhone.trim() || DEFAULT_PHONE);
 	let isCustomEmail = $derived(contactEmail.trim() !== '' && contactEmail.trim() !== DEFAULT_EMAIL);
-	let brandTag = $derived(`${displayEmail} · (02) 4227 2833`);
+	let isCustomPhone = $derived(contactPhone.trim() !== '' && contactPhone.trim() !== DEFAULT_PHONE);
+	let isCustomContact = $derived(isCustomEmail || isCustomPhone);
+	let brandTag = $derived(`${displayEmail} · ${displayPhone}`);
 
 	function handleEmailInput(value: string) {
 		contactEmail = value;
@@ -94,10 +100,25 @@
 		}
 	}
 
-	function resetEmailToDefault() {
+	function handlePhoneInput(value: string) {
+		contactPhone = value;
+		try {
+			if (value.trim() && value.trim() !== DEFAULT_PHONE) {
+				localStorage.setItem(PHONE_STORAGE_KEY, value.trim());
+			} else {
+				localStorage.removeItem(PHONE_STORAGE_KEY);
+			}
+		} catch {
+			// ignore storage errors
+		}
+	}
+
+	function resetContactToDefault() {
 		contactEmail = DEFAULT_EMAIL;
+		contactPhone = DEFAULT_PHONE;
 		try {
 			localStorage.removeItem(EMAIL_STORAGE_KEY);
+			localStorage.removeItem(PHONE_STORAGE_KEY);
 		} catch {
 			// ignore storage errors
 		}
@@ -105,13 +126,23 @@
 
 	onMount(async () => {
 		try {
-			const searchEmail = new URLSearchParams(window.location.search).get('email');
+			const searchParams = new URLSearchParams(window.location.search);
+			const searchEmail = searchParams.get('email');
 			const storedEmail = localStorage.getItem(EMAIL_STORAGE_KEY);
 			if (searchEmail && searchEmail.trim()) {
 				contactEmail = searchEmail.trim();
 				localStorage.setItem(EMAIL_STORAGE_KEY, contactEmail);
 			} else if (storedEmail && storedEmail.trim()) {
 				contactEmail = storedEmail.trim();
+			}
+
+			const searchPhone = searchParams.get('phone') || searchParams.get('mobile');
+			const storedPhone = localStorage.getItem(PHONE_STORAGE_KEY);
+			if (searchPhone && searchPhone.trim()) {
+				contactPhone = searchPhone.trim();
+				localStorage.setItem(PHONE_STORAGE_KEY, contactPhone);
+			} else if (storedPhone && storedPhone.trim()) {
+				contactPhone = storedPhone.trim();
 			}
 		} catch {
 			// ignore storage/url errors
@@ -200,7 +231,16 @@
 				</div>
 				<div class="item">
 					<span class="label">Contact</span>
-					<span class="value">(02) 4227 2833</span>
+					<span
+						class="value clickable-contact"
+						role="button"
+						tabindex="0"
+						onclick={() => (contactModalOpen = true)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') contactModalOpen = true;
+						}}
+						title="Click to change contact details"
+					>{displayPhone}</span>
 				</div>
 			</div>
 		</div>
@@ -389,16 +429,27 @@
 			</ul>
 
 			<div class="cta-banner">
-				To discuss a free club washroom fit-out: call <strong>(02) 4227 2833</strong> or email
+				To discuss a free club washroom fit-out: call
 				<strong
-					class="clickable-email"
+					class="clickable-contact"
 					role="button"
 					tabindex="0"
-					onclick={() => (emailModalOpen = true)}
+					onclick={() => (contactModalOpen = true)}
 					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') emailModalOpen = true;
+						if (e.key === 'Enter' || e.key === ' ') contactModalOpen = true;
 					}}
-					title="Click to change email address"
+					title="Click to change contact details"
+				>{displayPhone}</strong>
+				or email
+				<strong
+					class="clickable-contact"
+					role="button"
+					tabindex="0"
+					onclick={() => (contactModalOpen = true)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') contactModalOpen = true;
+					}}
+					title="Click to change contact details"
 				>{displayEmail}</strong>
 			</div>
 		</div>
@@ -436,19 +487,28 @@
 				</div>
 				<div class="contact-card">
 					<h4>Call</h4>
-					<p>(02) 4227 2833</p>
+					<p
+						class="clickable-contact"
+						role="button"
+						tabindex="0"
+						onclick={() => (contactModalOpen = true)}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') contactModalOpen = true;
+						}}
+						title="Click to change contact details"
+					>{displayPhone}</p>
 				</div>
 				<div class="contact-card">
 					<h4>Email</h4>
 					<p
-						class="clickable-email"
+						class="clickable-contact"
 						role="button"
 						tabindex="0"
-						onclick={() => (emailModalOpen = true)}
+						onclick={() => (contactModalOpen = true)}
 						onkeydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') emailModalOpen = true;
+							if (e.key === 'Enter' || e.key === ' ') contactModalOpen = true;
 						}}
-						title="Click to change email address"
+						title="Click to change contact details"
 					>{displayEmail}</p>
 				</div>
 				<div class="contact-card">
@@ -472,22 +532,22 @@
 	<button
 		type="button"
 		class="tool-btn"
-		onclick={() => (emailModalOpen = true)}
-		title="Change brochure contact email"
+		onclick={() => (contactModalOpen = true)}
+		title="Change brochure contact details"
 	>
-		Change email{#if isCustomEmail}&nbsp;<span class="toolbar-badge">Custom</span>{/if}
+		Change contact{#if isCustomContact}&nbsp;<span class="toolbar-badge">Custom</span>{/if}
 	</button>
 	<button type="button" class="tool-btn primary" onclick={() => (editorOpen = true)}>Edit images</button>
 </div>
 
 <BrochureImageEditor slug={SLUG} slots={imageSlots} bind:images bind:open={editorOpen} />
 
-{#if emailModalOpen}
+{#if contactModalOpen}
 	<div
 		class="email-modal-backdrop"
-		onclick={() => (emailModalOpen = false)}
+		onclick={() => (contactModalOpen = false)}
 		onkeydown={(e) => {
-			if (e.key === 'Escape') emailModalOpen = false;
+			if (e.key === 'Escape') contactModalOpen = false;
 		}}
 		role="button"
 		tabindex="0"
@@ -497,18 +557,18 @@
 	<div
 		class="email-modal"
 		role="dialog"
-		aria-labelledby="email-modal-title"
+		aria-labelledby="contact-modal-title"
 		tabindex="-1"
 		onkeydown={(e) => {
-			if (e.key === 'Escape') emailModalOpen = false;
+			if (e.key === 'Escape') contactModalOpen = false;
 		}}
 	>
 		<div class="email-modal-header">
-			<h3 id="email-modal-title">Change Contact Email</h3>
+			<h3 id="contact-modal-title">Change Contact Details</h3>
 			<button
 				type="button"
 				class="email-modal-close"
-				onclick={() => (emailModalOpen = false)}
+				onclick={() => (contactModalOpen = false)}
 				aria-label="Close dialog"
 			>&times;</button>
 		</div>
@@ -525,27 +585,44 @@
 					oninput={(e) => handleEmailInput((e.target as HTMLInputElement).value)}
 					onkeydown={(e) => {
 						if (e.key === 'Enter') {
-							emailModalOpen = false;
+							contactModalOpen = false;
+						}
+					}}
+				/>
+			</div>
+
+			<label for="contact-phone-input">Brochure mobile / phone number</label>
+			<div class="email-input-wrapper">
+				<input
+					id="contact-phone-input"
+					type="text"
+					class="email-input-field"
+					value={contactPhone}
+					placeholder={DEFAULT_PHONE}
+					oninput={(e) => handlePhoneInput((e.target as HTMLInputElement).value)}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') {
+							contactModalOpen = false;
 						}
 					}}
 				/>
 			</div>
 
 			<p class="email-modal-hint">
-				Default: <code>{DEFAULT_EMAIL}</code><br />
+				Defaults: <code>{DEFAULT_EMAIL}</code> &middot; <code>{DEFAULT_PHONE}</code><br />
 				Updates the header brand bar on all pages, the Page 3 callout banner, and the back cover.
 			</p>
 		</div>
 
 		<div class="email-modal-footer">
 			<div>
-				{#if isCustomEmail}
+				{#if isCustomContact}
 					<button
 						type="button"
 						class="btn-reset-text"
-						onclick={resetEmailToDefault}
+						onclick={resetContactToDefault}
 					>
-						Reset to default
+						Reset to defaults
 					</button>
 				{/if}
 			</div>
@@ -553,7 +630,7 @@
 				<button
 					type="button"
 					class="btn-primary"
-					onclick={() => (emailModalOpen = false)}
+					onclick={() => (contactModalOpen = false)}
 				>
 					Done
 				</button>
@@ -774,13 +851,15 @@
 		color: #991b1b;
 	}
 
-	.clickable-email {
+	.clickable-email,
+	.clickable-contact {
 		cursor: pointer;
 		transition: color 0.15s;
 	}
 
 	@media screen {
-		.clickable-email:hover {
+		.clickable-email:hover,
+		.clickable-contact:hover {
 			color: #5ea015;
 			text-decoration: underline;
 			text-underline-offset: 2px;

@@ -2,9 +2,8 @@
 	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 	import { loadBrochureImages, type BrochureImageSlot } from '$lib/brochures/brochureImages';
-	import { exportBrochurePdf, resolveBrochureImageUrl } from '$lib/brochures/exportBrochurePdf';
+	import { resolveBrochureImageUrl } from '$lib/brochures/exportBrochurePdf';
 	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
-	import { toastError } from '$lib/utils/toast';
 
 	const DEFAULT_EMAIL = 'contact@rapidcleanillawarra.com.au';
 	const DEFAULT_PHONE = '(02) 4227 2833';
@@ -54,7 +53,6 @@
 
 	let images = $state<Record<string, string>>({ ...defaults });
 	let editorOpen = $state(false);
-	let exporting = $state(false);
 	let brochureEl = $state<HTMLDivElement | null>(null);
 
 	let contactEmail = $state(DEFAULT_EMAIL);
@@ -138,16 +136,14 @@
 		images = { ...defaults, ...sanitizedOverrides };
 	});
 
-	async function downloadPdf() {
-		if (!brochureEl || exporting) return;
-		exporting = true;
-		try {
-			await exportBrochurePdf(brochureEl, 'rapidclean-preventative-maintenance.pdf');
-		} catch (error) {
-			toastError(`Could not generate PDF: ${error instanceof Error ? error.message : 'unknown error'}`);
-		} finally {
-			exporting = false;
-		}
+	function printBrochure() {
+		if (typeof window === 'undefined') return;
+		const originalTitle = document.title;
+		document.title = 'RapidClean Illawarra - Preventative Maintenance Brochure';
+		window.print();
+		setTimeout(() => {
+			document.title = originalTitle;
+		}, 1500);
 	}
 </script>
 
@@ -772,8 +768,13 @@
 </div>
 
 <div class="brochure-toolbar">
-	<button type="button" class="tool-btn" onclick={downloadPdf} disabled={exporting}>
-		{exporting ? 'Generating…' : 'Download PDF'}
+	<button
+		type="button"
+		class="tool-btn"
+		onclick={printBrochure}
+		title="Print or Save as PDF (select 'Save as PDF' in the destination dropdown)"
+	>
+		Print / Save PDF
 	</button>
 	<button
 		type="button"
@@ -2201,29 +2202,60 @@
    PRINT
    ===================================================== */
 	@page {
-		size: A4;
+		size: A4 portrait;
 		margin: 0;
 	}
 
 	@media print {
+		:global(body),
+		:global(html) {
+			background: #ffffff !important;
+			color: #11181f !important;
+			margin: 0 !important;
+			padding: 0 !important;
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
+		}
+
+		.brochure-toolbar,
+		.email-modal-backdrop,
+		.email-modal {
+			display: none !important;
+		}
+
 		.brochure {
-			background: white;
-			padding: 0;
-			/* Print every colour, gradient and image exactly as shown on screen */
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
+			background: #ffffff !important;
+			padding: 0 !important;
+			margin: 0 !important;
+			width: 210mm !important;
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
 		}
 
 		.brochure * {
-			-webkit-print-color-adjust: exact;
-			print-color-adjust: exact;
+			-webkit-print-color-adjust: exact !important;
+			print-color-adjust: exact !important;
 		}
 
 		.page {
-			margin: 0;
-			box-shadow: none;
-			width: var(--page-w);
-			height: var(--page-h);
+			margin: 0 !important;
+			box-shadow: none !important;
+			width: 210mm !important;
+			height: 297mm !important;
+			max-height: 297mm !important;
+			min-height: 297mm !important;
+			page-break-inside: avoid !important;
+			break-inside: avoid !important;
+			page-break-after: always !important;
+			break-after: page !important;
+			overflow: hidden !important;
+			box-sizing: border-box !important;
+		}
+
+		.page:last-child,
+		.page.back-cover-page {
+			page-break-after: auto !important;
+			break-after: auto !important;
 		}
 	}
 </style>

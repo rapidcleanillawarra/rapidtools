@@ -175,3 +175,46 @@
     @apply w-3/5 text-gray-200;
   }
 }
+
+/* =====================================================
+   GLOBAL PRINT STYLES
+   ===================================================== */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #11181f !important;
+    color-scheme: light !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide app navigation, sidebar, toast notifications and floating overlays */
+  .print\:hidden,
+  [class*="print:hidden"],
+  aside.fixed,
+  .toast-container,
+  .svelte-toast,
+  .svelte-select-backdrop {
+    display: none !important;
+  }
+
+  /* Reset main app container offset and background */
+  main {
+    margin-left: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    min-height: auto !important;
+    width: 100% !important;
+  }
+}

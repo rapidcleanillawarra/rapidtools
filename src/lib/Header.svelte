@@ -315,7 +315,7 @@
 
 {#if !isLandingPage}
 	<!-- Mobile Top Bar with Rapid Clean Theme -->
-	<div class="sticky top-0 z-50 w-full border-b border-[#262a30] bg-[#141619] shadow-lg lg:hidden">
+	<div class="sticky top-0 z-50 w-full border-b border-[#262a30] bg-[#141619] shadow-lg lg:hidden print:hidden">
 		<div class="flex items-center justify-between px-4 py-3">
 			<div class="flex items-center gap-2.5">
 				<img

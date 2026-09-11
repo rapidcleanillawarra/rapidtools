@@ -60,9 +60,13 @@
 </script>
 
 {#if !hideAppChrome}
-	<Header />
+	<div class="print:hidden">
+		<Header />
+	</div>
 {/if}
 <main class="min-h-screen bg-[#0e1012] text-gray-200 transition-all duration-300" style:margin-left={sidebarWidth}>
 	<slot />
 </main>
-<ToastContainer />
+<div class="print:hidden">
+	<ToastContainer />
+</div>

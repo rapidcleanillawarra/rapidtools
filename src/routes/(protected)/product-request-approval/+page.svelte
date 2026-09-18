@@ -425,6 +425,27 @@
 		});
 	}
 
+	// Function to apply brand to all rows
+	function applyBrandToAll() {
+		if (productRequests.length === 0) {
+			toastError('No data rows available');
+			return;
+		}
+		const firstRequest = productRequests[0];
+		const brandVal = firstRequest.brand;
+		if (!brandVal) {
+			toastError('First row does not have a brand to apply');
+			return;
+		}
+
+		productRequests = productRequests.map((req, idx) => {
+			if (idx === 0) return req;
+			req.brand = brandVal;
+			return req;
+		});
+		searchMarkups();
+	}
+
 	// Function to apply category to all rows
 	function applyCategoryToAll() {
 		if (productRequests.length === 0) {
@@ -1472,6 +1493,15 @@
 					<div class="flex flex-wrap gap-2">
 						<button
 							type="button"
+							onclick={applyBrandToAll}
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm transition hover:border-lime-500/50 hover:bg-lime-500/20"
+							title="Apply brand to all rows"
+						>
+							{@html applyToAllIcon}
+							Brand
+						</button>
+						<button
+							type="button"
 							onclick={applyCategoryToAll}
 							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm transition hover:border-lime-500/50 hover:bg-lime-500/20"
 							title="Apply category to all rows"
@@ -1556,6 +1586,20 @@
 					<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">
 						Brand <span class="text-red-400">*</span>
 					</span>
+					{#if productRequests.length > 1 && request.id !== productRequests[0].id && productRequests[0].brand}
+						<button
+							type="button"
+							onclick={() => {
+								request.brand = productRequests[0].brand;
+								searchMarkups();
+							}}
+							class="inline-flex items-center gap-1 text-[11px] font-medium text-lime-400 hover:text-lime-300 hover:underline"
+							title="Copy brand from Row #1"
+						>
+							{@html applyToAllIcon}
+							Copy from #1
+						</button>
+					{/if}
 				</div>
 				<div class="select-wrapper min-w-0">
 					{#if loadingBrands}

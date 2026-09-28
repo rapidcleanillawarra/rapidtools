@@ -243,367 +243,392 @@
 	}
 </script>
 
-<div class="container mx-auto px-4 py-8">
-	<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<h1 class="text-2xl font-bold text-gray-900">Sent Invoice Logs</h1>
-		<div class="flex flex-wrap gap-2">
-			<button
-				type="button"
-				on:click={loadLogs}
-				disabled={loading}
-				class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-			>
-				Refresh
-			</button>
-		</div>
-	</div>
+<svelte:head>
+	<title>Sent Invoice Logs - RapidTools</title>
+</svelte:head>
 
-	{#if error}
-		<div class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</div>
-	{/if}
-
-	<!-- Filters -->
-	<div class="mb-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-		<div>
-			<label for="search-order" class="block text-sm font-medium text-gray-700">Order ID</label>
-			<input
-				id="search-order"
-				type="text"
-				bind:value={searchOrderId}
-				placeholder="Search..."
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:input={handleFilterChange}
-			/>
-		</div>
-		<div>
-			<label for="search-email" class="block text-sm font-medium text-gray-700">Customer email</label>
-			<input
-				id="search-email"
-				type="text"
-				bind:value={searchCustomerEmail}
-				placeholder="Search..."
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:input={handleFilterChange}
-			/>
-		</div>
-		<div>
-			<label for="search-document" class="block text-sm font-medium text-gray-700">Document ID</label>
-			<input
-				id="search-document"
-				type="text"
-				bind:value={searchDocumentId}
-				placeholder="Search..."
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:input={handleFilterChange}
-			/>
-		</div>
-		<div>
-			<label for="filter-email-sent" class="block text-sm font-medium text-gray-700">Email sent</label>
-			<select
-				id="filter-email-sent"
-				bind:value={filterEmailSent}
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:change={handleFilterChange}
-			>
-				<option value="all">All</option>
-				<option value="yes">Yes</option>
-				<option value="no">No</option>
-			</select>
-		</div>
-		<div>
-			<label for="filter-email-bounced" class="block text-sm font-medium text-gray-700">Email bounced</label>
-			<select
-				id="filter-email-bounced"
-				bind:value={filterEmailBounced}
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:change={handleFilterChange}
-			>
-				<option value="all">All</option>
-				<option value="yes">Yes</option>
-				<option value="no">No</option>
-			</select>
-		</div>
-		<div>
-			<label for="filter-pdf-exists" class="block text-sm font-medium text-gray-700">PDF exists</label>
-			<select
-				id="filter-pdf-exists"
-				bind:value={filterPdfExists}
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:change={handleFilterChange}
-			>
-				<option value="all">All</option>
-				<option value="yes">Yes</option>
-				<option value="no">No</option>
-			</select>
-		</div>
-		<div>
-			<label for="filter-order-details" class="block text-sm font-medium text-gray-700">Order details</label>
-			<select
-				id="filter-order-details"
-				bind:value={filterOrderDetails}
-				class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-				on:change={handleFilterChange}
-			>
-				<option value="all">All</option>
-				<option value="yes">Yes</option>
-				<option value="no">No</option>
-			</select>
-		</div>
-		<div class="flex items-end">
-			<button
-				type="button"
-				on:click={() => {
-					searchOrderId = '';
-					searchCustomerEmail = '';
-					searchDocumentId = '';
-					filterEmailSent = 'all';
-					filterEmailBounced = 'all';
-					filterPdfExists = 'all';
-					filterOrderDetails = 'all';
-					currentPage = 1;
-					loadLogs();
-				}}
-				class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-			>
-				Clear filters
-			</button>
-		</div>
-	</div>
-
-	{#if loading}
-		<div class="flex justify-center py-12">
-			<div
-				class="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
-			></div>
-		</div>
-	{:else if totalCount === 0}
-		<div class="rounded-lg border border-gray-200 bg-white py-12 text-center shadow">
-			<p class="text-gray-500">No results found.</p>
-		</div>
-	{:else}
-		<div class="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
-			<div class="overflow-x-auto">
-				<table class="min-w-full divide-y divide-gray-200">
-					<thead class="bg-gray-50">
-						<tr>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('order_id')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('order_id')}
-							>
-								Order ID {getSortIcon('order_id', sortField, sortDirection)}
-							</th>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('customer_email')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('customer_email')}
-							>
-								Customer email {getSortIcon('customer_email', sortField, sortDirection)}
-							</th>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('order_details')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('order_details')}
-							>
-								Order details {getSortIcon('order_details', sortField, sortDirection)}
-							</th>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('document_id')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('document_id')}
-							>
-								Document ID {getSortIcon('document_id', sortField, sortDirection)}
-							</th>
-							<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-								PDF
-							</th>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('email_sent')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('email_sent')}
-							>
-								Email sent {getSortIcon('email_sent', sortField, sortDirection)}
-							</th>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('created_at')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('created_at')}
-							>
-								Created {getSortIcon('created_at', sortField, sortDirection)}
-							</th>
-							<th
-								class="cursor-pointer select-none px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hover:bg-gray-100"
-								on:click={() => handleSort('email_bounced')}
-								role="button"
-								tabindex="0"
-								on:keydown={(e) => e.key === 'Enter' && handleSort('email_bounced')}
-							>
-								Bounced {getSortIcon('email_bounced', sortField, sortDirection)}
-							</th>
-							<th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-								Actions
-							</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-gray-200 bg-white">
-						{#each logs as log}
-							<tr class="hover:bg-gray-50">
-								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-900">
-									{#if log.order_id}
-										<a
-											href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={log.order_id}"
-											target="_blank"
-											rel="noopener noreferrer"
-											class="text-blue-600 hover:text-blue-800 hover:underline"
-										>
-											{log.order_id}
-										</a>
-									{:else}
-										—
-									{/if}
-								</td>
-								<td class="max-w-[200px] truncate px-4 py-3 text-sm text-gray-600" title={log.customer_email ?? ''}>
-									{log.customer_email || '-'}
-								</td>
-								<td class="px-4 py-3">
-									{#if log.order_details == null}
-										<span class="text-gray-400">—</span>
-									{:else}
-									<span class={log.order_details ? 'text-green-600' : 'text-gray-500'}>
-										{log.order_details ? 'Yes' : 'No'}
-									</span>
-									{/if}
-								</td>
-								<td class="max-w-[120px] truncate px-4 py-3 font-mono text-xs text-gray-600" title={log.document_id ?? ''}>
-									{log.document_id || '-'}
-								</td>
-								<td class="px-4 py-3">
-									{#if log.pdf_path}
-										<button
-											type="button"
-											on:click={() => openPdfUrl(log.pdf_path)}
-											class="text-blue-600 hover:underline"
-										>
-											{log.pdf_exists ? 'Open' : 'Link'}
-										</button>
-									{:else}
-										—
-									{/if}
-								</td>
-								<td class="px-4 py-3">
-									<span class={log.email_sent ? 'text-green-600' : 'text-gray-500'}>
-										{log.email_sent ? 'Yes' : 'No'}
-									</span>
-								</td>
-								<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-									{formatCreatedAt(log.created_at)}
-								</td>
-								<td class="px-4 py-3">
-									{#if log.email_bounced == null}
-										<span class="text-gray-400">—</span>
-									{:else}
-										<span class={log.email_bounced ? 'text-amber-600' : 'text-gray-500'}>
-											{log.email_bounced ? 'Yes' : 'No'}
-										</span>
-									{/if}
-								</td>
-								<td class="whitespace-nowrap px-4 py-3 text-right text-sm">
-									<div class="flex items-center justify-end gap-1">
-										<button
-											type="button"
-											on:click={() => handleRetryEmail(log)}
-											disabled={isRetrying.has(log.id)}
-											class="rounded p-1 text-green-600 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-											title="Retry Email"
-										>
-											{#if isRetrying.has(log.id)}
-												<svg class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-													<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-													<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-												</svg>
-											{:else}
-												<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-												</svg>
-											{/if}
-										</button>
-									</div>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
+	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
+		<div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-white tracking-tight">Sent Invoice Logs</h1>
+				<p class="mt-1 text-sm text-gray-400">Monitor and retry sent invoice delivery statuses</p>
 			</div>
+			<div class="flex flex-wrap gap-2">
+				<button
+					type="button"
+					on:click={loadLogs}
+					disabled={loading}
+					class="btn-secondary inline-flex items-center gap-2 text-sm font-medium"
+				>
+					<svg class="h-4 w-4 {loading ? 'animate-spin text-lime-400' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+					</svg>
+					Refresh
+				</button>
+			</div>
+		</div>
 
-			<!-- Pagination -->
-			<div class="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 bg-gray-50 px-4 py-3">
-				<div class="text-sm text-gray-600">
-					{#if totalCount === 0}
-						No results
-					{:else}
-						Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
-					{/if}
+		{#if error}
+			<div class="mb-6 rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-sm text-red-400">
+				{error}
+			</div>
+		{/if}
+
+		<!-- Filters -->
+		<div class="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+			<div>
+				<label for="search-order" class="form-label">Order ID</label>
+				<input
+					id="search-order"
+					type="text"
+					bind:value={searchOrderId}
+					placeholder="Search order ID..."
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
+					on:input={handleFilterChange}
+				/>
+			</div>
+			<div>
+				<label for="search-email" class="form-label">Customer email</label>
+				<input
+					id="search-email"
+					type="text"
+					bind:value={searchCustomerEmail}
+					placeholder="Search customer email..."
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
+					on:input={handleFilterChange}
+				/>
+			</div>
+			<div>
+				<label for="search-document" class="form-label">Document ID</label>
+				<input
+					id="search-document"
+					type="text"
+					bind:value={searchDocumentId}
+					placeholder="Search document ID..."
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
+					on:input={handleFilterChange}
+				/>
+			</div>
+			<div>
+				<label for="filter-email-sent" class="form-label">Email sent</label>
+				<select
+					id="filter-email-sent"
+					bind:value={filterEmailSent}
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
+					on:change={handleFilterChange}
+				>
+					<option value="all" class="bg-[#141619] text-gray-200">All</option>
+					<option value="yes" class="bg-[#141619] text-gray-200">Yes</option>
+					<option value="no" class="bg-[#141619] text-gray-200">No</option>
+				</select>
+			</div>
+			<div>
+				<label for="filter-email-bounced" class="form-label">Email bounced</label>
+				<select
+					id="filter-email-bounced"
+					bind:value={filterEmailBounced}
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
+					on:change={handleFilterChange}
+				>
+					<option value="all" class="bg-[#141619] text-gray-200">All</option>
+					<option value="yes" class="bg-[#141619] text-gray-200">Yes</option>
+					<option value="no" class="bg-[#141619] text-gray-200">No</option>
+				</select>
+			</div>
+			<div>
+				<label for="filter-pdf-exists" class="form-label">PDF exists</label>
+				<select
+					id="filter-pdf-exists"
+					bind:value={filterPdfExists}
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
+					on:change={handleFilterChange}
+				>
+					<option value="all" class="bg-[#141619] text-gray-200">All</option>
+					<option value="yes" class="bg-[#141619] text-gray-200">Yes</option>
+					<option value="no" class="bg-[#141619] text-gray-200">No</option>
+				</select>
+			</div>
+			<div>
+				<label for="filter-order-details" class="form-label">Order details</label>
+				<select
+					id="filter-order-details"
+					bind:value={filterOrderDetails}
+					class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg px-3 py-2 text-sm focus:border-lime-500 focus:ring-1 focus:ring-lime-500 transition-colors"
+					on:change={handleFilterChange}
+				>
+					<option value="all" class="bg-[#141619] text-gray-200">All</option>
+					<option value="yes" class="bg-[#141619] text-gray-200">Yes</option>
+					<option value="no" class="bg-[#141619] text-gray-200">No</option>
+				</select>
+			</div>
+			<div class="flex items-end">
+				<button
+					type="button"
+					on:click={() => {
+						searchOrderId = '';
+						searchCustomerEmail = '';
+						searchDocumentId = '';
+						filterEmailSent = 'all';
+						filterEmailBounced = 'all';
+						filterPdfExists = 'all';
+						filterOrderDetails = 'all';
+						currentPage = 1;
+						loadLogs();
+					}}
+					class="btn-secondary w-full text-sm font-medium h-[38px] flex items-center justify-center gap-1.5"
+				>
+					Clear filters
+				</button>
+			</div>
+		</div>
+
+		{#if loading}
+			<div class="flex flex-col items-center justify-center py-16 gap-3">
+				<div
+					class="h-10 w-10 animate-spin rounded-full border-2 border-lime-500 border-t-transparent"
+				></div>
+				<p class="text-sm text-gray-400">Loading invoice logs...</p>
+			</div>
+		{:else if totalCount === 0}
+			<div class="rounded-2xl border border-[#262a30] bg-[#141619] py-16 text-center shadow-xl">
+				<svg class="mx-auto h-12 w-12 text-gray-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+				</svg>
+				<p class="text-base font-semibold text-gray-300">No results found</p>
+				<p class="text-sm text-gray-500 mt-1">Try adjusting your filters or search terms.</p>
+			</div>
+		{:else}
+			<div class="overflow-hidden rounded-2xl border border-[#262a30] bg-[#141619] shadow-xl">
+				<div class="overflow-x-auto">
+					<table class="w-full min-w-full divide-y divide-[#262a30] text-sm text-gray-200">
+						<thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
+							<tr>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('order_id')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('order_id')}
+								>
+									Order ID {getSortIcon('order_id', sortField, sortDirection)}
+								</th>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('customer_email')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('customer_email')}
+								>
+									Customer email {getSortIcon('customer_email', sortField, sortDirection)}
+								</th>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('order_details')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('order_details')}
+								>
+									Order details {getSortIcon('order_details', sortField, sortDirection)}
+								</th>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('document_id')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('document_id')}
+								>
+									Document ID {getSortIcon('document_id', sortField, sortDirection)}
+								</th>
+								<th class="px-4 py-3 text-left">
+									PDF
+								</th>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('email_sent')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('email_sent')}
+								>
+									Email sent {getSortIcon('email_sent', sortField, sortDirection)}
+								</th>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('created_at')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('created_at')}
+								>
+									Created {getSortIcon('created_at', sortField, sortDirection)}
+								</th>
+								<th
+									class="cursor-pointer select-none px-4 py-3 text-left transition-colors hover:text-lime-400 hover:bg-[#1f2329]/60"
+									on:click={() => handleSort('email_bounced')}
+									role="button"
+									tabindex="0"
+									on:keydown={(e) => e.key === 'Enter' && handleSort('email_bounced')}
+								>
+									Bounced {getSortIcon('email_bounced', sortField, sortDirection)}
+								</th>
+								<th class="px-4 py-3 text-right">
+									Actions
+								</th>
+							</tr>
+						</thead>
+						<tbody class="divide-y divide-[#262a30] bg-[#141619]">
+							{#each logs as log}
+								<tr class="even:bg-[#181b20]/50 hover:bg-[#1f2329]/60 transition-colors">
+									<td class="whitespace-nowrap px-4 py-3 text-sm">
+										{#if log.order_id}
+											<a
+												href="https://www.rapidsupplies.com.au/_cpanel/salesorder/view?id={log.order_id}"
+												target="_blank"
+												rel="noopener noreferrer"
+												class="text-lime-400 hover:text-lime-300 font-medium hover:underline inline-flex items-center gap-1"
+											>
+												{log.order_id}
+												<svg class="h-3.5 w-3.5 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+												</svg>
+											</a>
+										{:else}
+											<span class="text-gray-500">—</span>
+										{/if}
+									</td>
+									<td class="max-w-[200px] truncate px-4 py-3 text-sm text-gray-300" title={log.customer_email ?? ''}>
+										{log.customer_email || '—'}
+									</td>
+									<td class="px-4 py-3">
+										{#if log.order_details == null}
+											<span class="text-gray-500">—</span>
+										{:else}
+											<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {log.order_details ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-gray-800 text-gray-400 border border-[#333842]'}">
+												{log.order_details ? 'Yes' : 'No'}
+											</span>
+										{/if}
+									</td>
+									<td class="max-w-[120px] truncate px-4 py-3 font-mono text-xs text-gray-400" title={log.document_id ?? ''}>
+										{log.document_id || '—'}
+									</td>
+									<td class="px-4 py-3">
+										{#if log.pdf_path}
+											<button
+												type="button"
+												on:click={() => openPdfUrl(log.pdf_path)}
+												class="text-lime-400 hover:text-lime-300 hover:underline font-medium inline-flex items-center gap-1 text-sm"
+											>
+												<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+												</svg>
+												{log.pdf_exists ? 'Open' : 'Link'}
+											</button>
+										{:else}
+											<span class="text-gray-500">—</span>
+										{/if}
+									</td>
+									<td class="px-4 py-3">
+										<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {log.email_sent ? 'bg-lime-500/10 text-lime-400 border border-lime-500/20' : 'bg-gray-800 text-gray-400 border border-[#333842]'}">
+											{log.email_sent ? 'Yes' : 'No'}
+										</span>
+									</td>
+									<td class="whitespace-nowrap px-4 py-3 text-sm text-gray-400">
+										{formatCreatedAt(log.created_at)}
+									</td>
+									<td class="px-4 py-3">
+										{#if log.email_bounced == null}
+											<span class="text-gray-500">—</span>
+										{:else}
+											<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {log.email_bounced ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-gray-800 text-gray-400 border border-[#333842]'}">
+												{log.email_bounced ? 'Yes' : 'No'}
+											</span>
+										{/if}
+									</td>
+									<td class="whitespace-nowrap px-4 py-3 text-right text-sm">
+										<div class="flex items-center justify-end gap-1">
+											<button
+												type="button"
+												on:click={() => handleRetryEmail(log)}
+												disabled={isRetrying.has(log.id)}
+												class="inline-flex items-center justify-center rounded-lg border border-[#333842] bg-[#1f2329] p-1.5 text-gray-300 hover:text-lime-400 hover:border-lime-500/50 hover:bg-[#262a30] transition disabled:opacity-40 disabled:cursor-not-allowed"
+												title="Retry Email"
+											>
+												{#if isRetrying.has(log.id)}
+													<svg class="h-4 w-4 animate-spin text-lime-400" fill="none" viewBox="0 0 24 24">
+														<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+														<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+													</svg>
+												{:else}
+													<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+														<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+													</svg>
+												{/if}
+											</button>
+										</div>
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
 				</div>
-				<div class="flex items-center gap-4">
-					<label class="flex items-center gap-2 text-sm text-gray-600">
-						Per page
-						<select
-							bind:value={itemsPerPage}
-							class="rounded border border-gray-300 px-2 py-1 text-sm"
-							on:change={() => {
-								currentPage = 1;
-								loadLogs();
-							}}
-						>
-							<option value={10}>10</option>
-							<option value={25}>25</option>
-							<option value={50}>50</option>
-							<option value={100}>100</option>
-						</select>
-					</label>
-					<div class="flex gap-1">
-						<button
-							type="button"
-							disabled={currentPage <= 1}
-							on:click={() => {
-								currentPage = currentPage - 1;
-								loadLogs();
-							}}
-							class="rounded border border-gray-300 bg-white px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100"
-						>
-							Previous
-						</button>
-						<span class="flex items-center px-3 text-sm text-gray-600">
-							Page {currentPage} of {totalPages}
-						</span>
-						<button
-							type="button"
-							disabled={currentPage >= totalPages}
-							on:click={() => {
-								currentPage = currentPage + 1;
-								loadLogs();
-							}}
-							class="rounded border border-gray-300 bg-white px-3 py-1 text-sm disabled:opacity-50 hover:bg-gray-100"
-						>
-							Next
-						</button>
+
+				<!-- Pagination -->
+				<div class="flex flex-wrap items-center justify-between gap-4 border-t border-[#262a30] bg-[#181b20] px-4 py-3">
+					<div class="text-sm text-gray-400">
+						{#if totalCount === 0}
+							No results
+						{:else}
+							Showing <span class="font-medium text-gray-200">{(currentPage - 1) * itemsPerPage + 1}</span>–<span class="font-medium text-gray-200">{Math.min(currentPage * itemsPerPage, totalCount)}</span> of <span class="font-medium text-gray-200">{totalCount}</span>
+						{/if}
+					</div>
+					<div class="flex items-center gap-4">
+						<label class="flex items-center gap-2 text-sm text-gray-400">
+							Per page
+							<select
+								bind:value={itemsPerPage}
+								class="rounded-lg border border-[#262a30] bg-[#0e1012] px-2 py-1 text-sm text-gray-200 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
+								on:change={() => {
+									currentPage = 1;
+									loadLogs();
+								}}
+							>
+								<option value={10} class="bg-[#141619] text-gray-200">10</option>
+								<option value={25} class="bg-[#141619] text-gray-200">25</option>
+								<option value={50} class="bg-[#141619] text-gray-200">50</option>
+								<option value={100} class="bg-[#141619] text-gray-200">100</option>
+							</select>
+						</label>
+						<div class="flex items-center gap-1.5">
+							<button
+								type="button"
+								disabled={currentPage <= 1}
+								on:click={() => {
+									currentPage = currentPage - 1;
+									loadLogs();
+								}}
+								class="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40"
+							>
+								Previous
+							</button>
+							<span class="flex items-center px-3 text-sm text-gray-400">
+								Page <span class="mx-1 font-medium text-gray-200">{currentPage}</span> of <span class="ml-1 font-medium text-gray-200">{totalPages}</span>
+							</span>
+							<button
+								type="button"
+								disabled={currentPage >= totalPages}
+								on:click={() => {
+									currentPage = currentPage + 1;
+									loadLogs();
+								}}
+								class="btn-secondary text-xs px-3 py-1.5 disabled:opacity-40"
+							>
+								Next
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
+	</div>
 </div>
 
 

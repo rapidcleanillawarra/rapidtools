@@ -310,6 +310,7 @@
 	];
 
 	$: brochuresLinks = [
+		{ href: `${base}/brochures`, label: 'Brochure Studio (AI Editor)' },
 		{ href: `${base}/brochures/preventative_maintenance`, label: 'Preventative Maintenance' },
 		{ href: `${base}/brochures/washroom_fitout`, label: 'Washroom Fitout' }
 	];

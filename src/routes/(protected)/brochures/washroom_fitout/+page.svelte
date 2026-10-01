@@ -4,6 +4,12 @@
 	import { loadBrochureImages, type BrochureImageSlot } from '$lib/brochures/brochureImages';
 	import { resolveBrochureImageUrl } from '$lib/brochures/exportBrochurePdf';
 	import BrochureImageEditor from '$lib/brochures/BrochureImageEditor.svelte';
+	import BrochureCodeEditor from '$lib/brochures/BrochureCodeEditor.svelte';
+	import {
+		loadBrochureTemplate,
+		buildBrochureHtmlDocument,
+		type BrochureTemplate
+	} from '$lib/brochures/brochureTemplates';
 
 	const DEFAULT_EMAIL = 'contact@rapidcleanillawarra.com.au';
 	const DEFAULT_PHONE = '(02) 4227 2833';
@@ -73,7 +79,23 @@
 
 	let images = $state<Record<string, string>>({ ...defaults });
 	let editorOpen = $state(false);
+	let codeEditorOpen = $state(false);
 	let brochureEl = $state<HTMLDivElement | null>(null);
+	let customTemplate = $state<BrochureTemplate | null>(null);
+	let customIframeEl = $state<HTMLIFrameElement | null>(null);
+	let isCustomActive = $derived(
+		Boolean(customTemplate && customTemplate.is_active && customTemplate.html)
+	);
+	let customHtmlDoc = $derived(
+		customTemplate
+			? buildBrochureHtmlDocument({
+					title: customTemplate.title || 'Washroom Fit-Out',
+					html: customTemplate.html,
+					css: customTemplate.css,
+					js: customTemplate.js
+			  })
+			: ''
+	);
 
 	let contactEmail = $state(DEFAULT_EMAIL);
 	let contactPhone = $state(DEFAULT_PHONE);
@@ -154,16 +176,41 @@
 			}
 		}
 		images = { ...defaults, ...sanitizedOverrides };
+
+		// Load custom database template if present
+		const { template: dbTemplate } = await loadBrochureTemplate(SLUG);
+		if (dbTemplate) {
+			customTemplate = dbTemplate;
+		}
 	});
 
 	function printBrochure() {
 		if (typeof window === 'undefined') return;
+		if (isCustomActive && customIframeEl?.contentWindow) {
+			customIframeEl.contentWindow.focus();
+			customIframeEl.contentWindow.print();
+			return;
+		}
 		const originalTitle = document.title;
 		document.title = 'RapidClean Illawarra - Free Washroom Fit-Out Brochure';
 		window.print();
 		setTimeout(() => {
 			document.title = originalTitle;
 		}, 1500);
+	}
+
+	function handleCustomIframeLoad(e: Event) {
+		const iframe = e.currentTarget as HTMLIFrameElement;
+		try {
+			if (iframe.contentDocument?.documentElement) {
+				const height = iframe.contentDocument.documentElement.scrollHeight;
+				if (height > 0) {
+					iframe.style.height = `${height + 60}px`;
+				}
+			}
+		} catch {
+			// ignore
+		}
 	}
 </script>
 
@@ -191,6 +238,15 @@
 	</svg>
 {/snippet}
 
+{#if isCustomActive}
+	<iframe
+		bind:this={customIframeEl}
+		srcdoc={customHtmlDoc}
+		class="custom-brochure-frame"
+		title="Washroom Fit-Out Brochure"
+		onload={handleCustomIframeLoad}
+	></iframe>
+{:else}
 <div class="brochure" bind:this={brochureEl}>
 	<!-- ========== FRONT COVER ========== -->
 	<section class="page cover-page" aria-label="Front cover">
@@ -520,6 +576,7 @@
 		</div>
 	</section>
 </div>
+{/if}
 
 <div class="brochure-toolbar">
 	<button
@@ -530,18 +587,37 @@
 	>
 		Print / Save PDF
 	</button>
+	{#if !isCustomActive}
+		<button
+			type="button"
+			class="tool-btn"
+			onclick={() => (contactModalOpen = true)}
+			title="Change brochure contact details"
+		>
+			Change contact{#if isCustomContact}&nbsp;<span class="toolbar-badge">Custom</span>{/if}
+		</button>
+		<button type="button" class="tool-btn" onclick={() => (editorOpen = true)}>Edit images</button>
+	{/if}
 	<button
 		type="button"
-		class="tool-btn"
-		onclick={() => (contactModalOpen = true)}
-		title="Change brochure contact details"
+		class={['tool-btn', { primary: true }]}
+		onclick={() => (codeEditorOpen = true)}
+		title="Edit HTML, CSS, and JS code in database"
 	>
-		Change contact{#if isCustomContact}&nbsp;<span class="toolbar-badge">Custom</span>{/if}
+		Edit code (DB){#if isCustomActive}&nbsp;<span class="toolbar-badge">Active</span>{/if}
 	</button>
-	<button type="button" class="tool-btn primary" onclick={() => (editorOpen = true)}>Edit images</button>
 </div>
 
 <BrochureImageEditor slug={SLUG} slots={imageSlots} bind:images bind:open={editorOpen} />
+
+<BrochureCodeEditor
+	slug={SLUG}
+	title="Free Washroom Fit-Out"
+	bind:open={codeEditorOpen}
+	bind:currentTemplate={customTemplate}
+	onSave={(saved) => (customTemplate = saved)}
+	onReset={() => (customTemplate = null)}
+/>
 
 {#if contactModalOpen}
 	<div
@@ -641,6 +717,27 @@
 {/if}
 
 <style>
+	/* ---------- Custom database brochure iframe ---------- */
+	.custom-brochure-frame {
+		width: 100%;
+		min-height: 100vh;
+		border: none;
+		display: block;
+		background: #d8dcd5;
+	}
+
+	@media print {
+		.custom-brochure-frame {
+			width: 100% !important;
+			height: 100% !important;
+			border: none !important;
+			position: fixed !important;
+			inset: 0 !important;
+			z-index: 99999 !important;
+			background: #ffffff !important;
+		}
+	}
+
 	/* ---------- Floating toolbar (screen only) ---------- */
 	.brochure-toolbar {
 		position: fixed;

@@ -274,6 +274,8 @@
 
 	$: ordersLinks = [
 		{ href: `${base}/customer-group-invoices`, label: 'Customer Group Invoices' },
+		{ href: `${base}/xero-comparison`, label: 'Xero Comparison' },
+		{ href: `${base}/xero-maropost-history`, label: 'Xero Maropost History' },
 		{ href: `${base}/product-order-management`, label: 'Product Order Management' },
 		{ href: `${base}/orders-past-due-accounts`, label: 'Past Due Accounts' },
 		{ href: `${base}/sent-invoice-logs`, label: 'Sent Invoice Logs' },

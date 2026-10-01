@@ -636,46 +636,96 @@
     validateFilters();
   }
 
+  let xeroAuthError: string | null = null;
+  const XERO_AUTH_URL = 'https://rapidtools-backend.netlify.app/.netlify/functions/xero-auth';
+
   // Function to enrich Neto invoices with Xero data
   async function enrichWithXeroData(netoInvoices: CustomerGroupInvoice[]): Promise<CustomerGroupInvoice[]> {
+    xeroAuthError = null;
     try {
       // Extract invoice numbers for Xero lookup
-      const invoiceNumbers = netoInvoices.map(invoice => invoice.invoiceNumber);
+      const invoiceNumbers = netoInvoices.map(invoice => invoice.invoiceNumber).filter(Boolean);
       
       if (invoiceNumbers.length === 0) {
         return netoInvoices;
       }
 
-      // Prepare Xero API payload
-      const xeroPayload = {
-        "tenant_id": "dad1e60b-64e1-4823-b219-a76079276af3",
-        "invoice_numbers": invoiceNumbers
-      };
+      // Chunk into batches of at most 30 to comply with Xero & URL length limits
+      const chunkSize = 30;
+      const chunks: string[][] = [];
+      for (let i = 0; i < invoiceNumbers.length; i += chunkSize) {
+        chunks.push(invoiceNumbers.slice(i, i + chunkSize));
+      }
 
-      console.log('=== XERO API CALL ===');
-      console.log('Endpoint: https://rapidtools-backend.netlify.app/.netlify/functions/getInvoices?tenant_id=dad1e60b-64e1-4823-b219-a76079276af3');
-      console.log('Method: POST');
-      console.log('Payload:', JSON.stringify(xeroPayload, null, 2));
+      const allXeroInvoices: any[] = [];
+      const tenantId = 'dad1e60b-64e1-4823-b219-a76079276af3';
+      const apiEndpoint = `https://rapidtools-backend.netlify.app/.netlify/functions/getInvoices?tenant_id=${tenantId}`;
 
-      // Call Xero API
-      const xeroResponse = await fetch('https://rapidtools-backend.netlify.app/.netlify/functions/getInvoices?tenant_id=dad1e60b-64e1-4823-b219-a76079276af3', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(xeroPayload)
-      });
+      for (let c = 0; c < chunks.length; c++) {
+        currentLoadingStep.set(`Fetching Xero data (batch ${c + 1} of ${chunks.length})...`);
+        const chunk = chunks[c];
+        const xeroPayload = {
+          tenant_id: tenantId,
+          invoice_numbers: chunk
+        };
 
-      const xeroData = await xeroResponse.json();
-      console.log('Xero API Response:', xeroData);
+        console.log(`=== XERO API CALL (Batch ${c + 1}/${chunks.length}) ===`);
+        console.log('Payload count:', chunk.length);
 
+        const xeroResponse = await fetch(apiEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(xeroPayload)
+        });
+
+        if (!xeroResponse.ok) {
+          const errorText = await xeroResponse.text();
+          let parsedError = errorText;
+          try {
+            const jsonErr = JSON.parse(errorText);
+            parsedError = jsonErr.message || jsonErr.error || errorText;
+          } catch {}
+
+          if (xeroResponse.status === 401 || parsedError.includes('Authentication') || parsedError.includes('Token') || parsedError.includes('OAuth')) {
+            xeroAuthError = 'Xero authorization is required or has expired. Please click "Reconnect Xero" to re-authenticate.';
+            toastError('Xero authentication required. Please re-authenticate.');
+          } else {
+            toastError(`Xero API error (${xeroResponse.status}): ${parsedError.slice(0, 100)}`);
+          }
+          throw new Error(`Xero API responded with status ${xeroResponse.status}: ${parsedError}`);
+        }
+
+        const contentType = xeroResponse.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error('Received non-JSON response from backend. The Netlify function may still be deploying.');
+        }
+
+        const xeroData = await xeroResponse.json();
+        console.log(`Xero API Response (Batch ${c + 1}):`, xeroData);
+
+        if (xeroData.invoices && Array.isArray(xeroData.invoices)) {
+          allXeroInvoices.push(...xeroData.invoices);
+        }
+      }
+
+      // Create lookup map for fast matching (case-insensitive)
+      const xeroInvoiceMap = new Map<string, any>();
+      for (const xeroInv of allXeroInvoices) {
+        if (xeroInv.invoiceNumber) {
+          xeroInvoiceMap.set(String(xeroInv.invoiceNumber).trim().toUpperCase(), xeroInv);
+        }
+      }
+
+      let matchCount = 0;
       // Enrich Neto invoices with Xero data
       const enrichedInvoices = netoInvoices.map(netoInvoice => {
-        const xeroInvoice = xeroData.invoices?.find((xero: any) => 
-          xero.invoiceNumber === netoInvoice.invoiceNumber
-        );
+        const key = String(netoInvoice.invoiceNumber).trim().toUpperCase();
+        const xeroInvoice = xeroInvoiceMap.get(key);
 
         if (xeroInvoice) {
+          matchCount++;
           // Match found - calculate total match
           const xeroTotal = parseFloat(xeroInvoice.total) || 0;
           const netoTotal = netoInvoice.netoTotal;
@@ -698,6 +748,7 @@
         }
       });
 
+      console.log(`Xero enrichment finished: ${matchCount}/${netoInvoices.length} matched`);
       return enrichedInvoices;
     } catch (error) {
       console.error('Error enriching with Xero data:', error);
@@ -714,7 +765,41 @@
 
 <div class="min-h-screen bg-gray-100 py-8 px-2 sm:px-3">
   <div class="max-w-[98%] mx-auto bg-white shadow p-6" transition:fade>
-    <h2 class="text-2xl font-bold mb-6 text-gray-900">Customer Group Invoices</h2>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">Xero Invoice Comparison</h2>
+      <a
+        href={XERO_AUTH_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center justify-center px-4 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors shadow-sm"
+        title="Reconnect or refresh Xero OAuth authorization"
+      >
+        <svg class="w-4 h-4 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+        Reconnect Xero
+      </a>
+    </div>
+
+    <!-- Xero Auth Warning Banner -->
+    {#if xeroAuthError}
+      <div class="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-md flex flex-col sm:flex-row sm:items-center justify-between gap-3" transition:fade>
+        <div class="flex items-center space-x-3 text-amber-900">
+          <svg class="h-6 w-6 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span class="text-sm font-medium">{xeroAuthError}</span>
+        </div>
+        <a
+          href={XERO_AUTH_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded shadow transition-colors whitespace-nowrap text-center"
+        >
+          Authorize Xero Now
+        </a>
+      </div>
+    {/if}
 
     <!-- Filter Section -->
     <div class="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">

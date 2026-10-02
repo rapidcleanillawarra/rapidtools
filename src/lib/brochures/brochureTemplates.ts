@@ -13,6 +13,18 @@ export interface BrochureTemplate {
 	created_at?: string;
 }
 
+export interface BrochureTemplateVersion {
+	id: string;
+	slug: string;
+	version_number: number;
+	label: string;
+	html: string;
+	css: string;
+	js: string;
+	created_at: string;
+	created_by?: string;
+}
+
 const DEFAULT_TEMPLATES: Record<string, Omit<BrochureTemplate, 'is_active'>> = {
 	preventative_maintenance: pmDefault,
 	washroom_fitout: wfDefault
@@ -79,10 +91,14 @@ export async function loadBrochureTemplate(slug: string): Promise<{
 	}
 }
 
-/** Save or update brochure template in Supabase. */
+/** Save or update brochure template in Supabase, with automatic version tracking. */
 export async function saveBrochureTemplate(
-	template: BrochureTemplate
-): Promise<{ error: string | null }> {
+	template: BrochureTemplate,
+	options?: {
+		createVersion?: boolean;
+		versionLabel?: string;
+	}
+): Promise<{ error: string | null; version?: BrochureTemplateVersion | null }> {
 	try {
 		const { error } = await supabase.from('brochure_templates').upsert(
 			{
@@ -97,9 +113,228 @@ export async function saveBrochureTemplate(
 			{ onConflict: 'slug' }
 		);
 
-		return { error: error?.message ?? null };
+		if (error) {
+			return { error: error.message };
+		}
+
+		let createdVersion: BrochureTemplateVersion | null = null;
+		if (options?.createVersion !== false) {
+			const verRes = await saveBrochureTemplateVersion({
+				slug: template.slug,
+				html: template.html,
+				css: template.css,
+				js: template.js,
+				label: options?.versionLabel || 'Saved changes'
+			});
+			if (verRes.version) {
+				createdVersion = verRes.version;
+			}
+		}
+
+		return { error: null, version: createdVersion };
 	} catch (err: any) {
 		return { error: err?.message || 'Failed to save brochure template' };
+	}
+}
+
+/** Retrieve all historical versions for a brochure template. */
+export async function listBrochureTemplateVersions(slug: string): Promise<{
+	versions: BrochureTemplateVersion[];
+	error: string | null;
+}> {
+	try {
+		// 1. Try Supabase
+		const { data, error } = await supabase
+			.from('brochure_template_versions')
+			.select('id, slug, version_number, label, html, css, js, created_at, created_by')
+			.eq('slug', slug)
+			.order('version_number', { ascending: false });
+
+		if (!error && data && data.length > 0) {
+			const versions: BrochureTemplateVersion[] = data.map((row) => ({
+				id: row.id,
+				slug: row.slug,
+				version_number: row.version_number,
+				label: row.label || `Version ${row.version_number}`,
+				html: row.html ?? '',
+				css: row.css ?? '',
+				js: row.js ?? '',
+				created_at: row.created_at,
+				created_by: row.created_by
+			}));
+
+			// Cache locally
+			if (typeof localStorage !== 'undefined') {
+				try {
+					localStorage.setItem(`brochure_versions_${slug}`, JSON.stringify(versions));
+				} catch {}
+			}
+
+			return { versions, error: null };
+		}
+
+		// 2. Fallback to localStorage if table not found or Supabase returns empty
+		if (typeof localStorage !== 'undefined') {
+			try {
+				const cached = localStorage.getItem(`brochure_versions_${slug}`);
+				if (cached) {
+					const parsed = JSON.parse(cached) as BrochureTemplateVersion[];
+					if (parsed && parsed.length > 0) {
+						return { versions: parsed, error: null };
+					}
+				}
+			} catch {}
+		}
+
+		// 3. If no versions exist yet, seed a baseline version from built-in template
+		const fallback = getDefaultBrochureTemplate(slug);
+		const baselineVersion: BrochureTemplateVersion = {
+			id: `baseline_${slug}`,
+			slug,
+			version_number: 1,
+			label: 'Initial built-in baseline',
+			html: fallback.html,
+			css: fallback.css,
+			js: fallback.js,
+			created_at: new Date(Date.now() - 86400000).toISOString()
+		};
+
+		return { versions: [baselineVersion], error: null };
+	} catch (err: any) {
+		// Graceful localStorage fallback on network or setup error
+		if (typeof localStorage !== 'undefined') {
+			try {
+				const cached = localStorage.getItem(`brochure_versions_${slug}`);
+				if (cached) {
+					return { versions: JSON.parse(cached), error: null };
+				}
+			} catch {}
+		}
+		const fallback = getDefaultBrochureTemplate(slug);
+		return {
+			versions: [
+				{
+					id: `baseline_${slug}`,
+					slug,
+					version_number: 1,
+					label: 'Initial built-in baseline',
+					html: fallback.html,
+					css: fallback.css,
+					js: fallback.js,
+					created_at: new Date().toISOString()
+				}
+			],
+			error: null
+		};
+	}
+}
+
+/** Save a new version snapshot of a brochure template. */
+export async function saveBrochureTemplateVersion(params: {
+	slug: string;
+	html: string;
+	css?: string;
+	js?: string;
+	label?: string;
+	version_number?: number;
+}): Promise<{ version: BrochureTemplateVersion | null; error: string | null }> {
+	const { slug, html, css = '', js = '', label } = params;
+
+	// Calculate next version number
+	let nextVer = params.version_number;
+	if (!nextVer) {
+		const existing = await listBrochureTemplateVersions(slug);
+		const maxVer = existing.versions.reduce((max, v) => Math.max(max, v.version_number), 0);
+		nextVer = maxVer + 1;
+	}
+
+	const newVersion: BrochureTemplateVersion = {
+		id:
+			typeof crypto !== 'undefined' && crypto.randomUUID
+				? crypto.randomUUID()
+				: `ver_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+		slug,
+		version_number: nextVer,
+		label: label || `Version ${nextVer}`,
+		html,
+		css,
+		js,
+		created_at: new Date().toISOString()
+	};
+
+	try {
+		// Attempt Supabase insert
+		const { data, error } = await supabase
+			.from('brochure_template_versions')
+			.insert({
+				id: newVersion.id,
+				slug: newVersion.slug,
+				version_number: newVersion.version_number,
+				label: newVersion.label,
+				html: newVersion.html,
+				css: newVersion.css,
+				js: newVersion.js,
+				created_at: newVersion.created_at
+			})
+			.select()
+			.maybeSingle();
+
+		if (data?.id) {
+			newVersion.id = data.id;
+		}
+
+		// Always mirror in localStorage for offline resiliency
+		if (typeof localStorage !== 'undefined') {
+			try {
+				const cached = localStorage.getItem(`brochure_versions_${slug}`);
+				const list: BrochureTemplateVersion[] = cached ? JSON.parse(cached) : [];
+				const updated = [newVersion, ...list.filter((v) => v.id !== newVersion.id)];
+				localStorage.setItem(`brochure_versions_${slug}`, JSON.stringify(updated));
+			} catch {}
+		}
+
+		return { version: newVersion, error: null };
+	} catch (err: any) {
+		// Fallback to localStorage if Supabase table has not been migrated yet
+		if (typeof localStorage !== 'undefined') {
+			try {
+				const cached = localStorage.getItem(`brochure_versions_${slug}`);
+				const list: BrochureTemplateVersion[] = cached ? JSON.parse(cached) : [];
+				const updated = [newVersion, ...list.filter((v) => v.id !== newVersion.id)];
+				localStorage.setItem(`brochure_versions_${slug}`, JSON.stringify(updated));
+				return { version: newVersion, error: null };
+			} catch (localErr: any) {
+				return { version: null, error: localErr?.message || 'Storage error' };
+			}
+		}
+		return { version: null, error: err?.message || 'Failed to save version' };
+	}
+}
+
+/** Delete a specific brochure version. */
+export async function deleteBrochureTemplateVersion(
+	id: string,
+	slug: string
+): Promise<{ error: string | null }> {
+	try {
+		// Remove from Supabase
+		await supabase.from('brochure_template_versions').delete().eq('id', id);
+
+		// Remove from localStorage
+		if (typeof localStorage !== 'undefined') {
+			try {
+				const cached = localStorage.getItem(`brochure_versions_${slug}`);
+				if (cached) {
+					const list: BrochureTemplateVersion[] = JSON.parse(cached);
+					const filtered = list.filter((v) => v.id !== id);
+					localStorage.setItem(`brochure_versions_${slug}`, JSON.stringify(filtered));
+				}
+			} catch {}
+		}
+
+		return { error: null };
+	} catch (err: any) {
+		return { error: err?.message || 'Failed to delete version' };
 	}
 }
 

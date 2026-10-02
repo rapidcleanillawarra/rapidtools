@@ -1,19 +1,23 @@
 <script lang="ts">
 	import {
 		type BrochureTemplate,
+		type BrochureTemplateVersion,
 		getDefaultBrochureTemplate,
 		saveBrochureTemplate,
 		resetBrochureTemplate,
-		buildBrochureHtmlDocument
+		buildBrochureHtmlDocument,
+		listBrochureTemplateVersions
 	} from './brochureTemplates';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import BrochureAiAssistant from './BrochureAiAssistant.svelte';
+	import BrochureVersionHistory from './BrochureVersionHistory.svelte';
 
 	let {
 		slug,
 		title = 'Brochure',
 		open = $bindable(false),
 		currentTemplate = $bindable(null),
+		initialTab = 'html',
 		onSave,
 		onReset
 	}: {
@@ -21,15 +25,18 @@
 		title?: string;
 		open?: boolean;
 		currentTemplate?: BrochureTemplate | null;
+		initialTab?: TabType;
 		onSave?: (saved: BrochureTemplate) => void;
 		onReset?: () => void;
 	} = $props();
 
-	type TabType = 'html' | 'css' | 'js' | 'preview';
+	type TabType = 'html' | 'css' | 'js' | 'preview' | 'versions';
 	let activeTab = $state<TabType>('html');
 	let isSplitView = $state(true);
 	let isFullscreen = $state(false);
 	let aiOpen = $state(false);
+	let historyOpen = $state(false);
+	let versionCount = $state(0);
 	let showCode = $state(true);
 
 	let htmlContent = $state('');
@@ -39,9 +46,23 @@
 	let isSaving = $state(false);
 	let isResetting = $state(false);
 
+	async function refreshVersionCount() {
+		const res = await listBrochureTemplateVersions(slug);
+		if (res.versions) {
+			versionCount = res.versions.length;
+		}
+	}
+
 	// Sync editor content whenever opened or currentTemplate changes
 	$effect(() => {
 		if (open) {
+			refreshVersionCount();
+			if (initialTab) {
+				activeTab = initialTab;
+				if (initialTab === 'versions') {
+					historyOpen = true;
+				}
+			}
 			if (currentTemplate) {
 				htmlContent = currentTemplate.html || '';
 				cssContent = currentTemplate.css || '';
@@ -95,7 +116,7 @@
 		}
 	}
 
-	async function handleSave() {
+	async function handleSave(label?: string) {
 		isSaving = true;
 		const payload: BrochureTemplate = {
 			slug,
@@ -106,7 +127,9 @@
 			is_active: isActive
 		};
 
-		const { error } = await saveBrochureTemplate(payload);
+		const { error, version } = await saveBrochureTemplate(payload, {
+			versionLabel: label || 'Saved code edits'
+		});
 		isSaving = false;
 
 		if (error) {
@@ -115,7 +138,12 @@
 		}
 
 		currentTemplate = payload;
-		toastSuccess('Brochure template saved successfully');
+		await refreshVersionCount();
+		toastSuccess(
+			version
+				? `Brochure saved (v${version.version_number})`
+				: 'Brochure template saved successfully'
+		);
 		onSave?.(payload);
 	}
 
@@ -237,11 +265,30 @@
 						>
 							Preview
 						</button>
+						<button
+							type="button"
+							class={['tab-btn history-tab', { active: activeTab === 'versions' || historyOpen }]}
+							onclick={() => {
+								activeTab = 'versions';
+								historyOpen = true;
+							}}
+						>
+							🕒 Versions {#if versionCount > 0}<span class="tab-count">{versionCount}</span>{/if}
+						</button>
 					</div>
 				{/if}
 			</div>
 
 			<div class="header-right">
+				<button
+					type="button"
+					class={['history-header-btn', { active: historyOpen }]}
+					onclick={() => (historyOpen = !historyOpen)}
+					title="Open Version History & HTML Diff"
+				>
+					🕒 Versions {#if versionCount > 0}<span class="tab-count">{versionCount}</span>{/if}
+				</button>
+
 				<button
 					type="button"
 					class={['ai-header-btn', { active: aiOpen }]}
@@ -392,17 +439,63 @@
 				<button
 					type="button"
 					class="btn-save"
-					onclick={handleSave}
+					onclick={() => handleSave()}
 					disabled={isSaving}
 				>
 					{isSaving ? 'Saving...' : 'Save to Database'}
 				</button>
 			</div>
 		</footer>
+
+		<BrochureVersionHistory
+			{slug}
+			{title}
+			currentHtml={htmlContent}
+			currentCss={cssContent}
+			currentJs={jsContent}
+			bind:open={historyOpen}
+			onRestore={(ver) => {
+				htmlContent = ver.html;
+				cssContent = ver.css;
+				jsContent = ver.js;
+				if (activeTab === 'versions') activeTab = 'html';
+			}}
+			onVersionChange={(count) => (versionCount = count)}
+		/>
 	</div>
 {/if}
 
 <style>
+	.tab-btn.history-tab {
+		color: #38bdf8;
+	}
+
+	.tab-btn.history-tab.active {
+		background: #0369a1;
+		color: #ffffff;
+	}
+
+	.history-header-btn {
+		background: rgba(56, 189, 248, 0.15);
+		border: 1px solid rgba(56, 189, 248, 0.35);
+		color: #38bdf8;
+		padding: 5px 11px;
+		border-radius: 6px;
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		transition: all 0.15s;
+	}
+
+	.history-header-btn:hover,
+	.history-header-btn.active {
+		background: #0284c7;
+		color: #ffffff;
+		border-color: #0284c7;
+	}
 	.code-editor-backdrop {
 		position: fixed;
 		inset: 0;

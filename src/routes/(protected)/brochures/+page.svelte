@@ -8,10 +8,13 @@
 		getDefaultBrochureTemplate,
 		buildBrochureHtmlDocument,
 		listAllBrochureTemplates,
+		listBrochureTemplateVersions,
 		type BrochureTemplate,
-		type BrochureTemplateSummary
+		type BrochureTemplateSummary,
+		type BrochureTemplateVersion
 	} from '$lib/brochures/brochureTemplates';
 	import BrochureAiAssistant from '$lib/brochures/BrochureAiAssistant.svelte';
+	import BrochureVersionHistory from '$lib/brochures/BrochureVersionHistory.svelte';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 
 	// Templates & selection
@@ -19,6 +22,8 @@
 	let selectedSlug = $state('preventative_maintenance');
 	let currentTemplate = $state<BrochureTemplate | null>(null);
 	let isLoading = $state(true);
+	let historyOpen = $state(false);
+	let versionCount = $state(0);
 
 	// Editor state
 	type TabType = 'html' | 'css' | 'js';
@@ -76,6 +81,13 @@
 		}
 	}
 
+	async function refreshVersionCount(slug: string) {
+		const res = await listBrochureTemplateVersions(slug);
+		if (res.versions) {
+			versionCount = res.versions.length;
+		}
+	}
+
 	async function selectBrochure(slug: string) {
 		isLoading = true;
 		selectedSlug = slug;
@@ -107,6 +119,7 @@
 			isActive
 		});
 
+		await refreshVersionCount(slug);
 		isLoading = false;
 	}
 
@@ -163,7 +176,7 @@
 		}
 	}
 
-	async function handleSave() {
+	async function handleSave(customLabel?: string) {
 		isSaving = true;
 		const payload: BrochureTemplate = {
 			slug: selectedSlug,
@@ -174,7 +187,9 @@
 			is_active: isActive
 		};
 
-		const { error } = await saveBrochureTemplate(payload);
+		const { error, version } = await saveBrochureTemplate(payload, {
+			versionLabel: customLabel || 'Saved studio edits'
+		});
 		isSaving = false;
 
 		if (error) {
@@ -190,7 +205,12 @@
 			isActive
 		});
 
-		toastSuccess('Brochure saved to database');
+		await refreshVersionCount(selectedSlug);
+		toastSuccess(
+			version
+				? `Brochure saved to database (Version ${version.version_number})`
+				: 'Brochure saved to database'
+		);
 		await refreshTemplatesList();
 	}
 
@@ -528,6 +548,15 @@ h2 {
 		<div class="header-right">
 			<button
 				type="button"
+				class={['history-toggle-btn', { active: historyOpen }]}
+				onclick={() => (historyOpen = !historyOpen)}
+				title="Open Version History & HTML Diff"
+			>
+				🕒 Versions {#if versionCount > 0}<span class="history-count-badge">{versionCount}</span>{/if}
+			</button>
+
+			<button
+				type="button"
 				class={['ai-toggle-btn', { active: aiPanelOpen }]}
 				onclick={() => (aiPanelOpen = !aiPanelOpen)}
 				title="Toggle DeepSeek AI Assistant"
@@ -547,7 +576,7 @@ h2 {
 			<button
 				type="button"
 				class="save-btn"
-				onclick={handleSave}
+				onclick={() => handleSave()}
 				disabled={isSaving}
 				title="Save to database (Ctrl+S)"
 			>
@@ -700,6 +729,21 @@ h2 {
 		{/if}
 	</main>
 </div>
+
+<BrochureVersionHistory
+	slug={selectedSlug}
+	title={brochureTitle}
+	currentHtml={htmlContent}
+	currentCss={cssContent}
+	currentJs={jsContent}
+	bind:open={historyOpen}
+	onRestore={(ver) => {
+		htmlContent = ver.html;
+		cssContent = ver.css;
+		jsContent = ver.js;
+	}}
+	onVersionChange={(count) => (versionCount = count)}
+/>
 
 <!-- Create New Brochure Modal -->
 {#if showNewModal}
@@ -985,6 +1029,40 @@ h2 {
 		display: flex;
 		align-items: center;
 		gap: 8px;
+	}
+
+	.history-toggle-btn {
+		background: #1e2632;
+		border: 1px solid #334155;
+		color: #38bdf8;
+		font-size: 12px;
+		font-weight: 700;
+		padding: 5px 11px;
+		border-radius: 6px;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		transition: all 0.15s;
+	}
+
+	.history-toggle-btn:hover {
+		background: #253346;
+		border-color: #38bdf8;
+	}
+
+	.history-toggle-btn.active {
+		background: #0369a1;
+		color: #ffffff;
+		border-color: #38bdf8;
+		box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+	}
+
+	.history-count-badge {
+		background: rgba(255, 255, 255, 0.2);
+		padding: 1px 5px;
+		border-radius: 4px;
+		font-size: 10px;
 	}
 
 	.ai-toggle-btn {

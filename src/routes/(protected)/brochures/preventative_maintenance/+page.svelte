@@ -60,6 +60,7 @@
 	let images = $state<Record<string, string>>({ ...defaults });
 	let editorOpen = $state(false);
 	let codeEditorOpen = $state(false);
+	let editorInitialTab = $state<'html' | 'css' | 'js' | 'preview' | 'versions'>('html');
 	let brochureEl = $state<HTMLDivElement | null>(null);
 	let customTemplate = $state<BrochureTemplate | null>(null);
 	let customIframeEl = $state<HTMLIFrameElement | null>(null);
@@ -846,8 +847,22 @@
 	{/if}
 	<button
 		type="button"
+		class="tool-btn"
+		onclick={() => {
+			editorInitialTab = 'versions';
+			codeEditorOpen = true;
+		}}
+		title="View Version History & restore previous HTML versions"
+	>
+		Version History
+	</button>
+	<button
+		type="button"
 		class={['tool-btn', { primary: true }]}
-		onclick={() => (codeEditorOpen = true)}
+		onclick={() => {
+			editorInitialTab = 'html';
+			codeEditorOpen = true;
+		}}
 		title="Edit HTML, CSS, and JS code in database"
 	>
 		Edit code (DB){#if isCustomActive}&nbsp;<span class="toolbar-badge">Active</span>{/if}
@@ -861,6 +876,7 @@
 	title="Preventative Maintenance"
 	bind:open={codeEditorOpen}
 	bind:currentTemplate={customTemplate}
+	initialTab={editorInitialTab}
 	onSave={(saved) => (customTemplate = saved)}
 	onReset={() => (customTemplate = null)}
 />

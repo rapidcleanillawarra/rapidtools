@@ -927,6 +927,25 @@
 					<span class="truncate">Tickets</span>
 				{/if}
 			</a>
+
+			<!-- Reset Password -->
+			<a
+				href="{base}/reset-password"
+				class="group flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition-all duration-150 {isPathActive(base + '/reset-password') ? 'bg-lime-500/10 text-lime-400 font-semibold border-l-[3px] border-lime-400 shadow-sm' : 'text-gray-300 hover:bg-[#1f2329] hover:text-lime-300'}"
+				class:px-3={!sidebarMinimized}
+				class:px-2={sidebarMinimized}
+				class:justify-center={sidebarMinimized}
+				on:click={closeSidebar}
+				on:mouseenter={(e) => showTooltip(e, 'Reset Password')}
+				on:mouseleave={hideTooltip}
+			>
+				<svg class="h-5 w-5 flex-shrink-0 transition-transform duration-150 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+				</svg>
+				{#if !sidebarMinimized}
+					<span class="truncate">Reset Password</span>
+				{/if}
+			</a>
 		</nav>
 
 		<!-- 3. USER PROFILE (BOTTOM) -->
@@ -985,6 +1004,16 @@
 										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 									</svg>
 									Edit Profile
+								</a>
+								<a
+									href="{base}/reset-password"
+									class="flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-gray-300 transition hover:bg-[#1f2329] hover:text-lime-400"
+									on:click={closeSidebar}
+								>
+									<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+									</svg>
+									Reset Password
 								</a>
 								<button
 									type="button"
@@ -1058,6 +1087,16 @@
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
 						</svg>
 						Edit Profile
+					</a>
+					<a
+						href="{base}/reset-password"
+						class="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-gray-300 transition hover:bg-[#20242a] hover:text-lime-300"
+						on:click={closeSidebar}
+					>
+						<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+						</svg>
+						Reset Password
 					</a>
 					<button
 						type="button"

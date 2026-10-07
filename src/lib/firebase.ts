@@ -4,6 +4,10 @@ import {
     onAuthStateChanged, 
     signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword, 
     signOut as firebaseSignOut, 
+    sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+    updatePassword as firebaseUpdatePassword,
+    verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
+    confirmPasswordReset as firebaseConfirmPasswordReset,
     type Auth, 
     type User 
 } from 'firebase/auth';
@@ -100,6 +104,46 @@ export async function logoutUser(): Promise<void> {
     authError.set(error);
     isLoadingAuth.set(false);
     throw error; // Re-throw for the component to handle if needed
+  }
+}
+
+// Send password reset email to any user account
+export async function sendPasswordReset(email: string): Promise<void> {
+  try {
+    await firebaseSendPasswordResetEmail(auth, email.trim());
+  } catch (error) {
+    console.error('Firebase sendPasswordReset error:', error);
+    throw error;
+  }
+}
+
+// Update the current logged-in user's password directly (requires recent login)
+export async function updateUserPassword(user: User, newPassword: string): Promise<void> {
+  try {
+    await firebaseUpdatePassword(user, newPassword);
+  } catch (error) {
+    console.error('Firebase updatePassword error:', error);
+    throw error;
+  }
+}
+
+// Verify a password reset action code (oobCode) received in a link
+export async function verifyResetCode(code: string): Promise<string> {
+  try {
+    return await firebaseVerifyPasswordResetCode(auth, code);
+  } catch (error) {
+    console.error('Firebase verifyPasswordResetCode error:', error);
+    throw error;
+  }
+}
+
+// Confirm and complete a password reset with a valid action code
+export async function confirmResetCode(code: string, newPassword: string): Promise<void> {
+  try {
+    await firebaseConfirmPasswordReset(auth, code, newPassword);
+  } catch (error) {
+    console.error('Firebase confirmPasswordReset error:', error);
+    throw error;
   }
 }
 

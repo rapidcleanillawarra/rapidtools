@@ -1,7 +1,9 @@
 import { writable, get } from 'svelte/store';
 import { supabase } from '$lib/supabase';
 import { currentUser } from '$lib/firebase';
-import type { SelectOption, MultiSelectOption } from './types';
+import { userProfile } from '$lib/userProfile';
+import type { SelectOption, MultiSelectOption, PricingSession } from './types';
+
 
 // API Endpoints
 export const brandsUrl = 'https://prod-06.australiasoutheast.logic.azure.com:443/workflows/58215302c1c24203886ccf481adbaac5/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=RFQ4OtbS6cyjB_JzaIsowmww4KBqPQgavWLg18znE5s';
@@ -31,6 +33,13 @@ export const priceGroupError = writable('');
 export const selectedRows = writable(new Set<string>());
 export const selectAll = writable(false);
 export const submitLoading = writable(false);
+
+// Pricing Session state stores
+export const currentSession = writable<PricingSession | null>(null);
+export const sessionLoading = writable(false);
+export const sessionHistory = writable<PricingSession[]>([]);
+export const showCreateSessionModal = writable(false);
+export const showSessionHistoryModal = writable(false);
 
 /** Latest row per SKU from `latest_product_price_adjustment` view (for Last Price column). */
 export const lastPriceAdjustmentBySku = writable<
@@ -240,6 +249,72 @@ export function calculatePrices(product: any, source: PricingEditSource = 'marku
     markup: product.markup,
     rrp: product.rrp
   }, source);
+}
+
+export interface BatchPricingUpdateItem {
+  sku: string;
+  patch: {
+    purchase_price?: number;
+    rrp?: number;
+    markup?: number;
+    gpp?: number;
+  };
+  source: PricingEditSource;
+}
+
+/**
+ * Updates multiple products in a single store transaction.
+ * Automatically marks modified SKUs as selected so the user can review them immediately.
+ */
+export function batchApplyPricingUpdates(updates: BatchPricingUpdateItem[]): {
+  success: boolean;
+  updatedCount: number;
+} {
+  if (!updates || updates.length === 0) {
+    return { success: true, updatedCount: 0 };
+  }
+
+  // Create lookup for quick patch retrieval
+  const updateMap = new Map<string, BatchPricingUpdateItem>();
+  for (const item of updates) {
+    updateMap.set(normalizeSkuKey(item.sku), item);
+  }
+
+  const updatedSkus: string[] = [];
+
+  products.update((list) => {
+    let hasModifications = false;
+    const nextList = list.map((product) => {
+      const skuKey = normalizeSkuKey(product?.sku);
+      const updateItem = updateMap.get(skuKey);
+      if (!updateItem) return product;
+
+      hasModifications = true;
+      updatedSkus.push(product.sku);
+
+      const merged = { ...product, ...updateItem.patch };
+      delete merged.rrp_gst_inclusive;
+      return computePricing(merged, updateItem.source);
+    });
+
+    return hasModifications ? nextList : list;
+  });
+
+  // Automatically select the updated rows in the table
+  if (updatedSkus.length > 0) {
+    selectedRows.update((set) => {
+      const nextSet = new Set(set);
+      for (const sku of updatedSkus) {
+        nextSet.add(sku);
+      }
+      return nextSet;
+    });
+  }
+
+  return {
+    success: true,
+    updatedCount: updatedSkus.length
+  };
 }
 
 // Function to apply markup to all rows
@@ -670,6 +745,257 @@ async function fetchCreatedByForPriceAdjustment(): Promise<{
   return { created_by: email, created_by_name: name };
 }
 
+export const SESSION_STORAGE_KEY = 'rapidtools_pricing_update_session_id';
+
+/**
+ * Generate automatic session name based on user name and date/time.
+ * e.g. "Pricing Update - John Doe - 2026-10-15 19:50"
+ */
+export function generateAutomaticSessionName(userName?: string): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const cleanName = (userName || 'User').trim();
+  return `Pricing Update - ${cleanName} - ${dateStr}`;
+}
+
+/**
+ * Gathers user information from Firebase Auth, userProfile, and Supabase users table.
+ */
+export async function gatherCurrentUserInfo(): Promise<{
+  userId: string | null;
+  userName: string;
+  userEmail: string | null;
+  userInfo: Record<string, unknown>;
+}> {
+  const user = get(currentUser);
+  const profile = get(userProfile);
+  const { created_by: dbEmail, created_by_name: dbName } = await fetchCreatedByForPriceAdjustment();
+
+  const profileName = [profile?.firstName, profile?.lastName].filter(Boolean).join(' ').trim();
+  const resolvedName = profileName || dbName || user?.displayName || user?.email || 'Unknown User';
+  const resolvedEmail = user?.email || dbEmail || profile?.email || null;
+  const resolvedId = user?.uid || null;
+
+  const metadata: Record<string, unknown> = {
+    uid: resolvedId,
+    email: resolvedEmail,
+    displayName: user?.displayName || null,
+    fullName: resolvedName,
+    firstName: profile?.firstName || null,
+    lastName: profile?.lastName || null,
+    createdAt: new Date().toISOString()
+  };
+
+  if (typeof window !== 'undefined' && window.navigator) {
+    metadata.userAgent = window.navigator.userAgent;
+  }
+
+  return {
+    userId: resolvedId,
+    userName: resolvedName,
+    userEmail: resolvedEmail,
+    userInfo: metadata
+  };
+}
+
+/**
+ * Creates a new pricing session in Supabase and marks it active in stores & storage.
+ */
+export async function createPricingSession(
+  customName?: string
+): Promise<{ success: boolean; session?: PricingSession; message?: string }> {
+  sessionLoading.set(true);
+  try {
+    const info = await gatherCurrentUserInfo();
+    const sessionName = customName?.trim() || generateAutomaticSessionName(info.userName);
+
+    const newRecord = {
+      session_name: sessionName,
+      user_id: info.userId || '',
+      user_email: info.userEmail || '',
+      user_name: info.userName || '',
+      user_info: info.userInfo || {},
+      status: 'active' as const,
+      items_updated_count: 0
+    };
+
+    const { data, error } = await supabase
+      .from('product_price_update_sessions')
+      .insert([newRecord])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[product_price_update_sessions] creation failed', error);
+      sessionLoading.set(false);
+      let msg = error.message;
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        msg = "Table 'product_price_update_sessions' does not exist in Supabase yet. Please run the SQL migration in your Supabase SQL editor.";
+      }
+      return { success: false, message: msg };
+    }
+
+    const created = data as PricingSession;
+    currentSession.set(created);
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, created.id);
+    }
+    sessionLoading.set(false);
+    return { success: true, session: created };
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error('[product_price_update_sessions] unexpected error in createPricingSession', error);
+    sessionLoading.set(false);
+    return { success: false, message: error.message || 'Error creating pricing session' };
+  }
+}
+
+/**
+ * Loads the active session for the current user from sessionStorage or Supabase.
+ */
+export async function loadActivePricingSession(): Promise<PricingSession | null> {
+  try {
+    // 1. Try from sessionStorage
+    const storedId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(SESSION_STORAGE_KEY) : null;
+    if (storedId) {
+      try {
+        const { data, error } = await Promise.race([
+          supabase
+            .from('product_price_update_sessions')
+            .select('*')
+            .eq('id', storedId)
+            .eq('status', 'active')
+            .maybeSingle(),
+          new Promise<{ data: null; error: Error }>((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout loading session')), 3000)
+          )
+        ]);
+
+        if (!error && data) {
+          const sess = data as PricingSession;
+          currentSession.set(sess);
+          return sess;
+        }
+      } catch (e) {
+        console.warn('[product_price_update_sessions] check stored session failed', e);
+      }
+
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      }
+    }
+
+    // 2. Query user's active session in Supabase with timeout
+    const user = get(currentUser);
+    if (user?.uid) {
+      try {
+        const { data, error } = await Promise.race([
+          supabase
+            .from('product_price_update_sessions')
+            .select('*')
+            .eq('user_id', user.uid)
+            .eq('status', 'active')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          new Promise<{ data: null; error: Error }>((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout loading user session')), 3000)
+          )
+        ]);
+
+        if (!error && data) {
+          const sess = data as PricingSession;
+          currentSession.set(sess);
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(SESSION_STORAGE_KEY, data.id);
+          }
+          return sess;
+        }
+      } catch (e) {
+        console.warn('[product_price_update_sessions] query user active session failed', e);
+      }
+    }
+
+    currentSession.set(null);
+    return null;
+  } catch (err) {
+    console.error('[product_price_update_sessions] loadActivePricingSession error', err);
+    currentSession.set(null);
+    return null;
+  }
+}
+
+/**
+ * Completes / closes the active pricing session.
+ */
+export async function completePricingSession(
+  sessionId?: string
+): Promise<{ success: boolean; message: string }> {
+  const active = get(currentSession);
+  const targetId = sessionId || active?.id;
+
+  if (!targetId) {
+    return { success: false, message: 'No active session to complete.' };
+  }
+
+  sessionLoading.set(true);
+  try {
+    const timestamp = new Date().toISOString();
+    const { error } = await supabase
+      .from('product_price_update_sessions')
+      .update({
+        status: 'completed',
+        completed_at: timestamp,
+        updated_at: timestamp
+      })
+      .eq('id', targetId);
+
+    if (error) {
+      console.error('[product_price_update_sessions] complete error:', error);
+      sessionLoading.set(false);
+      return { success: false, message: error.message || 'Failed to complete session' };
+    }
+
+    if (active?.id === targetId) {
+      currentSession.set(null);
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      }
+    }
+
+    sessionLoading.set(false);
+    return { success: true, message: 'Session completed successfully' };
+  } catch (err: unknown) {
+    const error = err as Error;
+    sessionLoading.set(false);
+    return { success: false, message: error.message || 'Failed to complete session' };
+  }
+}
+
+/**
+ * Fetches recent pricing sessions for history view.
+ */
+export async function fetchRecentSessions(limitCount = 30): Promise<PricingSession[]> {
+  try {
+    const { data, error } = await supabase
+      .from('product_price_update_sessions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limitCount);
+
+    if (!error && data) {
+      const sessions = data as PricingSession[];
+      sessionHistory.set(sessions);
+      return sessions;
+    }
+    return [];
+  } catch (err) {
+    console.error('[product_price_update_sessions] fetchRecentSessions threw', err);
+    return [];
+  }
+}
+
 /** Persists previous purchase + list prices (from the snapshot before this save) to Supabase. */
 async function savePreviousPriceSnapshotsToSupabase(
   updatedSkus: Set<string>,
@@ -684,6 +1010,9 @@ async function savePreviousPriceSnapshotsToSupabase(
   const { created_by: email, created_by_name: name } =
     await fetchCreatedByForPriceAdjustment();
 
+  const activeSession = get(currentSession);
+  const sessionId = activeSession?.id ?? null;
+
   const rows = Array.from(updatedSkus)
     .map((sku) => {
       const orig = findOriginalProductBySku(originalSnapshot, sku);
@@ -692,6 +1021,7 @@ async function savePreviousPriceSnapshotsToSupabase(
       // Use canonical sku from snapshot so DB matches app rows
       const canonicalSku = String(orig.sku ?? sku);
       return {
+        session_id: sessionId,
         sku: canonicalSku,
         inventory_id:
           inv != null && String(inv).trim() !== '' ? String(inv) : null,
@@ -724,7 +1054,16 @@ async function savePreviousPriceSnapshotsToSupabase(
   console.log('[product_price_adjustment] insert payload', { rowCount: rows.length, rows });
 
   try {
-    const { data, error } = await supabase.from('product_price_adjustment').insert(rows).select();
+    let { data, error } = await supabase.from('product_price_adjustment').insert(rows).select();
+
+    // If session_id column doesn't exist yet on product_price_adjustment, retry without it
+    if (error && (error.code === '42703' || error.message?.includes('session_id'))) {
+      console.warn('[product_price_adjustment] retrying insert without session_id column', error.message);
+      const rowsWithoutSession = rows.map(({ session_id, ...rest }) => rest);
+      const fallbackResult = await supabase.from('product_price_adjustment').insert(rowsWithoutSession).select();
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('[product_price_adjustment] insert failed', {
@@ -741,6 +1080,24 @@ async function savePreviousPriceSnapshotsToSupabase(
       returnedRows: data?.length ?? 0,
       data,
     });
+
+    // Increment items_updated_count in the active session
+    if (sessionId && updatedSkus.size > 0) {
+      const currentCount = activeSession?.items_updated_count || 0;
+      const newCount = currentCount + updatedSkus.size;
+
+      try {
+        await supabase
+          .from('product_price_update_sessions')
+          .update({
+            items_updated_count: newCount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', sessionId);
+      } catch {}
+
+      currentSession.update((s) => s ? { ...s, items_updated_count: newCount } : s);
+    }
   } catch (e) {
     console.error('[product_price_adjustment] insert threw', e);
   }
@@ -766,6 +1123,18 @@ function syncOriginalProductsForSkus(updatedSkus: Set<string>) {
 // Function to handle submit checked rows
 export async function handleSubmitChecked() {
   submitLoading.set(true);
+
+  // Require an active session before submitting pricing updates
+  const activeSession = get(currentSession);
+  if (!activeSession) {
+    submitLoading.set(false);
+    showCreateSessionModal.set(true);
+    return {
+      success: false,
+      message: 'A session must be created first before you can save updates.'
+    };
+  }
+
   const originalSnapshotAtSubmit = get(originalProducts);
   try {
     const currentSelectedRows = get(selectedRows);

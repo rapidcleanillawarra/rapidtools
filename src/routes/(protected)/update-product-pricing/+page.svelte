@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import { base } from '$app/paths';
 
@@ -10,6 +10,10 @@
 	import ProductsTable from './components/ProductsTable.svelte';
 	import ConfirmSaveModal from './components/ConfirmSaveModal.svelte';
 	import PhotoViewerModal from './components/PhotoViewerModal.svelte';
+	import SessionBar from './components/SessionBar.svelte';
+	import CreateSessionModal from './components/CreateSessionModal.svelte';
+	import SessionHistoryModal from './components/SessionHistoryModal.svelte';
+	import ImportPricingModal from './components/ImportPricingModal.svelte';
 	import {
 		products,
 		originalProducts,
@@ -44,7 +48,13 @@
 		updateProductBySku,
 		updateProductPricingBySku,
 		clearSelection,
-		lastPriceAdjustmentBySku
+		lastPriceAdjustmentBySku,
+		currentSession,
+		sessionLoading,
+		showCreateSessionModal,
+		showSessionHistoryModal,
+		loadActivePricingSession,
+		completePricingSession
 	} from './stores';
 
 	const DEBUG = '[update-product-pricing]';
@@ -66,6 +76,11 @@
 	}
 
 	function applyAdjustments() {
+		if (!$currentSession) {
+			toastError('Please create a session first before applying adjustments.');
+			$showCreateSessionModal = true;
+			return;
+		}
 		const selected = getSelectedSkusOrToast();
 		if (!selected) return;
 
@@ -214,44 +229,62 @@
 	$: listPriceIncreaseHint = percentHint(toNumber(listPriceIncrease, 0));
 	$: gppIncreaseHint = gppHint(toNumber(gppIncrease, 0));
 
+	const onError = (event: ErrorEvent) => {
+		console.error(`${DEBUG} uncaught error`, {
+			message: event.message,
+			filename: event.filename,
+			lineno: event.lineno,
+			colno: event.colno,
+			error: event.error,
+			stack: event.error?.stack
+		});
+	};
+	const onRejection = (event: PromiseRejectionEvent) => {
+		console.error(`${DEBUG} unhandled rejection`, event.reason);
+	};
+
+	let checkingInitialSession = true;
+
 	onMount(async () => {
-		const onError = (event: ErrorEvent) => {
-			console.error(`${DEBUG} uncaught error`, {
-				message: event.message,
-				filename: event.filename,
-				lineno: event.lineno,
-				colno: event.colno,
-				error: event.error,
-				stack: event.error?.stack
-			});
-		};
-		const onRejection = (event: PromiseRejectionEvent) => {
-			console.error(`${DEBUG} unhandled rejection`, event.reason);
-		};
 		window.addEventListener('error', onError);
 		window.addEventListener('unhandledrejection', onRejection);
 
-		// Load products and reference data in parallel
-		const [productsResult] = await Promise.all([
+		// 1. Verify session immediately so the UI is responsive right away
+		try {
+			const activeSession = await loadActivePricingSession();
+			if (!activeSession && !$currentSession) {
+				$showCreateSessionModal = true;
+			}
+		} finally {
+			checkingInitialSession = false;
+		}
+
+		// 2. Load products and reference data in the background
+		Promise.all([
 			fetchAllProducts(),
 			fetchPriceGroups(),
 			fetchBrands(),
 			fetchSuppliers()
-		]);
-		if (productsResult && !productsResult.success) {
-			toastError(productsResult.message || 'Failed to load products. Please try again.');
-		}
+		]).then(([productsResult]) => {
+			if (productsResult && !productsResult.success) {
+				toastError(productsResult.message || 'Failed to load products. Please try again.');
+			}
+		}).catch((err) => {
+			console.error(`${DEBUG} background load error`, err);
+		});
 
 		console.log(`${DEBUG} onMount loaded`, {
 			products: $products,
 			productsLength: $products?.length,
 			originalProductsLength: $originalProducts?.length
 		});
+	});
 
-		return () => {
+	onDestroy(() => {
+		if (typeof window !== 'undefined') {
 			window.removeEventListener('error', onError);
 			window.removeEventListener('unhandledrejection', onRejection);
-		};
+		}
 	});
 
 	// Declare reactive variables
@@ -272,6 +305,17 @@
 	};
 	let showConfirmSave = false;
 	let showMassPriceChangeModal = false;
+	let showImportPricingModal = false;
+
+	function openImportPricingModal() {
+		if (!$currentSession) {
+			toastError('Please create or resume a pricing session first.');
+			$showCreateSessionModal = true;
+			return;
+		}
+		showImportPricingModal = true;
+	}
+
 	let originalMap: Map<string, any> = new Map();
 	let photoViewerOpen = false;
 	let photoViewerImages: string[] = [];
@@ -343,7 +387,25 @@
 
 	async function confirmAndSubmit() {
 		showConfirmSave = false;
+		if (!$currentSession) {
+			toastError('Please create a session first before saving updates.');
+			$showCreateSessionModal = true;
+			return;
+		}
 		await submitCheckedRows();
+	}
+
+	async function handleCompleteActiveSession() {
+		if (!$currentSession) return;
+		const sessionName = $currentSession.session_name;
+		const confirmed = window.confirm(`Are you sure you want to complete session "${sessionName}"?`);
+		if (!confirmed) return;
+		const res = await completePricingSession();
+		if (res.success) {
+			toastSuccess(res.message);
+		} else {
+			toastError(res.message);
+		}
 	}
 
 	// Function to get sort icon
@@ -444,7 +506,57 @@
 			</div>
 		</div>
 
-		<div class="three-col-layout" class:collapsed={leftCollapsed}>
+		<!-- Session Banner / Controls -->
+		<SessionBar
+			session={$currentSession}
+			loading={$sessionLoading}
+			onStartSession={() => ($showCreateSessionModal = true)}
+			onCompleteSession={handleCompleteActiveSession}
+			onViewHistory={() => ($showSessionHistoryModal = true)}
+		/>
+
+		{#if checkingInitialSession}
+			<div class="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
+				<div class="animate-spin rounded-full h-8 w-8 border-2 border-lime-400 border-t-transparent"></div>
+				<span class="text-sm">Verifying session status...</span>
+			</div>
+		{:else if !$currentSession}
+			<!-- Locked State when no session exists -->
+			<div class="my-6 flex flex-col items-center justify-center rounded-2xl border border-[#262a30] bg-[#101214] p-8 sm:p-12 text-center shadow-xl">
+				<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-lime-500/10 border border-lime-500/20 text-lime-400">
+					<svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+					</svg>
+				</div>
+				<h2 class="text-xl font-bold text-white mb-2 tracking-tight">Pricing Session Required</h2>
+				<p class="max-w-md text-sm text-gray-400 mb-6 leading-relaxed">
+					To access product pricing, search inventory, and apply updates, you must first create or resume a pricing session.
+				</p>
+				<div class="flex flex-wrap items-center justify-center gap-3">
+					<button
+						type="button"
+						class="btn-primary text-xs font-bold py-2.5 px-5 inline-flex items-center gap-2"
+						on:click={() => ($showCreateSessionModal = true)}
+					>
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						<span>Start New Session</span>
+					</button>
+					<button
+						type="button"
+						class="btn-secondary text-xs font-semibold py-2.5 px-4 inline-flex items-center gap-2"
+						on:click={() => ($showSessionHistoryModal = true)}
+					>
+						<svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span>View Past Sessions</span>
+					</button>
+				</div>
+			</div>
+		{:else}
+			<div class="three-col-layout" class:collapsed={leftCollapsed}>
 			<FiltersPanel
 				collapsed={leftCollapsed}
 				{skuFilter}
@@ -460,7 +572,14 @@
 				{selectedRows}
 				{submitLoading}
 				onApplyFilters={handleFilterClick}
-				onRequestSave={() => (showConfirmSave = true)}
+				onRequestSave={() => {
+					if (!$currentSession) {
+						toastError('Please create a session first before saving updates.');
+						$showCreateSessionModal = true;
+						return;
+					}
+					showConfirmSave = true;
+				}}
 				onToggleCollapse={() => (leftCollapsed = !leftCollapsed)}
 			/>
 
@@ -475,6 +594,16 @@
 						on:click={() => (showMassPriceChangeModal = true)}
 					>
 						Mass Price Change
+					</button>
+					<button
+						type="button"
+						class="btn-secondary text-xs py-2 px-3 inline-flex items-center gap-1.5 text-lime-400 hover:text-lime-300 border-lime-500/30 hover:border-lime-500/60 transition-colors"
+						on:click={openImportPricingModal}
+					>
+						<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+						</svg>
+						<span>Import Excel / CSV</span>
 					</button>
 					<button
 						type="button"
@@ -532,6 +661,7 @@
 				/>
 			</section>
 		</div>
+		{/if}
 	</div>
 </div>
 <Modal
@@ -653,6 +783,21 @@
 	title={photoViewerTitle}
 	onClose={() => (photoViewerOpen = false)}
 	onIndexChange={(next) => (photoViewerIndex = next)}
+/>
+
+<CreateSessionModal
+	open={$showCreateSessionModal}
+	onClose={() => ($showCreateSessionModal = false)}
+/>
+
+<SessionHistoryModal
+	open={$showSessionHistoryModal}
+	onClose={() => ($showSessionHistoryModal = false)}
+/>
+
+<ImportPricingModal
+	open={showImportPricingModal}
+	onClose={() => (showImportPricingModal = false)}
 />
 
 <style>

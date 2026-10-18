@@ -66,6 +66,16 @@
   --list-background: #141619;
   --list-border: 1px solid #262a30;
   --clear-select-color: #9ca3af;
+  --multi-item-bg: #1f2329;
+  --multi-item-color: #e5e7eb;
+  --multi-item-outline: 1px solid #333842;
+  --multi-item-border-radius: 0.375rem;
+  --multi-item-padding: 0 0.5rem;
+  --multi-item-height: 24px;
+  --multi-item-clear-icon-color: #9ca3af;
+  --multi-item-active-outline: 1px solid #a3e635;
+  --multi-select-padding: 0 0.375rem;
+  --clear-icon-width: 14px;
   width: 100%;
   position: relative;
 }
@@ -118,9 +128,64 @@
 .svelte-select .value-container {
   padding: var(--padding);
   font-size: var(--font-size);
+  color: #e5e7eb;
+}
+
+.svelte-select:not(.multi) .value-container {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.svelte-select.multi .value-container {
+  white-space: normal;
+  overflow: visible;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 3px 0.25rem;
+}
+
+.svelte-select .multi-item {
+  background: var(--multi-item-bg, #1f2329);
+  color: var(--multi-item-color, #e5e7eb);
+  outline: var(--multi-item-outline, 1px solid #333842);
+  border-radius: var(--multi-item-border-radius, 0.375rem);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: normal;
+}
+
+.svelte-select .multi-item-text {
+  color: inherit;
+}
+
+.svelte-select .multi-item-clear {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.svelte-select .multi-item-clear:hover {
+  --clear-icon-color: #ef4444 !important;
+}
+
+.svelte-select .multi-item-clear svg {
+  color: var(--clear-icon-color, #9ca3af);
+  width: 14px;
+  height: 14px;
+}
+
+.svelte-select .clear-select {
+  color: var(--clear-select-color, #9ca3af);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.svelte-select .clear-select:hover {
   color: #e5e7eb;
 }
 

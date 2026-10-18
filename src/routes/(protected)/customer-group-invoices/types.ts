@@ -7,6 +7,7 @@ export interface CustomerGroupInvoice {
   balance: number;
   username: string;
   company: string;
+  shipAddress: string;
   customerGroupName: string;
   status: string;
   statusColor: string;

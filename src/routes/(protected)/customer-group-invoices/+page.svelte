@@ -239,7 +239,8 @@
 						'OrderPayment',
 						'GrandTotal',
 						'DatePlaced',
-						'CompleteStatus'
+						'CompleteStatus',
+						'ShipAddress'
 					]
 				},
 				action: 'GetOrder'
@@ -315,6 +316,18 @@
 						? String(order.CompleteStatus).trim()
 						: '—';
 
+				const streetParts = [order.ShipStreetLine1, order.ShipStreetLine2]
+					.map((s) => (s != null ? String(s).trim() : ''))
+					.filter(Boolean);
+				const street = streetParts.join(', ');
+				const city = order.ShipCity != null ? String(order.ShipCity).trim() : '';
+				const statePostcode = [order.ShipState, order.ShipPostCode]
+					.map((s) => (s != null ? String(s).trim() : ''))
+					.filter(Boolean)
+					.join(' ');
+				const shipAddress =
+					[street, city, statePostcode].filter(Boolean).join(', ') || '—';
+
 				const mappedInvoice = {
 					invoiceNumber: order.ID,
 					dateIssued: order.DatePlaced,
@@ -324,6 +337,7 @@
 					balance: balance,
 					username: order.Username,
 					company: customerGroupMap.get(order.Username) || order.UserGroup,
+					shipAddress,
 					status,
 					statusColor,
 					approval: completeStatus,
@@ -528,6 +542,15 @@
 			selectedStatus.set([]);
 		}
 		validateFilters();
+	}
+
+	// Handle status clear
+	function handleStatusClear(event: CustomEvent) {
+		const detail = event?.detail;
+		if (!detail || Array.isArray(detail)) {
+			selectedStatus.set([]);
+			validateFilters();
+		}
 	}
 
 	// Add search function
@@ -951,7 +974,7 @@
 				/>
 			</div>
 
-			<div>
+			<div class="status-filter-wrapper">
 				<label class="mb-1.5 block text-sm font-medium text-gray-300">Status</label>
 				<Select
 					items={statusOptions}
@@ -959,12 +982,18 @@
 					clearable={true}
 					multiple={true}
 					value={Array.isArray($selectedStatus) ? $selectedStatus : []}
-					on:clear={() => {
-						selectedStatus.set([]);
-						validateFilters();
-					}}
+					on:clear={handleStatusClear}
 					on:change={handleStatusChange}
-				/>
+				>
+					<div slot="selection" let:selection class="status-chip status-{selection?.value}">
+						<span class="status-dot"></span>
+						<span>{selection?.label}</span>
+					</div>
+					<div slot="item" let:item class="status-dropdown-item status-{item?.value}">
+						<span class="status-dot"></span>
+						<span>{item?.label}</span>
+					</div>
+				</Select>
 				{#if $statusError}
 					<p class="mt-1.5 text-xs text-red-400">{$statusError}</p>
 				{/if}
@@ -1002,6 +1031,7 @@
 						balance: '',
 						username: '',
 						company: '',
+						shipAddress: '',
 						approval: '',
 						status: ''
 					});
@@ -1250,6 +1280,24 @@
 									</div>
 								</th>
 								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('shipAddress')}
+										>
+											Ship Address {getSortIcon('shipAddress', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'shipAddress')}
+										/>
+									</div>
+								</th>
+								<th
 									class="col-approval px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
 								>
 									<div class="flex flex-col">
@@ -1290,7 +1338,7 @@
 						<tbody class="divide-y divide-[#262a30] bg-[#141619]">
 							{#if !$invoices || $invoices.length === 0}
 								<tr>
-									<td colspan="10" class="px-4 py-8 text-center text-sm text-gray-400"> No results found </td>
+									<td colspan="11" class="px-4 py-8 text-center text-sm text-gray-400"> No results found </td>
 								</tr>
 							{:else}
 								{#each paginatedInvoices as invoice (invoice.invoiceNumber)}
@@ -1338,6 +1386,7 @@
 										</td>
 										<td class="px-3 py-3 text-sm text-gray-300">{invoice.username}</td>
 										<td class="px-3 py-3 text-sm text-gray-300">{invoice.company}</td>
+										<td class="px-3 py-3 text-sm text-gray-300">{invoice.shipAddress}</td>
 										<td class="col-approval px-3 py-3 text-sm">
 											<span
 												class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -1517,6 +1566,106 @@
 {/if}
 
 <style>
+	/* Status Filter Specific Styles */
+	:global(.status-filter-wrapper .status-chip) {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.75rem;
+		font-weight: 500;
+		line-height: normal;
+	}
+
+	:global(.status-filter-wrapper .status-dot) {
+		width: 6px;
+		height: 6px;
+		border-radius: 9999px;
+		display: inline-block;
+		flex-shrink: 0;
+	}
+
+	:global(.status-filter-wrapper .status-dropdown-item) {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		width: 100%;
+	}
+
+	/* Base fallback for status multi-item */
+	:global(.status-filter-wrapper .multi-item) {
+		background: #1f2329 !important;
+		border: 1px solid #333842 !important;
+		outline: none !important;
+		border-radius: 0.375rem !important;
+		padding: 2px 8px !important;
+		height: 24px !important;
+		color: #e5e7eb !important;
+	}
+
+	/* Unpaid - Red theme */
+	:global(.status-filter-wrapper .status-Unpaid .status-dot) {
+		background-color: #f87171;
+		box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
+	}
+	:global(.status-filter-wrapper .status-chip.status-Unpaid) {
+		color: #fca5a5;
+	}
+	:global(.status-filter-wrapper .multi-item:has(.status-Unpaid)) {
+		background: rgba(69, 10, 10, 0.6) !important;
+		border: 1px solid rgba(239, 68, 68, 0.4) !important;
+		outline: none !important;
+	}
+	:global(.status-filter-wrapper .multi-item:has(.status-Unpaid) .multi-item-clear) {
+		--clear-icon-color: #fca5a5;
+	}
+
+	/* Partially Paid - Amber theme */
+	:global(.status-filter-wrapper .status-PartiallyPaid .status-dot) {
+		background-color: #fbbf24;
+		box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+	}
+	:global(.status-filter-wrapper .status-chip.status-PartiallyPaid) {
+		color: #fcd34d;
+	}
+	:global(.status-filter-wrapper .multi-item:has(.status-PartiallyPaid)) {
+		background: rgba(69, 26, 3, 0.6) !important;
+		border: 1px solid rgba(245, 158, 11, 0.4) !important;
+		outline: none !important;
+	}
+	:global(.status-filter-wrapper .multi-item:has(.status-PartiallyPaid) .multi-item-clear) {
+		--clear-icon-color: #fcd34d;
+	}
+
+	/* Fully Paid - Emerald theme */
+	:global(.status-filter-wrapper .status-FullyPaid .status-dot) {
+		background-color: #34d399;
+		box-shadow: 0 0 6px rgba(52, 211, 153, 0.6);
+	}
+	:global(.status-filter-wrapper .status-chip.status-FullyPaid) {
+		color: #6ee7b7;
+	}
+	:global(.status-filter-wrapper .multi-item:has(.status-FullyPaid)) {
+		background: rgba(2, 44, 34, 0.6) !important;
+		border: 1px solid rgba(16, 185, 129, 0.4) !important;
+		outline: none !important;
+	}
+	:global(.status-filter-wrapper .multi-item:has(.status-FullyPaid) .multi-item-clear) {
+		--clear-icon-color: #6ee7b7;
+	}
+
+	:global(.status-filter-wrapper .multi-item-clear) {
+		cursor: pointer !important;
+		display: inline-flex !important;
+		align-items: center !important;
+		margin-left: 2px !important;
+	}
+
+	:global(.status-filter-wrapper .multi-item-clear:hover) {
+		--clear-icon-color: #ef4444 !important;
+	}
+
 	@media print {
 		/* Hide elements that shouldn't be printed */
 		button,

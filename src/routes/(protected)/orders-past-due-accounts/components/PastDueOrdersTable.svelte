@@ -251,7 +251,7 @@
 													{getLatestNotesForDisplay(order, 60)}
 												</span>
 												<span class="mt-0.5 text-xs text-gray-400">
-													{formatShortDate(latestNote.created_at)} &bull; {getNotesSummary(order)}
+													{latestNote.creator_full_name || latestNote.created_by} &bull; {formatShortDate(latestNote.created_at)} &bull; {getNotesSummary(order)}
 												</span>
 											</div>
 										{:else}
@@ -468,7 +468,7 @@
 												<div class="text-xs font-medium text-gray-400">Notes</div>
 												{#if latestNote}
 													<div class="text-xs text-gray-400">
-														Latest: {formatShortDate(latestNote.created_at)}
+														Latest by <span class="text-gray-300 font-medium">{latestNote.creator_full_name || latestNote.created_by}</span> &bull; {formatShortDate(latestNote.created_at)}
 													</div>
 													<div class="text-sm font-medium text-gray-200">
 														{getLatestNotesForDisplay(order, 120)}

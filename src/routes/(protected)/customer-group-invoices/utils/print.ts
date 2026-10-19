@@ -184,69 +184,90 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
             color: #666;
           }
           .print-table-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 30px;
+            width: 100%;
+            margin-top: 20px;
           }
           table {
             background: #fff;
             width: 100%;
             max-width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
+            table-layout: fixed;
+            border-collapse: collapse;
             margin: 0 auto;
             box-shadow: 0 2px 8px rgba(0,0,0,0.03);
           }
           th, td {
-            padding: 8px 8px;
+            padding: 6px 4px;
+            vertical-align: top;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
           }
           th {
             border-bottom: 2px solid #222;
             font-weight: bold;
             background: #fff;
             text-align: left;
-            font-size: 16px;
+            font-size: 11px;
+            line-height: 1.25;
           }
           td {
             border-bottom: 1px solid #e0e0e0;
-            font-size: 14px;
+            font-size: 11px;
+            line-height: 1.3;
           }
           td.right, th.right {
             text-align: right;
           }
-          tr:last-child td {
+          /* Explicit column widths so all 9 columns fit cleanly on the page */
+          th:nth-child(1), td:nth-child(1) { width: 9%; }   /* Date Issued */
+          th:nth-child(2), td:nth-child(2) { width: 13%; }  /* Invoice # */
+          th:nth-child(3), td:nth-child(3) { width: 9%; }   /* PO # */
+          th:nth-child(4), td:nth-child(4) { width: 9%; }   /* Due Date */
+          th:nth-child(5), td:nth-child(5) { width: 15%; }  /* Company */
+          th:nth-child(6), td:nth-child(6) { width: 18%; }  /* Ship Address */
+          th:nth-child(7), td:nth-child(7) { width: 9%; }   /* Invoice Total */
+          th:nth-child(8), td:nth-child(8) { width: 9%; }   /* Payments */
+          th:nth-child(9), td:nth-child(9) { width: 9%; }   /* Balance AUD */
+          tbody tr:last-child td {
             border-bottom: 2px solid #222;
           }
           .summary-row td {
             border: none;
-            font-size: 18px;
+            border-bottom: 2px solid #222;
+            font-size: 12px;
             font-weight: bold;
             background: #fff;
-            padding-top: 18px;
-            padding-bottom: 18px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            vertical-align: middle;
           }
           .summary-label {
             text-align: right;
-            padding-right: 20px;
-            font-size: 18px;
+            padding-right: 12px;
+            font-size: 12px;
             font-weight: bold;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
           }
           .summary-value {
-            font-size: 20px;
+            font-size: 12px;
             font-weight: bold;
             color: #222;
             text-align: right;
-            min-width: 120px;
+            white-space: nowrap;
+          }
+          @page {
+            margin: 8mm;
           }
           @media print {
             body {
               margin: 0;
-              padding: 5mm 5mm 5mm 5mm;
+              padding: 0;
               background: #fff;
+              box-sizing: border-box;
             }
             .print-table-container {
-              margin-top: 0;
+              margin-top: 10px;
             }
             table {
               box-shadow: none;
@@ -254,8 +275,13 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
               max-width: 100% !important;
             }
             th, td {
-              padding: 4px 4px !important;
-              font-size: 12px !important;
+              padding: 4px 3px !important;
+              font-size: 10px !important;
+            }
+            .summary-row td, .summary-label, .summary-value {
+              font-size: 11px !important;
+              padding-top: 8px !important;
+              padding-bottom: 8px !important;
             }
           }
           .date-range {

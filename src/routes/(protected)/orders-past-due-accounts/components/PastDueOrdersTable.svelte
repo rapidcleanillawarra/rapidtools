@@ -8,6 +8,7 @@
 		getLatestNotesForDisplay,
 		getNotesSummary,
 		formatShortDate,
+		parseNoteContent,
 		type ColumnDefinition,
 		type ColumnKey,
 		type ProcessedOrder
@@ -246,13 +247,38 @@
 										<span class="font-bold text-white">${order.amount}</span>
 									{:else if column.key === 'notes'}
 										{#if latestNote}
+											{@const parsedLatest = parseNoteContent(latestNote.note)}
 											<div class="flex flex-col">
 												<span class="text-sm font-medium text-gray-200 line-clamp-1">
 													{getLatestNotesForDisplay(order, 60)}
 												</span>
-												<span class="mt-0.5 text-xs text-gray-400">
-													{latestNote.creator_full_name || latestNote.created_by} &bull; {formatShortDate(latestNote.created_at)} &bull; {getNotesSummary(order)}
-												</span>
+												<div class="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+													<span>
+														{latestNote.creator_full_name || latestNote.created_by} &bull; {formatShortDate(latestNote.created_at)} &bull; {getNotesSummary(order)}
+													</span>
+													{#if parsedLatest.outlookLinks.length > 0}
+														<a
+															href={parsedLatest.outlookLinks[0]}
+															target="_blank"
+															rel="noopener noreferrer"
+															on:click|stopPropagation
+															class="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-950/40 px-1.5 py-0.5 text-[11px] font-medium text-sky-300 transition hover:bg-sky-900/50 hover:text-sky-200"
+															title="Open linked Outlook email"
+														>
+															Outlook
+														</a>
+													{/if}
+													{#if parsedLatest.attachments.length > 0}
+														<button
+															type="button"
+															on:click={() => dispatch('openNotes', order)}
+															class="inline-flex items-center gap-1 rounded border border-[#2f3540] bg-[#1e2229] px-1.5 py-0.5 text-[11px] font-medium text-gray-300 transition hover:border-lime-500/40 hover:text-lime-300"
+															title="View note attachments"
+														>
+															{parsedLatest.attachments.length} attachment{parsedLatest.attachments.length > 1 ? 's' : ''}
+														</button>
+													{/if}
+												</div>
 											</div>
 										{:else}
 											<span class="text-xs italic text-gray-500">No notes</span>
@@ -467,12 +493,38 @@
 											<div class="space-y-1.5 lg:pl-8">
 												<div class="text-xs font-medium text-gray-400">Notes</div>
 												{#if latestNote}
+													{@const parsedExpanded = parseNoteContent(latestNote.note)}
 													<div class="text-xs text-gray-400">
 														Latest by <span class="text-gray-300 font-medium">{latestNote.creator_full_name || latestNote.created_by}</span> &bull; {formatShortDate(latestNote.created_at)}
 													</div>
 													<div class="text-sm font-medium text-gray-200">
 														{getLatestNotesForDisplay(order, 120)}
 													</div>
+													{#if parsedExpanded.outlookLinks.length > 0 || parsedExpanded.attachments.length > 0}
+														<div class="flex flex-wrap items-center gap-1.5 pt-1">
+															{#each parsedExpanded.outlookLinks as link, linkIdx}
+																<a
+																	href={link}
+																	target="_blank"
+																	rel="noopener noreferrer"
+																	class="inline-flex items-center gap-1 rounded-md border border-sky-500/30 bg-sky-950/40 px-2 py-0.5 text-xs font-medium text-sky-300 transition hover:bg-sky-900/50 hover:text-sky-200"
+																>
+																	Open in Outlook{parsedExpanded.outlookLinks.length > 1 ? ` #${linkIdx + 1}` : ''}
+																</a>
+															{/each}
+															{#each parsedExpanded.attachments as att}
+																<a
+																	href={att.url}
+																	target="_blank"
+																	rel="noopener noreferrer"
+																	download={att.name}
+																	class="inline-flex items-center gap-1 rounded-md border border-[#2f3540] bg-[#1e2229] px-2 py-0.5 text-xs font-medium text-gray-300 transition hover:border-lime-500/40 hover:text-lime-300"
+																>
+																	<span class="max-w-[150px] truncate">{att.name}</span>
+																</a>
+															{/each}
+														</div>
+													{/if}
 													<div class="text-xs text-gray-500">
 														{getNotesSummary(order)}
 													</div>

@@ -168,10 +168,101 @@ export function getLatestNote(order: ProcessedOrder): Note | null {
 	return sortedNotes[0];
 }
 
+export interface NoteAttachment {
+	name: string;
+	url: string;
+	type: 'image' | 'email' | 'file';
+}
+
+export interface ParsedNoteContent {
+	text: string;
+	outlookLinks: string[];
+	attachments: NoteAttachment[];
+}
+
+const ATTACHMENT_TAG_REGEX = /\[\[attachment:(image|email|file)\|([^|\]]+)\|([^\]]+)\]\]/g;
+const URL_REGEX = /https?:\/\/[^\s<>"'\]]+/gi;
+
+export function serializeNoteWithAttachments(
+	text: string,
+	outlookLink: string,
+	attachments: NoteAttachment[]
+): string {
+	const parts: string[] = [];
+	const trimmedText = text.trim();
+	const trimmedOutlook = outlookLink.trim();
+
+	if (trimmedText) {
+		parts.push(trimmedText);
+	}
+	if (trimmedOutlook && !trimmedText.includes(trimmedOutlook)) {
+		parts.push(trimmedOutlook);
+	}
+	for (const att of attachments) {
+		const safeName = att.name.replace(/[|\]]/g, '_');
+		parts.push(`[[attachment:${att.type}|${safeName}|${att.url}]]`);
+	}
+	return parts.join('\n');
+}
+
+export function parseNoteContent(rawNote: string): ParsedNoteContent {
+	if (!rawNote) {
+		return { text: '', outlookLinks: [], attachments: [] };
+	}
+
+	const attachments: NoteAttachment[] = [];
+	const withoutAttachments = rawNote.replace(
+		ATTACHMENT_TAG_REGEX,
+		(_match, type: 'image' | 'email' | 'file', name: string, url: string) => {
+			attachments.push({ type, name, url });
+			return '';
+		}
+	);
+
+	const outlookLinks: string[] = [];
+	const cleanedText = withoutAttachments
+		.replace(URL_REGEX, (url) => {
+			const lower = url.toLowerCase();
+			if (
+				lower.includes('outlook.office.com') ||
+				lower.includes('outlook.live.com') ||
+				lower.includes('outlook.office365.com')
+			) {
+				if (!outlookLinks.includes(url)) {
+					outlookLinks.push(url);
+				}
+				return '';
+			}
+			return url;
+		})
+		.replace(/\n{3,}/g, '\n\n')
+		.trim();
+
+	return {
+		text: cleanedText,
+		outlookLinks,
+		attachments
+	};
+}
+
 export function getLatestNotesForDisplay(order: ProcessedOrder, maxLength: number = 100): string {
 	const latestNote = getLatestNote(order);
 	if (!latestNote) return '';
-	let displayText = latestNote.note;
+	const parsed = parseNoteContent(latestNote.note);
+	let displayText = parsed.text;
+
+	if (!displayText) {
+		const labels: string[] = [];
+		if (parsed.outlookLinks.length > 0) labels.push('Outlook email link');
+		const imgCount = parsed.attachments.filter((a) => a.type === 'image').length;
+		const emailCount = parsed.attachments.filter((a) => a.type === 'email').length;
+		const fileCount = parsed.attachments.filter((a) => a.type === 'file').length;
+		if (imgCount > 0) labels.push(`${imgCount} image${imgCount > 1 ? 's' : ''}`);
+		if (emailCount > 0) labels.push(`${emailCount} email file${emailCount > 1 ? 's' : ''}`);
+		if (fileCount > 0) labels.push(`${fileCount} file${fileCount > 1 ? 's' : ''}`);
+		displayText = labels.length > 0 ? `Attached: ${labels.join(', ')}` : latestNote.note;
+	}
+
 	if (displayText.length > maxLength) {
 		displayText = displayText.substring(0, maxLength) + '...';
 	}

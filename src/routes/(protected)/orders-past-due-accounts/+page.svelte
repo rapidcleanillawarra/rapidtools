@@ -8,8 +8,10 @@
 		columns,
 		defaultColumnVisibility,
 		parseDate,
+		serializeNoteWithAttachments,
 		type ColumnKey,
 		type Note,
+		type NoteAttachment,
 		type NoteView,
 		type Order,
 		type ProcessedOrder
@@ -72,6 +74,9 @@
 	let showNotesModal = false;
 	let selectedOrder: ProcessedOrder | null = null;
 	let newNote = '';
+	let outlookLink = '';
+	let pendingNoteFiles: File[] = [];
+	let noteUploadError = '';
 	let notesLoading = false;
 
 	// Email Modal State
@@ -304,6 +309,9 @@
 	async function openNotesModal(order: ProcessedOrder) {
 		selectedOrder = order;
 		newNote = '';
+		outlookLink = '';
+		pendingNoteFiles = [];
+		noteUploadError = '';
 		showNotesModal = true;
 
 		// Fetch existing notes from Supabase
@@ -452,14 +460,77 @@
 		}
 	}
 
+	function classifyAttachmentType(file: File): 'image' | 'email' | 'file' {
+		const lower = file.name.toLowerCase();
+		if (file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(lower)) {
+			return 'image';
+		}
+		if (
+			lower.endsWith('.eml') ||
+			lower.endsWith('.msg') ||
+			file.type === 'message/rfc822' ||
+			file.type === 'application/vnd.ms-outlook'
+		) {
+			return 'email';
+		}
+		return 'file';
+	}
+
+	async function uploadNoteFiles(invoiceId: string, files: File[]): Promise<NoteAttachment[]> {
+		const uploaded: NoteAttachment[] = [];
+		const bucket = 'rapidtools';
+		const safeInvoice = invoiceId.replace(/[^a-zA-Z0-9._-]+/g, '_');
+
+		for (const file of files) {
+			const ext = file.name.includes('.') ? file.name.slice(file.name.lastIndexOf('.')) : '';
+			const safeBase = file.name
+				.replace(/\.[^/.]+$/, '')
+				.replace(/[^a-zA-Z0-9._-]+/g, '_')
+				.slice(0, 60);
+			const storagePath = `past_due_notes/${safeInvoice}/${crypto.randomUUID()}_${safeBase}${ext}`;
+
+			const { error: upErr } = await supabase.storage.from(bucket).upload(storagePath, file, {
+				upsert: false,
+				contentType: file.type || 'application/octet-stream'
+			});
+
+			if (upErr) {
+				throw new Error(`Failed to upload ${file.name}: ${upErr.message}`);
+			}
+
+			const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+			uploaded.push({
+				name: file.name,
+				url: data.publicUrl,
+				type: classifyAttachmentType(file)
+			});
+		}
+
+		return uploaded;
+	}
+
 	async function saveNote() {
-		if (!selectedOrder || !newNote.trim() || !user?.email) return;
+		const hasContent =
+			Boolean(newNote.trim()) || Boolean(outlookLink.trim()) || pendingNoteFiles.length > 0;
+		if (!selectedOrder || !hasContent || !user?.email) return;
 
 		const currentOrder = selectedOrder;
 		const invoiceId = currentOrder.invoice;
 
 		try {
 			notesLoading = true;
+			noteUploadError = '';
+
+			let uploadedAttachments: NoteAttachment[] = [];
+			if (pendingNoteFiles.length > 0) {
+				uploadedAttachments = await uploadNoteFiles(invoiceId, pendingNoteFiles);
+			}
+
+			const serializedNote = serializeNoteWithAttachments(
+				newNote,
+				outlookLink,
+				uploadedAttachments
+			);
 
 			const creatorFullName =
 				profile && profile.firstName && profile.lastName
@@ -470,7 +541,7 @@
 				.from('orders_past_due_accounts_order_notes')
 				.insert({
 					order_id: invoiceId,
-					note: newNote.trim(),
+					note: serializedNote,
 					created_by: user.email,
 					creator_full_name: creatorFullName
 				})
@@ -479,6 +550,7 @@
 
 			if (insertError) {
 				console.error('Error saving note:', insertError);
+				noteUploadError = insertError.message;
 			} else {
 				if (insertedNote?.id) {
 					const { error: viewError } = await supabase
@@ -504,9 +576,12 @@
 				await fetchNotesAndViews();
 
 				newNote = '';
+				outlookLink = '';
+				pendingNoteFiles = [];
 			}
-		} catch (error) {
-			console.error('Error saving note:', error);
+		} catch (err) {
+			console.error('Error saving note:', err);
+			noteUploadError = err instanceof Error ? err.message : 'Failed to save note';
 		} finally {
 			notesLoading = false;
 		}
@@ -516,6 +591,9 @@
 		showNotesModal = false;
 		selectedOrder = null;
 		newNote = '';
+		outlookLink = '';
+		pendingNoteFiles = [];
+		noteUploadError = '';
 	}
 
 	async function openEmailModal(order: ProcessedOrder) {
@@ -1263,6 +1341,9 @@
 		show={showNotesModal}
 		{selectedOrder}
 		bind:newNote
+		bind:outlookLink
+		bind:pendingFiles={pendingNoteFiles}
+		uploadError={noteUploadError}
 		{notesLoading}
 		on:save={saveNote}
 		on:close={closeNotesModal}

@@ -1140,9 +1140,9 @@
 						></div>
 					</div>
 				{:else}
-					<table class="w-full min-w-full table-fixed divide-y divide-[#262a30]">
+					<table class="w-full min-w-full table-auto divide-y divide-[#262a30]">
 						<thead class="bg-[#181b20]">
-							<tr>
+							<tr class="align-bottom">
 								<th
 									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
 								>
@@ -1371,7 +1371,7 @@
 									<tr
 										class={`transition-colors ${invoice.updated ? 'bg-emerald-950/20' : ''} ${invoice.userGroupMismatch ? 'border-l-4 border-orange-500 bg-orange-950/20 hover:bg-orange-950/30' : 'hover:bg-[#1f2329]/60'}`}
 									>
-										<td class="px-3 py-3 text-sm font-medium text-white">
+										<td class="px-3 py-3 text-sm font-medium text-white whitespace-nowrap">
 											{invoice.invoiceNumber}
 											{#if invoice.userGroupMismatch}
 												<span
@@ -1381,7 +1381,7 @@
 												>
 											{/if}
 										</td>
-										<td class="px-3 py-3 text-sm text-gray-300">{invoice.purchaseOrderNumber}</td>
+										<td class="px-3 py-3 text-sm text-gray-300 break-words">{invoice.purchaseOrderNumber}</td>
 										<td class="px-3 py-3 text-sm text-gray-300">
 											{new Date(invoice.dateIssued).toLocaleDateString('en-US', {
 												year: 'numeric',
@@ -1396,24 +1396,24 @@
 												day: 'numeric'
 											})}
 										</td>
-										<td class="px-3 py-3 text-sm text-gray-200">
+										<td class="px-3 py-3 text-sm text-gray-200 whitespace-nowrap">
 											{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
 												invoice.totalAmount
 											)}
 										</td>
-										<td class="px-3 py-3 text-sm text-gray-200">
+										<td class="px-3 py-3 text-sm text-gray-200 whitespace-nowrap">
 											{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
 												invoice.amountPaid
 											)}
 										</td>
-										<td class="px-3 py-3 text-sm text-gray-200 font-medium">
+										<td class="px-3 py-3 text-sm text-gray-200 font-medium whitespace-nowrap">
 											{new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(
 												invoice.balance
 											)}
 										</td>
-										<td class="px-3 py-3 text-sm text-gray-300">{invoice.username}</td>
-										<td class="px-3 py-3 text-sm text-gray-300">{invoice.company}</td>
-										<td class="px-3 py-3 text-sm text-gray-300">{invoice.shipAddress}</td>
+										<td class="px-3 py-3 text-sm text-gray-300 break-all">{invoice.username}</td>
+										<td class="px-3 py-3 text-sm text-gray-300 break-words">{invoice.company}</td>
+										<td class="px-3 py-3 text-sm text-gray-300 break-words">{invoice.shipAddress}</td>
 										<td class="col-approval px-3 py-3 text-sm">
 											<span
 												class={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${

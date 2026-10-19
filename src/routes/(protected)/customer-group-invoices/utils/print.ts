@@ -328,7 +328,9 @@ export function handlePrint(invoices: CustomerGroupInvoice[], printData: PrintDa
           </tbody>
           <tfoot>
             <tr class="summary-row">
-              <td colspan="8" class="summary-label">BALANCE DUE AUD</td>
+              <td colspan="6" class="summary-label">TOTAL AUD</td>
+              <td class="summary-value right">${allData.reduce((sum, inv) => sum + Number(inv.totalAmount), 0).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td class="summary-value right">${allData.reduce((sum, inv) => sum + Number(inv.amountPaid), 0).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td class="summary-value right">${allData.reduce((sum, inv) => sum + Number(inv.balance), 0).toLocaleString('en-AU', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             </tr>
           </tfoot>

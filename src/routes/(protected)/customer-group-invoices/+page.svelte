@@ -233,6 +233,7 @@
 					PaymentStatus: ['Pending', 'PartialPaid', 'FullyPaid'],
 					OutputSelector: [
 						'ID',
+						'PurchaseOrderNumber',
 						'Username',
 						'UserGroup',
 						'DatePaymentDue',
@@ -316,6 +317,11 @@
 						? String(order.CompleteStatus).trim()
 						: '—';
 
+				const purchaseOrderNumber =
+					order.PurchaseOrderNumber != null && String(order.PurchaseOrderNumber).trim() !== ''
+						? String(order.PurchaseOrderNumber).trim()
+						: '—';
+
 				const streetParts = [order.ShipStreetLine1, order.ShipStreetLine2]
 					.map((s) => (s != null ? String(s).trim() : ''))
 					.filter(Boolean);
@@ -330,6 +336,7 @@
 
 				const mappedInvoice = {
 					invoiceNumber: order.ID,
+					purchaseOrderNumber,
 					dateIssued: order.DatePlaced,
 					dueDate: order.DatePaymentDue,
 					totalAmount: roundedGrandTotal,
@@ -1024,6 +1031,7 @@
 					]);
 					searchFilters.set({
 						invoiceNumber: '',
+						purchaseOrderNumber: '',
 						dateIssued: '',
 						dueDate: '',
 						totalAmount: '',
@@ -1150,6 +1158,24 @@
 											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
 											placeholder="Search..."
 											on:input={(e) => handleSearch(e, 'invoiceNumber')}
+										/>
+									</div>
+								</th>
+								<th
+									class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-400"
+								>
+									<div class="flex flex-col">
+										<div
+											class="flex cursor-pointer items-center text-gray-300 hover:text-lime-400 transition-colors"
+											on:click={() => handleSortClick('purchaseOrderNumber')}
+										>
+											PO # {getSortIcon('purchaseOrderNumber', $sortField, $sortDirection)}
+										</div>
+										<input
+											type="text"
+											class="mt-1.5 block w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-md px-2 py-1 text-xs focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-600 font-normal normal-case transition-colors"
+											placeholder="Search..."
+											on:input={(e) => handleSearch(e, 'purchaseOrderNumber')}
 										/>
 									</div>
 								</th>
@@ -1338,7 +1364,7 @@
 						<tbody class="divide-y divide-[#262a30] bg-[#141619]">
 							{#if !$invoices || $invoices.length === 0}
 								<tr>
-									<td colspan="11" class="px-4 py-8 text-center text-sm text-gray-400"> No results found </td>
+									<td colspan="12" class="px-4 py-8 text-center text-sm text-gray-400"> No results found </td>
 								</tr>
 							{:else}
 								{#each paginatedInvoices as invoice (invoice.invoiceNumber)}
@@ -1355,6 +1381,7 @@
 												>
 											{/if}
 										</td>
+										<td class="px-3 py-3 text-sm text-gray-300">{invoice.purchaseOrderNumber}</td>
 										<td class="px-3 py-3 text-sm text-gray-300">
 											{new Date(invoice.dateIssued).toLocaleDateString('en-US', {
 												year: 'numeric',

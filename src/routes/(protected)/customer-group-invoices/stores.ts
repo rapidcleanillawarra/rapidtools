@@ -59,6 +59,7 @@ export const filterType = writable<'group' | 'customer'>('group');
 // Add search state
 export const searchFilters = writable({
   invoiceNumber: '',
+  purchaseOrderNumber: '',
   dateIssued: '',
   dueDate: '',
   totalAmount: '',

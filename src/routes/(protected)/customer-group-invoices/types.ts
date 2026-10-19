@@ -1,5 +1,6 @@
 export interface CustomerGroupInvoice {
   invoiceNumber: string;
+  purchaseOrderNumber: string;
   dateIssued: string;
   dueDate: string;
   totalAmount: number;

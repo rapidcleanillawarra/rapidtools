@@ -1,234 +1,234 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { base } from '$app/paths';
 
+	export let globalSearch = '';
 	export let operator: string;
 	export let value: number | null;
+	export let appliedOperator: string = '>';
+	export let appliedValue: number | null = 30;
 	export let showLegend = false;
 	export let showColumnVisibility = false;
 	export let invoiceIds = '';
 	export let showInvoiceFilter = false;
-	export let disableActions = false;
+
+	let showPdDropdown = false;
 
 	const dispatch = createEventDispatcher<{
 		apply: void;
-		exportCsv: void;
-		print: void;
-		manualTrigger: void;
+		clearPdFilter: void;
 	}>();
+
+	function handleApplyPd() {
+		dispatch('apply');
+		showPdDropdown = false;
+	}
+
+	function handleClickOutside(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (showPdDropdown && !target.closest('.pd-dropdown-container')) {
+			showPdDropdown = false;
+		}
+	}
+
+	$: pdFilterLabel =
+		appliedValue !== null && appliedValue !== undefined && String(appliedValue) !== ''
+			? `PD counter ${appliedOperator} ${appliedValue}`
+			: 'PD counter: All';
 </script>
 
-<div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-	<!-- Left: PD Counter Filter + Toggle Buttons -->
-	<div class="flex flex-wrap items-center gap-3">
-		<!-- PD Counter Filter -->
-		<div class="flex items-center gap-2">
-			<label for="pd-filter" class="text-sm font-medium text-gray-300">
-				PD Counter:
-			</label>
-			<select
-				bind:value={operator}
-				class="rounded-lg bg-[#0e1012] text-gray-200 border border-[#262a30] px-2.5 py-1.5 text-sm font-semibold focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
-			>
-				<option value=">">&gt;</option>
-				<option value="<">&lt;</option>
-				<option value="=">=</option>
-			</select>
-			<input
-				id="pd-filter"
-				type="number"
-				placeholder="Days"
-				class="w-24 rounded-lg bg-[#0e1012] text-gray-200 border border-[#262a30] px-3 py-1.5 text-sm placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500"
-				bind:value
-			/>
+<svelte:window on:click={handleClickOutside} />
+
+<div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+	<!-- Left: Search Input -->
+	<div class="relative flex-1 max-w-xl">
+		<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+			<svg class="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+				/>
+			</svg>
+		</div>
+		<input
+			type="text"
+			bind:value={globalSearch}
+			placeholder="Search customers or invoices..."
+			class="w-full rounded-xl border border-[#262a30] bg-[#141619] py-2.5 pl-10 pr-9 text-sm text-gray-200 placeholder-gray-500 transition focus:border-lime-500/60 focus:outline-none focus:ring-1 focus:ring-lime-500/60"
+		/>
+		{#if globalSearch}
 			<button
 				type="button"
-				on:click={() => dispatch('apply')}
-				class="btn-primary text-xs font-semibold px-3 py-1.5"
+				on:click={() => (globalSearch = '')}
+				class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-gray-300"
+				title="Clear search"
 			>
-				Apply
+				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+				</svg>
 			</button>
+		{/if}
+	</div>
+
+	<!-- Right: Filter Controls -->
+	<div class="flex flex-wrap items-center gap-2.5">
+		<!-- PD Counter Dropdown -->
+		<div class="relative pd-dropdown-container">
+			<button
+				type="button"
+				on:click={() => (showPdDropdown = !showPdDropdown)}
+				class="inline-flex items-center gap-2.5 rounded-xl border border-[#262a30] bg-[#141619] px-3.5 py-2.5 text-sm font-medium text-gray-200 transition hover:border-[#333842] hover:bg-[#1a1d21]"
+			>
+				<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+					/>
+				</svg>
+				<span>{pdFilterLabel}</span>
+				<svg
+					class="h-4 w-4 text-gray-400 transition-transform {showPdDropdown ? 'rotate-180' : ''}"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				</svg>
+			</button>
+
+			{#if showPdDropdown}
+				<div
+					class="absolute right-0 z-30 mt-2 w-72 rounded-xl border border-[#262a30] bg-[#181b20] p-4 shadow-2xl"
+				>
+					<div class="mb-2.5 text-xs font-semibold uppercase tracking-wider text-gray-400">
+						Filter by PD Counter
+					</div>
+					<div class="flex items-center gap-2">
+						<select
+							bind:value={operator}
+							class="rounded-lg border border-[#262a30] bg-[#0e1012] px-2.5 py-1.5 text-sm font-semibold text-gray-200 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+						>
+							<option value=">">&gt;</option>
+							<option value="<">&lt;</option>
+							<option value="=">=</option>
+						</select>
+						<input
+							id="pd-filter"
+							type="number"
+							placeholder="Days"
+							class="w-full rounded-lg border border-[#262a30] bg-[#0e1012] px-3 py-1.5 text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
+							bind:value
+							on:keydown={(e) => e.key === 'Enter' && handleApplyPd()}
+						/>
+					</div>
+					<div class="mt-3 flex items-center justify-between gap-2">
+						<button
+							type="button"
+							on:click={() => {
+								operator = '>';
+								value = 0;
+								handleApplyPd();
+							}}
+							class="text-xs text-gray-400 hover:text-gray-200 transition"
+						>
+							Reset (&gt; 0)
+						</button>
+						<button
+							type="button"
+							on:click={handleApplyPd}
+							class="rounded-lg bg-lime-400 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-lime-300 transition"
+						>
+							Apply
+						</button>
+					</div>
+				</div>
+			{/if}
 		</div>
 
-		<!-- Toggle Buttons -->
-		<button
-			type="button"
-			on:click={() => (showLegend = !showLegend)}
-			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors {showLegend
-				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
-				: 'border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
-			title={showLegend ? 'Hide Legend' : 'Show Legend'}
-		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				{#if showLegend}
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-					></path>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-					></path>
-				{:else}
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-					></path>
-				{/if}
-			</svg>
-			Legend
-		</button>
-		<button
-			type="button"
-			on:click={() => (showColumnVisibility = !showColumnVisibility)}
-			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors {showColumnVisibility
-				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
-				: 'border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
-			title={showColumnVisibility ? 'Hide Columns' : 'Show Columns'}
-		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				{#if showColumnVisibility}
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-					></path>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-					></path>
-				{:else}
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-					></path>
-				{/if}
-			</svg>
-			Columns
-		</button>
+		<!-- Filters Button (Invoice IDs + Column Search / Legend) -->
 		<button
 			type="button"
 			on:click={() => (showInvoiceFilter = !showInvoiceFilter)}
-			class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors {showInvoiceFilter
+			class="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-colors {showInvoiceFilter || invoiceIds.trim() !== ''
 				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
-				: 'border-[#333842] bg-[#1f2329] text-gray-300 hover:bg-[#262a30] hover:text-white'}"
-			title={showInvoiceFilter ? 'Hide Invoice Filter' : 'Show Invoice Filter'}
+				: 'border-[#262a30] bg-[#141619] text-gray-200 hover:border-[#333842] hover:bg-[#1a1d21]'}"
+			title="Filters"
 		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
 					stroke-width="2"
-					d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+					d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
 				/>
 			</svg>
-			Invoice Filter
+			Filters
 		</button>
-	</div>
 
-	<!-- Right: Action Buttons -->
-	<div class="flex flex-wrap items-center gap-2">
+		<!-- Columns Button -->
 		<button
 			type="button"
-			on:click={() => dispatch('exportCsv')}
-			disabled={disableActions}
-			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5"
+			on:click={() => (showColumnVisibility = !showColumnVisibility)}
+			class="inline-flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-medium transition-colors {showColumnVisibility
+				? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+				: 'border-[#262a30] bg-[#141619] text-gray-200 hover:border-[#333842] hover:bg-[#1a1d21]'}"
+			title="Columns"
 		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-			</svg>
-			Export CSV
-		</button>
-		<button
-			type="button"
-			on:click={() => dispatch('print')}
-			disabled={disableActions}
-			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5"
-		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-			</svg>
-			Print Report
-		</button>
-		<button
-			type="button"
-			on:click={() => dispatch('manualTrigger')}
-			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5 hover:text-lime-400"
-		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-			</svg>
-			Invoice Synch
-		</button>
-		<a
-			href="{base}/orders-past-due-accounts/settings"
-			class="btn-secondary text-sm px-3.5 py-1.5 inline-flex items-center gap-1.5 hover:text-lime-400"
-			title="Email Settings"
-		>
-			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
 					stroke-width="2"
-					d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-				></path>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-				></path>
+					d="M9 4h6v16H9zM4 4h5v16H4zM15 4h5v16h-5z"
+				/>
 			</svg>
-			Settings
-		</a>
+			Columns
+		</button>
 	</div>
 </div>
 
 {#if showInvoiceFilter}
-	<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
-		<div
-			class="relative rounded-2xl border border-[#262a30] bg-[#181b20] p-4 shadow-xl"
-		>
-			<label
-				for="invoice-filter"
-				class="mb-2 block text-sm font-medium text-gray-300"
-			>
-				Filter by Invoice IDs (one per line):
-			</label>
+	<div class="animate-in fade-in slide-in-from-top-2 mt-3 duration-200">
+		<div class="relative rounded-2xl border border-[#262a30] bg-[#141619] p-4 shadow-xl">
+			<div class="flex items-center justify-between mb-2">
+				<label for="invoice-filter" class="block text-sm font-medium text-gray-300">
+					Filter by Invoice IDs (one per line):
+				</label>
+				<button
+					type="button"
+					on:click={() => (showLegend = !showLegend)}
+					class="text-xs font-medium text-lime-400 hover:text-lime-300 transition"
+				>
+					{showLegend ? 'Hide PD Legend' : 'Show PD Legend'}
+				</button>
+			</div>
 			<div class="relative">
 				<textarea
 					id="invoice-filter"
 					bind:value={invoiceIds}
-					rows="4"
+					rows="3"
 					placeholder="24-004437&#10;24-004439"
-					class="block w-full rounded-lg bg-[#0e1012] text-gray-200 border border-[#262a30] p-3 text-sm placeholder-gray-600 focus:border-lime-500 focus:ring-1 focus:ring-lime-500 font-mono"
+					class="block w-full rounded-xl border border-[#262a30] bg-[#0e1012] p-3 font-mono text-sm text-gray-200 placeholder-gray-600 focus:border-lime-500 focus:outline-none focus:ring-1 focus:ring-lime-500"
 				></textarea>
 				{#if invoiceIds}
 					<div class="absolute bottom-3 right-3">
 						<button
 							type="button"
 							on:click={() => (invoiceIds = '')}
-							class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs font-semibold text-red-400 hover:bg-red-900/60 hover:text-red-300 transition"
+							class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-900/60 hover:text-red-300"
 						>
 							Clear
 						</button>
 					</div>
 				{/if}
 			</div>
-			<p class="mt-2 text-xs text-gray-400">
+			<p class="mt-2 text-xs text-gray-500">
 				Only orders with these specific Invoice IDs will be shown in the table.
 			</p>
 		</div>
 	</div>
 {/if}
+

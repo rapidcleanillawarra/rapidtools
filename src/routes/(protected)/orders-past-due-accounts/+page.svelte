@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 	import { supabase } from '$lib/supabase';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile, type UserProfile } from '$lib/userProfile';
@@ -11,8 +12,7 @@
 		type Note,
 		type NoteView,
 		type Order,
-		type ProcessedOrder,
-		type EmailConversation
+		type ProcessedOrder
 	} from './pastDueAccounts';
 	import PastDueLegend from './components/PastDueLegend.svelte';
 	import PastDueToolbar from './components/PastDueToolbar.svelte';
@@ -21,20 +21,22 @@
 	import PastDuePagination from './components/PastDuePagination.svelte';
 	import NotesModal from './components/NotesModal.svelte';
 	import EmailModal from './components/EmailModal.svelte';
-	import TicketModal from './components/TicketModal.svelte';
-	import ViewTicketsModal from './components/ViewTicketsModal.svelte';
-	import EditTicketModal from './components/EditTicketModal.svelte';
-	import EmailConversationsModal from './components/EmailConversationsModal.svelte';
-	import type { Ticket } from './pastDueAccounts';
 	import { processInvoiceTracking } from './invoiceTracking';
-	import { fetchTicketsForOrders } from './ticketTracking';
 
 	let orders: ProcessedOrder[] = [];
 	let loading = true;
 	let error = '';
+	let globalSearch = '';
 	let searchFilters: Partial<Record<ColumnKey, string>> = {};
 	let sortField: ColumnKey = 'pdCounter';
 	let sortDirection: 'asc' | 'desc' = 'desc';
+
+	// Aging Bucket Filter State
+	type PdBucket = 'all' | '1-30' | '31-60' | '61-90' | '90+';
+	let selectedBucket: PdBucket = 'all';
+
+	// Top-right more menu state
+	let showHeaderMenu = false;
 
 	// Column visibility state
 	let columnVisibility: Record<ColumnKey, boolean> = { ...defaultColumnVisibility };
@@ -46,7 +48,7 @@
 
 	// PD Counter Filter State
 	let pdFilterOperator = '>';
-	let pdFilterValue: number | null = 30;
+	let pdFilterValue: number | null = 0;
 	let initialized = false;
 
 	// Temporary PD Counter Filter State (for inputs)
@@ -76,20 +78,6 @@
 	let showEmailModal = false;
 	let emailOrder: ProcessedOrder | null = null;
 
-	// Ticket Modal State
-	let showTicketModal = false;
-	let ticketOrder: ProcessedOrder | null = null;
-	let showViewTicketsModal = false;
-	let selectedTicketsOrder: ProcessedOrder | null = null;
-	let showEditTicketModal = false;
-	let selectedTicket: Ticket | null = null;
-
-	// Email Conversations Modal State
-	let showEmailConversationsModal = false;
-	let selectedEmailOrder: ProcessedOrder | null = null;
-	let emailConversationsLoading = false;
-	let currentEmailConversations: EmailConversation[] = [];
-
 	// User information
 	let user: import('firebase/auth').User | null = null;
 	let profile: UserProfile | null = null;
@@ -109,8 +97,6 @@
 
 	async function fetchAvailableUsers() {
 		try {
-			// TODO: Fetch users from your user management system/database
-			// For now, using a placeholder that could be replaced with actual API call
 			const { data, error } = await supabase
 				.from('users')
 				.select('full_name')
@@ -118,7 +104,6 @@
 
 			if (error) {
 				console.error('Error fetching users:', error);
-				// Keep default users if fetch fails
 			} else if (data) {
 				availableUsers = data.map((user) => user.full_name).filter(Boolean);
 			}
@@ -166,11 +151,6 @@
 
 			if (data && data.Order) {
 				const now = new Date();
-				const invoiceTrackingRecords: {
-					order_id: string;
-					does_exists: boolean;
-					completed: boolean;
-				}[] = [];
 
 				orders = data.Order.reduce((acc: ProcessedOrder[], order: Order) => {
 					// Skip orders with grand total <= $0 (only synchronize orders with grand total > $0)
@@ -218,8 +198,8 @@
 						dueDate: formattedDueDate,
 						pdCounter: pdCounter,
 						payments: totalPayments.toFixed(2),
+						invoiceAmount: grandTotal.toFixed(2),
 						amount: outstandingAmount.toFixed(2),
-						emailNotifs: '', // Will be populated from tracking data
 						assignedTo: '', // Initialize as empty string
 						followUp: '', // Initialize as empty string
 						notes: [],
@@ -272,13 +252,6 @@
 
 				/**
 				 * INVOICE TRACKING PROCESS
-				 *
-				 * This process maintains a persistent record of all past due invoices in the
-				 * `orders_past_due_accounts_invoice_tracking` table. This allows the system to:
-				 * - Track invoice status changes over time
-				 * - Prevent duplicate processing of the same invoices
-				 * - Mark invoices as completed when they're resolved externally
-				 * - Maintain audit trail for compliance and reporting
 				 */
 				if (runTracking) {
 					await processInvoiceTracking(trackingOrders, data.Order);
@@ -291,18 +264,10 @@
 			loading = false;
 		}
 
-		// Fetch notes, views, email data, and tickets for all orders (in parallel)
+		// Fetch notes and views for all orders
 		if (orders.length > 0) {
-			await Promise.all([
-				fetchNotesAndViews(),
-				fetchEmailTrackingStatus(),
-				fetchTickets()
-			]);
+			await fetchNotesAndViews();
 		}
-	}
-
-	function handleSearchChange(key: ColumnKey, value: string) {
-		searchFilters = { ...searchFilters, [key]: value };
 	}
 
 	function handleSort(key: ColumnKey) {
@@ -317,6 +282,12 @@
 	function applyPdFilter() {
 		pdFilterOperator = tempPdFilterOperator;
 		pdFilterValue = tempPdFilterValue;
+		currentPage = 1;
+	}
+
+	function selectBucket(bucket: PdBucket) {
+		selectedBucket = bucket;
+		currentPage = 1;
 	}
 
 	function toggleColumnVisibility(key: ColumnKey) {
@@ -358,13 +329,11 @@
 				.in('order_id', invoiceIds)
 				.is('deleted_at', null);
 
-			// Handle errors
 			if (notesResult.error) {
 				console.error('Error fetching notes:', notesResult.error);
 				return;
 			}
 
-			// Process the notes data
 			const notes = notesResult.data || [];
 
 			// Group notes by order_id and collect note IDs
@@ -397,13 +366,11 @@
 			// Group note views by order_id
 			const noteViewsByOrderId: Record<string, NoteView[]> = {};
 
-			// Create a map of note_id -> order_id for quick lookup
 			const noteIdToOrderId = new Map<string, string>();
 			notes.forEach((note) => {
 				noteIdToOrderId.set(note.id, note.order_id);
 			});
 
-			// Group note views by order_id
 			allNoteViews.forEach((view) => {
 				const orderId = noteIdToOrderId.get(view.note_id);
 				if (orderId) {
@@ -414,7 +381,6 @@
 				}
 			});
 
-			// Single update to orders array with both notes and noteViews
 			orders = orders.map((order) => ({
 				...order,
 				notes: notesByOrderId[order.invoice] || [],
@@ -423,101 +389,6 @@
 		} catch (error) {
 			console.error('Error fetching notes and views:', error);
 		}
-	}
-
-	async function fetchEmailTrackingStatus() {
-		try {
-			const invoiceIds = orders.map((order) => order.invoice);
-
-			// Fetch email tracking status for all invoices
-			const { data: trackingData, error } = await supabase
-				.from('orders_past_due_accounts_invoice_tracking')
-				.select('order_id, email_initialized, email_filters')
-				.in('order_id', invoiceIds);
-
-			if (error) {
-				console.error('Error fetching email tracking status:', error);
-				return;
-			}
-
-			// Create maps for tracking data
-			const trackingMap: Record<string, boolean> = {};
-			const emailFiltersMap: Record<string, string[]> = {};
-			if (trackingData) {
-				trackingData.forEach((record) => {
-					trackingMap[record.order_id] = record.email_initialized || false;
-					emailFiltersMap[record.order_id] = record.email_filters || [];
-				});
-			}
-
-			// Update orders with email tracking status and filters
-			orders = orders.map((order) => ({
-				...order,
-				emailNotifs: trackingMap[order.invoice] ? '✓' : '',
-				emailFilters: emailFiltersMap[order.invoice] || []
-			}));
-		} catch (error) {
-			console.error('Error in fetchEmailTrackingStatus:', error);
-		}
-	}
-
-	async function fetchEmailConversations() {
-		try {
-			// 1. Query Supabase for order_ids with email_initialized=true and completed=false
-			const { data: trackingRecords, error } = await supabase
-				.from('orders_past_due_accounts_invoice_tracking')
-				.select('order_id')
-				.eq('completed', false)
-				.eq('email_initialized', true);
-
-			if (error) {
-				console.error('Error fetching tracking records:', error);
-				return;
-			}
-
-			if (!trackingRecords || trackingRecords.length === 0) {
-				return; // No orders to fetch conversations for
-			}
-
-			const orderIds = trackingRecords.map((record) => record.order_id);
-
-			// 2. Call Power Automate endpoint
-			const response = await fetch(
-				'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c464173437d741278f6f8932654e1550/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NtiA92yZ4QU7KRsr7SbDddjYU4_UrTe9gknJb8OGToA',
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ order_ids: orderIds })
-				}
-			);
-
-			if (!response.ok) {
-				console.error('Failed to fetch email conversations');
-				return;
-			}
-
-			const conversations = await response.json();
-
-			// 3. Update orders with email conversations
-			orders = orders.map((order) => {
-				const orderConversations = conversations.filter(
-					(conv: EmailConversation) => conv.order_id === order.invoice && conv.has_value === 'true'
-				);
-				return {
-					...order,
-					emailConversations: orderConversations
-				};
-			});
-		} catch (error) {
-			console.error('Error fetching email conversations:', error);
-		}
-	}
-
-	/**
-	 * Fetches tickets for all orders using the modularized ticket tracking service
-	 */
-	async function fetchTickets() {
-		orders = await fetchTicketsForOrders(orders);
 	}
 
 	async function fetchNotes(invoiceId: string) {
@@ -554,7 +425,6 @@
 
 			if (unreadNotes.length === 0) return;
 
-			// Insert view records for unread notes
 			const viewRecords = unreadNotes.map((note) => ({
 				note_id: note.id,
 				user_email: userEmail
@@ -567,7 +437,6 @@
 			if (insertError) {
 				console.error('Error marking notes as viewed:', insertError);
 			} else {
-				// Update the order's noteViews in the local state
 				const newViews = viewRecords.map((record) => ({
 					note_id: record.note_id,
 					user_email: record.user_email,
@@ -597,7 +466,6 @@
 					? `${profile.firstName} ${profile.lastName}`
 					: null;
 
-			// Insert the new note
 			const { data: insertedNote, error: insertError } = await supabase
 				.from('orders_past_due_accounts_order_notes')
 				.insert({
@@ -612,7 +480,6 @@
 			if (insertError) {
 				console.error('Error saving note:', insertError);
 			} else {
-				// Automatically mark the note as viewed by the creator
 				if (insertedNote?.id) {
 					const { error: viewError } = await supabase
 						.from('orders_past_due_accounts_order_note_views')
@@ -625,11 +492,8 @@
 						console.error('Error marking note as viewed by creator:', viewError);
 					}
 				}
-				// Refresh notes for the selected order
 				await fetchNotes(invoiceId);
 
-				// Update the order in the orders array to trigger reactivity
-				// After fetchNotes, selectedOrder.notes contains the updated notes
 				if (selectedOrder) {
 					const updatedNotes = selectedOrder.notes;
 					orders = orders.map((order) =>
@@ -637,7 +501,6 @@
 					);
 				}
 
-				// Refresh all notes and views to include the new note's view record
 				await fetchNotesAndViews();
 
 				newNote = '';
@@ -665,112 +528,6 @@
 		emailOrder = null;
 	}
 
-	async function openTicketModal(order: ProcessedOrder) {
-		ticketOrder = order;
-		showTicketModal = true;
-	}
-
-	function closeTicketModal() {
-		showTicketModal = false;
-		ticketOrder = null;
-		// If we came from ViewTicketsModal, reopen it to show the new ticket
-		if (selectedTicketsOrder) {
-			// Re-fetch tickets to update the list
-			fetchTickets().then(() => {
-				// The order object in selectedTicketsOrder might be stale, update it
-				const updatedOrder = orders.find((o) => o.invoice === selectedTicketsOrder!.invoice);
-				if (updatedOrder) {
-					selectedTicketsOrder = updatedOrder;
-					showViewTicketsModal = true;
-				}
-			});
-		}
-	}
-
-	function openViewTicketsModal(order: ProcessedOrder) {
-		selectedTicketsOrder = order;
-		showViewTicketsModal = true;
-	}
-
-	function closeViewTicketsModal() {
-		showViewTicketsModal = false;
-		selectedTicketsOrder = null;
-	}
-
-	function handleCreateTicketFromView(event: CustomEvent<ProcessedOrder>) {
-		showViewTicketsModal = false;
-		// Keep selectedTicketsOrder set so we know to reopen it
-		openTicketModal(event.detail);
-	}
-
-	function openEditTicketModal(ticket: Ticket) {
-		selectedTicket = ticket;
-		showEditTicketModal = true;
-	}
-
-	function closeEditTicketModal() {
-		showEditTicketModal = false;
-		selectedTicket = null;
-	}
-
-	async function handleTicketUpdated() {
-		// Refresh tickets for the order that was just updated
-		await fetchTickets();
-
-		// Update selectedTicketsOrder to point to the fresh order data
-		// This ensures ViewTicketsModal displays updated ticket information
-		if (selectedTicketsOrder) {
-			const updatedOrder = orders.find((o) => o.invoice === selectedTicketsOrder!.invoice);
-			if (updatedOrder) {
-				selectedTicketsOrder = updatedOrder;
-			}
-		}
-
-		closeEditTicketModal();
-	}
-
-	async function openEmailConversationsModal(order: ProcessedOrder) {
-		selectedEmailOrder = order;
-		showEmailConversationsModal = true;
-		emailConversationsLoading = true;
-		currentEmailConversations = [];
-
-		try {
-			// Call Power Automate endpoint with single order ID
-			const response = await fetch(
-				'https://default61576f99244849ec8803974b47673f.57.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/c464173437d741278f6f8932654e1550/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=NtiA92yZ4QU7KRsr7SbDddjYU4_UrTe9gknJb8OGToA',
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ order_ids: [order.invoice] })
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error('Failed to fetch email conversations');
-			}
-
-			const conversations = await response.json();
-
-			// Filter conversations for this specific order
-			currentEmailConversations = conversations.filter(
-				(conv: EmailConversation) => conv.order_id === order.invoice && conv.has_value === 'true'
-			);
-		} catch (error) {
-			console.error('Error fetching email conversations:', error);
-			currentEmailConversations = [];
-		} finally {
-			emailConversationsLoading = false;
-		}
-	}
-
-	function closeEmailConversationsModal() {
-		showEmailConversationsModal = false;
-		selectedEmailOrder = null;
-		emailConversationsLoading = false;
-		currentEmailConversations = [];
-	}
-
 	// Pagination functions
 	function goToPage(page: number) {
 		if (page >= 1 && page <= totalPages) {
@@ -792,31 +549,29 @@
 
 	function changeItemsPerPage(newItemsPerPage: number) {
 		itemsPerPage = newItemsPerPage;
-		currentPage = 1; // Reset to first page when changing items per page
+		currentPage = 1;
 	}
 
 	async function manualTriggerTracking() {
 		try {
 			await fetchOrders(true);
-		} catch (error) {
-			console.error('Error manually triggering tracking:', error);
+		} catch (err) {
+			console.error('Error manually triggering tracking:', err);
 			error = 'Failed to manually trigger tracking';
 		}
 	}
 
 	function exportToCSV() {
-		const csvColumns = visibleColumns.filter((col) => col.key !== 'notes'); // Use visible columns, exclude notes
+		const csvColumns = visibleColumns.filter((col) => col.key !== 'notes');
 		const headers = csvColumns.map((col) => col.label).join(',');
 
 		const rows = filteredOrders.map((order) =>
 			csvColumns
 				.map((col) => {
 					let value = order[col.key];
-					// Format currency values
-					if (col.key === 'amount' || col.key === 'payments') {
+					if (col.key === 'amount' || col.key === 'payments' || col.key === 'invoiceAmount') {
 						value = `$${value}`;
 					}
-					// Escape commas and quotes in values
 					if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
 						value = `"${value.replace(/"/g, '""')}"`;
 					}
@@ -847,7 +602,7 @@
 		const printWindow = window.open('', '_blank');
 		if (!printWindow) return;
 
-		const csvColumns = visibleColumns.filter((col) => col.key !== 'notes'); // Use visible columns, exclude notes
+		const csvColumns = visibleColumns.filter((col) => col.key !== 'notes');
 
 		const htmlContent = `
 			<!DOCTYPE html>
@@ -908,7 +663,7 @@
 											let value = order[col.key];
 											let className = '';
 
-											if (col.key === 'amount' || col.key === 'payments') {
+											if (col.key === 'amount' || col.key === 'payments' || col.key === 'invoiceAmount') {
 												value = '$' + value;
 												className = 'amount';
 											} else if (col.key === 'pdCounter') {
@@ -933,96 +688,131 @@
 		printWindow.print();
 	}
 
+	function handleWindowClick(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (showHeaderMenu && !target.closest('.header-menu-container')) {
+			showHeaderMenu = false;
+		}
+	}
+
+	// Base orders matching PD counter operator/value, invoice IDs, and search (used to compute bucket counts)
+	$: baseFilteredOrders = orders.filter((order) => {
+		// PD Counter Filter
+		if (pdFilterValue !== null && pdFilterValue !== undefined && String(pdFilterValue) !== '') {
+			const pd = order.pdCounter;
+			const val = Number(pdFilterValue);
+			if (pdFilterOperator === '>' && !(pd > val)) return false;
+			if (pdFilterOperator === '<' && !(pd < val)) return false;
+			if (pdFilterOperator === '=' && !(pd === val)) return false;
+		}
+
+		// Invoice IDs Filter
+		if (invoiceIds && invoiceIds.trim() !== '') {
+			const idsToFilter = invoiceIds
+				.split('\n')
+				.map((id) => id.trim())
+				.filter((id) => id !== '');
+
+			if (idsToFilter.length > 0 && !idsToFilter.includes(order.invoice)) {
+				return false;
+			}
+		}
+
+		// Global Search
+		if (globalSearch.trim() !== '') {
+			const q = globalSearch.trim().toLowerCase();
+			const matchCustomer = order.customer.toLowerCase().includes(q);
+			const matchInvoice = order.invoice.toLowerCase().includes(q);
+			const matchEmail = order.email.toLowerCase().includes(q);
+			const matchPhone = order.contacts.toLowerCase().includes(q);
+			const matchUsername = order.username.toLowerCase().includes(q);
+			if (!matchCustomer && !matchInvoice && !matchEmail && !matchPhone && !matchUsername) {
+				return false;
+			}
+		}
+
+		return Object.entries(searchFilters).every(([key, value]) => {
+			if (!value) return true;
+			const normalizedValue = value.toLowerCase();
+			const columnKey = key as ColumnKey;
+
+			if (columnKey === 'notes') {
+				return order.notes.some((note) => {
+					const noteText = note.note.toLowerCase();
+					const createdBy = note.created_by.toLowerCase();
+					const creatorName = note.creator_full_name?.toLowerCase() || '';
+					return (
+						noteText.includes(normalizedValue) ||
+						createdBy.includes(normalizedValue) ||
+						creatorName.includes(normalizedValue)
+					);
+				});
+			}
+
+			const orderValue = String(order[columnKey]).toLowerCase();
+			return orderValue.includes(normalizedValue);
+		});
+	});
+
+	// Bucket Counts
+	$: countAllOverdue = baseFilteredOrders.length;
+	$: count1To30 = baseFilteredOrders.filter((o) => o.pdCounter >= 1 && o.pdCounter <= 30).length;
+	$: count31To60 = baseFilteredOrders.filter((o) => o.pdCounter >= 31 && o.pdCounter <= 60).length;
+	$: count61To90 = baseFilteredOrders.filter((o) => o.pdCounter >= 61 && o.pdCounter <= 90).length;
+	$: count90Plus = baseFilteredOrders.filter((o) => o.pdCounter > 90).length;
+
 	$: visibleColumns = columns.filter(
 		(column) => column.key === 'customer' || columnVisibility[column.key]
 	);
 	$: nonCustomerColumns = visibleColumns.filter((column) => column.key !== 'customer');
-	$: filteredOrders = orders
+	$: filteredOrders = baseFilteredOrders
 		.filter((order) => {
-			// PD Counter Filter
-			if (pdFilterValue !== null && pdFilterValue !== undefined && String(pdFilterValue) !== '') {
-				const pd = order.pdCounter;
-				const val = Number(pdFilterValue);
-				if (pdFilterOperator === '>' && !(pd > val)) return false;
-				if (pdFilterOperator === '<' && !(pd < val)) return false;
-				if (pdFilterOperator === '=' && !(pd === val)) return false;
-			}
-
-			// Invoice IDs Filter
-			if (invoiceIds && invoiceIds.trim() !== '') {
-				// Parse IDs from textarea (split by newlines and trim)
-				const idsToFilter = invoiceIds
-					.split('\n')
-					.map((id) => id.trim())
-					.filter((id) => id !== '');
-
-				if (idsToFilter.length > 0) {
-					// Check if current order invoice is in the list of IDs
-					// Using some() to allow fuzzy matching if needed, or includes for exact match
-					// The request implies exact match "24-004437"
-					if (!idsToFilter.includes(order.invoice)) {
-						return false;
-					}
-				}
-			}
-
-			return Object.entries(searchFilters).every(([key, value]) => {
-				if (!value) return true;
-				const normalizedValue = value.toLowerCase();
-				const columnKey = key as ColumnKey;
-
-				if (columnKey === 'notes') {
-					return order.notes.some((note) => {
-						const noteText = note.note.toLowerCase();
-						const createdBy = note.created_by.toLowerCase();
-						const creatorName = note.creator_full_name?.toLowerCase() || '';
-						return (
-							noteText.includes(normalizedValue) ||
-							createdBy.includes(normalizedValue) ||
-							creatorName.includes(normalizedValue)
-						);
-					});
-				}
-
-				const orderValue = String(order[columnKey]).toLowerCase();
-				return orderValue.includes(normalizedValue);
-			});
+			if (selectedBucket === '1-30') return order.pdCounter >= 1 && order.pdCounter <= 30;
+			if (selectedBucket === '31-60') return order.pdCounter >= 31 && order.pdCounter <= 60;
+			if (selectedBucket === '61-90') return order.pdCounter >= 61 && order.pdCounter <= 90;
+			if (selectedBucket === '90+') return order.pdCounter > 90;
+			return true;
 		})
 		.sort((a, b) => {
 			let valA = a[sortField];
 			let valB = b[sortField];
 
-			// Handle different types
 			if (sortField === 'pdCounter') {
-				// Number
 				return sortDirection === 'asc'
 					? (valA as number) - (valB as number)
 					: (valB as number) - (valA as number);
-			} else if (sortField === 'payments' || sortField === 'amount') {
-				// String numeric ('123.45')
+			} else if (
+				sortField === 'payments' ||
+				sortField === 'amount' ||
+				sortField === 'invoiceAmount'
+			) {
 				const numA = parseFloat(valA as string);
 				const numB = parseFloat(valB as string);
 				return sortDirection === 'asc' ? numA - numB : numB - numA;
 			} else if (sortField === 'dateIssued' || sortField === 'dueDate') {
-				// Date string 'dd/mm/yyyy'
 				const timeA = parseDate(valA as string);
 				const timeB = parseDate(valB as string);
 				return sortDirection === 'asc' ? timeA - timeB : timeB - timeA;
+			} else if (sortField === 'notes') {
+				const noteA = a.notes[0]?.note?.toLowerCase() || '';
+				const noteB = b.notes[0]?.note?.toLowerCase() || '';
+				return sortDirection === 'asc'
+					? noteA.localeCompare(noteB)
+					: noteB.localeCompare(noteA);
 			} else {
-				// String
 				const strA = String(valA).toLowerCase();
 				const strB = String(valB).toLowerCase();
 				return sortDirection === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
 			}
 		});
 
-	// Log count of displayed orders (only after data is loaded)
-	$: if (!loading && orders.length > 0) {
-		console.log(`Displayed orders count: ${filteredOrders.length}`);
+	// Reset to page 1 when globalSearch changes
+	$: if (globalSearch !== undefined) {
+		currentPage = 1;
 	}
 
 	// Pagination logic
-	$: totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+	$: totalPages = Math.max(1, Math.ceil(filteredOrders.length / itemsPerPage));
 	$: paginatedOrders = filteredOrders.slice(
 		(currentPage - 1) * itemsPerPage,
 		currentPage * itemsPerPage
@@ -1066,46 +856,41 @@
 			const storedInvoiceIds = localStorage.getItem('orders-invoice-ids');
 			const storedShowInvoiceFilter = localStorage.getItem('orders-show-invoice-filter');
 
-			// Set defaults if no localStorage data exists
 			if (!storedOp && !storedVal) {
 				pdFilterOperator = '>';
-				pdFilterValue = 30;
+				pdFilterValue = 0;
 				tempPdFilterOperator = pdFilterOperator;
 				tempPdFilterValue = pdFilterValue;
-				// Save defaults to localStorage
 				localStorage.setItem('orders-pd-filter-operator', pdFilterOperator);
 				localStorage.setItem('orders-pd-filter-value', String(pdFilterValue));
 			} else {
-				// Load existing preferences
 				if (storedOp) pdFilterOperator = storedOp;
 				if (storedVal) pdFilterValue = Number(storedVal);
-				// Initialize temp values with loaded values
 				tempPdFilterOperator = pdFilterOperator;
 				tempPdFilterValue = pdFilterValue;
 			}
 
-			// Load column visibility preferences
 			if (storedVisibility) {
 				try {
 					columnVisibility = {
-						...columnVisibility,
+						...defaultColumnVisibility,
 						...JSON.parse(storedVisibility),
-						customer: true
+						customer: true,
+						invoiceAmount:
+							JSON.parse(storedVisibility).invoiceAmount !== undefined
+								? JSON.parse(storedVisibility).invoiceAmount
+								: true
 					};
 				} catch (e) {
 					console.error('Error parsing column visibility preferences:', e);
 				}
 			}
 
-			// Load UI toggle preferences (default to false)
 			showLegend = storedShowLegend === 'true';
 			showColumnVisibility = storedShowColumnVisibility === 'true';
 			showInvoiceFilter = storedShowInvoiceFilter === 'true';
 
-			// Load invoice filter
 			if (storedInvoiceIds) invoiceIds = storedInvoiceIds;
-
-			// Load pagination preferences
 			if (storedCurrentPage) currentPage = Number(storedCurrentPage);
 			if (storedItemsPerPage) itemsPerPage = Number(storedItemsPerPage);
 		}
@@ -1121,50 +906,320 @@
 	});
 </script>
 
+<svelte:window on:click={handleWindowClick} />
+
 <svelte:head>
 	<title>Past Due Accounts - RapidTools</title>
 </svelte:head>
 
-<div class="min-h-screen py-6 px-2 sm:px-4 lg:px-6">
-	<div class="w-full bg-[#141619] border border-[#262a30] shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8">
-		<!-- Header -->
-		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-			<div>
-				<h1 class="text-2xl font-bold text-white tracking-tight">Past Due Accounts</h1>
-				<p class="mt-1 text-sm text-gray-400">A list of all past due accounts.</p>
-			</div>
-			{#if profile}
-				<div class="text-sm text-gray-400">
-					<span class="font-medium text-gray-300">User:</span>{' '}
-					<span class="text-lime-400 font-semibold">{profile.firstName} {profile.lastName}</span>
-				</div>
-			{/if}
+<div class="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+	<div class="mx-auto max-w-7xl">
+		<!-- Breadcrumb -->
+		<div class="mb-3 flex items-center gap-2 text-xs font-medium text-gray-400">
+			<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#262a30] bg-[#141619] text-gray-400">
+				<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+				</svg>
+			</span>
+			<span>Customers</span>
+			<span class="text-gray-600">/</span>
+			<span class="text-lime-400 font-semibold">Accounts</span>
 		</div>
 
+		<!-- Title & Top-Right Actions -->
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+			<div>
+				<h1 class="text-3xl font-bold tracking-tight text-white">Past Due Accounts</h1>
+				<p class="mt-1 text-sm text-gray-400">
+					Review overdue invoices and manage follow-ups.
+				</p>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2.5">
+				<button
+					type="button"
+					on:click={manualTriggerTracking}
+					class="inline-flex items-center gap-2 rounded-xl border border-[#262a30] bg-[#141619] px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-[#333842] hover:bg-[#1a1d22] hover:text-white"
+				>
+					<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+						/>
+					</svg>
+					Sync invoices
+				</button>
+
+				<button
+					type="button"
+					on:click={exportToCSV}
+					disabled={filteredOrders.length === 0}
+					class="inline-flex items-center gap-2 rounded-xl border border-[#262a30] bg-[#141619] px-4 py-2 text-sm font-medium text-gray-200 transition hover:border-[#333842] hover:bg-[#1a1d22] hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+				>
+					<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+					Export
+				</button>
+
+				<!-- More Menu (...) -->
+				<div class="relative header-menu-container">
+					<button
+						type="button"
+						on:click={() => (showHeaderMenu = !showHeaderMenu)}
+						class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#262a30] bg-[#141619] text-gray-300 transition hover:border-[#333842] hover:bg-[#1a1d22] hover:text-white"
+						title="More options"
+					>
+						<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+							<path
+								d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"
+							/>
+						</svg>
+					</button>
+
+					{#if showHeaderMenu}
+						<div
+							class="absolute right-0 z-30 mt-2 w-48 rounded-xl border border-[#262a30] bg-[#181b20] py-1.5 shadow-2xl"
+						>
+							<button
+								type="button"
+								disabled={filteredOrders.length === 0}
+								on:click={() => {
+									showHeaderMenu = false;
+									printTable();
+								}}
+								class="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-200 transition hover:bg-[#22262d] disabled:opacity-40"
+							>
+								<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+									/>
+								</svg>
+								Print report
+							</button>
+
+							<button
+								type="button"
+								on:click={() => {
+									showHeaderMenu = false;
+									showLegend = !showLegend;
+								}}
+								class="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-200 transition hover:bg-[#22262d]"
+							>
+								<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+								{showLegend ? 'Hide PD legend' : 'Show PD legend'}
+							</button>
+
+							<a
+								href="{base}/orders-past-due-accounts/settings"
+								class="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-200 transition hover:bg-[#22262d]"
+							>
+								<svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+									/>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+									/>
+								</svg>
+								Email settings
+							</a>
+						</div>
+					{/if}
+				</div>
+			</div>
+		</div>
+
+		<!-- Summary & Aging Buckets Card -->
+		<div
+			class="mt-6 flex flex-col gap-4 rounded-2xl border border-[#262a30] bg-[#141619] px-6 py-4 shadow-xl lg:flex-row lg:items-center lg:justify-between"
+		>
+			<!-- Left: Total Overdue Count -->
+			<div class="flex items-center gap-3.5 lg:pr-6 lg:border-r lg:border-[#262a30]">
+				<div
+					class="flex h-10 w-10 items-center justify-center rounded-xl border border-[#262a30] bg-[#181b20] text-gray-300"
+				>
+					<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="1.75"
+							d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+						/>
+					</svg>
+				</div>
+				<div>
+					<div class="text-2xl font-bold leading-none text-white">{countAllOverdue}</div>
+					<div class="mt-1 text-xs text-gray-400">overdue invoices</div>
+				</div>
+			</div>
+
+			<!-- Right: Aging Bucket Pills -->
+			<div class="grid flex-1 grid-cols-2 gap-2.5 sm:grid-cols-5">
+				<button
+					type="button"
+					on:click={() => selectBucket('all')}
+					class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-medium transition {selectedBucket ===
+					'all'
+						? 'border-lime-500/60 bg-lime-950/30 text-white'
+						: 'border-[#262a30] bg-[#16191d] text-gray-300 hover:border-[#333842] hover:bg-[#1a1d22]'}"
+				>
+					<span class="flex items-center gap-2">
+						{#if selectedBucket === 'all'}
+							<span class="h-2 w-2 rounded-full bg-lime-400"></span>
+						{/if}
+						<span>All overdue</span>
+					</span>
+					<span
+						class="rounded-md px-2 py-0.5 text-xs font-semibold {selectedBucket === 'all'
+							? 'bg-[#1f2918] text-gray-100'
+							: 'bg-[#22262c] text-gray-300'}"
+					>
+						{countAllOverdue}
+					</span>
+				</button>
+
+				<button
+					type="button"
+					on:click={() => selectBucket('1-30')}
+					class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-medium transition {selectedBucket ===
+					'1-30'
+						? 'border-lime-500/60 bg-lime-950/30 text-white'
+						: 'border-[#262a30] bg-[#16191d] text-gray-300 hover:border-[#333842] hover:bg-[#1a1d22]'}"
+				>
+					<span class="flex items-center gap-2">
+						{#if selectedBucket === '1-30'}
+							<span class="h-2 w-2 rounded-full bg-lime-400"></span>
+						{/if}
+						<span>1 &ndash; 30 days</span>
+					</span>
+					<span
+						class="rounded-md px-2 py-0.5 text-xs font-semibold {selectedBucket === '1-30'
+							? 'bg-[#1f2918] text-gray-100'
+							: 'bg-[#22262c] text-gray-300'}"
+					>
+						{count1To30}
+					</span>
+				</button>
+
+				<button
+					type="button"
+					on:click={() => selectBucket('31-60')}
+					class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-medium transition {selectedBucket ===
+					'31-60'
+						? 'border-lime-500/60 bg-lime-950/30 text-white'
+						: 'border-[#262a30] bg-[#16191d] text-gray-300 hover:border-[#333842] hover:bg-[#1a1d22]'}"
+				>
+					<span class="flex items-center gap-2">
+						{#if selectedBucket === '31-60'}
+							<span class="h-2 w-2 rounded-full bg-lime-400"></span>
+						{/if}
+						<span>31 &ndash; 60 days</span>
+					</span>
+					<span
+						class="rounded-md px-2 py-0.5 text-xs font-semibold {selectedBucket === '31-60'
+							? 'bg-[#1f2918] text-gray-100'
+							: 'bg-[#22262c] text-gray-300'}"
+					>
+						{count31To60}
+					</span>
+				</button>
+
+				<button
+					type="button"
+					on:click={() => selectBucket('61-90')}
+					class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-medium transition {selectedBucket ===
+					'61-90'
+						? 'border-lime-500/60 bg-lime-950/30 text-white'
+						: 'border-[#262a30] bg-[#16191d] text-gray-300 hover:border-[#333842] hover:bg-[#1a1d22]'}"
+				>
+					<span class="flex items-center gap-2">
+						{#if selectedBucket === '61-90'}
+							<span class="h-2 w-2 rounded-full bg-lime-400"></span>
+						{/if}
+						<span>61 &ndash; 90 days</span>
+					</span>
+					<span
+						class="rounded-md px-2 py-0.5 text-xs font-semibold {selectedBucket === '61-90'
+							? 'bg-[#1f2918] text-gray-100'
+							: 'bg-[#22262c] text-gray-300'}"
+					>
+						{count61To90}
+					</span>
+				</button>
+
+				<button
+					type="button"
+					on:click={() => selectBucket('90+')}
+					class="flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-xs font-medium transition {selectedBucket ===
+					'90+'
+						? 'border-lime-500/60 bg-lime-950/30 text-white'
+						: 'border-[#262a30] bg-[#16191d] text-gray-300 hover:border-[#333842] hover:bg-[#1a1d22]'}"
+				>
+					<span class="flex items-center gap-2">
+						{#if selectedBucket === '90+'}
+							<span class="h-2 w-2 rounded-full bg-lime-400"></span>
+						{/if}
+						<span>90+ days</span>
+					</span>
+					<span
+						class="rounded-md px-2 py-0.5 text-xs font-semibold {selectedBucket === '90+'
+							? 'bg-[#1f2918] text-gray-100'
+							: 'bg-[#22262c] text-gray-300'}"
+					>
+						{count90Plus}
+					</span>
+				</button>
+			</div>
+		</div>
+
+		<!-- Search & Filter Toolbar -->
 		<PastDueToolbar
+			bind:globalSearch
 			bind:operator={tempPdFilterOperator}
 			bind:value={tempPdFilterValue}
+			appliedOperator={pdFilterOperator}
+			appliedValue={pdFilterValue}
 			bind:showLegend
 			bind:showColumnVisibility
 			bind:invoiceIds
 			bind:showInvoiceFilter
-			disableActions={filteredOrders.length === 0}
 			on:apply={applyPdFilter}
-			on:exportCsv={exportToCSV}
-			on:print={printTable}
-			on:manualTrigger={manualTriggerTracking}
 		/>
 
 		<!-- Collapsible Legend Section -->
 		{#if showLegend}
-			<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
+			<div class="animate-in fade-in slide-in-from-top-2 mt-3 duration-200">
 				<PastDueLegend />
 			</div>
 		{/if}
 
 		<!-- Collapsible Column Visibility Section -->
 		{#if showColumnVisibility}
-			<div class="animate-in fade-in slide-in-from-top-2 mt-4 duration-200">
+			<div class="animate-in fade-in slide-in-from-top-2 mt-3 duration-200">
 				<ColumnVisibilityPills
 					{columns}
 					{columnVisibility}
@@ -1173,7 +1228,22 @@
 			</div>
 		{/if}
 
-		<!-- Pagination Controls -->
+		<!-- Orders Table -->
+		<PastDueOrdersTable
+			{loading}
+			{error}
+			{paginatedOrders}
+			{nonCustomerColumns}
+			{sortField}
+			{sortDirection}
+			filteredCount={filteredOrders.length}
+			userEmail={user?.email || null}
+			on:sort={(e) => handleSort(e.detail)}
+			on:openNotes={(e) => openNotesModal(e.detail)}
+			on:openEmail={(e) => openEmailModal(e.detail)}
+		/>
+
+		<!-- Pagination Controls at Bottom -->
 		{#if filteredOrders.length > 0}
 			<PastDuePagination
 				filteredCount={filteredOrders.length}
@@ -1186,26 +1256,6 @@
 				on:changeItemsPerPage={(e) => changeItemsPerPage(e.detail)}
 			/>
 		{/if}
-
-		<!-- Orders Table -->
-		<PastDueOrdersTable
-			{loading}
-			{error}
-			{paginatedOrders}
-			{nonCustomerColumns}
-			{searchFilters}
-			{sortField}
-			{sortDirection}
-			filteredCount={filteredOrders.length}
-			userEmail={user?.email || null}
-			on:sort={(e) => handleSort(e.detail)}
-			on:searchChange={(e) => handleSearchChange(e.detail.key, e.detail.value)}
-			on:openNotes={(e) => openNotesModal(e.detail)}
-			on:openEmail={(e) => openEmailModal(e.detail)}
-			on:openTicket={(e) => openTicketModal(e.detail)}
-			on:openViewTickets={(e) => openViewTicketsModal(e.detail)}
-			on:openEmailConversations={(e) => openEmailConversationsModal(e.detail)}
-		/>
 	</div>
 
 	<!-- Notes Modal -->
@@ -1219,41 +1269,5 @@
 	/>
 	<!-- Email Modal -->
 	<EmailModal showModal={showEmailModal} order={emailOrder} on:close={closeEmailModal} />
-
-	<!-- Ticket Modal -->
-	<TicketModal
-		showModal={showTicketModal}
-		order={ticketOrder}
-		on:close={closeTicketModal}
-		on:ticketCreated={fetchTickets}
-	/>
-
-	<!-- View Tickets Modal -->
-	<ViewTicketsModal
-		showModal={showViewTicketsModal}
-		order={selectedTicketsOrder}
-		tickets={selectedTicketsOrder ? selectedTicketsOrder.tickets : []}
-		on:close={closeViewTicketsModal}
-		on:createTicket={handleCreateTicketFromView}
-		on:ticketUpdated={fetchTickets}
-		on:editTicket={(e) => openEditTicketModal(e.detail)}
-	/>
-
-	<!-- Edit Ticket Modal -->
-	<EditTicketModal
-		showModal={showEditTicketModal}
-		ticket={selectedTicket}
-		order={selectedTicketsOrder}
-		on:close={closeEditTicketModal}
-		on:ticketUpdated={handleTicketUpdated}
-	/>
-
-	<!-- Email Conversations Modal -->
-	<EmailConversationsModal
-		showModal={showEmailConversationsModal}
-		order={selectedEmailOrder}
-		loading={emailConversationsLoading}
-		conversations={currentEmailConversations}
-		on:close={closeEmailConversationsModal}
-	/>
 </div>
+

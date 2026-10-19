@@ -41,17 +41,6 @@ export interface NoteView {
 	viewed_at: string;
 }
 
-export interface EmailConversation {
-	from: string;
-	to?: string;
-	subject?: string;
-	body_preview: string;
-	received_datetime?: string;
-	web_link: string;
-	order_id: string;
-	has_value: string;
-}
-
 export interface Ticket {
 	id: string;
 	ticket_number: number;
@@ -75,17 +64,15 @@ export interface ProcessedOrder {
 	dueDate: string;
 	pdCounter: number;
 	payments: string;
+	invoiceAmount: string;
 	amount: string;
-	emailNotifs: string;
 	assignedTo: string;
 	followUp: string;
 	notes: Note[];
 	noteViews: NoteView[];
 	username: string;
 	tickets: Ticket[]; // Changed from string to Ticket[]
-	emailConversations?: EmailConversation[];
-	emailFilters?: string[];
-	[key: string]: string | number | Note[] | NoteView[] | EmailConversation[] | Ticket[] | string[] | undefined;
+	[key: string]: string | number | Note[] | NoteView[] | Ticket[] | string[] | undefined;
 }
 
 export type ColumnKey =
@@ -95,12 +82,11 @@ export type ColumnKey =
 	| 'dueDate'
 	| 'pdCounter'
 	| 'payments'
+	| 'invoiceAmount'
 	| 'amount'
-	| 'emailNotifs'
 	| 'assignedTo'
 	| 'followUp'
 	| 'username'
-	| 'tickets'
 	| 'notes';
 
 export interface ColumnDefinition {
@@ -109,35 +95,33 @@ export interface ColumnDefinition {
 }
 
 export const columns: ColumnDefinition[] = [
-	{ key: 'assignedTo', label: 'Assigned To' },
-	{ key: 'followUp', label: 'Follow Up' },
 	{ key: 'customer', label: 'Customer' },
 	{ key: 'invoice', label: 'Invoice' },
+	{ key: 'pdCounter', label: 'PD counter' },
+	{ key: 'payments', label: 'Payments' },
+	{ key: 'invoiceAmount', label: 'Invoice amount' },
+	{ key: 'amount', label: 'Balance due' },
+	{ key: 'notes', label: 'Latest note' },
 	{ key: 'dateIssued', label: 'Date Issued' },
 	{ key: 'dueDate', label: 'Due Date' },
-	{ key: 'pdCounter', label: 'PD-Counter' },
-	{ key: 'payments', label: 'Payments' },
-	{ key: 'amount', label: 'Amount' },
-	{ key: 'emailNotifs', label: 'Email Convo' },
-	{ key: 'username', label: 'Username' },
-	{ key: 'tickets', label: 'Tickets' },
-	{ key: 'notes', label: 'Notes' }
+	{ key: 'assignedTo', label: 'Assigned To' },
+	{ key: 'followUp', label: 'Follow Up' },
+	{ key: 'username', label: 'Username' }
 ];
 
 export const defaultColumnVisibility: Record<ColumnKey, boolean> = {
 	customer: true,
 	invoice: true,
-	dateIssued: true,
-	dueDate: true,
 	pdCounter: true,
 	payments: true,
+	invoiceAmount: true,
 	amount: true,
-	emailNotifs: true, // Now shows email tracking status
-	assignedTo: true,
-	followUp: true,
-	username: true,
-	tickets: true,
-	notes: true
+	notes: true,
+	dateIssued: false,
+	dueDate: false,
+	assignedTo: false,
+	followUp: false,
+	username: false
 };
 
 export function parseDate(dateStr: string): number {
@@ -161,7 +145,7 @@ export function getPdCounterBgColor(pdValue: number): string {
 	if (pdValue >= 26 && pdValue <= 40) return 'bg-yellow-950/30 border border-yellow-500/30';
 	if (pdValue >= 41 && pdValue <= 59) return 'bg-orange-950/30 border border-orange-500/30';
 	if (pdValue >= 60) return 'bg-red-950/30 border border-red-500/30';
-	return '';
+	return 'bg-gray-900/40 border border-gray-700/40';
 }
 
 export function getUnreadNotesCount(order: ProcessedOrder, userEmail: string | null): number {
@@ -176,23 +160,21 @@ export function getUnreadNotesCount(order: ProcessedOrder, userEmail: string | n
 	return order.notes.filter(note => !viewedNoteIds.has(note.id)).length;
 }
 
-export function getLatestNotesForDisplay(order: ProcessedOrder, maxLength: number = 100): string {
-	if (!order.notes.length) return '';
-
-	// Sort notes by created_at descending to get latest first
+export function getLatestNote(order: ProcessedOrder): Note | null {
+	if (!order.notes.length) return null;
 	const sortedNotes = [...order.notes].sort((a, b) =>
 		new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 	);
+	return sortedNotes[0];
+}
 
-	// Get the latest note
-	const latestNote = sortedNotes[0];
+export function getLatestNotesForDisplay(order: ProcessedOrder, maxLength: number = 100): string {
+	const latestNote = getLatestNote(order);
+	if (!latestNote) return '';
 	let displayText = latestNote.note;
-
-	// Truncate if too long
 	if (displayText.length > maxLength) {
 		displayText = displayText.substring(0, maxLength) + '...';
 	}
-
 	return displayText;
 }
 
@@ -203,17 +185,13 @@ export function getNotesSummary(order: ProcessedOrder): string {
 	return `${totalNotes} notes`;
 }
 
-export function isOutboundEmail(email: EmailConversation): boolean {
-	return email.from.includes('@rapidcleanillawarra.com.au');
-}
-
-export function getLatestEmailPreview(conversations: EmailConversation[], maxLength: number = 80): string {
-	if (!conversations || conversations.length === 0) return '';
-	return conversations[0].body_preview.substring(0, maxLength) + (conversations[0].body_preview.length > maxLength ? '...' : '');
-}
-
-export function getEmailConversationSummary(conversations: EmailConversation[]): { inbound: number, outbound: number } {
-	const inbound = conversations.filter(c => !isOutboundEmail(c)).length;
-	const outbound = conversations.filter(c => isOutboundEmail(c)).length;
-	return { inbound, outbound };
+export function formatShortDate(dateStr: string): string {
+	if (!dateStr) return '';
+	const date = new Date(dateStr);
+	if (isNaN(date.getTime())) return dateStr;
+	return date.toLocaleDateString('en-GB', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric'
+	});
 }

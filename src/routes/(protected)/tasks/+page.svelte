@@ -1,0 +1,145 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import TasksToolbar from './components/TasksToolbar.svelte';
+	import TasksBoardView from './components/TasksBoardView.svelte';
+	import TasksListView from './components/TasksListView.svelte';
+	import CreateTaskModal from './components/CreateTaskModal.svelte';
+	import TaskDetailModal from './components/TaskDetailModal.svelte';
+	import { tasks, teamMembers, isLoadingTasks, viewMode } from './stores';
+	import { fetchAllTasks, updateTaskFields, softDeleteTask } from './tasksService';
+	import { fetchAllUserProfiles } from '$lib/userProfile';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
+	import { TASK_DEPARTMENTS, type TaskItem, type TaskDepartment, type TaskStatus } from './types';
+
+	let showCreateModal = false;
+	let createModalDefaultDepartment: TaskDepartment = 'Operations';
+	let selectedTask: TaskItem | null = null;
+
+	onMount(async () => {
+		await loadInitialData();
+	});
+
+	async function loadInitialData() {
+		isLoadingTasks.set(true);
+		try {
+			const [loadedTasks, profiles] = await Promise.all([
+				fetchAllTasks(),
+				fetchAllUserProfiles().catch(() => [])
+			]);
+			tasks.set(loadedTasks);
+			teamMembers.set(profiles);
+		} catch (err) {
+			console.error('Failed to load tasks:', err);
+			toastError('Failed to load tasks');
+		} finally {
+			isLoadingTasks.set(false);
+		}
+	}
+
+	function openNewTaskModal(defaultDepartment: TaskDepartment = 'Operations') {
+		createModalDefaultDepartment = defaultDepartment;
+		showCreateModal = true;
+	}
+
+	function handleColumnAddTask(groupKey: string) {
+		const dept = TASK_DEPARTMENTS.includes(groupKey as TaskDepartment)
+			? (groupKey as TaskDepartment)
+			: 'Operations';
+		openNewTaskModal(dept);
+	}
+
+	function openTaskDetail(task: TaskItem) {
+		selectedTask = task;
+	}
+
+	function handleTaskCreated(event: CustomEvent<TaskItem>) {
+		const created = event.detail;
+		tasks.update((list) => [created, ...list]);
+		showCreateModal = false;
+	}
+
+	function handleTaskUpdated(event: CustomEvent<TaskItem>) {
+		const updated = event.detail;
+		selectedTask = updated;
+		tasks.update((list) => list.map((t) => (t.id === updated.id ? updated : t)));
+	}
+
+	async function handleStatusChange(task: TaskItem, newStatus: TaskStatus) {
+		const previousStatus = task.status;
+		tasks.update((list) =>
+			list.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
+		);
+
+		try {
+			await updateTaskFields(task.id, { status: newStatus });
+			toastSuccess(`Status updated to ${newStatus}`);
+		} catch (err) {
+			tasks.update((list) =>
+				list.map((t) => (t.id === task.id ? { ...t, status: previousStatus } : t))
+			);
+			toastError('Failed to update task status');
+		}
+	}
+
+	async function handleDeleteTask(task: TaskItem) {
+		if (!confirm(`Delete task "${task.title}"?`)) return;
+		try {
+			await softDeleteTask(task.id);
+			tasks.update((list) => list.filter((t) => t.id !== task.id));
+			if (selectedTask?.id === task.id) {
+				selectedTask = null;
+			}
+			toastSuccess('Task deleted');
+		} catch (err) {
+			toastError('Failed to delete task');
+		}
+	}
+</script>
+
+<svelte:head>
+	<title>Tasks - RapidTools</title>
+</svelte:head>
+
+<div class="min-h-screen bg-[#0e1012] px-4 py-6 sm:px-6 lg:px-8">
+	<div class="mx-auto max-w-[1600px] space-y-6">
+		<TasksToolbar on:newTask={() => openNewTaskModal('Operations')} />
+
+		{#if $isLoadingTasks}
+			<div class="overflow-x-auto pb-4">
+				<div class="flex items-start gap-4 min-w-max">
+					{#each Array(5) as _}
+						<div class="h-96 w-80 flex-shrink-0 animate-pulse rounded-xl border border-[#262a30] bg-[#141619] p-4"></div>
+					{/each}
+				</div>
+			</div>
+		{:else if $viewMode === 'board'}
+			<TasksBoardView
+				on:addTask={(e) => handleColumnAddTask(e.detail)}
+				on:selectTask={(e) => openTaskDetail(e.detail)}
+				on:statusChange={(e) => handleStatusChange(e.detail.task, e.detail.status)}
+				on:deleteTask={(e) => handleDeleteTask(e.detail)}
+			/>
+		{:else}
+			<TasksListView
+				on:addTask={(e) => handleColumnAddTask(e.detail)}
+				on:selectTask={(e) => openTaskDetail(e.detail)}
+				on:statusChange={(e) => handleStatusChange(e.detail.task, e.detail.status)}
+				on:deleteTask={(e) => handleDeleteTask(e.detail)}
+			/>
+		{/if}
+	</div>
+</div>
+
+<CreateTaskModal
+	open={showCreateModal}
+	defaultDepartment={createModalDefaultDepartment}
+	on:close={() => (showCreateModal = false)}
+	on:created={handleTaskCreated}
+/>
+
+<TaskDetailModal
+	task={selectedTask}
+	on:close={() => (selectedTask = null)}
+	on:updated={handleTaskUpdated}
+	on:delete={(e) => handleDeleteTask(e.detail)}
+/>

@@ -86,9 +86,9 @@
 	<!-- Row 3: Search, Filter Pills, Group By & View Switcher -->
 	<div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
 		<!-- Left: Search + Filter Dropdowns -->
-		<div class="flex flex-wrap items-center gap-2.5">
+		<div class="flex flex-1 flex-wrap items-center gap-2.5">
 			<!-- Search Input -->
-			<div class="relative w-full sm:w-72">
+			<div class="relative w-full sm:w-64">
 				<svg
 					class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
 					fill="none"

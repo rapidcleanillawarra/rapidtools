@@ -101,7 +101,7 @@
 </svelte:head>
 
 <div class="min-h-screen bg-[#0e1012] px-4 py-6 sm:px-6 lg:px-8">
-	<div class="mx-auto max-w-[1600px] space-y-6">
+	<div class="w-full space-y-6">
 		<TasksToolbar on:newTask={() => openNewTaskModal('Operations')} />
 
 		{#if $isLoadingTasks}

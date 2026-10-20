@@ -243,22 +243,25 @@
 				<div class="grid grid-cols-2 gap-3">
 					<!-- Status -->
 					<div>
-						<label class="mb-1 block text-xs font-medium text-gray-400">Status</label>
-						<div class="relative">
+						<label for="detail-task-status" class="mb-1 block text-xs font-medium text-gray-400">Status</label>
+						<label
+							class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3 transition hover:border-[#3a424e] focus-within:border-lime-500"
+						>
 							<span
-								class="pointer-events-none absolute left-3 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full {STATUS_DOT_COLORS[task.status]}"
+								class="pointer-events-none h-2 w-2 flex-shrink-0 rounded-full {STATUS_DOT_COLORS[task.status]}"
 							></span>
 							<select
+								id="detail-task-status"
 								value={task.status}
 								on:change={(e) =>
 									handleFieldUpdate({ status: e.currentTarget.value as TaskStatus })}
-								class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] py-2 pl-7 pr-3 text-xs font-medium text-gray-100 focus:border-lime-500 focus:outline-none"
+								class="w-full cursor-pointer border-0 bg-transparent py-2 pl-2 pr-7 text-xs font-medium text-gray-100 focus:ring-0 focus:outline-none"
 							>
 								{#each TASK_STATUSES as st}
-									<option value={st}>{st}</option>
+									<option value={st} class="bg-[#141619] text-gray-100">{st}</option>
 								{/each}
 							</select>
-						</div>
+						</label>
 					</div>
 
 					<!-- Department -->

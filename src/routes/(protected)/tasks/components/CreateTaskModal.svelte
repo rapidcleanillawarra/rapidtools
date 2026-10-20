@@ -211,9 +211,11 @@
 						<label for="new-task-assignee" class="mb-1.5 block text-sm font-semibold text-white">
 							Assignee <span class="text-red-400">*</span>
 						</label>
-						<div class="relative">
+						<label
+							class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
+						>
 							<svg
-								class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+								class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -228,24 +230,16 @@
 							<select
 								id="new-task-assignee"
 								bind:value={selectedAssignee}
-								class="w-full appearance-none rounded-lg border border-[#2a2f37] bg-[#181b20] py-2.5 pl-10 pr-8 text-sm {selectedAssignee
+								class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm {selectedAssignee
 									? 'text-gray-100'
-									: 'text-gray-400'} transition focus:border-lime-500 focus:outline-none"
+									: 'text-gray-400'} focus:ring-0 focus:outline-none"
 							>
-								<option value="" disabled>Select team member</option>
+								<option value="" disabled class="bg-[#141619] text-gray-400">Select team member</option>
 								{#each assigneeOptions as person}
 									<option value={person} class="bg-[#141619] text-gray-100">{person}</option>
 								{/each}
 							</select>
-							<svg
-								class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						</div>
+						</label>
 					</div>
 
 					<!-- Department -->
@@ -253,9 +247,11 @@
 						<label for="new-task-dept" class="mb-1.5 block text-sm font-semibold text-white">
 							Department
 						</label>
-						<div class="relative">
+						<label
+							class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
+						>
 							<svg
-								class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+								class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -270,24 +266,16 @@
 							<select
 								id="new-task-dept"
 								bind:value={selectedDepartment}
-								class="w-full appearance-none rounded-lg border border-[#2a2f37] bg-[#181b20] py-2.5 pl-10 pr-8 text-sm {selectedDepartment
+								class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm {selectedDepartment
 									? 'text-gray-100'
-									: 'text-gray-400'} transition focus:border-lime-500 focus:outline-none"
+									: 'text-gray-400'} focus:ring-0 focus:outline-none"
 							>
-								<option value="" disabled>Select department</option>
+								<option value="" disabled class="bg-[#141619] text-gray-400">Select department</option>
 								{#each TASK_DEPARTMENTS as dept}
 									<option value={dept} class="bg-[#141619] text-gray-100">{dept}</option>
 								{/each}
 							</select>
-							<svg
-								class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						</div>
+						</label>
 					</div>
 
 					<!-- Priority -->
@@ -295,9 +283,11 @@
 						<label for="new-task-priority" class="mb-1.5 block text-sm font-semibold text-white">
 							Priority
 						</label>
-						<div class="relative">
+						<label
+							class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
+						>
 							<svg
-								class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+								class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
 								fill="none"
 								stroke="currentColor"
 								viewBox="0 0 24 24"
@@ -312,21 +302,13 @@
 							<select
 								id="new-task-priority"
 								bind:value={priority}
-								class="w-full appearance-none rounded-lg border border-[#2a2f37] bg-[#181b20] py-2.5 pl-10 pr-8 text-sm text-gray-100 transition focus:border-lime-500 focus:outline-none"
+								class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm text-gray-100 focus:ring-0 focus:outline-none"
 							>
 								{#each TASK_PRIORITIES as p}
 									<option value={p} class="bg-[#141619] text-gray-100">{p}</option>
 								{/each}
 							</select>
-							<svg
-								class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-							</svg>
-						</div>
+						</label>
 					</div>
 
 					<!-- Due date * -->
@@ -366,28 +348,22 @@
 					<label for="new-task-status" class="mb-1.5 block text-sm font-semibold text-white">
 						Status
 					</label>
-					<div class="relative">
+					<label
+						class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
+					>
 						<span
-							class="pointer-events-none absolute left-3.5 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full {STATUS_DOT_COLORS[status]}"
+							class="pointer-events-none h-2.5 w-2.5 flex-shrink-0 rounded-full {STATUS_DOT_COLORS[status]}"
 						></span>
 						<select
 							id="new-task-status"
 							bind:value={status}
-							class="w-full appearance-none rounded-lg border border-[#2a2f37] bg-[#181b20] py-2.5 pl-9 pr-8 text-sm text-gray-100 transition focus:border-lime-500 focus:outline-none"
+							class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm text-gray-100 focus:ring-0 focus:outline-none"
 						>
 							{#each TASK_STATUSES as st}
 								<option value={st} class="bg-[#141619] text-gray-100">{st}</option>
 							{/each}
 						</select>
-						<svg
-							class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-						</svg>
-					</div>
+					</label>
 				</div>
 
 				<!-- Checklist Section -->

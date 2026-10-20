@@ -55,6 +55,15 @@ export interface TaskComment {
 	created_at: string;
 }
 
+export interface TaskNote {
+	id: string;
+	task_id: string;
+	author_name: string;
+	author_email: string | null;
+	content: string;
+	created_at: string;
+}
+
 export interface TaskItem {
 	id: string;
 	title: string;
@@ -77,6 +86,7 @@ export interface TaskItem {
 	// Joined relations
 	steps: TaskStep[];
 	attachments: TaskAttachment[];
+	notes?: TaskNote[];
 	comment_count: number;
 }
 

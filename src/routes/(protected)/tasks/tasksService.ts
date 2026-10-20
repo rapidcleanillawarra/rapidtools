@@ -6,6 +6,7 @@ import type {
 	TaskStep,
 	TaskAttachment,
 	TaskComment,
+	TaskNote,
 	CreateTaskPayload,
 	TaskStatus,
 	TaskPriority,
@@ -144,6 +145,17 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 	if (payload.files && payload.files.length > 0) {
 		insertedAttachments = await uploadTaskAttachments(createdTask.id, payload.files);
 	}
+
+	// Insert initial note into task_notes
+	const initialNote = payload.latest_note?.trim() || 'Task created';
+	try {
+		await supabase.from('task_notes').insert({
+			task_id: createdTask.id,
+			author_name: user?.displayName || user?.email?.split('@')[0] || 'System',
+			author_email: user?.email || null,
+			content: initialNote
+		});
+	} catch (e) {}
 
 	return {
 		...createdTask,
@@ -347,6 +359,129 @@ export async function addCommentToTask(
 	}
 
 	return data;
+}
+
+/**
+ * Fetch all notes for a task in chronological order (oldest to newest).
+ */
+export async function fetchNotesForTask(taskId: string): Promise<TaskNote[]> {
+	try {
+		const { data, error } = await supabase
+			.from('task_notes')
+			.select('*')
+			.eq('task_id', taskId)
+			.order('created_at', { ascending: true });
+
+		if (!error && data) {
+			if (typeof window !== 'undefined' && window.localStorage) {
+				try {
+					localStorage.setItem(`rapidtools_task_notes_${taskId}`, JSON.stringify(data));
+				} catch (e) {}
+			}
+			return data;
+		}
+	} catch (err) {
+		console.warn('task_notes table query error, falling back:', err);
+	}
+
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			const saved = localStorage.getItem(`rapidtools_task_notes_${taskId}`);
+			if (saved) return JSON.parse(saved);
+		} catch (e) {}
+	}
+
+	return [];
+}
+
+/**
+ * Add a new note to a task and update latest_note / latest_note_at on the task.
+ */
+export async function addNoteToTask(
+	taskId: string,
+	authorName: string,
+	authorEmail: string | null,
+	content: string
+): Promise<TaskNote> {
+	const nowIso = new Date().toISOString();
+	const trimmed = content.trim();
+
+	// 1. Update latest_note and latest_note_at on tasks table
+	try {
+		await supabase
+			.from('tasks')
+			.update({
+				latest_note: trimmed,
+				latest_note_at: nowIso,
+				updated_at: nowIso
+			})
+			.eq('id', taskId);
+	} catch (e) {
+		console.error('Error updating task latest_note:', e);
+	}
+
+	let createdNote: TaskNote = {
+		id: crypto.randomUUID(),
+		task_id: taskId,
+		author_name: authorName,
+		author_email: authorEmail,
+		content: trimmed,
+		created_at: nowIso
+	};
+
+	// 2. Insert into task_notes table
+	try {
+		const { data, error } = await supabase
+			.from('task_notes')
+			.insert({
+				task_id: taskId,
+				author_name: authorName,
+				author_email: authorEmail,
+				content: trimmed
+			})
+			.select('*')
+			.single();
+
+		if (!error && data) {
+			createdNote = data;
+		}
+	} catch (e) {
+		console.warn('Error inserting into task_notes, using local note:', e);
+	}
+
+	// 3. Mirror in localStorage
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			const key = `rapidtools_task_notes_${taskId}`;
+			const existing = localStorage.getItem(key);
+			const list: TaskNote[] = existing ? JSON.parse(existing) : [];
+			list.push(createdNote);
+			localStorage.setItem(key, JSON.stringify(list));
+		} catch (e) {}
+	}
+
+	return createdNote;
+}
+
+/**
+ * Delete a note from a task.
+ */
+export async function deleteNoteFromTask(noteId: string, taskId: string): Promise<void> {
+	try {
+		await supabase.from('task_notes').delete().eq('id', noteId);
+	} catch (e) {}
+
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			const key = `rapidtools_task_notes_${taskId}`;
+			const existing = localStorage.getItem(key);
+			if (existing) {
+				const list: TaskNote[] = JSON.parse(existing);
+				const filtered = list.filter((n) => n.id !== noteId);
+				localStorage.setItem(key, JSON.stringify(filtered));
+			}
+		} catch (e) {}
+	}
 }
 
 export interface DepartmentRecord {

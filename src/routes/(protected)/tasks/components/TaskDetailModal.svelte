@@ -11,6 +11,9 @@
 		deleteStepFromTask,
 		fetchCommentsForTask,
 		addCommentToTask,
+		fetchNotesForTask,
+		addNoteToTask,
+		deleteNoteFromTask,
 		uploadTaskAttachments,
 		deleteTaskAttachment
 	} from '../tasksService';
@@ -18,6 +21,7 @@
 	import {
 		type TaskItem,
 		type TaskComment,
+		type TaskNote,
 		type TaskStep,
 		type TaskAttachment,
 		type TaskPhoto,
@@ -46,9 +50,11 @@
 	let comments: TaskComment[] = [];
 	let isLoadingComments = false;
 	let newCommentText = '';
+	let notes: TaskNote[] = [];
+	let isLoadingNotes = false;
+	let newNoteText = '';
+	let isPostingNote = false;
 	let newStepLabel = '';
-	let noteDraft = '';
-	let isSavingNote = false;
 	let fileInputEl: HTMLInputElement;
 	let lastLoadedTaskId: string | null = null;
 	let isCreatingDept = false;
@@ -104,16 +110,20 @@
 
 	$: if (task && task.id !== lastLoadedTaskId) {
 		lastLoadedTaskId = task.id;
-		noteDraft = task.latest_note || '';
 		isCreatingDept = false;
 		newDeptInput = '';
+		newNoteText = '';
 		loadComments(task.id);
+		loadNotes(task.id);
 	}
 
 	$: if (!task) {
 		lastLoadedTaskId = null;
 		isCreatingDept = false;
 		newDeptInput = '';
+		newNoteText = '';
+		notes = [];
+		comments = [];
 	}
 
 	$: progress = getTaskProgress(task?.steps || []);
@@ -126,6 +136,95 @@
 			console.error('Error loading comments:', err);
 		} finally {
 			isLoadingComments = false;
+		}
+	}
+
+	async function loadNotes(taskId: string) {
+		isLoadingNotes = true;
+		try {
+			const fetched = await fetchNotesForTask(taskId);
+			if (fetched.length === 0 && task?.latest_note) {
+				notes = [
+					{
+						id: 'legacy-latest-note',
+						task_id: taskId,
+						author_name: task.assigned_by_email?.split('@')[0] || 'Note',
+						author_email: task.assigned_by_email || null,
+						content: task.latest_note,
+						created_at: task.latest_note_at || task.created_at
+					}
+				];
+			} else {
+				notes = fetched;
+			}
+		} catch (err) {
+			console.error('Error loading notes:', err);
+			if (task?.latest_note) {
+				notes = [
+					{
+						id: 'legacy-latest-note',
+						task_id: taskId,
+						author_name: task.assigned_by_email?.split('@')[0] || 'Note',
+						author_email: task.assigned_by_email || null,
+						content: task.latest_note,
+						created_at: task.latest_note_at || task.created_at
+					}
+				];
+			}
+		} finally {
+			isLoadingNotes = false;
+		}
+	}
+
+	async function handlePostNote() {
+		if (!task || !newNoteText.trim()) return;
+		isPostingNote = true;
+		const authorName =
+			$userProfile?.firstName ||
+			$currentUser?.email?.split('@')[0] ||
+			'Team Member';
+		const authorEmail = $currentUser?.email || null;
+
+		try {
+			const created = await addNoteToTask(
+				task.id,
+				authorName,
+				authorEmail,
+				newNoteText.trim()
+			);
+			notes = [...notes, created];
+			newNoteText = '';
+			task = {
+				...task,
+				latest_note: created.content,
+				latest_note_at: created.created_at
+			};
+			dispatch('updated', task);
+			toastSuccess('Note added');
+		} catch (err) {
+			console.error('Failed to post note:', err);
+			toastError('Failed to add note');
+		} finally {
+			isPostingNote = false;
+		}
+	}
+
+	async function handleDeleteNote(noteId: string) {
+		if (!task) return;
+		if (!confirm('Delete this note?')) return;
+		try {
+			await deleteNoteFromTask(noteId, task.id);
+			notes = notes.filter((n) => n.id !== noteId);
+			const nextLatest = notes[notes.length - 1];
+			task = {
+				...task,
+				latest_note: nextLatest ? nextLatest.content : null,
+				latest_note_at: nextLatest ? nextLatest.created_at : null
+			};
+			dispatch('updated', task);
+			toastSuccess('Note deleted');
+		} catch (err) {
+			toastError('Failed to delete note');
 		}
 	}
 
@@ -157,29 +256,6 @@
 			toastSuccess(`Bucket "${trimmed}" created`);
 		} catch (err: any) {
 			toastError(err?.message || 'Failed to create bucket');
-		}
-	}
-
-	async function handleSaveNote() {
-		if (!task) return;
-		isSavingNote = true;
-		const nowIso = new Date().toISOString();
-		try {
-			await updateTaskFields(task.id, {
-				latest_note: noteDraft.trim() || null,
-				latest_note_at: nowIso
-			});
-			task = {
-				...task,
-				latest_note: noteDraft.trim() || null,
-				latest_note_at: nowIso
-			};
-			dispatch('updated', task);
-			toastSuccess('Latest note updated');
-		} catch (err) {
-			toastError('Failed to save note');
-		} finally {
-			isSavingNote = false;
 		}
 	}
 
@@ -514,28 +590,66 @@
 					</div>
 				</div>
 
-				<!-- Latest Note -->
+				<!-- Notes Thread -->
 				<div class="rounded-xl border border-[#262a30] bg-[#181b20] p-4">
-					<div class="mb-2 flex items-center justify-between">
-						<span class="text-sm font-bold text-white">Latest Note</span>
-						{#if task.latest_note_at}
-							<span class="text-xs text-gray-400">{formatShortDate(task.latest_note_at)}</span>
-						{/if}
+					<div class="mb-3 flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<h4 class="text-sm font-bold text-white">
+								Notes ({notes.length})
+							</h4>
+							{#if task.latest_note_at}
+								<span class="text-xs text-gray-400">
+									&middot; Latest {formatShortDate(task.latest_note_at)}
+								</span>
+							{/if}
+						</div>
 					</div>
-					<textarea
-						rows="2"
-						bind:value={noteDraft}
-						placeholder="Write a status note..."
-						class="w-full rounded-lg border border-[#2a2f37] bg-[#141619] px-3 py-2 text-xs text-gray-200 placeholder-gray-500 focus:border-lime-500 focus:outline-none"
-					></textarea>
-					<div class="mt-2 flex justify-end">
+
+					{#if isLoadingNotes}
+						<p class="text-xs text-gray-500">Loading notes...</p>
+					{:else if notes.length === 0}
+						<p class="mb-3 text-xs text-gray-500">No notes yet.</p>
+					{:else}
+						<div class="mb-4 space-y-2.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-[#262a30]">
+							{#each notes as note (note.id)}
+								<div class="group/note rounded-lg bg-[#141619] p-3 transition hover:bg-[#16191e]">
+									<div class="mb-1 flex items-center justify-between text-[11px]">
+										<span class="font-bold text-lime-400">{note.author_name}</span>
+										<div class="flex items-center gap-2">
+											<span class="text-gray-500">{formatShortDate(note.created_at)}</span>
+											{#if note.id !== 'legacy-latest-note'}
+												<button
+													type="button"
+													on:click={() => handleDeleteNote(note.id)}
+													class="opacity-0 group-hover/note:opacity-100 text-gray-500 hover:text-red-400 transition"
+													title="Delete note"
+												>
+													&times;
+												</button>
+											{/if}
+										</div>
+									</div>
+									<p class="text-xs text-gray-200 whitespace-pre-wrap">{note.content}</p>
+								</div>
+							{/each}
+						</div>
+					{/if}
+
+					<div class="flex gap-2">
+						<input
+							type="text"
+							bind:value={newNoteText}
+							on:keydown={(e) => e.key === 'Enter' && handlePostNote()}
+							placeholder="Write a status note..."
+							class="flex-1 rounded-lg border border-[#2a2f37] bg-[#141619] px-3 py-2 text-xs text-gray-200 placeholder-gray-500 focus:border-lime-500 focus:outline-none"
+						/>
 						<button
 							type="button"
-							on:click={handleSaveNote}
-							disabled={isSavingNote}
-							class="rounded-lg border border-lime-500/40 bg-lime-500/10 px-3 py-1 text-xs font-semibold text-lime-400 hover:bg-lime-500/20"
+							on:click={handlePostNote}
+							disabled={isPostingNote || !newNoteText.trim()}
+							class="rounded-lg bg-lime-400 px-3.5 py-2 text-xs font-semibold text-gray-950 hover:bg-lime-300 disabled:opacity-50 transition"
 						>
-							{isSavingNote ? 'Saving...' : 'Update note'}
+							{isPostingNote ? 'Adding...' : 'Add note'}
 						</button>
 					</div>
 				</div>

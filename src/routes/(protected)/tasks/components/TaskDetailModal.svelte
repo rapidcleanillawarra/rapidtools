@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile } from '$lib/userProfile';
-	import { availableAssignees } from '../stores';
+	import { availableAssignees, allDepartments, addDepartment } from '../stores';
 	import {
 		updateTaskFields,
 		toggleStepCompletion,
@@ -45,15 +45,21 @@
 	let isSavingNote = false;
 	let fileInputEl: HTMLInputElement;
 	let lastLoadedTaskId: string | null = null;
+	let isCreatingDept = false;
+	let newDeptInput = '';
 
 	$: if (task && task.id !== lastLoadedTaskId) {
 		lastLoadedTaskId = task.id;
 		noteDraft = task.latest_note || '';
+		isCreatingDept = false;
+		newDeptInput = '';
 		loadComments(task.id);
 	}
 
 	$: if (!task) {
 		lastLoadedTaskId = null;
+		isCreatingDept = false;
+		newDeptInput = '';
 	}
 
 	$: progress = getTaskProgress(task?.steps || []);
@@ -79,6 +85,24 @@
 			await updateTaskFields(task.id, updates);
 		} catch (err) {
 			toastError('Failed to save changes');
+		}
+	}
+
+	async function handleCreateNewDept() {
+		if (!task) return;
+		const trimmed = newDeptInput.trim();
+		if (!trimmed) {
+			toastError('Bucket or department name cannot be empty');
+			return;
+		}
+		try {
+			await addDepartment(trimmed);
+			newDeptInput = '';
+			isCreatingDept = false;
+			await handleFieldUpdate({ department: trimmed as TaskDepartment });
+			toastSuccess(`Bucket "${trimmed}" created`);
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to create bucket');
 		}
 	}
 
@@ -266,17 +290,58 @@
 
 					<!-- Department -->
 					<div>
-						<label class="mb-1 block text-xs font-medium text-gray-400">Department</label>
-						<select
-							value={task.department}
-							on:change={(e) =>
-								handleFieldUpdate({ department: e.currentTarget.value as TaskDepartment })}
-							class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-3 py-2 text-xs font-medium text-gray-100 focus:border-lime-500 focus:outline-none"
-						>
-							{#each TASK_DEPARTMENTS as dept}
-								<option value={dept}>{dept}</option>
-							{/each}
-						</select>
+						<div class="mb-1 flex items-center justify-between">
+							<label class="block text-xs font-medium text-gray-400">Department / Bucket</label>
+							<button
+								type="button"
+								on:click={() => (isCreatingDept = !isCreatingDept)}
+								class="text-[11px] font-semibold text-lime-400 transition hover:text-lime-300"
+							>
+								{isCreatingDept ? 'Choose' : '+ New bucket'}
+							</button>
+						</div>
+
+						{#if isCreatingDept}
+							<div class="flex items-center gap-1.5">
+								<input
+									type="text"
+									bind:value={newDeptInput}
+									placeholder="New bucket name"
+									class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-2.5 py-1.5 text-xs text-gray-100 placeholder-gray-500 focus:border-lime-500 focus:outline-none"
+									on:keydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											handleCreateNewDept();
+										}
+									}}
+								/>
+								<button
+									type="button"
+									on:click={handleCreateNewDept}
+									disabled={!newDeptInput.trim()}
+									class="rounded-lg bg-lime-400 px-2.5 py-1.5 text-xs font-semibold text-gray-950 transition hover:bg-lime-300 disabled:opacity-50"
+								>
+									Add
+								</button>
+							</div>
+						{:else}
+							<select
+								value={task.department}
+								on:change={(e) => {
+									if (e.currentTarget.value === '__NEW__') {
+										isCreatingDept = true;
+									} else {
+										handleFieldUpdate({ department: e.currentTarget.value as TaskDepartment });
+									}
+								}}
+								class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-3 py-2 text-xs font-medium text-gray-100 focus:border-lime-500 focus:outline-none"
+							>
+								{#each $allDepartments as dept}
+									<option value={dept}>{dept}</option>
+								{/each}
+								<option value="__NEW__" class="font-medium text-lime-400">+ Add new bucket / department...</option>
+							</select>
+						{/if}
 					</div>
 
 					<!-- Assignee -->

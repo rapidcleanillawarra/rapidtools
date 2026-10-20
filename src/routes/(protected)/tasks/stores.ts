@@ -8,13 +8,16 @@ import {
 	type TaskGroupBy,
 	type TaskViewMode,
 	type TaskColumnGroup,
+	DEFAULT_TASK_DEPARTMENTS,
 	TASK_DEPARTMENTS,
 	TASK_STATUSES,
 	TASK_PRIORITIES,
 	DEPARTMENT_DOT_COLORS,
 	STATUS_DOT_COLORS,
+	getDepartmentDotColor,
 	getDueDateDisplay
 } from './types';
+import { saveCustomDepartment, deleteCustomDepartment } from './tasksService';
 
 export const tasks = writable<TaskItem[]>([]);
 export const teamMembers = writable<UserProfile[]>([]);
@@ -23,6 +26,78 @@ export const isLoadingTasks = writable<boolean>(true);
 export const activeTab = writable<TaskTab>('all');
 export const groupBy = writable<TaskGroupBy>('department');
 export const viewMode = writable<TaskViewMode>('board');
+
+export const customDepartments = writable<string[]>([]);
+export const departmentColors = writable<Record<string, string>>({});
+
+/**
+ * Complete, deduplicated list of all departments/buckets.
+ * Combines:
+ * 1. Built-in default departments (Accounts, Workshop, IT, Operations, Purchasing)
+ * 2. Any user-added custom departments
+ * 3. Any department present on loaded tasks
+ */
+export const allDepartments = derived(
+	[customDepartments, tasks],
+	([$customDepartments, $tasks]) => {
+		const list: string[] = [...DEFAULT_TASK_DEPARTMENTS];
+		const set = new Set<string>(DEFAULT_TASK_DEPARTMENTS.map((d) => d.toLowerCase()));
+
+		for (const dept of $customDepartments) {
+			const trimmed = (dept || '').trim();
+			if (trimmed && !set.has(trimmed.toLowerCase())) {
+				set.add(trimmed.toLowerCase());
+				list.push(trimmed);
+			}
+		}
+
+		for (const t of $tasks) {
+			const trimmed = (t.department || '').trim();
+			if (trimmed && !set.has(trimmed.toLowerCase())) {
+				set.add(trimmed.toLowerCase());
+				list.push(trimmed);
+			}
+		}
+
+		return list;
+	}
+);
+
+/**
+ * Add a new bucket or department, persist it, and update reactive stores.
+ */
+export async function addDepartment(name: string, colorClass?: string): Promise<string> {
+	const trimmed = name.trim();
+	if (!trimmed) throw new Error('Bucket/Department name cannot be empty');
+
+	customDepartments.update((list) => {
+		if (!list.some((d) => d.toLowerCase() === trimmed.toLowerCase())) {
+			return [...list, trimmed];
+		}
+		return list;
+	});
+
+	if (colorClass) {
+		departmentColors.update((map) => ({ ...map, [trimmed]: colorClass }));
+	}
+
+	await saveCustomDepartment(trimmed, colorClass);
+	return trimmed;
+}
+
+/**
+ * Remove a custom bucket/department and clean up persisted storage.
+ */
+export async function removeDepartment(name: string): Promise<void> {
+	const trimmed = name.trim();
+	customDepartments.update((list) => list.filter((d) => d.toLowerCase() !== trimmed.toLowerCase()));
+	departmentColors.update((map) => {
+		const next = { ...map };
+		delete next[trimmed];
+		return next;
+	});
+	await deleteCustomDepartment(trimmed);
+}
 
 export const taskFilters = writable<TaskFilters>({
 	search: '',
@@ -133,14 +208,14 @@ export const taskSummaryStats = derived(filteredTasks, ($filteredTasks) => {
  * Grouped columns for the Kanban Board and List views.
  */
 export const groupedTasks = derived(
-	[filteredTasks, groupBy, availableAssignees],
-	([$filteredTasks, $groupBy, $availableAssignees]): TaskColumnGroup[] => {
+	[filteredTasks, groupBy, availableAssignees, allDepartments, departmentColors],
+	([$filteredTasks, $groupBy, $availableAssignees, $allDepartments, $departmentColors]): TaskColumnGroup[] => {
 		if ($groupBy === 'department') {
-			return TASK_DEPARTMENTS.map((dept) => ({
+			return $allDepartments.map((dept) => ({
 				key: dept,
 				label: dept,
-				dotColorClass: DEPARTMENT_DOT_COLORS[dept] || 'bg-lime-400',
-				tasks: $filteredTasks.filter((t) => t.department === dept)
+				dotColorClass: $departmentColors[dept] || getDepartmentDotColor(dept),
+				tasks: $filteredTasks.filter((t) => (t.department || '').toLowerCase() === dept.toLowerCase())
 			}));
 		}
 

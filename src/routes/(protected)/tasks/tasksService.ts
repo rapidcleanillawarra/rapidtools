@@ -348,3 +348,138 @@ export async function addCommentToTask(
 
 	return data;
 }
+
+export interface DepartmentRecord {
+	id?: string;
+	name: string;
+	color_class?: string | null;
+	created_at?: string;
+}
+
+export const LOCAL_STORAGE_DEPARTMENTS_KEY = 'rapidtools_custom_task_departments';
+
+/**
+ * Fetch custom departments from Supabase (with localStorage fallback/sync).
+ */
+export async function fetchCustomDepartments(): Promise<DepartmentRecord[]> {
+	let supabaseRecords: DepartmentRecord[] = [];
+	try {
+		const { data, error } = await supabase
+			.from('task_departments')
+			.select('*')
+			.order('created_at', { ascending: true });
+
+		if (!error && data) {
+			supabaseRecords = data.map((d: any) => ({
+				id: d.id,
+				name: d.name,
+				color_class: d.color_class,
+				created_at: d.created_at
+			}));
+		}
+	} catch (err) {
+		// Table might not exist yet; gracefully fallback
+	}
+
+	let localRecords: DepartmentRecord[] = [];
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			const saved = localStorage.getItem(LOCAL_STORAGE_DEPARTMENTS_KEY);
+			if (saved) {
+				localRecords = JSON.parse(saved);
+			}
+		} catch (e) {
+			console.error('Error reading departments from localStorage', e);
+		}
+	}
+
+	const map = new Map<string, DepartmentRecord>();
+	for (const rec of localRecords) {
+		if (rec && rec.name) map.set(rec.name.toLowerCase(), rec);
+	}
+	for (const rec of supabaseRecords) {
+		if (rec && rec.name) map.set(rec.name.toLowerCase(), rec);
+	}
+
+	const merged = Array.from(map.values());
+
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			localStorage.setItem(LOCAL_STORAGE_DEPARTMENTS_KEY, JSON.stringify(merged));
+		} catch (e) {}
+	}
+
+	return merged;
+}
+
+/**
+ * Save a custom department to Supabase (and localStorage).
+ */
+export async function saveCustomDepartment(
+	name: string,
+	colorClass?: string
+): Promise<DepartmentRecord> {
+	const trimmedName = name.trim();
+	const newRecord: DepartmentRecord = {
+		name: trimmedName,
+		color_class: colorClass || null
+	};
+
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			const existingRaw = localStorage.getItem(LOCAL_STORAGE_DEPARTMENTS_KEY);
+			const list: DepartmentRecord[] = existingRaw ? JSON.parse(existingRaw) : [];
+			if (!list.some((d) => d.name.toLowerCase() === trimmedName.toLowerCase())) {
+				list.push(newRecord);
+				localStorage.setItem(LOCAL_STORAGE_DEPARTMENTS_KEY, JSON.stringify(list));
+			}
+		} catch (e) {
+			console.error('Error saving department to localStorage', e);
+		}
+	}
+
+	try {
+		const { data, error } = await supabase
+			.from('task_departments')
+			.insert({
+				name: trimmedName,
+				color_class: colorClass || null
+			})
+			.select('*')
+			.single();
+
+		if (!error && data) {
+			return {
+				id: data.id,
+				name: data.name,
+				color_class: data.color_class,
+				created_at: data.created_at
+			};
+		}
+	} catch (err) {
+		// Ignore if table doesn't exist
+	}
+
+	return newRecord;
+}
+
+/**
+ * Delete a custom department.
+ */
+export async function deleteCustomDepartment(name: string): Promise<void> {
+	const trimmed = name.trim();
+	if (typeof window !== 'undefined' && window.localStorage) {
+		try {
+			const existingRaw = localStorage.getItem(LOCAL_STORAGE_DEPARTMENTS_KEY);
+			if (existingRaw) {
+				const list: DepartmentRecord[] = JSON.parse(existingRaw);
+				const filtered = list.filter((d) => d.name.toLowerCase() !== trimmed.toLowerCase());
+				localStorage.setItem(LOCAL_STORAGE_DEPARTMENTS_KEY, JSON.stringify(filtered));
+			}
+		} catch (e) {}
+	}
+
+	try {
+		await supabase.from('task_departments').delete().ilike('name', trimmed);
+	} catch (err) {}
+}

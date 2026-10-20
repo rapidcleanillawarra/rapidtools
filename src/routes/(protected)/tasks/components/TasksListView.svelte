@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { groupedTasks } from '../stores';
+	import { groupedTasks, groupBy } from '../stores';
 	import {
 		type TaskItem,
 		type TaskStatus,
@@ -19,6 +19,7 @@
 		selectTask: TaskItem;
 		statusChange: { task: TaskItem; status: TaskStatus };
 		deleteTask: TaskItem;
+		addBucket: void;
 	}>();
 </script>
 
@@ -193,4 +194,19 @@
 			{/if}
 		</div>
 	{/each}
+
+	{#if $groupBy === 'department'}
+		<div class="pt-2">
+			<button
+				type="button"
+				on:click={() => dispatch('addBucket')}
+				class="inline-flex items-center gap-2 rounded-xl border border-dashed border-[#262a30] bg-[#141619]/40 px-4 py-3 text-xs font-semibold text-gray-300 transition hover:border-lime-500/50 hover:bg-[#141619] hover:text-lime-400"
+			>
+				<svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				<span>Add bucket / department</span>
+			</button>
+		</div>
+	{/if}
 </div>

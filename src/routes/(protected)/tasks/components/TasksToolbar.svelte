@@ -12,6 +12,7 @@
 
 	const dispatch = createEventDispatcher<{
 		newTask: void;
+		addBucket: void;
 	}>();
 
 	const tabs: { id: TaskTab; label: string }[] = [
@@ -44,16 +45,29 @@
 			<p class="mt-0.5 text-sm text-gray-400">Keep every task moving.</p>
 		</div>
 
-		<button
-			type="button"
-			on:click={() => dispatch('newTask')}
-			class="inline-flex items-center justify-center gap-2 rounded-lg bg-lime-400 px-4 py-2.5 text-sm font-semibold text-gray-950 shadow-md transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-400 focus:ring-offset-2 focus:ring-offset-[#0e1012]"
-		>
-			<svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-			</svg>
-			<span>New task</span>
-		</button>
+		<div class="flex items-center gap-2.5">
+			<button
+				type="button"
+				on:click={() => dispatch('addBucket')}
+				class="inline-flex items-center justify-center gap-2 rounded-lg border border-[#262a30] bg-[#141619] px-3.5 py-2.5 text-sm font-semibold text-gray-200 transition hover:border-lime-500/50 hover:bg-[#1a1e24] hover:text-lime-400 focus:outline-none"
+			>
+				<svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				<span>Add bucket</span>
+			</button>
+
+			<button
+				type="button"
+				on:click={() => dispatch('newTask')}
+				class="inline-flex items-center justify-center gap-2 rounded-lg bg-lime-400 px-4 py-2.5 text-sm font-semibold text-gray-950 shadow-md transition hover:bg-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-400 focus:ring-offset-2 focus:ring-offset-[#0e1012]"
+			>
+				<svg class="h-4 w-4 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+				</svg>
+				<span>New task</span>
+			</button>
+		</div>
 	</div>
 
 	<!-- Row 2: Navigation Tabs & Open/Due/Overdue Summary Counters -->

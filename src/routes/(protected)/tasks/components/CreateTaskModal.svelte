@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { teamMembers, availableAssignees } from '../stores';
+	import { teamMembers, availableAssignees, allDepartments, addDepartment } from '../stores';
 	import { createTaskRecord } from '../tasksService';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
@@ -8,7 +8,6 @@
 		type TaskDepartment,
 		type TaskPriority,
 		type TaskStatus,
-		TASK_DEPARTMENTS,
 		TASK_PRIORITIES,
 		TASK_STATUSES,
 		STATUS_DOT_COLORS
@@ -29,6 +28,9 @@
 	let priority: TaskPriority = 'Normal';
 	let dueDate = '';
 	let status: TaskStatus = 'To do';
+
+	let isCreatingDept = false;
+	let newDeptInput = '';
 
 	// Initialize with 2 blank step rows matching the screenshot
 	let steps: { id: string; label: string; is_completed: boolean }[] = [
@@ -85,6 +87,26 @@
 			{ id: crypto.randomUUID(), label: '', is_completed: false }
 		];
 		selectedFiles = [];
+		isCreatingDept = false;
+		newDeptInput = '';
+	}
+
+	async function handleCreateNewDept() {
+		const trimmed = newDeptInput.trim();
+		if (!trimmed) {
+			toastError('Bucket or department name cannot be empty');
+			return;
+		}
+
+		try {
+			await addDepartment(trimmed);
+			selectedDepartment = trimmed;
+			newDeptInput = '';
+			isCreatingDept = false;
+			toastSuccess(`Bucket "${trimmed}" added`);
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to add bucket');
+		}
 	}
 
 	function closeModal() {
@@ -244,38 +266,82 @@
 
 					<!-- Department -->
 					<div>
-						<label for="new-task-dept" class="mb-1.5 block text-sm font-semibold text-white">
-							Department
-						</label>
-						<label
-							class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
-						>
-							<svg
-								class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
+						<div class="mb-1.5 flex items-center justify-between">
+							<label for="new-task-dept" class="text-sm font-semibold text-white">
+								Department / Bucket
+							</label>
+							<button
+								type="button"
+								on:click={() => (isCreatingDept = !isCreatingDept)}
+								class="text-xs font-semibold text-lime-400 transition hover:text-lime-300"
 							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+								{isCreatingDept ? 'Choose existing' : '+ New bucket'}
+							</button>
+						</div>
+
+						{#if isCreatingDept}
+							<div class="flex items-center gap-1.5">
+								<input
+									type="text"
+									bind:value={newDeptInput}
+									placeholder="New bucket name"
+									class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-3 py-2 text-sm text-gray-100 placeholder-gray-500 transition focus:border-lime-500 focus:outline-none"
+									on:keydown={(e) => {
+										if (e.key === 'Enter') {
+											e.preventDefault();
+											handleCreateNewDept();
+										}
+									}}
 								/>
-							</svg>
-							<select
-								id="new-task-dept"
-								bind:value={selectedDepartment}
-								class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm {selectedDepartment
-									? 'text-gray-100'
-									: 'text-gray-400'} focus:ring-0 focus:outline-none"
+								<button
+									type="button"
+									on:click={handleCreateNewDept}
+									disabled={!newDeptInput.trim()}
+									class="rounded-lg bg-lime-400 px-3 py-2 text-xs font-semibold text-gray-950 transition hover:bg-lime-300 disabled:opacity-50"
+								>
+									Add
+								</button>
+							</div>
+						{:else}
+							<label
+								class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
 							>
-								<option value="" disabled class="bg-[#141619] text-gray-400">Select department</option>
-								{#each TASK_DEPARTMENTS as dept}
-									<option value={dept} class="bg-[#141619] text-gray-100">{dept}</option>
-								{/each}
-							</select>
-						</label>
+								<svg
+									class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+									/>
+								</svg>
+								<select
+									id="new-task-dept"
+									bind:value={selectedDepartment}
+									on:change={(e) => {
+										if (e.currentTarget.value === '__NEW__') {
+											isCreatingDept = true;
+											selectedDepartment = '';
+										}
+									}}
+									class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm {selectedDepartment
+										? 'text-gray-100'
+										: 'text-gray-400'} focus:ring-0 focus:outline-none"
+								>
+									<option value="" disabled class="bg-[#141619] text-gray-400">Select department</option>
+									{#each $allDepartments as dept}
+										<option value={dept} class="bg-[#141619] text-gray-100">{dept}</option>
+									{/each}
+									<option value="__NEW__" class="bg-[#141619] font-medium text-lime-400">
+										+ Add new bucket / department...
+									</option>
+								</select>
+							</label>
+						{/if}
 					</div>
 
 					<!-- Priority -->

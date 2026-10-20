@@ -2,6 +2,9 @@
 	import { createEventDispatcher } from 'svelte';
 	import TaskCard from './TaskCard.svelte';
 	import type { TaskColumnGroup, TaskItem, TaskStatus } from '../types';
+	import { DEFAULT_TASK_DEPARTMENTS } from '../types';
+	import { groupBy, removeDepartment } from '../stores';
+	import { toastSuccess } from '$lib/utils/toast';
 
 	export let column: TaskColumnGroup;
 
@@ -11,6 +14,31 @@
 		statusChange: { task: TaskItem; status: TaskStatus };
 		deleteTask: TaskItem;
 	}>();
+
+	let menuOpen = false;
+
+	$: isCustomBucket =
+		$groupBy === 'department' &&
+		!DEFAULT_TASK_DEPARTMENTS.some(
+			(d) => d.toLowerCase() === column.key.toLowerCase()
+		);
+
+	async function handleDeleteBucket() {
+		menuOpen = false;
+		if (column.tasks.length > 0) {
+			if (
+				!confirm(
+					`Bucket "${column.label}" has ${column.tasks.length} task(s). Delete this bucket anyway?`
+				)
+			) {
+				return;
+			}
+		} else {
+			if (!confirm(`Delete bucket "${column.label}"?`)) return;
+		}
+		await removeDepartment(column.key);
+		toastSuccess(`Bucket "${column.label}" removed`);
+	}
 </script>
 
 <div class="flex flex-col rounded-xl border border-[#262a30] bg-[#131519] p-3">
@@ -26,18 +54,65 @@
 			</span>
 		</div>
 
-		<button
-			type="button"
-			on:click={() => dispatch('addTask', column.key)}
-			class="rounded-md p-1 text-gray-400 transition hover:bg-[#1f2329] hover:text-gray-200"
-			title="Add task to {column.label}"
-		>
-			<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-				<path
-					d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm4 2a2 2 0 100-4 2 2 0 000 4z"
-				/>
-			</svg>
-		</button>
+		<div class="relative">
+			<button
+				type="button"
+				on:click={() => (menuOpen = !menuOpen)}
+				class="rounded-md p-1 text-gray-400 transition hover:bg-[#1f2329] hover:text-gray-200"
+				title="Column options"
+			>
+				<svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+					<path
+						d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm4 2a2 2 0 100-4 2 2 0 000 4z"
+					/>
+				</svg>
+			</button>
+
+			{#if menuOpen}
+				<!-- Backdrop to close menu -->
+				<div
+					class="fixed inset-0 z-20"
+					on:click={() => (menuOpen = false)}
+				></div>
+
+				<!-- Dropdown Menu -->
+				<div
+					class="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border border-[#262a30] bg-[#141619] py-1 shadow-xl"
+				>
+					<button
+						type="button"
+						on:click={() => {
+							menuOpen = false;
+							dispatch('addTask', column.key);
+						}}
+						class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-200 transition hover:bg-[#1f2329]"
+					>
+						<svg class="h-3.5 w-3.5 text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+						</svg>
+						<span>Add task</span>
+					</button>
+
+					{#if isCustomBucket}
+						<button
+							type="button"
+							on:click={handleDeleteBucket}
+							class="flex w-full items-center gap-2 border-t border-[#262a30] px-3 py-1.5 text-left text-xs text-red-400 transition hover:bg-red-950/20"
+						>
+							<svg class="h-3.5 w-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+								/>
+							</svg>
+							<span>Delete bucket</span>
+						</button>
+					{/if}
+				</div>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Cards List -->

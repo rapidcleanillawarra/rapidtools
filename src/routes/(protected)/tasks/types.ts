@@ -1,9 +1,11 @@
-export type TaskDepartment =
+export type StandardDepartment =
 	| 'Accounts'
 	| 'Workshop'
 	| 'IT'
 	| 'Operations'
 	| 'Purchasing';
+
+export type TaskDepartment = StandardDepartment | (string & {});
 
 export type TaskStatus =
 	| 'To do'
@@ -107,13 +109,15 @@ export interface TaskColumnGroup {
 	tasks: TaskItem[];
 }
 
-export const TASK_DEPARTMENTS: TaskDepartment[] = [
+export const DEFAULT_TASK_DEPARTMENTS: string[] = [
 	'Accounts',
 	'Workshop',
 	'IT',
 	'Operations',
 	'Purchasing'
 ];
+
+export const TASK_DEPARTMENTS: string[] = [...DEFAULT_TASK_DEPARTMENTS];
 
 export const TASK_STATUSES: TaskStatus[] = [
 	'To do',
@@ -128,7 +132,7 @@ export const TASK_PRIORITIES: TaskPriority[] = [
 	'Urgent'
 ];
 
-/** Dot color for each Department column header */
+/** Dot color for default Department column headers */
 export const DEPARTMENT_DOT_COLORS: Record<string, string> = {
 	Accounts: 'bg-blue-500',
 	Workshop: 'bg-purple-500',
@@ -136,6 +140,39 @@ export const DEPARTMENT_DOT_COLORS: Record<string, string> = {
 	Operations: 'bg-emerald-500',
 	Purchasing: 'bg-amber-500'
 };
+
+export interface BucketColorOption {
+	label: string;
+	class: string;
+}
+
+/** Palette of vibrant dot colors for custom buckets/departments */
+export const BUCKET_COLOR_PALETTE: BucketColorOption[] = [
+	{ label: 'Blue', class: 'bg-blue-500' },
+	{ label: 'Purple', class: 'bg-purple-500' },
+	{ label: 'Cyan', class: 'bg-cyan-400' },
+	{ label: 'Emerald', class: 'bg-emerald-500' },
+	{ label: 'Amber', class: 'bg-amber-500' },
+	{ label: 'Pink', class: 'bg-pink-500' },
+	{ label: 'Rose', class: 'bg-rose-500' },
+	{ label: 'Indigo', class: 'bg-indigo-500' },
+	{ label: 'Teal', class: 'bg-teal-400' },
+	{ label: 'Orange', class: 'bg-orange-500' },
+	{ label: 'Fuchsia', class: 'bg-fuchsia-500' },
+	{ label: 'Lime', class: 'bg-lime-400' }
+];
+
+/** Get dot color class for a department, respecting custom color or deterministic hash */
+export function getDepartmentDotColor(dept: string, customColorClass?: string): string {
+	if (customColorClass) return customColorClass;
+	if (DEPARTMENT_DOT_COLORS[dept]) return DEPARTMENT_DOT_COLORS[dept];
+	let hash = 0;
+	for (let i = 0; i < dept.length; i++) {
+		hash = dept.charCodeAt(i) + ((hash << 5) - hash);
+	}
+	const palette = BUCKET_COLOR_PALETTE.map((c) => c.class);
+	return palette[Math.abs(hash) % palette.length];
+}
 
 /** Dot color for each Task Status pill */
 export const STATUS_DOT_COLORS: Record<TaskStatus, string> = {

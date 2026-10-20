@@ -5,13 +5,28 @@
 	import TasksListView from './components/TasksListView.svelte';
 	import CreateTaskModal from './components/CreateTaskModal.svelte';
 	import TaskDetailModal from './components/TaskDetailModal.svelte';
-	import { tasks, teamMembers, isLoadingTasks, viewMode } from './stores';
-	import { fetchAllTasks, updateTaskFields, softDeleteTask } from './tasksService';
+	import AddBucketModal from './components/AddBucketModal.svelte';
+	import {
+		tasks,
+		teamMembers,
+		isLoadingTasks,
+		viewMode,
+		allDepartments,
+		customDepartments,
+		departmentColors
+	} from './stores';
+	import {
+		fetchAllTasks,
+		fetchCustomDepartments,
+		updateTaskFields,
+		softDeleteTask
+	} from './tasksService';
 	import { fetchAllUserProfiles } from '$lib/userProfile';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
-	import { TASK_DEPARTMENTS, type TaskItem, type TaskDepartment, type TaskStatus } from './types';
+	import type { TaskItem, TaskDepartment, TaskStatus } from './types';
 
 	let showCreateModal = false;
+	let showAddBucketModal = false;
 	let createModalDefaultDepartment: TaskDepartment = 'Operations';
 	let selectedTask: TaskItem | null = null;
 
@@ -22,12 +37,22 @@
 	async function loadInitialData() {
 		isLoadingTasks.set(true);
 		try {
-			const [loadedTasks, profiles] = await Promise.all([
+			const [loadedTasks, profiles, customDepts] = await Promise.all([
 				fetchAllTasks(),
-				fetchAllUserProfiles().catch(() => [])
+				fetchAllUserProfiles().catch(() => []),
+				fetchCustomDepartments().catch(() => [])
 			]);
 			tasks.set(loadedTasks);
 			teamMembers.set(profiles);
+
+			if (customDepts && customDepts.length > 0) {
+				customDepartments.set(customDepts.map((d) => d.name));
+				const colors: Record<string, string> = {};
+				for (const d of customDepts) {
+					if (d.color_class) colors[d.name] = d.color_class;
+				}
+				departmentColors.set(colors);
+			}
 		} catch (err) {
 			console.error('Failed to load tasks:', err);
 			toastError('Failed to load tasks');
@@ -42,9 +67,10 @@
 	}
 
 	function handleColumnAddTask(groupKey: string) {
-		const dept = TASK_DEPARTMENTS.includes(groupKey as TaskDepartment)
-			? (groupKey as TaskDepartment)
-			: 'Operations';
+		const matchedDept = $allDepartments.find(
+			(d) => d.toLowerCase() === groupKey.toLowerCase()
+		);
+		const dept = matchedDept || 'Operations';
 		openNewTaskModal(dept);
 	}
 
@@ -102,7 +128,10 @@
 
 <div class="min-h-screen bg-[#0e1012] px-4 py-6 sm:px-6 lg:px-8">
 	<div class="w-full space-y-6">
-		<TasksToolbar on:newTask={() => openNewTaskModal('Operations')} />
+		<TasksToolbar
+			on:newTask={() => openNewTaskModal('Operations')}
+			on:addBucket={() => (showAddBucketModal = true)}
+		/>
 
 		{#if $isLoadingTasks}
 			<div class="overflow-x-auto pb-4">
@@ -118,6 +147,7 @@
 				on:selectTask={(e) => openTaskDetail(e.detail)}
 				on:statusChange={(e) => handleStatusChange(e.detail.task, e.detail.status)}
 				on:deleteTask={(e) => handleDeleteTask(e.detail)}
+				on:addBucket={() => (showAddBucketModal = true)}
 			/>
 		{:else}
 			<TasksListView
@@ -125,6 +155,7 @@
 				on:selectTask={(e) => openTaskDetail(e.detail)}
 				on:statusChange={(e) => handleStatusChange(e.detail.task, e.detail.status)}
 				on:deleteTask={(e) => handleDeleteTask(e.detail)}
+				on:addBucket={() => (showAddBucketModal = true)}
 			/>
 		{/if}
 	</div>
@@ -142,4 +173,9 @@
 	on:close={() => (selectedTask = null)}
 	on:updated={handleTaskUpdated}
 	on:delete={(e) => handleDeleteTask(e.detail)}
+/>
+
+<AddBucketModal
+	open={showAddBucketModal}
+	on:close={() => (showAddBucketModal = false)}
 />

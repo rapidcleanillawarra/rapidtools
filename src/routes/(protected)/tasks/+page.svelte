@@ -6,6 +6,7 @@
 	import CreateTaskModal from './components/CreateTaskModal.svelte';
 	import TaskDetailModal from './components/TaskDetailModal.svelte';
 	import AddBucketModal from './components/AddBucketModal.svelte';
+	import TaskPhotoViewer from './components/TaskPhotoViewer.svelte';
 	import {
 		tasks,
 		teamMembers,
@@ -23,12 +24,18 @@
 	} from './tasksService';
 	import { fetchAllUserProfiles } from '$lib/userProfile';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
-	import type { TaskItem, TaskDepartment, TaskStatus } from './types';
+	import type { TaskItem, TaskDepartment, TaskStatus, TaskPhoto } from './types';
+	import { isImageAttachment } from './types';
 
 	let showCreateModal = false;
 	let showAddBucketModal = false;
 	let createModalDefaultDepartment: TaskDepartment = 'Operations';
 	let selectedTask: TaskItem | null = null;
+
+	let pagePhotoViewerOpen = false;
+	let pagePhotoViewerPhotos: TaskPhoto[] = [];
+	let pagePhotoViewerIndex = 0;
+	let pagePhotoViewerTitle = '';
 
 	onMount(async () => {
 		await loadInitialData();
@@ -120,6 +127,23 @@
 			toastError('Failed to delete task');
 		}
 	}
+
+	function handleOpenPhotos(event: CustomEvent<{ task: TaskItem; initialIndex: number }>) {
+		const { task, initialIndex } = event.detail;
+		const imgAtts = (task.attachments || []).filter(isImageAttachment);
+		if (imgAtts.length === 0) return;
+
+		pagePhotoViewerPhotos = imgAtts.map((att) => ({
+			id: att.id,
+			url: att.public_url || '',
+			name: att.file_name,
+			byte_size: att.byte_size,
+			created_at: att.created_at
+		}));
+		pagePhotoViewerIndex = Math.max(0, Math.min(initialIndex, pagePhotoViewerPhotos.length - 1));
+		pagePhotoViewerTitle = task.title;
+		pagePhotoViewerOpen = true;
+	}
 </script>
 
 <svelte:head>
@@ -147,6 +171,7 @@
 				on:selectTask={(e) => openTaskDetail(e.detail)}
 				on:statusChange={(e) => handleStatusChange(e.detail.task, e.detail.status)}
 				on:deleteTask={(e) => handleDeleteTask(e.detail)}
+				on:openPhotos={handleOpenPhotos}
 				on:addBucket={() => (showAddBucketModal = true)}
 			/>
 		{:else}
@@ -155,6 +180,7 @@
 				on:selectTask={(e) => openTaskDetail(e.detail)}
 				on:statusChange={(e) => handleStatusChange(e.detail.task, e.detail.status)}
 				on:deleteTask={(e) => handleDeleteTask(e.detail)}
+				on:openPhotos={handleOpenPhotos}
 				on:addBucket={() => (showAddBucketModal = true)}
 			/>
 		{/if}
@@ -178,4 +204,13 @@
 <AddBucketModal
 	open={showAddBucketModal}
 	on:close={() => (showAddBucketModal = false)}
+/>
+
+<TaskPhotoViewer
+	open={pagePhotoViewerOpen}
+	photos={pagePhotoViewerPhotos}
+	index={pagePhotoViewerIndex}
+	taskTitle={pagePhotoViewerTitle}
+	on:close={() => (pagePhotoViewerOpen = false)}
+	on:indexChange={(e) => (pagePhotoViewerIndex = e.detail.index)}
 />

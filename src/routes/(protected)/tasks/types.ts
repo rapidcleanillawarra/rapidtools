@@ -318,3 +318,39 @@ export function getDueDateDisplay(dueDateStr: string, status?: TaskStatus): {
 		borderClass: 'border-[#333842] bg-[#141619]'
 	};
 }
+
+export interface TaskPhoto {
+	id?: string;
+	url: string;
+	name: string;
+	byte_size?: number | null;
+	created_at?: string;
+}
+
+/** Check if attachment is an image based on content_type or file extension */
+export function isImageAttachment(att: { content_type?: string | null; file_name?: string }): boolean {
+	if (att.content_type && att.content_type.startsWith('image/')) return true;
+	const ext = (att.file_name || '').split('.').pop()?.toLowerCase() || '';
+	return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'avif'].includes(ext);
+}
+
+/** Format byte size into human readable string (e.g. "1.2 MB", "450 KB") */
+export function formatByteSize(bytes: number | null | undefined): string {
+	if (!bytes || bytes <= 0) return '';
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** Filter image attachments from a list of attachments */
+export function getImageAttachments(attachments?: TaskAttachment[] | null): TaskAttachment[] {
+	if (!attachments) return [];
+	return attachments.filter(isImageAttachment);
+}
+
+/** Filter non-image attachments from a list of attachments */
+export function getNonImageAttachments(attachments?: TaskAttachment[] | null): TaskAttachment[] {
+	if (!attachments) return [];
+	return attachments.filter((att) => !isImageAttachment(att));
+}
+

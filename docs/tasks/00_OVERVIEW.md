@@ -41,7 +41,8 @@ src/routes/(protected)/tasks/
     ├── TasksBoardView.svelte          # Subphase 5
     ├── TasksListView.svelte           # Subphase 6
     ├── CreateTaskModal.svelte         # Subphase 7
-    └── TaskDetailModal.svelte         # Subphase 8
+    ├── TaskDetailModal.svelte         # Subphase 8
+    └── TaskPhotoViewer.svelte         # Subphase 9
 ```
 
 ---
@@ -60,6 +61,8 @@ Feed one markdown file at a time in the exact order below:
 | **Phase 6** | [`06_LIST_VIEW.md`](./06_LIST_VIEW.md) | `TasksListView.svelte` | Grouped table view when toggled to `List`, displaying inline status, progress bar, assignee, priority, due date, latest note, and comment count. |
 | **Phase 7** | [`07_CREATE_TASK_MODAL.md`](./07_CREATE_TASK_MODAL.md) | `CreateTaskModal.svelte` | Exact **New task** modal (`Task title *`, `Description`, `Assignee *`, `Department`, `Priority`, `Due date *`, `Status`, dynamic `Checklist` steps builder, and `Add attachments`). |
 | **Phase 8** | [`08_TASK_DETAIL_DRAWER.md`](./08_TASK_DETAIL_DRAWER.md) | `TaskDetailModal.svelte` | Task detail modal/drawer to check/uncheck steps with live progress bar updates, edit metadata, update latest note, manage attachments, and post comments. |
+| **Phase 9** | [`09_PHOTO_VIEWER.md`](./09_PHOTO_VIEWER.md) | `TaskPhotoViewer.svelte` | Fullscreen photo viewer lightbox (zoom, pan, rotate, download, thumbnail carousel), task gallery grid, card/list photo triggers, and creation preview. |
+
 
 ---
 

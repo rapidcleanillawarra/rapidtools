@@ -8,10 +8,12 @@
 		type TaskDepartment,
 		type TaskPriority,
 		type TaskStatus,
+		type TaskPhoto,
 		TASK_PRIORITIES,
 		TASK_STATUSES,
 		STATUS_DOT_COLORS
 	} from '../types';
+	import TaskPhotoViewer from './TaskPhotoViewer.svelte';
 
 	export let open = false;
 	export let defaultDepartment: TaskDepartment = 'Operations';
@@ -63,6 +65,29 @@
 		steps = steps.filter((s) => s.id !== id);
 	}
 
+	let previewPhotos: TaskPhoto[] = [];
+	let previewViewerOpen = false;
+	let previewViewerIndex = 0;
+
+	function isImageFile(file: File): boolean {
+		if (file.type && file.type.startsWith('image/')) return true;
+		const ext = file.name.split('.').pop()?.toLowerCase() || '';
+		return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'avif'].includes(ext);
+	}
+
+	function openFilePreview(file: File) {
+		const imgFiles = selectedFiles.filter(isImageFile);
+		if (imgFiles.length === 0) return;
+		previewPhotos = imgFiles.map((f) => ({
+			url: URL.createObjectURL(f),
+			name: f.name,
+			byte_size: f.size
+		}));
+		const targetIdx = imgFiles.findIndex((f) => f === file);
+		previewViewerIndex = Math.max(0, targetIdx);
+		previewViewerOpen = true;
+	}
+
 	function handleFileChange(e: Event) {
 		const input = e.currentTarget as HTMLInputElement;
 		if (!input.files) return;
@@ -87,6 +112,8 @@
 			{ id: crypto.randomUUID(), label: '', is_completed: false }
 		];
 		selectedFiles = [];
+		previewPhotos = [];
+		previewViewerOpen = false;
 		isCreatingDept = false;
 		newDeptInput = '';
 	}
@@ -517,9 +544,35 @@
 					{#if selectedFiles.length > 0}
 						<div class="mt-2.5 flex flex-wrap gap-2">
 							{#each selectedFiles as file, idx}
+								{@const isImg = isImageFile(file)}
 								<span
-									class="inline-flex items-center gap-1.5 rounded-lg border border-[#2a2f37] bg-[#181b20] px-2.5 py-1 text-xs text-gray-200"
+									class="inline-flex items-center gap-1.5 rounded-lg border {isImg
+										? 'border-lime-500/30 bg-[#161a1f]'
+										: 'border-[#2a2f37] bg-[#181b20]'} px-2.5 py-1 text-xs text-gray-200"
 								>
+									{#if isImg}
+										<button
+											type="button"
+											on:click={() => openFilePreview(file)}
+											class="text-lime-400 hover:text-lime-300"
+											title="Preview photo"
+										>
+											<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+												/>
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+												/>
+											</svg>
+										</button>
+									{/if}
 									<span class="max-w-[180px] truncate">{file.name}</span>
 									<button
 										type="button"
@@ -560,4 +613,13 @@
 			</div>
 		</div>
 	</div>
+
+	<TaskPhotoViewer
+		open={previewViewerOpen}
+		photos={previewPhotos}
+		index={previewViewerIndex}
+		taskTitle={title || 'New task attachments'}
+		on:close={() => (previewViewerOpen = false)}
+		on:indexChange={(e) => (previewViewerIndex = e.detail.index)}
+	/>
 {/if}

@@ -3,6 +3,7 @@
 	import { currentUser } from '$lib/firebase';
 	import { userProfile } from '$lib/userProfile';
 	import { availableAssignees, allDepartments, addDepartment } from '../stores';
+	import TaskPhotoViewer from './TaskPhotoViewer.svelte';
 	import {
 		updateTaskFields,
 		toggleStepCompletion,
@@ -10,13 +11,16 @@
 		deleteStepFromTask,
 		fetchCommentsForTask,
 		addCommentToTask,
-		uploadTaskAttachments
+		uploadTaskAttachments,
+		deleteTaskAttachment
 	} from '../tasksService';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
 		type TaskItem,
 		type TaskComment,
 		type TaskStep,
+		type TaskAttachment,
+		type TaskPhoto,
 		type TaskStatus,
 		type TaskDepartment,
 		type TaskPriority,
@@ -26,7 +30,9 @@
 		STATUS_DOT_COLORS,
 		getTaskProgress,
 		getProgressBarColor,
-		formatShortDate
+		formatShortDate,
+		isImageAttachment,
+		formatByteSize
 	} from '../types';
 
 	export let task: TaskItem | null = null;
@@ -47,6 +53,54 @@
 	let lastLoadedTaskId: string | null = null;
 	let isCreatingDept = false;
 	let newDeptInput = '';
+	let photoViewerOpen = false;
+	let photoViewerIndex = 0;
+	let isDeletingAttachmentId: string | null = null;
+
+	$: imageAttachments = (task?.attachments || []).filter(isImageAttachment);
+	$: otherAttachments = (task?.attachments || []).filter((att) => !isImageAttachment(att));
+	$: viewerPhotos = imageAttachments.map((att) => ({
+		id: att.id,
+		url: att.public_url || '',
+		name: att.file_name,
+		byte_size: att.byte_size,
+		created_at: att.created_at
+	}));
+
+	function openPhotoViewerAtIndex(idx: number) {
+		photoViewerIndex = Math.max(0, Math.min(idx, viewerPhotos.length - 1));
+		photoViewerOpen = true;
+	}
+
+	async function handleDeleteAttachment(att: TaskAttachment) {
+		if (!task) return;
+		if (!confirm(`Delete "${att.file_name}"?`)) return;
+
+		isDeletingAttachmentId = att.id;
+		try {
+			await deleteTaskAttachment(att.id, att.storage_path);
+			const nextAttachments = (task.attachments || []).filter((a) => a.id !== att.id);
+			task = { ...task, attachments: nextAttachments };
+			dispatch('updated', task);
+			toastSuccess('Attachment deleted');
+			if (photoViewerOpen && viewerPhotos.length === 0) {
+				photoViewerOpen = false;
+			}
+		} catch (err) {
+			console.error('Failed to delete attachment:', err);
+			toastError('Failed to delete attachment');
+		} finally {
+			isDeletingAttachmentId = null;
+		}
+	}
+
+	function handlePhotoViewerDelete(e: CustomEvent<{ photo: TaskPhoto; index: number }>) {
+		const targetPhoto = e.detail.photo;
+		const matchedAtt = task?.attachments?.find((a) => a.id === targetPhoto.id);
+		if (matchedAtt) {
+			handleDeleteAttachment(matchedAtt);
+		}
+	}
 
 	$: if (task && task.id !== lastLoadedTaskId) {
 		lastLoadedTaskId = task.id;
@@ -488,10 +542,19 @@
 
 				<!-- Attachments -->
 				<div class="rounded-xl border border-[#262a30] bg-[#181b20] p-4">
-					<div class="mb-2 flex items-center justify-between">
-						<span class="text-sm font-bold text-white">
-							Attachments ({task.attachments?.length || 0})
-						</span>
+					<div class="mb-3 flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<span class="text-sm font-bold text-white">
+								Attachments ({task.attachments?.length || 0})
+							</span>
+							{#if imageAttachments.length > 0}
+								<span
+									class="rounded-md border border-lime-500/30 bg-lime-500/10 px-2 py-0.5 text-[11px] font-semibold text-lime-400"
+								>
+									{imageAttachments.length} {imageAttachments.length === 1 ? 'photo' : 'photos'}
+								</span>
+							{/if}
+						</div>
 						<input
 							bind:this={fileInputEl}
 							type="file"
@@ -502,25 +565,203 @@
 						<button
 							type="button"
 							on:click={() => fileInputEl?.click()}
-							class="text-xs font-semibold text-lime-400 hover:text-lime-300"
+							class="inline-flex items-center gap-1 rounded-lg border border-lime-500/30 bg-lime-500/10 px-2.5 py-1 text-xs font-semibold text-lime-400 hover:bg-lime-500/20 transition"
 						>
-							+ Upload file
+							<svg class="h-3.5 w-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+							</svg>
+							<span>Upload file</span>
 						</button>
 					</div>
-					{#if task.attachments && task.attachments.length > 0}
-						<div class="space-y-1.5">
-							{#each task.attachments as att (att.id)}
-								<a
-									href={att.public_url}
-									target="_blank"
-									rel="noopener noreferrer"
-									class="flex items-center justify-between rounded-lg bg-[#141619] px-3 py-2 text-xs text-lime-400 hover:underline"
+
+					{#if imageAttachments.length > 0}
+						<!-- Photo Gallery Grid -->
+						<div class="mb-3">
+							<div class="mb-2 flex items-center justify-between">
+								<span class="text-xs font-semibold text-gray-300">
+									Photos ({imageAttachments.length})
+								</span>
+								<button
+									type="button"
+									on:click={() => openPhotoViewerAtIndex(0)}
+									class="inline-flex items-center gap-1 text-[11px] font-medium text-lime-400 hover:text-lime-300 hover:underline"
 								>
-									<span class="truncate">{att.file_name}</span>
-								</a>
+									<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+										/>
+									</svg>
+									<span>Open viewer</span>
+								</button>
+							</div>
+
+							<div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+								{#each imageAttachments as att, idx (att.id)}
+									<div
+										class="group relative aspect-video overflow-hidden rounded-lg border border-[#2a2f37] bg-[#141619] shadow transition hover:border-lime-500/50"
+									>
+										<!-- Thumbnail Image -->
+										<button
+											type="button"
+											on:click={() => openPhotoViewerAtIndex(idx)}
+											class="h-full w-full block focus:outline-none"
+											title={`View ${att.file_name}`}
+										>
+											<img
+												src={att.public_url}
+												alt={att.file_name}
+												class="h-full w-full object-cover transition duration-200 group-hover:scale-105"
+												loading="lazy"
+											/>
+										</button>
+
+										<!-- Bottom caption overlay -->
+										<div
+											class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-1.5 pt-4 pointer-events-none"
+										>
+											<div class="truncate text-[10px] font-medium text-white">{att.file_name}</div>
+											{#if att.byte_size}
+												<div class="text-[9px] text-gray-300">{formatByteSize(att.byte_size)}</div>
+											{/if}
+										</div>
+
+										<!-- Hover action buttons -->
+										<div
+											class="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+										>
+											<button
+												type="button"
+												on:click|stopPropagation={() => openPhotoViewerAtIndex(idx)}
+												class="rounded-md bg-[#141619]/90 p-1 text-gray-200 hover:text-lime-400 hover:bg-[#1f2329] shadow"
+												title="Open in photo viewer"
+											>
+												<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+													/>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+													/>
+												</svg>
+											</button>
+											<a
+												href={att.public_url}
+												target="_blank"
+												rel="noopener noreferrer"
+												class="rounded-md bg-[#141619]/90 p-1 text-gray-200 hover:text-lime-400 hover:bg-[#1f2329] shadow"
+												title="Open in new tab"
+											>
+												<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+													/>
+												</svg>
+											</a>
+											<button
+												type="button"
+												on:click|stopPropagation={() => handleDeleteAttachment(att)}
+												disabled={isDeletingAttachmentId === att.id}
+												class="rounded-md bg-[#141619]/90 p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 shadow disabled:opacity-40"
+												title="Delete photo"
+											>
+												<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+													/>
+												</svg>
+											</button>
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					{#if otherAttachments.length > 0}
+						<!-- Documents and Other Files -->
+						<div class="space-y-1.5 {imageAttachments.length > 0 ? 'border-t border-[#262a30]/60 pt-2.5' : ''}">
+							{#if imageAttachments.length > 0}
+								<div class="mb-1.5 text-xs font-semibold text-gray-300">
+									Documents ({otherAttachments.length})
+								</div>
+							{/if}
+							{#each otherAttachments as att (att.id)}
+								<div
+									class="flex items-center justify-between rounded-lg border border-[#262a30] bg-[#141619] px-3 py-2 text-xs transition hover:border-[#333842]"
+								>
+									<a
+										href={att.public_url}
+										target="_blank"
+										rel="noopener noreferrer"
+										class="flex min-w-0 items-center gap-2 truncate text-gray-200 hover:text-lime-400"
+									>
+										<svg
+											class="h-4 w-4 flex-shrink-0 text-lime-400"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+											/>
+										</svg>
+										<span class="truncate">{att.file_name}</span>
+										{#if att.byte_size}
+											<span class="text-[11px] text-gray-400">({formatByteSize(att.byte_size)})</span>
+										{/if}
+									</a>
+
+									<div class="ml-2 flex flex-shrink-0 items-center gap-2">
+										<a
+											href={att.public_url}
+											target="_blank"
+											rel="noopener noreferrer"
+											class="text-xs font-medium text-lime-400 hover:text-lime-300"
+										>
+											Download
+										</a>
+										<button
+											type="button"
+											on:click={() => handleDeleteAttachment(att)}
+											disabled={isDeletingAttachmentId === att.id}
+											class="text-gray-400 transition hover:text-red-400 disabled:opacity-40"
+											title="Delete file"
+										>
+											<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+												<path
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													stroke-width="2"
+													d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+												/>
+											</svg>
+										</button>
+									</div>
+								</div>
 							{/each}
 						</div>
-					{:else}
+					{/if}
+
+					{#if (!task.attachments || task.attachments.length === 0)}
 						<p class="text-xs text-gray-500">No attachments yet.</p>
 					{/if}
 				</div>
@@ -569,4 +810,15 @@
 			</div>
 		</div>
 	</div>
+
+	<TaskPhotoViewer
+		open={photoViewerOpen}
+		photos={viewerPhotos}
+		index={photoViewerIndex}
+		taskTitle={task?.title || ''}
+		canDelete={true}
+		on:close={() => (photoViewerOpen = false)}
+		on:indexChange={(e) => (photoViewerIndex = e.detail.index)}
+		on:delete={handlePhotoViewerDelete}
+	/>
 {/if}

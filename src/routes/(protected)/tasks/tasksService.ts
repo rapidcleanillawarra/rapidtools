@@ -317,6 +317,33 @@ export async function uploadTaskAttachments(
 }
 
 /**
+ * Delete a task attachment from storage and the database table.
+ */
+export async function deleteTaskAttachment(
+	attachmentId: string,
+	storagePath?: string
+): Promise<void> {
+	if (storagePath) {
+		try {
+			await supabase.storage.from(TASK_ATTACHMENTS_BUCKET).remove([storagePath]);
+		} catch (err) {
+			console.warn('Could not remove file from storage:', err);
+		}
+	}
+
+	const { error } = await supabase
+		.from('task_attachments')
+		.delete()
+		.eq('id', attachmentId);
+
+	if (error) {
+		console.error('Error deleting attachment:', error);
+		throw error;
+	}
+}
+
+
+/**
  * Fetch comments for a task in chronological order.
  */
 export async function fetchCommentsForTask(taskId: string): Promise<TaskComment[]> {

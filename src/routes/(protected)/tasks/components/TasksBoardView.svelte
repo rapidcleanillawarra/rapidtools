@@ -11,6 +11,7 @@
 		statusChange: { task: TaskItem; status: TaskStatus };
 		deleteTask: TaskItem;
 		addBucket: void;
+		openPhotos: { task: TaskItem; initialIndex: number };
 	}>();
 
 	let isAddingBucket = false;
@@ -79,6 +80,7 @@
 					on:selectTask={(e) => dispatch('selectTask', e.detail)}
 					on:statusChange={(e) => dispatch('statusChange', e.detail)}
 					on:deleteTask={(e) => dispatch('deleteTask', e.detail)}
+					on:openPhotos={(e) => dispatch('openPhotos', e.detail)}
 				/>
 			</div>
 		{/each}

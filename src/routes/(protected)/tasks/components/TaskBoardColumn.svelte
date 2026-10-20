@@ -13,6 +13,7 @@
 		selectTask: TaskItem;
 		statusChange: { task: TaskItem; status: TaskStatus };
 		deleteTask: TaskItem;
+		openPhotos: { task: TaskItem; initialIndex: number };
 	}>();
 
 	let menuOpen = false;
@@ -123,6 +124,7 @@
 				on:select={(e) => dispatch('selectTask', e.detail)}
 				on:statusChange={(e) => dispatch('statusChange', e.detail)}
 				on:delete={(e) => dispatch('deleteTask', e.detail)}
+				on:openPhotos={(e) => dispatch('openPhotos', e.detail)}
 			/>
 		{/each}
 	</div>

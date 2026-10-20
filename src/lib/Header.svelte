@@ -488,6 +488,25 @@
 				{/if}
 			</a>
 
+			<!-- Tasks -->
+			<a
+				href="{base}/tasks"
+				class="group flex items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition-all duration-150 {isPathActive(base + '/tasks') ? 'bg-lime-500/10 text-lime-400 font-semibold border-l-[3px] border-lime-400 shadow-sm' : 'text-gray-300 hover:bg-[#1f2329] hover:text-lime-300'}"
+				class:px-3={!sidebarMinimized}
+				class:px-2={sidebarMinimized}
+				class:justify-center={sidebarMinimized}
+				on:click={closeSidebar}
+				on:mouseenter={(e) => showTooltip(e, 'Tasks')}
+				on:mouseleave={hideTooltip}
+			>
+				<svg class="h-5 w-5 flex-shrink-0 transition-transform duration-150 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+				</svg>
+				{#if !sidebarMinimized}
+					<span class="truncate">Tasks</span>
+				{/if}
+			</a>
+
 			<!-- Price Lists -->
 			<a
 				href="{base}/price-lists"

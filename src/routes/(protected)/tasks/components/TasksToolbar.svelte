@@ -127,7 +127,7 @@
 				</svg>
 				<select
 					bind:value={$taskFilters.assignee}
-					class="appearance-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
 				>
 					<option value="all">Assignee</option>
 					{#each $availableAssignees as person}
@@ -161,7 +161,7 @@
 				</svg>
 				<select
 					bind:value={$taskFilters.status}
-					class="appearance-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
 				>
 					<option value="all">Status</option>
 					{#each TASK_STATUSES as st}
@@ -195,7 +195,7 @@
 				</svg>
 				<select
 					bind:value={$taskFilters.dueDate}
-					class="appearance-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
 				>
 					{#each dueDateOptions as opt}
 						<option value={opt.value}>{opt.label}</option>
@@ -218,7 +218,7 @@
 			<div class="relative">
 				<select
 					bind:value={$groupBy}
-					class="appearance-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-3.5 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-3.5 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
 				>
 					{#each groupOptions as opt}
 						<option value={opt.value}>{opt.label}</option>

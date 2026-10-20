@@ -111,9 +111,11 @@
 			</div>
 
 			<!-- Assignee Filter -->
-			<div class="relative">
+			<label
+				class="flex cursor-pointer items-center rounded-lg border border-[#262a30] bg-[#141619] pl-3 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus-within:border-lime-500 sm:text-sm"
+			>
 				<svg
-					class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+					class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -127,27 +129,21 @@
 				</svg>
 				<select
 					bind:value={$taskFilters.assignee}
-					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="cursor-pointer border-0 bg-transparent py-2 pl-2 pr-8 text-xs font-medium text-gray-200 focus:ring-0 focus:outline-none sm:text-sm"
 				>
-					<option value="all">Assignee</option>
+					<option value="all" class="bg-[#141619] text-gray-200">Assignee</option>
 					{#each $availableAssignees as person}
-						<option value={person}>{person}</option>
+						<option value={person} class="bg-[#141619] text-gray-200">{person}</option>
 					{/each}
 				</select>
-				<svg
-					class="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-				</svg>
-			</div>
+			</label>
 
 			<!-- Status Filter -->
-			<div class="relative">
+			<label
+				class="flex cursor-pointer items-center rounded-lg border border-[#262a30] bg-[#141619] pl-3 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus-within:border-lime-500 sm:text-sm"
+			>
 				<svg
-					class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+					class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -161,27 +157,21 @@
 				</svg>
 				<select
 					bind:value={$taskFilters.status}
-					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="cursor-pointer border-0 bg-transparent py-2 pl-2 pr-8 text-xs font-medium text-gray-200 focus:ring-0 focus:outline-none sm:text-sm"
 				>
-					<option value="all">Status</option>
+					<option value="all" class="bg-[#141619] text-gray-200">Status</option>
 					{#each TASK_STATUSES as st}
-						<option value={st}>{st}</option>
+						<option value={st} class="bg-[#141619] text-gray-200">{st}</option>
 					{/each}
 				</select>
-				<svg
-					class="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-				</svg>
-			</div>
+			</label>
 
 			<!-- Due Date Filter -->
-			<div class="relative">
+			<label
+				class="flex cursor-pointer items-center rounded-lg border border-[#262a30] bg-[#141619] pl-3 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus-within:border-lime-500 sm:text-sm"
+			>
 				<svg
-					class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
+					class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
 					fill="none"
 					stroke="currentColor"
 					viewBox="0 0 24 24"
@@ -195,44 +185,26 @@
 				</svg>
 				<select
 					bind:value={$taskFilters.dueDate}
-					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-9 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+					class="cursor-pointer border-0 bg-transparent py-2 pl-2 pr-8 text-xs font-medium text-gray-200 focus:ring-0 focus:outline-none sm:text-sm"
 				>
 					{#each dueDateOptions as opt}
-						<option value={opt.value}>{opt.label}</option>
+						<option value={opt.value} class="bg-[#141619] text-gray-200">{opt.label}</option>
 					{/each}
 				</select>
-				<svg
-					class="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-				</svg>
-			</div>
+			</label>
 		</div>
 
 		<!-- Right: Group By Dropdown + Board / List View Toggle -->
 		<div class="flex items-center gap-2.5">
 			<!-- Group By -->
-			<div class="relative">
-				<select
-					bind:value={$groupBy}
-					class="appearance-none bg-none rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-3.5 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
-				>
-					{#each groupOptions as opt}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
-				<svg
-					class="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400"
-					fill="none"
-					stroke="currentColor"
-					viewBox="0 0 24 24"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-				</svg>
-			</div>
+			<select
+				bind:value={$groupBy}
+				class="cursor-pointer rounded-lg border border-[#262a30] bg-[#141619] py-2 pl-3.5 pr-8 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus:border-lime-500 focus:outline-none sm:text-sm"
+			>
+				{#each groupOptions as opt}
+					<option value={opt.value} class="bg-[#141619] text-gray-200">{opt.label}</option>
+				{/each}
+			</select>
 
 			<!-- Board View Button -->
 			<button

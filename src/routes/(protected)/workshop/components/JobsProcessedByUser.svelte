@@ -24,7 +24,8 @@
     'return',
     'pending_jobs',
     'warranty_claim',
-    'drawing_request'
+    'drawing_request',
+    'stt'
   ];
 
   const BAR_PALETTE = [

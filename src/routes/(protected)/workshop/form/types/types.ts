@@ -22,6 +22,7 @@ export type JobStatus =
 	| 'pickup_from_workshop'
 	| 'warranty_claim'
 	| 'drawing_request'
+	| 'stt'
 	| null;
 
 export interface JobStatusContext {

@@ -1695,6 +1695,7 @@
 			pending_jobs: 'Pending Jobs',
 			warranty_claim: 'Warranty Claim',
 			drawing_request: 'Drawing Request',
+			stt: 'STT',
 			completed: 'Completed',
 			to_be_scrapped: 'To Be Scrapped',
 			deliver_to_workshop: 'Deliver to Workshop'

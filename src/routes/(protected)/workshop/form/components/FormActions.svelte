@@ -94,6 +94,7 @@
         <option value="to_be_scrapped">To Be Scrapped</option>
         <option value="pending_jobs">Pending Jobs</option>
         <option value="drawing_request">Drawing Request</option>
+        <option value="stt">STT</option>
       </select>
     {/if}
 

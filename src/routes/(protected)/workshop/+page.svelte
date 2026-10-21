@@ -22,7 +22,8 @@
     'return',
     'pending_jobs',
     'warranty_claim',
-    'drawing_request'
+    'drawing_request',
+    'stt'
   ];
 
   type PresetKey = 'all' | 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | '';

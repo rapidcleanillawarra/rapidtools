@@ -14,6 +14,7 @@
 	// Dropdown states in expanded mode
 	let productsOpen = false;
 	let ordersOpen = false;
+	let accountingOpen = false;
 	let shippingOpen = false;
 	let proMaxOpen = false;
 	let assetsOpen = false;
@@ -74,6 +75,7 @@
 	function closeAllExpandedDropdowns() {
 		productsOpen = false;
 		ordersOpen = false;
+		accountingOpen = false;
 		shippingOpen = false;
 		proMaxOpen = false;
 		assetsOpen = false;
@@ -274,13 +276,16 @@
 
 	$: ordersLinks = [
 		{ href: `${base}/customer-group-invoices`, label: 'Customer Group Invoices' },
-		{ href: `${base}/xero-comparison`, label: 'Xero Comparison' },
-		{ href: `${base}/xero-maropost-history`, label: 'Xero Maropost History' },
 		{ href: `${base}/product-order-management`, label: 'Product Order Management' },
 		{ href: `${base}/orders-past-due-accounts`, label: 'Past Due Accounts' },
 		{ href: `${base}/sent-invoice-logs`, label: 'Sent Invoice Logs' },
 		{ href: `${base}/batch-payments`, label: 'Batch Payments' },
 		{ href: `${base}/generate-invoice-pdf`, label: 'Generate Invoice PDF' }
+	];
+
+	$: accountingLinks = [
+		{ href: `${base}/xero-comparison`, label: 'Xero Comparison' },
+		{ href: `${base}/xero-maropost-history`, label: 'Xero Maropost History' }
 	];
 
 	$: shippingLinks = [
@@ -630,6 +635,44 @@
 				{#if ordersOpen && !sidebarMinimized}
 					<div class="my-1 space-y-1 rounded-lg bg-[#0e1012]/70 py-1 pl-3 border-l-2 border-lime-500/30 ml-3" transition:slide={{ duration: 180 }}>
 						{#each ordersLinks as link}
+							<a
+								href={link.href}
+								class="block rounded-md px-3 py-1.5 text-xs font-medium transition-colors {isPathActive(link.href) ? 'text-lime-400 font-semibold bg-lime-500/10' : 'text-gray-400 hover:bg-[#1e2228] hover:text-lime-300'}"
+								on:click={closeSidebar}>{link.label}</a
+							>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Accounting Dropdown / Flyout -->
+			<div
+				class="relative"
+				role="none"
+				on:mouseenter={(e) => openFlyout(e, 'Accounting', accountingLinks)}
+				on:mouseleave={scheduleCloseFlyout}
+			>
+				<button
+					type="button"
+					class="group flex w-full items-center gap-3 rounded-lg py-2.5 text-sm font-medium transition-all duration-150 {isPathActive(base + '/xero-comparison') || isPathActive(base + '/xero-maropost-history') ? 'bg-lime-500/10 text-lime-400 font-semibold border-l-[3px] border-lime-400' : 'text-gray-300 hover:bg-[#1f2329] hover:text-lime-300'}"
+					class:px-3={!sidebarMinimized}
+					class:px-2={sidebarMinimized}
+					class:justify-center={sidebarMinimized}
+					on:click={() => !sidebarMinimized && (accountingOpen = !accountingOpen)}
+				>
+					<svg class="h-5 w-5 flex-shrink-0 transition-transform duration-150 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+					</svg>
+					{#if !sidebarMinimized}
+						<span class="flex-1 truncate text-left">Accounting</span>
+						<svg class="h-4 w-4 transform text-gray-400 transition-transform duration-200" class:rotate-180={accountingOpen} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					{/if}
+				</button>
+				{#if accountingOpen && !sidebarMinimized}
+					<div class="my-1 space-y-1 rounded-lg bg-[#0e1012]/70 py-1 pl-3 border-l-2 border-lime-500/30 ml-3" transition:slide={{ duration: 180 }}>
+						{#each accountingLinks as link}
 							<a
 								href={link.href}
 								class="block rounded-md px-3 py-1.5 text-xs font-medium transition-colors {isPathActive(link.href) ? 'text-lime-400 font-semibold bg-lime-500/10' : 'text-gray-400 hover:bg-[#1e2228] hover:text-lime-300'}"

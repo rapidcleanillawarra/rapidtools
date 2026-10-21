@@ -42,7 +42,8 @@
     { key: 'return', title: 'Return' },
     { key: 'pending_jobs', title: 'PENDING JOBS' },
     { key: 'warranty_claim', title: 'WARRANTY CLAIM' },
-    { key: 'drawing_request', title: 'Drawing Request' }
+    { key: 'drawing_request', title: 'Drawing Request' },
+    { key: 'stt', title: 'STT' }
   ] as const satisfies ReadonlyArray<{ key: WorkshopRecord['status']; title: string }>;
 
   type BoardStatusKey = (typeof BOARD_STATUSES)[number]['key'];

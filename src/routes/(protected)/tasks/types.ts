@@ -64,6 +64,12 @@ export interface TaskNote {
 	created_at: string;
 }
 
+export interface TaskAssignee {
+	uid?: string | null;
+	name: string;
+	email?: string | null;
+}
+
 export interface TaskItem {
 	id: string;
 	title: string;
@@ -74,6 +80,7 @@ export interface TaskItem {
 	assignee_uid: string | null;
 	assignee_name: string;
 	assignee_email: string | null;
+	assignees?: TaskAssignee[];
 	assigned_by_email: string | null;
 	due_date: string; // YYYY-MM-DD
 	latest_note: string | null;
@@ -106,6 +113,7 @@ export interface CreateTaskPayload {
 	assignee_uid?: string | null;
 	assignee_name: string;
 	assignee_email?: string | null;
+	assignees?: TaskAssignee[];
 	due_date: string;
 	latest_note?: string;
 	steps: { label: string; is_completed: boolean }[];
@@ -211,6 +219,48 @@ export function getTaskProgress(steps: TaskStep[] = []): {
 	const completed = steps.filter((s) => s.is_completed).length;
 	const percent = Math.round((completed / total) * 100);
 	return { completed, total, percent };
+}
+
+/** Parse comma-separated or single assignee name into TaskAssignee[] */
+export function parseAssigneesFromName(
+	assigneeName: string,
+	uid?: string | null,
+	email?: string | null
+): TaskAssignee[] {
+	const raw = (assigneeName || '').trim();
+	if (!raw) return [];
+	if (raw.includes(',')) {
+		return raw
+			.split(',')
+			.map((n) => n.trim())
+			.filter(Boolean)
+			.map((name, idx) => ({
+				name,
+				uid: idx === 0 ? uid || null : null,
+				email: idx === 0 ? email || null : null
+			}));
+	}
+	return [
+		{
+			name: raw,
+			uid: uid || null,
+			email: email || null
+		}
+	];
+}
+
+/** Get structured assignees list from a task, prioritizing assignees[] then fallback to assignee_name */
+export function getTaskAssignees(task: {
+	assignees?: TaskAssignee[] | null;
+	assignee_name?: string | null;
+	assignee_uid?: string | null;
+	assignee_email?: string | null;
+}): TaskAssignee[] {
+	if (Array.isArray(task.assignees) && task.assignees.length > 0) {
+		const valid = task.assignees.filter((a) => a && a.name && a.name.trim().length > 0);
+		if (valid.length > 0) return valid;
+	}
+	return parseAssigneesFromName(task.assignee_name || '', task.assignee_uid, task.assignee_email);
 }
 
 /** Get 2-letter initials from an assignee name */

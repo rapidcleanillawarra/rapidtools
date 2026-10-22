@@ -15,7 +15,8 @@ import {
 	DEPARTMENT_DOT_COLORS,
 	STATUS_DOT_COLORS,
 	getDepartmentDotColor,
-	getDueDateDisplay
+	getDueDateDisplay,
+	getTaskAssignees
 } from './types';
 import { saveCustomDepartment, deleteCustomDepartment } from './tasksService';
 
@@ -114,7 +115,10 @@ export const availableAssignees = derived(
 	([$tasks, $teamMembers]) => {
 		const names = new Set<string>();
 		for (const t of $tasks) {
-			if (t.assignee_name) names.add(t.assignee_name);
+			const taskAssignees = getTaskAssignees(t);
+			for (const a of taskAssignees) {
+				if (a.name?.trim()) names.add(a.name.trim());
+			}
 		}
 		for (const member of $teamMembers) {
 			const first = (member.firstName || '').trim();
@@ -136,11 +140,19 @@ export const filteredTasks = derived(
 		return $tasks.filter((task) => {
 			// 1. Tab filter
 			if ($activeTab === 'my_tasks') {
-				const matchesEmail =
-					myEmail && (task.assignee_email || '').toLowerCase() === myEmail;
-				const matchesName =
-					myFirstName && task.assignee_name.trim().toLowerCase() === myFirstName;
-				if (!matchesEmail && !matchesName) return false;
+				const taskAssignees = getTaskAssignees(task);
+				const matches = taskAssignees.some((a) => {
+					const emailMatch = myEmail && (a.email || '').toLowerCase() === myEmail;
+					const nameMatch = myFirstName && a.name.trim().toLowerCase() === myFirstName;
+					return emailMatch || nameMatch;
+				});
+				if (!matches) {
+					const rootEmailMatch =
+						myEmail && (task.assignee_email || '').toLowerCase() === myEmail;
+					const rootNameMatch =
+						myFirstName && task.assignee_name.trim().toLowerCase() === myFirstName;
+					if (!rootEmailMatch && !rootNameMatch) return false;
+				}
 			} else if ($activeTab === 'assigned_by_me') {
 				if (!myEmail || (task.assigned_by_email || '').toLowerCase() !== myEmail) {
 					return false;
@@ -152,14 +164,20 @@ export const filteredTasks = derived(
 				const q = $filters.search.trim().toLowerCase();
 				const inTitle = task.title.toLowerCase().includes(q);
 				const inDesc = (task.description || '').toLowerCase().includes(q);
-				const inAssignee = task.assignee_name.toLowerCase().includes(q);
+				const inAssignee =
+					task.assignee_name.toLowerCase().includes(q) ||
+					getTaskAssignees(task).some((a) => a.name.toLowerCase().includes(q));
 				const inDept = task.department.toLowerCase().includes(q);
 				if (!inTitle && !inDesc && !inAssignee && !inDept) return false;
 			}
 
 			// 3. Assignee filter
 			if ($filters.assignee !== 'all') {
-				if (task.assignee_name.toLowerCase() !== $filters.assignee.toLowerCase()) {
+				const target = $filters.assignee.toLowerCase();
+				const hasAssignee = getTaskAssignees(task).some(
+					(a) => a.name.toLowerCase() === target
+				);
+				if (!hasAssignee && !task.assignee_name.toLowerCase().includes(target)) {
 					return false;
 				}
 			}
@@ -247,9 +265,15 @@ export const groupedTasks = derived(
 			key: assignee,
 			label: assignee,
 			dotColorClass: 'bg-lime-400',
-			tasks: $filteredTasks.filter(
-				(t) => t.assignee_name.toLowerCase() === assignee.toLowerCase()
-			)
+			tasks: $filteredTasks.filter((t) => {
+				const taskAssignees = getTaskAssignees(t);
+				if (taskAssignees.length > 0) {
+					return taskAssignees.some(
+						(a) => a.name.toLowerCase() === assignee.toLowerCase()
+					);
+				}
+				return t.assignee_name.toLowerCase() === assignee.toLowerCase();
+			})
 		}));
 	}
 );

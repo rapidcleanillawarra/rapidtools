@@ -12,7 +12,8 @@
 		getAvatarColorClasses,
 		getDueDateDisplay,
 		formatShortDate,
-		isImageAttachment
+		isImageAttachment,
+		getTaskAssignees
 	} from '../types';
 
 	const dispatch = createEventDispatcher<{
@@ -76,6 +77,7 @@
 								{@const progress = getTaskProgress(task.steps)}
 								{@const dueDisplay = getDueDateDisplay(task.due_date, task.status)}
 								{@const taskPhotos = (task.attachments || []).filter(isImageAttachment)}
+								{@const rowAssignees = getTaskAssignees(task)}
 								<tr
 									on:click={() => dispatch('selectTask', task)}
 									class="cursor-pointer transition-colors hover:bg-[#1b1f25]"
@@ -157,14 +159,46 @@
 
 									<!-- Assignee -->
 									<td class="px-4 py-3">
-										<div class="flex items-center gap-2">
-											<span
-												class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold {getAvatarColorClasses(task.assignee_name)}"
-											>
-												{getInitials(task.assignee_name)}
-											</span>
-											<span class="text-xs font-medium text-gray-200">{task.assignee_name}</span>
-										</div>
+										{#if rowAssignees.length > 1}
+											<div class="flex items-center gap-2">
+												<div class="flex items-center -space-x-1.5 overflow-hidden flex-shrink-0">
+													{#each rowAssignees.slice(0, 3) as a (a.name)}
+														<span
+															class="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold ring-2 ring-[#141619] {getAvatarColorClasses(a.name)}"
+															title={a.name}
+														>
+															{getInitials(a.name)}
+														</span>
+													{/each}
+													{#if rowAssignees.length > 3}
+														<span
+															class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#2a2f37] text-[10px] font-bold text-gray-200 ring-2 ring-[#141619]"
+															title={`+${rowAssignees.length - 3} more`}
+														>
+															+{rowAssignees.length - 3}
+														</span>
+													{/if}
+												</div>
+												<span
+													class="truncate text-xs font-medium text-gray-200"
+													title={rowAssignees.map((a) => a.name).join(', ')}
+												>
+													{rowAssignees.map((a) => a.name).join(', ')}
+												</span>
+											</div>
+										{:else if rowAssignees.length === 1}
+											<div class="flex items-center gap-2">
+												<span
+													class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold {getAvatarColorClasses(rowAssignees[0].name)}"
+													title={rowAssignees[0].name}
+												>
+													{getInitials(rowAssignees[0].name)}
+												</span>
+												<span class="text-xs font-medium text-gray-200">{rowAssignees[0].name}</span>
+											</div>
+										{:else}
+											<span class="text-xs text-gray-500 italic">Unassigned</span>
+										{/if}
 									</td>
 
 									<!-- Priority / Done -->

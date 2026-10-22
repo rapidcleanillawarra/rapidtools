@@ -4,6 +4,7 @@
 	import { userProfile } from '$lib/userProfile';
 	import { availableAssignees, allDepartments, addDepartment } from '../stores';
 	import TaskPhotoViewer from './TaskPhotoViewer.svelte';
+	import AssigneeSelect from './AssigneeSelect.svelte';
 	import {
 		updateTaskFields,
 		toggleStepCompletion,
@@ -28,6 +29,7 @@
 		type TaskStatus,
 		type TaskDepartment,
 		type TaskPriority,
+		type TaskAssignee,
 		TASK_DEPARTMENTS,
 		TASK_STATUSES,
 		TASK_PRIORITIES,
@@ -36,7 +38,8 @@
 		getProgressBarColor,
 		formatShortDate,
 		isImageAttachment,
-		formatByteSize
+		formatByteSize,
+		getTaskAssignees
 	} from '../types';
 
 	export let task: TaskItem | null = null;
@@ -65,6 +68,7 @@
 
 	$: imageAttachments = (task?.attachments || []).filter(isImageAttachment);
 	$: otherAttachments = (task?.attachments || []).filter((att) => !isImageAttachment(att));
+	$: currentAssignees = task ? getTaskAssignees(task) : [];
 	$: viewerPhotos = imageAttachments.map((att) => ({
 		id: att.id,
 		url: att.public_url || '',
@@ -239,6 +243,22 @@
 		} catch (err) {
 			toastError('Failed to save changes');
 		}
+	}
+
+	async function handleAssigneesChange(newAssignees: TaskAssignee[]) {
+		if (!task) return;
+		if (newAssignees.length === 0) {
+			toastError('At least one assignee is required');
+			return;
+		}
+		const assigneeNames = newAssignees.map((a) => a.name).join(', ');
+		const primary = newAssignees[0] || null;
+		await handleFieldUpdate({
+			assignees: newAssignees,
+			assignee_name: assigneeNames,
+			assignee_uid: primary?.uid || null,
+			assignee_email: primary?.email || null
+		});
 	}
 
 	async function handleCreateNewDept() {
@@ -474,45 +494,40 @@
 						{/if}
 					</div>
 
-					<!-- Assignee -->
+					<!-- Priority -->
 					<div>
-						<label class="mb-1 block text-xs font-medium text-gray-400">Assignee</label>
+						<label class="mb-1 block text-xs font-medium text-gray-400">Priority</label>
 						<select
-							value={task.assignee_name}
+							value={task.priority}
 							on:change={(e) =>
-								handleFieldUpdate({ assignee_name: e.currentTarget.value })}
-							class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-3 py-2 text-xs font-medium text-gray-100 focus:border-lime-500 focus:outline-none"
+								handleFieldUpdate({ priority: e.currentTarget.value as TaskPriority })}
+							class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-2.5 py-2 text-xs font-medium text-gray-100 focus:border-lime-500 focus:outline-none"
 						>
-							{#each $availableAssignees as person}
-								<option value={person}>{person}</option>
+							{#each TASK_PRIORITIES as p}
+								<option value={p}>{p}</option>
 							{/each}
 						</select>
 					</div>
 
-					<!-- Priority & Due Date -->
-					<div class="grid grid-cols-2 gap-2">
-						<div>
-							<label class="mb-1 block text-xs font-medium text-gray-400">Priority</label>
-							<select
-								value={task.priority}
-								on:change={(e) =>
-									handleFieldUpdate({ priority: e.currentTarget.value as TaskPriority })}
-								class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-2.5 py-2 text-xs font-medium text-gray-100 focus:border-lime-500 focus:outline-none"
-							>
-								{#each TASK_PRIORITIES as p}
-									<option value={p}>{p}</option>
-								{/each}
-							</select>
-						</div>
-						<div>
-							<label class="mb-1 block text-xs font-medium text-gray-400">Due date</label>
-							<input
-								type="date"
-								value={task.due_date}
-								on:change={(e) => handleFieldUpdate({ due_date: e.currentTarget.value })}
-								class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-2 py-2 text-xs text-gray-100 focus:border-lime-500 focus:outline-none [color-scheme:dark]"
-							/>
-						</div>
+					<!-- Due date -->
+					<div>
+						<label class="mb-1 block text-xs font-medium text-gray-400">Due date</label>
+						<input
+							type="date"
+							value={task.due_date}
+							on:change={(e) => handleFieldUpdate({ due_date: e.currentTarget.value })}
+							class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-2 py-2 text-xs text-gray-100 focus:border-lime-500 focus:outline-none [color-scheme:dark]"
+						/>
+					</div>
+
+					<!-- Assignees (Full Width) -->
+					<div class="col-span-2">
+						<label class="mb-1 block text-xs font-medium text-gray-400">Assignee(s)</label>
+						<AssigneeSelect
+							selected={currentAssignees}
+							size="sm"
+							on:change={(e) => handleAssigneesChange(e.detail)}
+						/>
 					</div>
 				</div>
 

@@ -11,7 +11,8 @@
 		getAvatarColorClasses,
 		getDueDateDisplay,
 		formatShortDate,
-		isImageAttachment
+		isImageAttachment,
+		getTaskAssignees
 	} from '../types';
 
 	export let task: TaskItem;
@@ -28,6 +29,7 @@
 
 	$: progress = getTaskProgress(task.steps);
 	$: progressBarColor = getProgressBarColor(task.status);
+	$: cardAssignees = getTaskAssignees(task);
 	$: initials = getInitials(task.assignee_name);
 	$: avatarClasses = getAvatarColorClasses(task.assignee_name);
 	$: dueDisplay = getDueDateDisplay(task.due_date, task.status);
@@ -182,12 +184,42 @@
 	<div class="mb-3 flex flex-wrap items-center justify-between gap-1.5">
 		<!-- Assignee Avatar + Name -->
 		<div class="flex items-center gap-1.5 min-w-0">
-			<span
-				class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold {avatarClasses}"
-			>
-				{initials}
-			</span>
-			<span class="truncate text-xs font-medium text-gray-200">{task.assignee_name}</span>
+			{#if cardAssignees.length > 1}
+				<div class="flex items-center -space-x-1.5 overflow-hidden flex-shrink-0">
+					{#each cardAssignees.slice(0, 3) as a (a.name)}
+						<span
+							class="inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold ring-2 ring-[#181b20] {getAvatarColorClasses(a.name)}"
+							title={a.name}
+						>
+							{getInitials(a.name)}
+						</span>
+					{/each}
+					{#if cardAssignees.length > 3}
+						<span
+							class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#2a2f37] text-[10px] font-bold text-gray-200 ring-2 ring-[#181b20]"
+							title={`+${cardAssignees.length - 3} more`}
+						>
+							+{cardAssignees.length - 3}
+						</span>
+					{/if}
+				</div>
+				<span
+					class="truncate text-xs font-medium text-gray-200"
+					title={cardAssignees.map((a) => a.name).join(', ')}
+				>
+					{cardAssignees.map((a) => a.name).join(', ')}
+				</span>
+			{:else if cardAssignees.length === 1}
+				<span
+					class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold {getAvatarColorClasses(cardAssignees[0].name)}"
+					title={cardAssignees[0].name}
+				>
+					{getInitials(cardAssignees[0].name)}
+				</span>
+				<span class="truncate text-xs font-medium text-gray-200">{cardAssignees[0].name}</span>
+			{:else}
+				<span class="truncate text-xs text-gray-500 italic">Unassigned</span>
+			{/if}
 		</div>
 
 		<!-- Priority or Done Pill + Due Date -->

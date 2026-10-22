@@ -9,11 +9,13 @@
 		type TaskPriority,
 		type TaskStatus,
 		type TaskPhoto,
+		type TaskAssignee,
 		TASK_PRIORITIES,
 		TASK_STATUSES,
 		STATUS_DOT_COLORS
 	} from '../types';
 	import TaskPhotoViewer from './TaskPhotoViewer.svelte';
+	import AssigneeSelect from './AssigneeSelect.svelte';
 
 	export let open = false;
 	export let defaultDepartment: TaskDepartment = 'Operations';
@@ -25,7 +27,7 @@
 
 	let title = '';
 	let description = '';
-	let selectedAssignee = '';
+	let selectedAssignees: TaskAssignee[] = [];
 	let selectedDepartment: string = '';
 	let priority: TaskPriority = 'Normal';
 	let dueDate = '';
@@ -48,10 +50,6 @@
 	$: if (open && !selectedDepartment && defaultDepartment) {
 		selectedDepartment = defaultDepartment;
 	}
-
-	const fallbackTeamNames = ['AJ', 'Windy', 'Joeven', 'Shaira', 'Zsarmaine'];
-	$: assigneeOptions =
-		$availableAssignees.length > 0 ? $availableAssignees : fallbackTeamNames;
 
 	function addStepRow() {
 		steps = [...steps, { id: crypto.randomUUID(), label: '', is_completed: false }];
@@ -102,7 +100,7 @@
 	function resetForm() {
 		title = '';
 		description = '';
-		selectedAssignee = '';
+		selectedAssignees = [];
 		selectedDepartment = defaultDepartment;
 		priority = 'Normal';
 		dueDate = '';
@@ -147,8 +145,8 @@
 			toastError('Task title is required');
 			return;
 		}
-		if (!selectedAssignee.trim()) {
-			toastError('Assignee is required');
+		if (!selectedAssignees || selectedAssignees.length === 0) {
+			toastError('At least one assignee is required');
 			return;
 		}
 		if (!dueDate) {
@@ -158,11 +156,9 @@
 
 		isSubmitting = true;
 		try {
-			const matchedProfile = $teamMembers.find(
-				(m) => m.firstName?.trim().toLowerCase() === selectedAssignee.trim().toLowerCase()
-			);
-
 			const dept = (selectedDepartment || defaultDepartment || 'Operations') as TaskDepartment;
+			const primaryAssignee = selectedAssignees[0];
+			const assigneeNames = selectedAssignees.map((a) => a.name).join(', ');
 
 			const created = await createTaskRecord({
 				title: title.trim(),
@@ -170,9 +166,10 @@
 				department: dept,
 				status,
 				priority,
-				assignee_uid: matchedProfile?.uid || null,
-				assignee_name: selectedAssignee.trim(),
-				assignee_email: matchedProfile?.email || null,
+				assignees: selectedAssignees,
+				assignee_uid: primaryAssignee?.uid || null,
+				assignee_name: assigneeNames,
+				assignee_email: primaryAssignee?.email || null,
 				due_date: dueDate,
 				steps: steps.map((s) => ({ label: s.label, is_completed: s.is_completed })),
 				files: selectedFiles
@@ -255,40 +252,12 @@
 
 				<!-- 2x2 Grid: Assignee, Department, Priority, Due date -->
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<!-- Assignee * -->
-					<div>
-						<label for="new-task-assignee" class="mb-1.5 block text-sm font-semibold text-white">
-							Assignee <span class="text-red-400">*</span>
+					<!-- Assignees * -->
+					<div class="sm:col-span-2">
+						<label class="mb-1.5 block text-sm font-semibold text-white">
+							Assignee(s) <span class="text-red-400">*</span>
 						</label>
-						<label
-							class="flex cursor-pointer items-center rounded-lg border border-[#2a2f37] bg-[#181b20] pl-3.5 transition hover:border-[#3a424e] focus-within:border-lime-500"
-						>
-							<svg
-								class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-								/>
-							</svg>
-							<select
-								id="new-task-assignee"
-								bind:value={selectedAssignee}
-								class="w-full cursor-pointer border-0 bg-transparent py-2.5 pl-2.5 pr-8 text-sm {selectedAssignee
-									? 'text-gray-100'
-									: 'text-gray-400'} focus:ring-0 focus:outline-none"
-							>
-								<option value="" disabled class="bg-[#141619] text-gray-400">Select team member</option>
-								{#each assigneeOptions as person}
-									<option value={person} class="bg-[#141619] text-gray-100">{person}</option>
-								{/each}
-							</select>
-						</label>
+						<AssigneeSelect bind:selected={selectedAssignees} size="md" placeholder="Select team member(s)..." />
 					</div>
 
 					<!-- Department -->

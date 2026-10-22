@@ -10,8 +10,10 @@ import type {
 	CreateTaskPayload,
 	TaskStatus,
 	TaskPriority,
-	TaskDepartment
+	TaskDepartment,
+	TaskAssignee
 } from './types';
+import { getTaskAssignees, parseAssigneesFromName } from './types';
 
 export const TASK_ATTACHMENTS_BUCKET = 'task-attachments';
 
@@ -56,6 +58,12 @@ export async function fetchAllTasks(): Promise<TaskItem[]> {
 			public_url: getAttachmentPublicUrl(att.storage_path)
 		}));
 		const commentCount = Array.isArray(row.task_comments) ? row.task_comments.length : 0;
+		const assignees: TaskAssignee[] = getTaskAssignees({
+			assignees: row.assignees,
+			assignee_name: row.assignee_name,
+			assignee_uid: row.assignee_uid,
+			assignee_email: row.assignee_email
+		});
 
 		return {
 			id: row.id,
@@ -67,6 +75,7 @@ export async function fetchAllTasks(): Promise<TaskItem[]> {
 			assignee_uid: row.assignee_uid,
 			assignee_name: row.assignee_name,
 			assignee_email: row.assignee_email,
+			assignees,
 			assigned_by_email: row.assigned_by_email,
 			due_date: row.due_date,
 			latest_note: row.latest_note,
@@ -88,30 +97,62 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 	const user = get(currentUser);
 	const nowIso = new Date().toISOString();
 
-	const insertRow = {
+	const assignees =
+		payload.assignees && payload.assignees.length > 0
+			? payload.assignees
+			: parseAssigneesFromName(
+					payload.assignee_name || '',
+					payload.assignee_uid,
+					payload.assignee_email
+				);
+
+	const primaryAssignee = assignees[0] || null;
+	const assigneeNames =
+		assignees.map((a) => a.name).join(', ') || payload.assignee_name?.trim() || '';
+
+	const insertRow: Record<string, any> = {
 		title: payload.title.trim(),
 		description: payload.description?.trim() || null,
 		department: payload.department,
 		status: payload.status,
 		priority: payload.priority,
-		assignee_uid: payload.assignee_uid || null,
-		assignee_name: payload.assignee_name.trim(),
-		assignee_email: payload.assignee_email || null,
+		assignee_uid: primaryAssignee?.uid || payload.assignee_uid || null,
+		assignee_name: assigneeNames,
+		assignee_email: primaryAssignee?.email || payload.assignee_email || null,
+		assignees: assignees,
 		assigned_by_email: user?.email || null,
 		due_date: payload.due_date,
 		latest_note: payload.latest_note?.trim() || 'Task created',
 		latest_note_at: nowIso
 	};
 
-	const { data: createdTask, error: taskError } = await supabase
+	let createdTask: any = null;
+	let { data, error: taskError } = await supabase
 		.from('tasks')
 		.insert(insertRow)
 		.select('*')
 		.single();
 
-	if (taskError || !createdTask) {
+	if (
+		taskError &&
+		(taskError.message?.includes('assignees') ||
+			taskError.details?.includes('assignees') ||
+			taskError.code === 'PGRST204')
+	) {
+		console.warn('tasks table assignees column not available, retrying without assignees column');
+		delete insertRow.assignees;
+		const retry = await supabase.from('tasks').insert(insertRow).select('*').single();
+		data = retry.data;
+		taskError = retry.error;
+	}
+
+	if (taskError || !data) {
 		console.error('Error creating task:', taskError);
 		throw taskError || new Error('Failed to create task');
+	}
+	createdTask = data;
+	if (!createdTask.assignees || createdTask.assignees.length === 0) {
+		createdTask.assignees = assignees;
 	}
 
 	// Insert non-empty checklist steps
@@ -166,7 +207,7 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 }
 
 /**
- * Update core task fields (status, title, priority, department, due_date, assignee, latest_note).
+ * Update core task fields (status, title, priority, department, due_date, assignee, assignees, latest_note).
  */
 export async function updateTaskFields(
 	taskId: string,
@@ -179,20 +220,55 @@ export async function updateTaskFields(
 		assignee_uid: string | null;
 		assignee_name: string;
 		assignee_email: string | null;
+		assignees: TaskAssignee[];
 		due_date: string;
 		latest_note: string | null;
 		latest_note_at: string | null;
 	}>
 ): Promise<void> {
+	const fullUpdates: Record<string, any> = { ...updates };
+	if (updates.assignees && !updates.assignee_name) {
+		fullUpdates.assignee_name = updates.assignees.map((a) => a.name).join(', ');
+		const primary = updates.assignees[0];
+		if (primary) {
+			fullUpdates.assignee_uid = primary.uid || null;
+			fullUpdates.assignee_email = primary.email || null;
+		}
+	}
+
 	const { error } = await supabase
 		.from('tasks')
 		.update({
-			...updates,
+			...fullUpdates,
 			updated_at: new Date().toISOString()
 		})
 		.eq('id', taskId);
 
 	if (error) {
+		// If assignees column doesn't exist yet on Supabase, retry without assignees
+		if (
+			fullUpdates.assignees &&
+			(error.message?.includes('assignees') ||
+				error.details?.includes('assignees') ||
+				error.code === 'PGRST204')
+		) {
+			console.warn('tasks table assignees column not available, retrying without assignees column');
+			delete fullUpdates.assignees;
+			const { error: retryError } = await supabase
+				.from('tasks')
+				.update({
+					...fullUpdates,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', taskId);
+
+			if (retryError) {
+				console.error('Error updating task fallback:', retryError);
+				throw retryError;
+			}
+			return;
+		}
+
 		console.error('Error updating task:', error);
 		throw error;
 	}

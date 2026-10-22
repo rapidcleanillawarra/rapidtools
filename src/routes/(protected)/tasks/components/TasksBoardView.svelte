@@ -1,6 +1,14 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { groupedTasks, groupBy, allDepartments, addDepartment } from '../stores';
+	import {
+		groupedTasks,
+		groupBy,
+		allDepartments,
+		addDepartment,
+		reorderBuckets,
+		hiddenBucketsCount,
+		showAllBuckets
+	} from '../stores';
 	import TaskBoardColumn from './TaskBoardColumn.svelte';
 	import { BUCKET_COLOR_PALETTE, type TaskItem, type TaskStatus } from '../types';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
@@ -12,7 +20,43 @@
 		deleteTask: TaskItem;
 		addBucket: void;
 		openPhotos: { task: TaskItem; initialIndex: number };
+		addSubtask: TaskItem;
 	}>();
+
+	let draggedBucketKey: string | null = null;
+	let dragOverBucketKey: string | null = null;
+
+	function handleDragStart(e: DragEvent, key: string) {
+		if ($groupBy !== 'department') return;
+		draggedBucketKey = key;
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('text/plain', key);
+		}
+	}
+
+	function handleDragOver(e: DragEvent, key: string) {
+		if ($groupBy !== 'department' || !draggedBucketKey) return;
+		e.preventDefault();
+		if (draggedBucketKey !== key) {
+			dragOverBucketKey = key;
+		}
+	}
+
+	function handleDrop(e: DragEvent, targetKey: string) {
+		if ($groupBy !== 'department' || !draggedBucketKey) return;
+		e.preventDefault();
+		if (draggedBucketKey !== targetKey) {
+			reorderBuckets(draggedBucketKey, targetKey);
+		}
+		draggedBucketKey = null;
+		dragOverBucketKey = null;
+	}
+
+	function handleDragEnd() {
+		draggedBucketKey = null;
+		dragOverBucketKey = null;
+	}
 
 	let isAddingBucket = false;
 	let newBucketName = '';
@@ -73,7 +117,16 @@
 <div class="overflow-x-auto pb-4">
 	<div class="flex items-start gap-4 min-w-max">
 		{#each $groupedTasks as column (column.key)}
-			<div class="w-80 flex-shrink-0">
+			<div
+				class="w-80 flex-shrink-0 transition-transform {dragOverBucketKey === column.key ? 'rounded-xl ring-2 ring-lime-400/70' : ''} {draggedBucketKey === column.key ? 'opacity-50' : ''}"
+				draggable={$groupBy === 'department'}
+				on:dragstart={(e) => handleDragStart(e, column.key)}
+				on:dragover={(e) => handleDragOver(e, column.key)}
+				on:drop={(e) => handleDrop(e, column.key)}
+				on:dragend={handleDragEnd}
+				role="region"
+				aria-label="{column.label} column"
+			>
 				<TaskBoardColumn
 					{column}
 					on:addTask={(e) => dispatch('addTask', e.detail)}
@@ -81,9 +134,23 @@
 					on:statusChange={(e) => dispatch('statusChange', e.detail)}
 					on:deleteTask={(e) => dispatch('deleteTask', e.detail)}
 					on:openPhotos={(e) => dispatch('openPhotos', e.detail)}
+					on:addSubtask={(e) => dispatch('addSubtask', e.detail)}
 				/>
 			</div>
 		{/each}
+
+		{#if $groupBy === 'department' && $groupedTasks.length === 0 && $hiddenBucketsCount > 0}
+			<div class="flex h-40 w-80 flex-shrink-0 flex-col items-center justify-center gap-2 rounded-xl border border-[#262a30] bg-[#141619] p-4 text-center">
+				<p class="text-xs text-gray-400">All {$hiddenBucketsCount} buckets are hidden in your view.</p>
+				<button
+					type="button"
+					on:click={() => showAllBuckets()}
+					class="rounded-lg bg-lime-400 px-3 py-1.5 text-xs font-semibold text-gray-950 transition hover:bg-lime-300"
+				>
+					Show all buckets
+				</button>
+			</div>
+		{/if}
 
 		{#if $groupBy === 'department'}
 			<div class="w-80 flex-shrink-0">

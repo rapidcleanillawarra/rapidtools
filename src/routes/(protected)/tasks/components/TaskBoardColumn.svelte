@@ -3,7 +3,13 @@
 	import TaskCard from './TaskCard.svelte';
 	import type { TaskColumnGroup, TaskItem, TaskStatus } from '../types';
 	import { DEFAULT_TASK_DEPARTMENTS } from '../types';
-	import { groupBy, removeDepartment } from '../stores';
+	import {
+		groupBy,
+		removeDepartment,
+		hideBucket,
+		moveBucket,
+		visibleDepartments
+	} from '../stores';
 	import { toastSuccess } from '$lib/utils/toast';
 
 	export let column: TaskColumnGroup;
@@ -14,9 +20,37 @@
 		statusChange: { task: TaskItem; status: TaskStatus };
 		deleteTask: TaskItem;
 		openPhotos: { task: TaskItem; initialIndex: number };
+		addSubtask: TaskItem;
 	}>();
 
 	let menuOpen = false;
+
+	$: isDepartmentGroup = $groupBy === 'department';
+
+	$: columnIndex = $visibleDepartments.findIndex(
+		(d) => d.toLowerCase() === column.key.toLowerCase()
+	);
+	$: canMoveLeft = isDepartmentGroup && columnIndex > 0;
+	$: canMoveRight =
+		isDepartmentGroup &&
+		columnIndex !== -1 &&
+		columnIndex < $visibleDepartments.length - 1;
+
+	function handleHideBucket() {
+		menuOpen = false;
+		hideBucket(column.key);
+		toastSuccess(`Hidden "${column.label}" from your view`);
+	}
+
+	function handleMoveLeft() {
+		menuOpen = false;
+		moveBucket(column.key, 'left', true);
+	}
+
+	function handleMoveRight() {
+		menuOpen = false;
+		moveBucket(column.key, 'right', true);
+	}
 
 	$: isCustomBucket =
 		$groupBy === 'department' &&
@@ -94,6 +128,50 @@
 						<span>Add task</span>
 					</button>
 
+					{#if isDepartmentGroup}
+						<div class="my-1 border-t border-[#262a30]"></div>
+
+						<button
+							type="button"
+							disabled={!canMoveLeft}
+							on:click={handleMoveLeft}
+							class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-200 transition hover:bg-[#1f2329] disabled:cursor-not-allowed disabled:opacity-35"
+						>
+							<svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+							</svg>
+							<span>Move left</span>
+						</button>
+
+						<button
+							type="button"
+							disabled={!canMoveRight}
+							on:click={handleMoveRight}
+							class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-200 transition hover:bg-[#1f2329] disabled:cursor-not-allowed disabled:opacity-35"
+						>
+							<svg class="h-3.5 w-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+							</svg>
+							<span>Move right</span>
+						</button>
+
+						<button
+							type="button"
+							on:click={handleHideBucket}
+							class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-amber-300 transition hover:bg-[#1f2329]"
+						>
+							<svg class="h-3.5 w-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+								/>
+							</svg>
+							<span>Hide bucket</span>
+						</button>
+					{/if}
+
 					{#if isCustomBucket}
 						<button
 							type="button"
@@ -125,6 +203,7 @@
 				on:statusChange={(e) => dispatch('statusChange', e.detail)}
 				on:delete={(e) => dispatch('deleteTask', e.detail)}
 				on:openPhotos={(e) => dispatch('openPhotos', e.detail)}
+				on:addSubtask={(e) => dispatch('addSubtask', e.detail)}
 			/>
 		{/each}
 	</div>

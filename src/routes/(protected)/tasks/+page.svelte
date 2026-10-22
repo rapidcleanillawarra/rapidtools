@@ -31,6 +31,7 @@
 	let showCreateModal = false;
 	let showAddBucketModal = false;
 	let createModalDefaultDepartment: TaskDepartment = 'Operations';
+	let createModalDefaultParentId: string | null = null;
 	let selectedTask: TaskItem | null = null;
 
 	let pagePhotoViewerOpen = false;
@@ -69,9 +70,17 @@
 		}
 	}
 
-	function openNewTaskModal(defaultDepartment: TaskDepartment = 'Operations') {
+	function openNewTaskModal(
+		defaultDepartment: TaskDepartment = 'Operations',
+		parentTaskId: string | null = null
+	) {
 		createModalDefaultDepartment = defaultDepartment;
+		createModalDefaultParentId = parentTaskId;
 		showCreateModal = true;
+	}
+
+	function handleAddSubtask(parentTask: TaskItem) {
+		openNewTaskModal(parentTask.department, parentTask.id);
 	}
 
 	function handleColumnAddTask(groupKey: string) {
@@ -175,6 +184,7 @@
 				on:deleteTask={(e) => handleDeleteTask(e.detail)}
 				on:openPhotos={handleOpenPhotos}
 				on:addBucket={() => (showAddBucketModal = true)}
+				on:addSubtask={(e) => handleAddSubtask(e.detail)}
 			/>
 		{:else}
 			<TasksListView
@@ -184,6 +194,7 @@
 				on:deleteTask={(e) => handleDeleteTask(e.detail)}
 				on:openPhotos={handleOpenPhotos}
 				on:addBucket={() => (showAddBucketModal = true)}
+				on:addSubtask={(e) => handleAddSubtask(e.detail)}
 			/>
 		{/if}
 	</div>
@@ -192,6 +203,7 @@
 <CreateTaskModal
 	open={showCreateModal}
 	defaultDepartment={createModalDefaultDepartment}
+	defaultParentTaskId={createModalDefaultParentId}
 	on:close={() => (showCreateModal = false)}
 	on:created={handleTaskCreated}
 />
@@ -201,6 +213,7 @@
 	on:close={() => (selectedTask = null)}
 	on:updated={handleTaskUpdated}
 	on:delete={(e) => handleDeleteTask(e.detail)}
+	on:selectTask={(e) => openTaskDetail(e.detail)}
 />
 
 <AddBucketModal

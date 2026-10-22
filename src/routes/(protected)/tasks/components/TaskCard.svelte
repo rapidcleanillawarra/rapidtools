@@ -2,13 +2,22 @@
 	import { createEventDispatcher } from 'svelte';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile } from '$lib/userProfile';
-	import { seenTaskIds } from '../stores';
+	import {
+		tasks,
+		seenTaskIds,
+		subtasksByParentId,
+		assignTaskParent,
+		promoteSubtaskToParent,
+		swapParentAndSubtask
+	} from '../stores';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
 		type TaskItem,
 		type TaskStatus,
 		TASK_STATUSES,
 		STATUS_DOT_COLORS,
 		getTaskProgress,
+		getSubtaskProgress,
 		getProgressBarColor,
 		getInitials,
 		getAvatarColorClasses,
@@ -16,7 +25,8 @@
 		formatShortDate,
 		isImageAttachment,
 		getTaskAssignees,
-		isTaskAssignedToUser
+		isTaskAssignedToUser,
+		getValidParentTasks
 	} from '../types';
 
 	export let task: TaskItem;
@@ -26,10 +36,99 @@
 		statusChange: { task: TaskItem; status: TaskStatus };
 		delete: TaskItem;
 		openPhotos: { task: TaskItem; initialIndex: number };
+		addSubtask: TaskItem;
 	}>();
 
 	let statusMenuOpen = false;
 	let actionMenuOpen = false;
+	let subtasksExpanded = true;
+	let moveParentSubmenuOpen = false;
+	let isDragOverCard = false;
+
+	$: subtasks = $subtasksByParentId[task.id] || [];
+	$: subtaskProgress = getSubtaskProgress(subtasks);
+	$: parentTask = task.parent_task_id
+		? $tasks.find((t) => t.id === task.parent_task_id) || null
+		: null;
+	$: validParents = getValidParentTasks($tasks, task.id).filter(
+		(t) => !t.parent_task_id && t.id !== task.parent_task_id
+	);
+
+	async function handleMoveToParent(newParentId: string | null, e: MouseEvent) {
+		e.stopPropagation();
+		actionMenuOpen = false;
+		moveParentSubmenuOpen = false;
+		try {
+			await assignTaskParent(task.id, newParentId);
+			toastSuccess(newParentId ? 'Moved under parent task' : 'Promoted to standalone task');
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to update task hierarchy');
+		}
+	}
+
+	async function handleSwapWithSubtask(sub: TaskItem, e: MouseEvent) {
+		e.stopPropagation();
+		try {
+			await swapParentAndSubtask(task.id, sub.id);
+			toastSuccess(`Swapped "${sub.title}" as parent task`);
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to swap parent and subtask');
+		}
+	}
+
+	async function handleSwapWithMyParent(e: MouseEvent) {
+		e.stopPropagation();
+		actionMenuOpen = false;
+		if (!task.parent_task_id) return;
+		try {
+			await swapParentAndSubtask(task.parent_task_id, task.id);
+			toastSuccess(`Promoted "${task.title}" and swapped with former parent`);
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to swap with parent');
+		}
+	}
+
+	function handleTaskDragStart(e: DragEvent) {
+		e.stopPropagation();
+		if (e.dataTransfer) {
+			e.dataTransfer.effectAllowed = 'move';
+			e.dataTransfer.setData('application/x-rapidtools-task-id', task.id);
+		}
+	}
+
+	function handleTaskDragOver(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/x-rapidtools-task-id')) return;
+		e.preventDefault();
+		e.stopPropagation();
+		isDragOverCard = true;
+	}
+
+	function handleTaskDragLeave() {
+		isDragOverCard = false;
+	}
+
+	async function handleTaskDropOnCard(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/x-rapidtools-task-id')) return;
+		e.preventDefault();
+		e.stopPropagation();
+		isDragOverCard = false;
+
+		const draggedTaskId = e.dataTransfer.getData('application/x-rapidtools-task-id');
+		if (!draggedTaskId || draggedTaskId === task.id) return;
+
+		try {
+			// If dropping a parent onto its own child, interchange them!
+			if (task.parent_task_id === draggedTaskId) {
+				await swapParentAndSubtask(draggedTaskId, task.id);
+				toastSuccess('Interchanged parent and child task');
+				return;
+			}
+			await assignTaskParent(draggedTaskId, task.id);
+			toastSuccess(`Attached as subtask of "${task.title}"`);
+		} catch (err: any) {
+			toastError(err?.message || 'Cannot move task here');
+		}
+	}
 
 	$: isNewAssigned =
 		task.status !== 'Completed' &&
@@ -64,7 +163,14 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
 	on:click={handleCardClick}
-	class="group relative cursor-pointer rounded-xl border border-[#262a30] bg-[#181b20] p-3.5 shadow-md transition-all duration-150 hover:border-[#333842] hover:bg-[#1b1f25]"
+	draggable="true"
+	on:dragstart={handleTaskDragStart}
+	on:dragover={handleTaskDragOver}
+	on:dragleave={handleTaskDragLeave}
+	on:drop={handleTaskDropOnCard}
+	class="group relative cursor-pointer rounded-xl border p-3.5 shadow-md transition-all duration-150 {isDragOverCard
+		? 'border-lime-400 bg-[#1e2420] ring-2 ring-lime-400/50'
+		: 'border-[#262a30] bg-[#181b20] hover:border-[#333842] hover:bg-[#1b1f25]'}"
 >
 	{#if isNewAssigned}
 		<span
@@ -147,6 +253,62 @@
 					>
 						Open details
 					</button>
+
+					<button
+						type="button"
+						on:click={() => {
+							actionMenuOpen = false;
+							dispatch('addSubtask', task);
+						}}
+						class="block w-full px-3 py-1.5 text-left text-xs text-lime-400 hover:bg-[#1f2329]"
+					>
+						+ Add subtask
+					</button>
+
+					{#if task.parent_task_id}
+						<button
+							type="button"
+							on:click={handleSwapWithMyParent}
+							class="block w-full px-3 py-1.5 text-left text-xs text-cyan-400 hover:bg-[#1f2329]"
+						>
+							⇄ Swap with parent
+						</button>
+						<button
+							type="button"
+							on:click={(e) => handleMoveToParent(null, e)}
+							class="block w-full px-3 py-1.5 text-left text-xs text-amber-300 hover:bg-[#1f2329]"
+						>
+							↑ Make standalone
+						</button>
+					{/if}
+
+					{#if validParents.length > 0}
+						<div class="border-t border-[#262a30] pt-1 mt-1">
+							<button
+								type="button"
+								on:click|stopPropagation={() => (moveParentSubmenuOpen = !moveParentSubmenuOpen)}
+								class="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-gray-300 hover:bg-[#1f2329]"
+							>
+								<span>Move under parent</span>
+								<span>{moveParentSubmenuOpen ? '▴' : '▾'}</span>
+							</button>
+							{#if moveParentSubmenuOpen}
+								<div class="max-h-36 overflow-y-auto bg-[#101215] py-1">
+									{#each validParents as candidate (candidate.id)}
+										<button
+											type="button"
+											on:click={(e) => handleMoveToParent(candidate.id, e)}
+											class="block w-full truncate px-4 py-1 text-left text-[11px] text-gray-300 hover:bg-[#1f2329] hover:text-lime-400"
+											title={candidate.title}
+										>
+											↳ {candidate.title}
+										</button>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/if}
+
 					{#if imageAttachments.length > 0}
 						<button
 							type="button"
@@ -177,6 +339,17 @@
 		</div>
 	</div>
 
+	{#if parentTask}
+		<div
+			on:click|stopPropagation={() => dispatch('select', parentTask)}
+			class="mb-1.5 inline-flex max-w-full items-center gap-1 rounded-md border border-cyan-500/30 bg-cyan-950/25 px-2 py-0.5 text-[10px] font-medium text-cyan-300 hover:border-cyan-400"
+			title="Click to open parent task: {parentTask.title}"
+		>
+			<span>↳ Subtask of:</span>
+			<span class="truncate font-semibold">{parentTask.title}</span>
+		</div>
+	{/if}
+
 	<!-- 2. Task Title -->
 	<h3 class="mb-3 text-sm font-bold leading-snug text-white group-hover:text-lime-300 transition-colors">
 		{task.title}
@@ -198,6 +371,104 @@
 			></div>
 		</div>
 	</div>
+
+	<!-- 3b. Subtasks Section -->
+	{#if subtasks.length > 0}
+		<div
+			on:click|stopPropagation
+			class="mb-3.5 rounded-lg border border-[#262a30] bg-[#141619] p-2.5"
+		>
+			<div class="flex items-center justify-between text-[11px]">
+				<button
+					type="button"
+					on:click={() => (subtasksExpanded = !subtasksExpanded)}
+					class="inline-flex items-center gap-1.5 font-semibold text-gray-200 hover:text-lime-400"
+				>
+					<svg
+						class="h-3.5 w-3.5 text-lime-400 transition-transform {subtasksExpanded ? 'rotate-90' : ''}"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+					</svg>
+					<span>Subtasks ({subtaskProgress.completed}/{subtaskProgress.total})</span>
+				</button>
+
+				<button
+					type="button"
+					on:click={() => dispatch('addSubtask', task)}
+					class="rounded px-1.5 py-0.5 text-[10px] font-semibold text-lime-400 hover:bg-[#1f2329]"
+					title="Add subtask"
+				>
+					+ Add
+				</button>
+			</div>
+
+			{#if subtasksExpanded}
+				<div class="mt-2 space-y-1.5 border-t border-[#262a30]/70 pt-2">
+					{#each subtasks as sub (sub.id)}
+						<div
+							draggable="true"
+							on:dragstart={(e) => {
+								e.stopPropagation();
+								if (e.dataTransfer) {
+									e.dataTransfer.effectAllowed = 'move';
+									e.dataTransfer.setData('application/x-rapidtools-task-id', sub.id);
+								}
+							}}
+							class="group/sub flex items-center justify-between gap-1.5 rounded-md bg-[#181b20] px-2 py-1.5 text-xs transition hover:bg-[#1f242b]"
+						>
+							<div class="flex min-w-0 flex-1 items-center gap-2">
+								<input
+									type="checkbox"
+									checked={sub.status === 'Completed'}
+									on:change={() =>
+										dispatch('statusChange', {
+											task: sub,
+											status: sub.status === 'Completed' ? 'To do' : 'Completed'
+										})}
+									class="h-3.5 w-3.5 flex-shrink-0 rounded border-[#3a404a] bg-[#141619] text-lime-500 focus:ring-lime-500"
+								/>
+								<button
+									type="button"
+									on:click={() => dispatch('select', sub)}
+									class="truncate text-left text-xs {sub.status === 'Completed'
+										? 'line-through text-gray-500'
+										: 'text-gray-200 hover:text-lime-300'}"
+								>
+									{sub.title}
+								</button>
+							</div>
+
+							<div class="flex items-center gap-1 opacity-0 transition group-hover/sub:opacity-100">
+								<button
+									type="button"
+									on:click={(e) => handleSwapWithSubtask(sub, e)}
+									class="rounded p-0.5 text-[10px] text-gray-400 hover:bg-[#262a30] hover:text-cyan-400"
+									title="Swap with parent (make this the parent task)"
+								>
+									⇄
+								</button>
+								<button
+									type="button"
+									on:click={async (e) => {
+										e.stopPropagation();
+										await promoteSubtaskToParent(sub.id);
+										toastSuccess(`"${sub.title}" is now a standalone task`);
+									}}
+									class="rounded p-0.5 text-[10px] text-gray-400 hover:bg-[#262a30] hover:text-amber-300"
+									title="Promote to standalone task"
+								>
+									↑
+								</button>
+							</div>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- 4. Assignee, Priority/Done Badge & Due Date Row -->
 	<div class="mb-3 flex flex-wrap items-center justify-between gap-1.5">

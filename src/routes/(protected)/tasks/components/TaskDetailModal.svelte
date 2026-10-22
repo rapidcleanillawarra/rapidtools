@@ -2,10 +2,20 @@
 	import { createEventDispatcher } from 'svelte';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile } from '$lib/userProfile';
-	import { availableAssignees, allDepartments, addDepartment } from '../stores';
+	import {
+		tasks,
+		availableAssignees,
+		allDepartments,
+		addDepartment,
+		subtasksByParentId,
+		assignTaskParent,
+		promoteSubtaskToParent,
+		swapParentAndSubtask
+	} from '../stores';
 	import TaskPhotoViewer from './TaskPhotoViewer.svelte';
 	import AssigneeSelect from './AssigneeSelect.svelte';
 	import {
+		createTaskRecord,
 		updateTaskFields,
 		toggleStepCompletion,
 		addStepToTask,
@@ -35,6 +45,8 @@
 		TASK_PRIORITIES,
 		STATUS_DOT_COLORS,
 		getTaskProgress,
+		getSubtaskProgress,
+		getValidParentTasks,
 		getProgressBarColor,
 		formatShortDate,
 		isImageAttachment,
@@ -48,7 +60,109 @@
 		close: void;
 		updated: TaskItem;
 		delete: TaskItem;
+		selectTask: TaskItem;
 	}>();
+
+	let newSubtaskTitle = '';
+	let isCreatingSubtask = false;
+	let existingTaskToAttachId = '';
+	let movingSubtaskId: string | null = null;
+
+	$: subtasks = task ? $subtasksByParentId[task.id] || [] : [];
+	$: subtaskProgress = getSubtaskProgress(subtasks);
+	$: parentTask =
+		task?.parent_task_id ? $tasks.find((t) => t.id === task?.parent_task_id) || null : null;
+	$: validParentOptions = task ? getValidParentTasks($tasks, task.id) : [];
+	$: attachableTasks = task
+		? $tasks.filter(
+				(t) =>
+					t.id !== task!.id &&
+					t.parent_task_id !== task!.id &&
+					t.id !== task!.parent_task_id
+			)
+		: [];
+
+	async function handleParentSelectChange(newParentId: string) {
+		if (!task) return;
+		const resolved = newParentId || null;
+		try {
+			await assignTaskParent(task.id, resolved);
+			task = { ...task, parent_task_id: resolved };
+			dispatch('updated', task);
+			toastSuccess(resolved ? 'Moved task to new parent' : 'Promoted to standalone task');
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to change parent task');
+		}
+	}
+
+	async function handleInterchangeWithParent() {
+		if (!task || !task.parent_task_id) return;
+		const oldParentId = task.parent_task_id;
+		try {
+			await swapParentAndSubtask(oldParentId, task.id);
+			const refreshed = $tasks.find((t) => t.id === task!.id);
+			if (refreshed) {
+				task = refreshed;
+				dispatch('updated', refreshed);
+			}
+			toastSuccess('Interchanged parent and child task');
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to swap with parent');
+		}
+	}
+
+	async function handleInterchangeWithChild(child: TaskItem) {
+		if (!task) return;
+		try {
+			await swapParentAndSubtask(task.id, child.id);
+			const refreshed = $tasks.find((t) => t.id === task!.id);
+			if (refreshed) {
+				task = refreshed;
+				dispatch('updated', refreshed);
+			}
+			toastSuccess(`"${child.title}" is now the parent task`);
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to swap with subtask');
+		}
+	}
+
+	async function handleQuickAddSubtask() {
+		if (!task || !newSubtaskTitle.trim()) return;
+		isCreatingSubtask = true;
+		try {
+			const created = await createTaskRecord({
+				parent_task_id: task.id,
+				title: newSubtaskTitle.trim(),
+				department: task.department,
+				status: 'To do',
+				priority: task.priority,
+				assignees: currentAssignees,
+				assignee_uid: task.assignee_uid,
+				assignee_name: task.assignee_name,
+				assignee_email: task.assignee_email,
+				due_date: task.due_date,
+				steps: []
+			});
+			tasks.update((list) => [created, ...list]);
+			newSubtaskTitle = '';
+			toastSuccess('Subtask created');
+		} catch (err) {
+			toastError('Failed to create subtask');
+		} finally {
+			isCreatingSubtask = false;
+		}
+	}
+
+	async function handleAttachExistingSubtask() {
+		if (!task || !existingTaskToAttachId) return;
+		try {
+			await assignTaskParent(existingTaskToAttachId, task.id);
+			existingTaskToAttachId = '';
+			toastSuccess('Task attached as subtask');
+		} catch (err: any) {
+			toastError(err?.message || 'Failed to attach task');
+		}
+	}
 
 	let comments: TaskComment[] = [];
 	let isLoadingComments = false;
@@ -544,6 +658,213 @@
 							handleFieldUpdate({ description: e.currentTarget.value || null })}
 						class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:border-lime-500 focus:outline-none"
 					></textarea>
+				</div>
+
+				<!-- Task Hierarchy: Parent Relationship & Subtasks -->
+				<div class="rounded-xl border border-[#262a30] bg-[#181b20] p-4 space-y-4">
+					<!-- 1. Parent Task Control (Move to another parent / Promote / Swap) -->
+					<div>
+						<div class="mb-1.5 flex items-center justify-between">
+							<span class="text-xs font-semibold uppercase tracking-wider text-gray-400">
+								Parent Task
+							</span>
+							{#if parentTask}
+								<div class="flex items-center gap-2">
+									<button
+										type="button"
+										on:click={() => parentTask && dispatch('selectTask', parentTask)}
+										class="text-xs font-semibold text-lime-400 hover:underline"
+									>
+										Open parent ↗
+									</button>
+									<button
+										type="button"
+										on:click={handleInterchangeWithParent}
+										class="rounded-md border border-cyan-500/30 bg-cyan-950/30 px-2 py-0.5 text-[11px] font-semibold text-cyan-300 transition hover:bg-cyan-900/40"
+										title="Make this subtask the parent, and make the current parent a subtask"
+									>
+										⇄ Swap with parent
+									</button>
+									<button
+										type="button"
+										on:click={() => handleParentSelectChange('')}
+										class="rounded-md border border-amber-500/30 bg-amber-950/30 px-2 py-0.5 text-[11px] font-semibold text-amber-300 transition hover:bg-amber-900/40"
+									>
+										↑ Make standalone
+									</button>
+								</div>
+							{/if}
+						</div>
+
+						<select
+							value={task.parent_task_id || ''}
+							on:change={(e) => handleParentSelectChange(e.currentTarget.value)}
+							class="w-full rounded-lg border border-[#2a2f37] bg-[#141619] px-3 py-2 text-xs text-gray-100 focus:border-lime-500 focus:outline-none"
+						>
+							<option value="">None (Standalone / Top-Level Parent Task)</option>
+							{#each validParentOptions as pOpt (pOpt.id)}
+								<option value={pOpt.id}>
+									[{pOpt.department}] {pOpt.title}
+								</option>
+							{/each}
+						</select>
+					</div>
+
+					<!-- 2. Subtasks List & Controls -->
+					<div class="border-t border-[#262a30] pt-3">
+						<div class="mb-2 flex items-center justify-between">
+							<span class="text-sm font-bold text-white">
+								Subtasks ({subtasks.length})
+							</span>
+							{#if subtasks.length > 0}
+								<span class="text-xs font-semibold text-gray-300">
+									{subtaskProgress.percent}% &middot; {subtaskProgress.completed} of {subtaskProgress.total} completed
+								</span>
+							{/if}
+						</div>
+
+						{#if subtasks.length > 0}
+							<div class="mb-3 h-1.5 w-full overflow-hidden rounded-full bg-[#262a30]">
+								<div
+									class="h-full rounded-full bg-lime-500 transition-all duration-300"
+									style="width: {subtaskProgress.percent}%;"
+								></div>
+							</div>
+
+							<div class="space-y-2 mb-3">
+								{#each subtasks as sub (sub.id)}
+									<div class="rounded-lg border border-[#262a30] bg-[#141619] p-2.5">
+										<div class="flex items-center justify-between gap-2">
+											<div class="flex min-w-0 flex-1 items-center gap-2">
+												<input
+													type="checkbox"
+													checked={sub.status === 'Completed'}
+													on:change={async () => {
+														const nextStatus =
+															sub.status === 'Completed' ? 'To do' : 'Completed';
+														tasks.update((list) =>
+															list.map((t) =>
+																t.id === sub.id ? { ...t, status: nextStatus } : t
+															)
+														);
+														await updateTaskFields(sub.id, { status: nextStatus });
+													}}
+													class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500"
+												/>
+												<button
+													type="button"
+													on:click={() => dispatch('selectTask', sub)}
+													class="truncate text-left text-xs font-semibold {sub.status === 'Completed'
+														? 'line-through text-gray-500'
+														: 'text-gray-100 hover:text-lime-400'}"
+												>
+													{sub.title}
+												</button>
+											</div>
+
+											<div class="flex items-center gap-1">
+												<button
+													type="button"
+													on:click={() => handleInterchangeWithChild(sub)}
+													class="rounded border border-[#2a2f37] bg-[#181b20] px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 hover:border-cyan-500/40"
+													title="Make this subtask the parent task and demote current task"
+												>
+													⇄ Make parent
+												</button>
+												<button
+													type="button"
+													on:click={() =>
+														(movingSubtaskId = movingSubtaskId === sub.id ? null : sub.id)}
+													class="rounded border border-[#2a2f37] bg-[#181b20] px-1.5 py-0.5 text-[10px] font-semibold text-gray-300 hover:text-white"
+													title="Move subtask to another parent"
+												>
+													Move
+												</button>
+												<button
+													type="button"
+													on:click={async () => {
+														await promoteSubtaskToParent(sub.id);
+														toastSuccess(`"${sub.title}" promoted to standalone task`);
+													}}
+													class="rounded border border-[#2a2f37] bg-[#181b20] px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:border-amber-500/40"
+													title="Promote to standalone task"
+												>
+													↑ Detach
+												</button>
+											</div>
+										</div>
+
+										{#if movingSubtaskId === sub.id}
+											<div class="mt-2 flex items-center gap-2 border-t border-[#262a30] pt-2">
+												<span class="text-[11px] text-gray-400">Move to parent:</span>
+												<select
+													value={sub.parent_task_id || ''}
+													on:change={async (e) => {
+														const targetParentId = e.currentTarget.value || null;
+														movingSubtaskId = null;
+														await assignTaskParent(sub.id, targetParentId);
+														toastSuccess('Subtask moved');
+													}}
+													class="flex-1 rounded border border-[#2a2f37] bg-[#181b20] px-2 py-1 text-xs text-gray-200"
+												>
+													<option value="">None (Standalone task)</option>
+													{#each getValidParentTasks($tasks, sub.id) as candidate (candidate.id)}
+														<option value={candidate.id}>
+															[{candidate.department}] {candidate.title}
+														</option>
+													{/each}
+												</select>
+											</div>
+										{/if}
+									</div>
+								{/each}
+							</div>
+						{/if}
+
+						<!-- Quick Create New Subtask -->
+						<div class="flex gap-2">
+							<input
+								type="text"
+								bind:value={newSubtaskTitle}
+								on:keydown={(e) => e.key === 'Enter' && handleQuickAddSubtask()}
+								placeholder="Add a new subtask..."
+								class="flex-1 rounded-lg border border-[#2a2f37] bg-[#141619] px-3 py-1.5 text-xs text-gray-200 placeholder-gray-500 focus:border-lime-500 focus:outline-none"
+							/>
+							<button
+								type="button"
+								on:click={handleQuickAddSubtask}
+								disabled={isCreatingSubtask || !newSubtaskTitle.trim()}
+								class="rounded-lg bg-lime-400 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-lime-300 disabled:opacity-50"
+							>
+								{isCreatingSubtask ? 'Adding...' : '+ Add subtask'}
+							</button>
+						</div>
+
+						<!-- Attach Existing Task as Subtask -->
+						{#if attachableTasks.length > 0}
+							<div class="mt-2 flex gap-2">
+								<select
+									bind:value={existingTaskToAttachId}
+									class="flex-1 rounded-lg border border-[#2a2f37] bg-[#141619] px-3 py-1.5 text-xs text-gray-300 focus:border-lime-500 focus:outline-none"
+								>
+									<option value="">Or attach an existing task as subtask...</option>
+									{#each attachableTasks as existing (existing.id)}
+										<option value={existing.id}>
+											[{existing.department}] {existing.title}
+										</option>
+									{/each}
+								</select>
+								<button
+									type="button"
+									on:click={handleAttachExistingSubtask}
+									disabled={!existingTaskToAttachId}
+									class="rounded-lg border border-[#2a2f37] bg-[#141619] px-3 py-1.5 text-xs font-semibold text-lime-400 hover:border-lime-500/40 disabled:opacity-40"
+								>
+									Attach
+								</button>
+							</div>
+						{/if}
+					</div>
 				</div>
 
 				<!-- Checklist Steps -->

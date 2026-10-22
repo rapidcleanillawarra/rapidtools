@@ -17,6 +17,31 @@ import { getTaskAssignees, parseAssigneesFromName } from './types';
 
 export const TASK_ATTACHMENTS_BUCKET = 'task-attachments';
 
+const LOCAL_PARENT_MAP_KEY = 'rapidtools_task_parent_map';
+
+export function getLocalParentMap(): Record<string, string | null> {
+	if (typeof window === 'undefined' || !window.localStorage) return {};
+	try {
+		const raw = localStorage.getItem(LOCAL_PARENT_MAP_KEY);
+		return raw ? JSON.parse(raw) : {};
+	} catch {
+		return {};
+	}
+}
+
+export function setLocalParentId(taskId: string, parentTaskId: string | null): void {
+	if (typeof window === 'undefined' || !window.localStorage) return;
+	try {
+		const map = getLocalParentMap();
+		if (parentTaskId) {
+			map[taskId] = parentTaskId;
+		} else {
+			delete map[taskId];
+		}
+		localStorage.setItem(LOCAL_PARENT_MAP_KEY, JSON.stringify(map));
+	} catch {}
+}
+
 function sanitizeFileName(name: string): string {
 	const base = name.replace(/^.*[\\/]/, '');
 	const noExt = base.includes('.') ? base.slice(0, base.lastIndexOf('.')) : base;
@@ -49,6 +74,8 @@ export async function fetchAllTasks(): Promise<TaskItem[]> {
 		throw error;
 	}
 
+	const localParentMap = getLocalParentMap();
+
 	return (data || []).map((row: any) => {
 		const steps: TaskStep[] = (row.task_steps || []).sort(
 			(a: TaskStep, b: TaskStep) => a.step_order - b.step_order
@@ -67,6 +94,10 @@ export async function fetchAllTasks(): Promise<TaskItem[]> {
 
 		return {
 			id: row.id,
+			parent_task_id:
+				row.parent_task_id !== undefined
+					? row.parent_task_id
+					: (localParentMap[row.id] ?? null),
 			title: row.title,
 			description: row.description,
 			department: row.department as TaskDepartment,
@@ -111,6 +142,7 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 		assignees.map((a) => a.name).join(', ') || payload.assignee_name?.trim() || '';
 
 	const insertRow: Record<string, any> = {
+		parent_task_id: payload.parent_task_id || null,
 		title: payload.title.trim(),
 		description: payload.description?.trim() || null,
 		department: payload.department,
@@ -137,10 +169,21 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 		taskError &&
 		(taskError.message?.includes('assignees') ||
 			taskError.details?.includes('assignees') ||
+			taskError.message?.includes('parent_task_id') ||
+			taskError.details?.includes('parent_task_id') ||
 			taskError.code === 'PGRST204')
 	) {
-		console.warn('tasks table assignees column not available, retrying without assignees column');
-		delete insertRow.assignees;
+		console.warn('Retrying task insert without optional schema columns');
+		if (taskError.message?.includes('assignees') || taskError.details?.includes('assignees')) {
+			delete insertRow.assignees;
+		}
+		if (
+			taskError.message?.includes('parent_task_id') ||
+			taskError.details?.includes('parent_task_id') ||
+			taskError.code === 'PGRST204'
+		) {
+			delete insertRow.parent_task_id;
+		}
 		const retry = await supabase.from('tasks').insert(insertRow).select('*').single();
 		data = retry.data;
 		taskError = retry.error;
@@ -151,6 +194,10 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 		throw taskError || new Error('Failed to create task');
 	}
 	createdTask = data;
+	const resolvedParentId = payload.parent_task_id || null;
+	setLocalParentId(createdTask.id, resolvedParentId);
+	createdTask.parent_task_id = resolvedParentId;
+
 	if (!createdTask.assignees || createdTask.assignees.length === 0) {
 		createdTask.assignees = assignees;
 	}
@@ -212,6 +259,7 @@ export async function createTaskRecord(payload: CreateTaskPayload): Promise<Task
 export async function updateTaskFields(
 	taskId: string,
 	updates: Partial<{
+		parent_task_id: string | null;
 		title: string;
 		description: string | null;
 		department: TaskDepartment;
@@ -226,6 +274,10 @@ export async function updateTaskFields(
 		latest_note_at: string | null;
 	}>
 ): Promise<void> {
+	if ('parent_task_id' in updates) {
+		setLocalParentId(taskId, updates.parent_task_id ?? null);
+	}
+
 	const fullUpdates: Record<string, any> = { ...updates };
 	if (updates.assignees && !updates.assignee_name) {
 		fullUpdates.assignee_name = updates.assignees.map((a) => a.name).join(', ');
@@ -245,15 +297,27 @@ export async function updateTaskFields(
 		.eq('id', taskId);
 
 	if (error) {
-		// If assignees column doesn't exist yet on Supabase, retry without assignees
+		// If assignees or parent_task_id column doesn't exist yet on Supabase, retry without them
 		if (
-			fullUpdates.assignees &&
-			(error.message?.includes('assignees') ||
-				error.details?.includes('assignees') ||
+			(fullUpdates.assignees &&
+				(error.message?.includes('assignees') ||
+					error.details?.includes('assignees') ||
+					error.code === 'PGRST204')) ||
+			(error.message?.includes('parent_task_id') ||
+				error.details?.includes('parent_task_id') ||
 				error.code === 'PGRST204')
 		) {
-			console.warn('tasks table assignees column not available, retrying without assignees column');
-			delete fullUpdates.assignees;
+			console.warn('Retrying updateTaskFields without optional columns');
+			if (error.message?.includes('assignees') || error.details?.includes('assignees')) {
+				delete fullUpdates.assignees;
+			}
+			if (
+				error.message?.includes('parent_task_id') ||
+				error.details?.includes('parent_task_id') ||
+				error.code === 'PGRST204'
+			) {
+				delete fullUpdates.parent_task_id;
+			}
 			const { error: retryError } = await supabase
 				.from('tasks')
 				.update({
@@ -721,3 +785,70 @@ export async function deleteCustomDepartment(name: string): Promise<void> {
 		await supabase.from('task_departments').delete().ilike('name', trimmed);
 	} catch (err) {}
 }
+
+/**
+ * Set or clear a task's parent_task_id (move subtask to another parent, or promote to root).
+ */
+export async function updateTaskParentId(
+	taskId: string,
+	newParentId: string | null,
+	newDepartment?: TaskDepartment
+): Promise<void> {
+	setLocalParentId(taskId, newParentId);
+
+	const updates: Record<string, any> = {
+		parent_task_id: newParentId,
+		updated_at: new Date().toISOString()
+	};
+	if (newDepartment) {
+		updates.department = newDepartment;
+	}
+
+	const { error } = await supabase.from('tasks').update(updates).eq('id', taskId);
+
+	if (error) {
+		if (
+			error.message?.includes('parent_task_id') ||
+			error.details?.includes('parent_task_id') ||
+			error.code === 'PGRST204'
+		) {
+			if (newDepartment) {
+				await supabase
+					.from('tasks')
+					.update({ department: newDepartment, updated_at: new Date().toISOString() })
+					.eq('id', taskId);
+			}
+			return;
+		}
+		console.error('Error updating task parent_task_id:', error);
+		throw error;
+	}
+}
+
+/**
+ * Interchange (swap) a parent task and one of its subtasks:
+ * - The child subtask takes the parent's former parent_task_id (e.g., null if root).
+ * - The former parent becomes a child of the promoted subtask.
+ * - Any other sibling subtasks of the former parent are re-pointed to the new parent task.
+ */
+export async function swapParentAndChildTaskInDb(
+	parentTask: TaskItem,
+	childTask: TaskItem,
+	siblingTaskIds: string[] = []
+): Promise<void> {
+	const grandParentId = parentTask.parent_task_id ?? null;
+
+	// 1. Promote childTask to grandParentId
+	await updateTaskParentId(childTask.id, grandParentId, parentTask.department);
+
+	// 2. Demote parentTask to be a child of childTask
+	await updateTaskParentId(parentTask.id, childTask.id, parentTask.department);
+
+	// 3. Re-point any other siblings to the new parent (childTask.id)
+	for (const sibId of siblingTaskIds) {
+		if (sibId !== childTask.id && sibId !== parentTask.id) {
+			await updateTaskParentId(sibId, childTask.id);
+		}
+	}
+}
+

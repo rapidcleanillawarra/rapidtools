@@ -91,6 +91,7 @@ export interface TaskAssignee {
 
 export interface TaskItem {
 	id: string;
+	parent_task_id?: string | null;
 	title: string;
 	description: string | null;
 	department: TaskDepartment;
@@ -125,6 +126,7 @@ export interface TaskFilters {
 }
 
 export interface CreateTaskPayload {
+	parent_task_id?: string | null;
 	title: string;
 	description?: string;
 	department: TaskDepartment;
@@ -145,6 +147,13 @@ export interface TaskColumnGroup {
 	label: string;
 	dotColorClass: string;
 	tasks: TaskItem[];
+}
+
+export interface UserBucketPreferences {
+	/** Ordered list of department/bucket names for the current user's view */
+	order: string[];
+	/** List of department/bucket names hidden in the current user's view */
+	hidden: string[];
 }
 
 export const DEFAULT_TASK_DEPARTMENTS: string[] = [
@@ -552,4 +561,62 @@ export function isTaskAssignedToUser(
 	const singleNameMatch = name && (task.assignee_name || '').trim().toLowerCase() === name;
 	return Boolean(singleEmailMatch || singleNameMatch);
 }
+
+/**
+ * Calculate subtask completion summary for a given parent task.
+ */
+export function getSubtaskProgress(subtasks: TaskItem[] = []): {
+	completed: number;
+	total: number;
+	percent: number;
+} {
+	const total = subtasks.length;
+	if (total === 0) {
+		return { completed: 0, total: 0, percent: 0 };
+	}
+	const completed = subtasks.filter((t) => t.status === 'Completed').length;
+	const percent = Math.round((completed / total) * 100);
+	return { completed, total, percent };
+}
+
+/**
+ * Returns true if setting `candidateParentId` as the parent of `taskId`
+ * would create a circular reference (a task cannot be its own ancestor).
+ */
+export function wouldCreateSubtaskCycle(
+	allTasks: TaskItem[],
+	taskId: string,
+	candidateParentId: string | null | undefined
+): boolean {
+	if (!candidateParentId) return false;
+	if (taskId === candidateParentId) return true;
+
+	const map = new Map<string, TaskItem>();
+	for (const t of allTasks) {
+		map.set(t.id, t);
+	}
+
+	let currentId: string | null | undefined = candidateParentId;
+	const visited = new Set<string>();
+
+	while (currentId) {
+		if (currentId === taskId) return true;
+		if (visited.has(currentId)) break;
+		visited.add(currentId);
+		const node = map.get(currentId);
+		currentId = node?.parent_task_id || null;
+	}
+
+	return false;
+}
+
+/**
+ * Returns all tasks that are valid parent candidates for `taskId`
+ * (excludes `taskId` itself and any of its descendants).
+ */
+export function getValidParentTasks(allTasks: TaskItem[], taskId?: string | null): TaskItem[] {
+	if (!taskId) return allTasks;
+	return allTasks.filter((t) => t.id !== taskId && !wouldCreateSubtaskCycle(allTasks, taskId, t.id));
+}
+
 

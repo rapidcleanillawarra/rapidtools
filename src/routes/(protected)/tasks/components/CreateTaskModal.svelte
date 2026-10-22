@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { teamMembers, availableAssignees, allDepartments, addDepartment } from '../stores';
+	import { tasks, teamMembers, availableAssignees, allDepartments, addDepartment } from '../stores';
 	import { createTaskRecord } from '../tasksService';
 	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
@@ -19,6 +19,7 @@
 
 	export let open = false;
 	export let defaultDepartment: TaskDepartment = 'Operations';
+	export let defaultParentTaskId: string | null = null;
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -32,9 +33,15 @@
 	let priority: TaskPriority = 'Normal';
 	let dueDate = '';
 	let status: TaskStatus = 'To do';
+	let selectedParentTaskId: string = '';
 
 	let isCreatingDept = false;
 	let newDeptInput = '';
+
+	$: if (open && defaultParentTaskId && !selectedParentTaskId) {
+		selectedParentTaskId = defaultParentTaskId;
+	}
+	$: rootTaskOptions = $tasks.filter((t) => !t.parent_task_id);
 
 	// Initialize with 2 blank step rows matching the screenshot
 	let steps: { id: string; label: string; is_completed: boolean }[] = [
@@ -105,6 +112,7 @@
 		priority = 'Normal';
 		dueDate = '';
 		status = 'To do';
+		selectedParentTaskId = defaultParentTaskId || '';
 		steps = [
 			{ id: crypto.randomUUID(), label: '', is_completed: false },
 			{ id: crypto.randomUUID(), label: '', is_completed: false }
@@ -161,6 +169,7 @@
 			const assigneeNames = selectedAssignees.map((a) => a.name).join(', ');
 
 			const created = await createTaskRecord({
+				parent_task_id: selectedParentTaskId || null,
 				title: title.trim(),
 				description: description.trim() || undefined,
 				department: dept,
@@ -426,6 +435,29 @@
 							{/each}
 						</select>
 					</label>
+				</div>
+
+				<!-- Parent Task (Optional) -->
+				<div>
+					<label for="new-task-parent" class="mb-1.5 block text-sm font-semibold text-white">
+						Parent task <span class="text-xs font-normal text-gray-400">(Optional — make this a subtask)</span>
+					</label>
+					<select
+						id="new-task-parent"
+						bind:value={selectedParentTaskId}
+						on:change={() => {
+							const found = $tasks.find((t) => t.id === selectedParentTaskId);
+							if (found) selectedDepartment = found.department;
+						}}
+						class="w-full rounded-lg border border-[#2a2f37] bg-[#181b20] px-3.5 py-2.5 text-sm text-gray-100 focus:border-lime-500 focus:outline-none"
+					>
+						<option value="" class="bg-[#141619] text-gray-400">None (Standalone / Parent Task)</option>
+						{#each rootTaskOptions as parentOpt (parentOpt.id)}
+							<option value={parentOpt.id} class="bg-[#141619] text-gray-100">
+								[{parentOpt.department}] {parentOpt.title}
+							</option>
+						{/each}
+					</select>
 				</div>
 
 				<!-- Checklist Section -->

@@ -2,7 +2,21 @@
 	import { createEventDispatcher } from 'svelte';
 	import { currentUser } from '$lib/firebase';
 	import { userProfile } from '$lib/userProfile';
-	import { groupedTasks, groupBy, sortBy, seenTaskIds } from '../stores';
+	import {
+		groupedTasks,
+		groupBy,
+		sortBy,
+		seenTaskIds,
+		visibleDepartments,
+		hiddenBucketsCount,
+		moveBucket,
+		hideBucket,
+		showAllBuckets,
+		subtasksByParentId,
+		promoteSubtaskToParent,
+		swapParentAndSubtask
+	} from '../stores';
+	import { toastSuccess, toastError } from '$lib/utils/toast';
 	import {
 		type TaskItem,
 		type TaskStatus,
@@ -28,7 +42,18 @@
 		deleteTask: TaskItem;
 		addBucket: void;
 		openPhotos: { task: TaskItem; initialIndex: number };
+		addSubtask: TaskItem;
 	}>();
+
+	let collapsedParentIds = new Set<string>();
+
+	function toggleParentRow(taskId: string, e: MouseEvent) {
+		e.stopPropagation();
+		const next = new Set(collapsedParentIds);
+		if (next.has(taskId)) next.delete(taskId);
+		else next.add(taskId);
+		collapsedParentIds = next;
+	}
 
 	function toggleColumnSort(field: TaskSortField) {
 		sortBy.update((current) => {
@@ -45,7 +70,7 @@
 </script>
 
 <div class="space-y-6">
-	{#each $groupedTasks as group (group.key)}
+	{#each $groupedTasks as group, groupIdx (group.key)}
 		<div class="overflow-hidden rounded-xl border border-[#262a30] bg-[#141619] shadow-lg">
 			<!-- Group Header Bar -->
 			<div class="flex items-center justify-between border-b border-[#262a30] bg-[#181b20] px-4 py-3">
@@ -59,16 +84,61 @@
 					</span>
 				</div>
 
-				<button
-					type="button"
-					on:click={() => dispatch('addTask', group.key)}
-					class="inline-flex items-center gap-1 rounded-lg border border-[#262a30] bg-[#141619] px-2.5 py-1 text-xs font-semibold text-lime-400 transition hover:border-lime-500/40 hover:bg-[#1f2329]"
-				>
-					<svg class="h-3.5 w-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-					</svg>
-					<span>Add task</span>
-				</button>
+				<div class="flex items-center gap-1.5">
+					{#if $groupBy === 'department'}
+						<button
+							type="button"
+							disabled={groupIdx === 0}
+							on:click={() => moveBucket(group.key, 'left', true)}
+							class="rounded-lg border border-[#262a30] bg-[#141619] p-1 text-gray-400 transition hover:border-[#333842] hover:text-white disabled:opacity-30"
+							title="Move bucket up"
+						>
+							<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+							</svg>
+						</button>
+						<button
+							type="button"
+							disabled={groupIdx === $visibleDepartments.length - 1}
+							on:click={() => moveBucket(group.key, 'right', true)}
+							class="rounded-lg border border-[#262a30] bg-[#141619] p-1 text-gray-400 transition hover:border-[#333842] hover:text-white disabled:opacity-30"
+							title="Move bucket down"
+						>
+							<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+							</svg>
+						</button>
+						<button
+							type="button"
+							on:click={() => {
+								hideBucket(group.key);
+								toastSuccess(`Hidden "${group.label}" from your view`);
+							}}
+							class="rounded-lg border border-[#262a30] bg-[#141619] p-1 text-gray-400 transition hover:border-amber-500/40 hover:text-amber-300"
+							title="Hide bucket from your view"
+						>
+							<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+								/>
+							</svg>
+						</button>
+					{/if}
+
+					<button
+						type="button"
+						on:click={() => dispatch('addTask', group.key)}
+						class="inline-flex items-center gap-1 rounded-lg border border-[#262a30] bg-[#141619] px-2.5 py-1 text-xs font-semibold text-lime-400 transition hover:border-lime-500/40 hover:bg-[#1f2329]"
+					>
+						<svg class="h-3.5 w-3.5 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+						</svg>
+						<span>Add task</span>
+					</button>
+				</div>
 			</div>
 
 			{#if group.tasks.length === 0}
@@ -132,6 +202,7 @@
 						</thead>
 						<tbody class="divide-y divide-[#262a30] bg-[#141619]">
 							{#each group.tasks as task (task.id)}
+								{@const subtasks = $subtasksByParentId[task.id] || []}
 								{@const isNewAssigned =
 									task.status !== 'Completed' &&
 									isTaskAssignedToUser(task, $currentUser?.email, $userProfile?.firstName) &&
@@ -147,6 +218,30 @@
 									<!-- Task Title & Department -->
 									<td class="px-4 py-3 font-semibold text-white">
 										<div class="flex items-center gap-2">
+											{#if subtasks.length > 0}
+												<button
+													type="button"
+													on:click={(e) => toggleParentRow(task.id, e)}
+													class="rounded p-0.5 text-gray-400 hover:bg-[#262a30] hover:text-white"
+													title={collapsedParentIds.has(task.id) ? 'Expand subtasks' : 'Collapse subtasks'}
+												>
+													<svg
+														class="h-4 w-4 transition-transform {!collapsedParentIds.has(task.id)
+															? 'rotate-90'
+															: ''}"
+														fill="none"
+														stroke="currentColor"
+														viewBox="0 0 24 24"
+													>
+														<path
+															stroke-linecap="round"
+															stroke-linejoin="round"
+															stroke-width="2"
+															d="M9 5l7 7-7 7"
+														/>
+													</svg>
+												</button>
+											{/if}
 											{#if isNewAssigned}
 												<span
 													class="relative flex h-2.5 w-2.5 flex-shrink-0 items-center justify-center"
@@ -157,6 +252,13 @@
 												</span>
 											{/if}
 											<span>{task.title}</span>
+											{#if subtasks.length > 0}
+												<span
+													class="inline-flex items-center rounded-full bg-[#20252e] px-2 py-0.5 text-[10px] font-semibold text-cyan-300"
+												>
+													{subtasks.filter((s) => s.status === 'Completed').length}/{subtasks.length} subtasks
+												</span>
+											{/if}
 											{#if taskPhotos.length > 0}
 												<button
 													type="button"
@@ -310,15 +412,163 @@
 
 									<!-- Actions -->
 									<td class="px-4 py-3 text-right" on:click|stopPropagation>
-										<button
-											type="button"
-											on:click={() => dispatch('deleteTask', task)}
-											class="rounded-lg border border-red-500/30 bg-red-950/20 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-900/40"
-										>
-											Delete
-										</button>
+										<div class="inline-flex items-center gap-1.5">
+											<button
+												type="button"
+												on:click={() => dispatch('addSubtask', task)}
+												class="rounded-lg border border-[#262a30] bg-[#181b20] px-2 py-1 text-xs font-semibold text-lime-400 hover:border-lime-500/40 hover:bg-[#1e2329]"
+												title="Add subtask"
+											>
+												+ Subtask
+											</button>
+											<button
+												type="button"
+												on:click={() => dispatch('deleteTask', task)}
+												class="rounded-lg border border-red-500/30 bg-red-950/20 px-2.5 py-1 text-xs font-semibold text-red-400 transition hover:bg-red-900/40"
+											>
+												Delete
+											</button>
+										</div>
 									</td>
 								</tr>
+
+								<!-- Expandable Indented Subtask Rows -->
+								{#if subtasks.length > 0 && !collapsedParentIds.has(task.id)}
+									{#each subtasks as sub (sub.id)}
+										{@const subProgress = getTaskProgress(sub.steps)}
+										{@const subDueDisplay = getDueDateDisplay(sub.due_date, sub.status)}
+										{@const subAssignees = getTaskAssignees(sub)}
+										<tr
+											on:click={() => dispatch('selectTask', sub)}
+											class="cursor-pointer border-t border-[#1e2229] bg-[#101216]/90 transition-colors hover:bg-[#15181e]"
+										>
+											<!-- Subtask Title Indented -->
+											<td class="py-2.5 pl-10 pr-4 font-medium text-gray-200">
+												<div class="flex items-center gap-2">
+													<span class="text-xs text-gray-500">↳</span>
+													<span class="text-xs {sub.status === 'Completed' ? 'line-through text-gray-500' : 'text-gray-100'}">
+														{sub.title}
+													</span>
+												</div>
+											</td>
+
+											<!-- Subtask Status -->
+											<td class="px-4 py-2.5" on:click|stopPropagation>
+												<div class="inline-flex items-center gap-1 rounded border border-[#2a2f37] bg-[#141619] px-2 py-0.5">
+													<span class="h-1.5 w-1.5 rounded-full {STATUS_DOT_COLORS[sub.status]}"></span>
+													<select
+														value={sub.status}
+														on:change={(e) =>
+															dispatch('statusChange', {
+																task: sub,
+																status: e.currentTarget.value as TaskStatus
+															})}
+														class="bg-transparent text-[11px] font-medium text-gray-200 focus:outline-none"
+													>
+														{#each TASK_STATUSES as st}
+															<option value={st} class="bg-[#141619] text-gray-200">{st}</option>
+														{/each}
+													</select>
+												</div>
+											</td>
+
+											<!-- Subtask Progress -->
+											<td class="px-4 py-2.5">
+												<div class="w-28">
+													<div class="mb-0.5 flex justify-between text-[10px]">
+														<span class="font-bold text-gray-300">{subProgress.percent}%</span>
+														<span class="text-gray-500">{subProgress.completed}/{subProgress.total}</span>
+													</div>
+													<div class="h-1 w-full overflow-hidden rounded-full bg-[#262a30]">
+														<div
+															class="h-full rounded-full {getProgressBarColor(sub.status)}"
+															style="width: {subProgress.percent}%;"
+														></div>
+													</div>
+												</div>
+											</td>
+
+											<!-- Subtask Assignee -->
+											<td class="px-4 py-2.5">
+												{#if subAssignees.length > 0}
+													<span class="text-[11px] text-gray-300">
+														{subAssignees.map((a) => a.name).join(', ')}
+													</span>
+												{:else}
+													<span class="text-[11px] text-gray-500 italic">Unassigned</span>
+												{/if}
+											</td>
+
+											<!-- Subtask Priority -->
+											<td class="px-4 py-2.5">
+												<span class="text-[10px] text-gray-400">
+													{sub.priority}
+												</span>
+											</td>
+
+											<!-- Subtask Due Date -->
+											<td class="px-4 py-2.5">
+												<span class="text-[10px] {subDueDisplay.textClass}">
+													{subDueDisplay.label}
+												</span>
+											</td>
+
+											<!-- Added -->
+											<td class="whitespace-nowrap px-4 py-2.5 text-[11px] text-gray-500">
+												{formatDateTimeShort(sub.created_at)}
+											</td>
+
+											<!-- Note -->
+											<td class="px-4 py-2.5 text-[11px] text-gray-500">
+												{formatShortDate(sub.latest_note_at || sub.updated_at)}
+											</td>
+
+											<!-- Subtask Actions: Swap, Promote, Delete -->
+											<td class="px-4 py-2.5 text-right" on:click|stopPropagation>
+												<div class="inline-flex items-center gap-1">
+													<button
+														type="button"
+														on:click={async () => {
+															try {
+																await swapParentAndSubtask(task.id, sub.id);
+																toastSuccess(`Swapped "${sub.title}" as parent task`);
+															} catch (err: any) {
+																toastError(err?.message || 'Failed to swap');
+															}
+														}}
+														class="rounded border border-[#2a2f37] bg-[#181b20] px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 hover:border-cyan-500/40"
+														title="Swap with parent task"
+													>
+														⇄ Swap
+													</button>
+													<button
+														type="button"
+														on:click={async () => {
+															try {
+																await promoteSubtaskToParent(sub.id);
+																toastSuccess(`"${sub.title}" is now standalone`);
+															} catch (err: any) {
+																toastError(err?.message || 'Failed to promote');
+															}
+														}}
+														class="rounded border border-[#2a2f37] bg-[#181b20] px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 hover:border-amber-500/40"
+														title="Promote to standalone task"
+													>
+														↑ Detach
+													</button>
+													<button
+														type="button"
+														on:click={() => dispatch('deleteTask', sub)}
+														class="rounded px-1.5 py-0.5 text-[10px] font-semibold text-red-400 hover:bg-red-950/30"
+														title="Delete subtask"
+													>
+														✕
+													</button>
+												</div>
+											</td>
+										</tr>
+									{/each}
+								{/if}
 							{/each}
 						</tbody>
 					</table>

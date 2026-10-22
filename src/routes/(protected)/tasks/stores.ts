@@ -1,4 +1,4 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { currentUser } from '$lib/firebase';
 import { userProfile, type UserProfile } from '$lib/userProfile';
 import {
@@ -9,6 +9,7 @@ import {
 	type TaskSortKey,
 	type TaskViewMode,
 	type TaskColumnGroup,
+	type UserBucketPreferences,
 	DEFAULT_TASK_DEPARTMENTS,
 	TASK_DEPARTMENTS,
 	TASK_STATUSES,
@@ -19,9 +20,15 @@ import {
 	getDueDateDisplay,
 	getTaskAssignees,
 	compareTasks,
-	isTaskAssignedToUser
+	isTaskAssignedToUser,
+	wouldCreateSubtaskCycle
 } from './types';
-import { saveCustomDepartment, deleteCustomDepartment } from './tasksService';
+import {
+	saveCustomDepartment,
+	deleteCustomDepartment,
+	updateTaskParentId,
+	swapParentAndChildTaskInDb
+} from './tasksService';
 
 export const tasks = writable<TaskItem[]>([]);
 export const teamMembers = writable<UserProfile[]>([]);
@@ -31,6 +38,30 @@ export const activeTab = writable<TaskTab>('all');
 export const groupBy = writable<TaskGroupBy>('department');
 export const sortBy = writable<TaskSortKey>('created_at_desc');
 export const viewMode = writable<TaskViewMode>('board');
+
+// Persist & sync viewMode per user in localStorage
+const VIEW_MODE_STORAGE_PREFIX = 'rapidtools_tasks_view_mode_';
+
+function getViewModeStorageKey(userEmail?: string | null): string {
+	const sanitized = (userEmail || 'anonymous')
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9_-]/g, '_');
+	return `${VIEW_MODE_STORAGE_PREFIX}${sanitized}`;
+}
+
+let isSyncingViewMode = false;
+
+viewMode.subscribe((val) => {
+	if (typeof window === 'undefined' || isSyncingViewMode) return;
+	try {
+		const user = get(currentUser);
+		const key = getViewModeStorageKey(user?.email);
+		localStorage.setItem(key, val);
+	} catch (err) {
+		console.error('Failed to persist view mode:', err);
+	}
+});
 
 export const customDepartments = writable<string[]>([]);
 export const departmentColors = writable<Record<string, string>>({});
@@ -67,6 +98,239 @@ export const allDepartments = derived(
 		return list;
 	}
 );
+
+// --- User Bucket Preferences (Order & Visibility per user) ---
+const BUCKET_PREFS_STORAGE_PREFIX = 'rapidtools_tasks_bucket_prefs_';
+
+function getBucketPrefsStorageKey(userEmail?: string | null): string {
+	const sanitized = (userEmail || 'anonymous')
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9_-]/g, '_');
+	return `${BUCKET_PREFS_STORAGE_PREFIX}${sanitized}`;
+}
+
+export const bucketPreferences = writable<UserBucketPreferences>({
+	order: [],
+	hidden: []
+});
+
+function persistBucketPreferences(prefs: UserBucketPreferences): void {
+	if (typeof window === 'undefined') return;
+	try {
+		const user = get(currentUser);
+		const key = getBucketPrefsStorageKey(user?.email);
+		localStorage.setItem(key, JSON.stringify(prefs));
+	} catch (err) {
+		console.error('Failed to persist bucket preferences:', err);
+	}
+}
+
+// Initialize / sync bucketPreferences and viewMode when currentUser changes
+currentUser.subscribe(($user) => {
+	if (typeof window === 'undefined') return;
+	try {
+		// Sync View Mode
+		const viewModeKey = getViewModeStorageKey($user?.email);
+		const savedViewMode = localStorage.getItem(viewModeKey);
+		if (savedViewMode === 'board' || savedViewMode === 'list') {
+			isSyncingViewMode = true;
+			viewMode.set(savedViewMode);
+			isSyncingViewMode = false;
+		}
+
+		// Sync Bucket Preferences
+		const key = getBucketPrefsStorageKey($user?.email);
+		const raw = localStorage.getItem(key);
+		if (raw) {
+			const parsed = JSON.parse(raw);
+			bucketPreferences.set({
+				order: Array.isArray(parsed?.order) ? parsed.order : [],
+				hidden: Array.isArray(parsed?.hidden) ? parsed.hidden : []
+			});
+			return;
+		}
+		bucketPreferences.set({ order: [], hidden: [] });
+	} catch {
+		bucketPreferences.set({ order: [], hidden: [] });
+	}
+});
+
+/**
+ * All departments sorted according to the current user's custom bucket order.
+ * Any bucket not yet in `prefs.order` is appended at the end in its default order.
+ */
+export const orderedDepartments = derived(
+	[allDepartments, bucketPreferences],
+	([$allDepartments, $prefs]): string[] => {
+		const orderMap = new Map<string, number>();
+		$prefs.order.forEach((name, idx) => {
+			orderMap.set(name.toLowerCase(), idx);
+		});
+
+		return [...$allDepartments].sort((a, b) => {
+			const idxA = orderMap.get(a.toLowerCase());
+			const idxB = orderMap.get(b.toLowerCase());
+			if (idxA !== undefined && idxB !== undefined) return idxA - idxB;
+			if (idxA !== undefined) return -1;
+			if (idxB !== undefined) return 1;
+			return 0;
+		});
+	}
+);
+
+/**
+ * Ordered departments excluding buckets hidden by the current user.
+ */
+export const visibleDepartments = derived(
+	[orderedDepartments, bucketPreferences],
+	([$orderedDepartments, $prefs]): string[] => {
+		const hiddenSet = new Set($prefs.hidden.map((h) => h.toLowerCase()));
+		return $orderedDepartments.filter((dept) => !hiddenSet.has(dept.toLowerCase()));
+	}
+);
+
+/**
+ * Count of currently hidden buckets that exist in allDepartments.
+ */
+export const hiddenBucketsCount = derived(
+	[allDepartments, bucketPreferences],
+	([$allDepartments, $prefs]): number => {
+		const hiddenSet = new Set($prefs.hidden.map((h) => h.toLowerCase()));
+		return $allDepartments.filter((d) => hiddenSet.has(d.toLowerCase())).length;
+	}
+);
+
+/**
+ * Toggle whether a bucket is hidden or visible for the current user.
+ */
+export function toggleBucketVisibility(bucketName: string): void {
+	const trimmed = (bucketName || '').trim();
+	if (!trimmed) return;
+	const lower = trimmed.toLowerCase();
+
+	bucketPreferences.update((prefs) => {
+		const exists = prefs.hidden.some((h) => h.toLowerCase() === lower);
+		const nextHidden = exists
+			? prefs.hidden.filter((h) => h.toLowerCase() !== lower)
+			: [...prefs.hidden, trimmed];
+		const next: UserBucketPreferences = {
+			...prefs,
+			hidden: nextHidden
+		};
+		persistBucketPreferences(next);
+		return next;
+	});
+}
+
+/**
+ * Explicitly hide a bucket for the current user.
+ */
+export function hideBucket(bucketName: string): void {
+	const trimmed = (bucketName || '').trim();
+	if (!trimmed) return;
+	const lower = trimmed.toLowerCase();
+
+	bucketPreferences.update((prefs) => {
+		if (prefs.hidden.some((h) => h.toLowerCase() === lower)) return prefs;
+		const next: UserBucketPreferences = {
+			...prefs,
+			hidden: [...prefs.hidden, trimmed]
+		};
+		persistBucketPreferences(next);
+		return next;
+	});
+}
+
+/**
+ * Show all buckets for the current user (clears hidden list).
+ */
+export function showAllBuckets(): void {
+	bucketPreferences.update((prefs) => {
+		const next: UserBucketPreferences = { ...prefs, hidden: [] };
+		persistBucketPreferences(next);
+		return next;
+	});
+}
+
+/**
+ * Move a bucket left/up ('left') or right/down ('right') within the user's visible or full ordered list.
+ */
+export function moveBucket(
+	bucketName: string,
+	direction: 'left' | 'right',
+	onlyAmongVisible = false
+): void {
+	const currentFullOrder = [...get(orderedDepartments)];
+	const listToUse = onlyAmongVisible ? [...get(visibleDepartments)] : currentFullOrder;
+
+	const idx = listToUse.findIndex((d) => d.toLowerCase() === bucketName.toLowerCase());
+	if (idx === -1) return;
+
+	const targetIdx = direction === 'left' ? idx - 1 : idx + 1;
+	if (targetIdx < 0 || targetIdx >= listToUse.length) return;
+
+	const neighborName = listToUse[targetIdx];
+
+	// Swap bucketName and neighborName in currentFullOrder
+	const fullIdxA = currentFullOrder.findIndex(
+		(d) => d.toLowerCase() === bucketName.toLowerCase()
+	);
+	const fullIdxB = currentFullOrder.findIndex(
+		(d) => d.toLowerCase() === neighborName.toLowerCase()
+	);
+	if (fullIdxA === -1 || fullIdxB === -1) return;
+
+	const swapped = [...currentFullOrder];
+	[swapped[fullIdxA], swapped[fullIdxB]] = [swapped[fullIdxB], swapped[fullIdxA]];
+
+	bucketPreferences.update((prefs) => {
+		const next: UserBucketPreferences = {
+			...prefs,
+			order: swapped
+		};
+		persistBucketPreferences(next);
+		return next;
+	});
+}
+
+/**
+ * Move `sourceBucket` to the position of `targetBucket` (used for drag-and-drop reordering).
+ */
+export function reorderBuckets(sourceBucket: string, targetBucket: string): void {
+	if (!sourceBucket || !targetBucket) return;
+	if (sourceBucket.toLowerCase() === targetBucket.toLowerCase()) return;
+
+	const currentOrder = [...get(orderedDepartments)];
+	const fromIdx = currentOrder.findIndex(
+		(d) => d.toLowerCase() === sourceBucket.toLowerCase()
+	);
+	const toIdx = currentOrder.findIndex(
+		(d) => d.toLowerCase() === targetBucket.toLowerCase()
+	);
+	if (fromIdx === -1 || toIdx === -1) return;
+
+	const [moved] = currentOrder.splice(fromIdx, 1);
+	currentOrder.splice(toIdx, 0, moved);
+
+	bucketPreferences.update((prefs) => {
+		const next: UserBucketPreferences = {
+			...prefs,
+			order: currentOrder
+		};
+		persistBucketPreferences(next);
+		return next;
+	});
+}
+
+/**
+ * Reset both bucket order and hidden buckets back to defaults for the current user.
+ */
+export function resetBucketPreferences(): void {
+	const next: UserBucketPreferences = { order: [], hidden: [] };
+	bucketPreferences.set(next);
+	persistBucketPreferences(next);
+}
 
 /**
  * Add a new bucket or department, persist it, and update reactive stores.
@@ -186,6 +450,28 @@ export function markTaskAsSeen(taskId: string): void {
 }
 
 /**
+ * Map of parent_task_id -> sorted array of child TaskItems.
+ */
+export const subtasksByParentId = derived(
+	[tasks, sortBy],
+	([$tasks, $sortBy]): Record<string, TaskItem[]> => {
+		const map: Record<string, TaskItem[]> = {};
+		for (const t of $tasks) {
+			if (t.parent_task_id) {
+				if (!map[t.parent_task_id]) {
+					map[t.parent_task_id] = [];
+				}
+				map[t.parent_task_id].push(t);
+			}
+		}
+		for (const parentId of Object.keys(map)) {
+			map[parentId].sort((a, b) => compareTasks(a, b, $sortBy));
+		}
+		return map;
+	}
+);
+
+/**
  * Tasks filtered by activeTab ("All tasks", "My tasks", "Assigned by me") and toolbar filters.
  */
 export const filteredTasks = derived(
@@ -224,16 +510,24 @@ export const filteredTasks = derived(
 				}
 			}
 
-			// 2. Search filter
+			// 2. Search filter (matches task itself OR any of its child subtasks)
 			if ($filters.search.trim()) {
 				const q = $filters.search.trim().toLowerCase();
-				const inTitle = task.title.toLowerCase().includes(q);
-				const inDesc = (task.description || '').toLowerCase().includes(q);
-				const inAssignee =
-					task.assignee_name.toLowerCase().includes(q) ||
-					getTaskAssignees(task).some((a) => a.name.toLowerCase().includes(q));
-				const inDept = task.department.toLowerCase().includes(q);
-				if (!inTitle && !inDesc && !inAssignee && !inDept) return false;
+				const matchesTask = (item: TaskItem) => {
+					const inTitle = item.title.toLowerCase().includes(q);
+					const inDesc = (item.description || '').toLowerCase().includes(q);
+					const inAssignee =
+						item.assignee_name.toLowerCase().includes(q) ||
+						getTaskAssignees(item).some((a) => a.name.toLowerCase().includes(q));
+					const inDept = item.department.toLowerCase().includes(q);
+					return inTitle || inDesc || inAssignee || inDept;
+				};
+
+				const selfMatch = matchesTask(task);
+				const childMatch = $tasks.some(
+					(child) => child.parent_task_id === task.id && matchesTask(child)
+				);
+				if (!selfMatch && !childMatch) return false;
 			}
 
 			// 3. Assignee filter
@@ -315,19 +609,25 @@ export const taskSummaryStats = derived(
 
 /**
  * Grouped columns for the Kanban Board and List views.
+ * Respects per-user bucket order and hidden buckets when grouped by department.
  */
 export const groupedTasks = derived(
-	[filteredTasks, groupBy, sortBy, availableAssignees, allDepartments, departmentColors],
-	([$filteredTasks, $groupBy, $sortBy, $availableAssignees, $allDepartments, $departmentColors]): TaskColumnGroup[] => {
+	[filteredTasks, groupBy, sortBy, availableAssignees, visibleDepartments, departmentColors],
+	([$filteredTasks, $groupBy, $sortBy, $availableAssignees, $visibleDepartments, $departmentColors]): TaskColumnGroup[] => {
+		const filteredIds = new Set($filteredTasks.map((t) => t.id));
+		// Show root tasks, plus any subtask whose parent is not currently in filteredTasks
+		const topLevelTasks = $filteredTasks.filter(
+			(t) => !t.parent_task_id || !filteredIds.has(t.parent_task_id)
+		);
 		const sortList = (list: TaskItem[]) => [...list].sort((a, b) => compareTasks(a, b, $sortBy));
 
 		if ($groupBy === 'department') {
-			return $allDepartments.map((dept) => ({
+			return $visibleDepartments.map((dept) => ({
 				key: dept,
 				label: dept,
 				dotColorClass: $departmentColors[dept] || getDepartmentDotColor(dept),
 				tasks: sortList(
-					$filteredTasks.filter((t) => (t.department || '').toLowerCase() === dept.toLowerCase())
+					topLevelTasks.filter((t) => (t.department || '').toLowerCase() === dept.toLowerCase())
 				)
 			}));
 		}
@@ -337,7 +637,7 @@ export const groupedTasks = derived(
 				key: status,
 				label: status,
 				dotColorClass: STATUS_DOT_COLORS[status] || 'bg-gray-400',
-				tasks: sortList($filteredTasks.filter((t) => t.status === status))
+				tasks: sortList(topLevelTasks.filter((t) => t.status === status))
 			}));
 		}
 
@@ -351,7 +651,7 @@ export const groupedTasks = derived(
 				key: priority,
 				label: priority,
 				dotColorClass: priorityDots[priority] || 'bg-gray-400',
-				tasks: sortList($filteredTasks.filter((t) => t.priority === priority))
+				tasks: sortList(topLevelTasks.filter((t) => t.priority === priority))
 			}));
 		}
 
@@ -361,7 +661,7 @@ export const groupedTasks = derived(
 			label: assignee,
 			dotColorClass: 'bg-lime-400',
 			tasks: sortList(
-				$filteredTasks.filter((t) => {
+				topLevelTasks.filter((t) => {
 					const taskAssignees = getTaskAssignees(t);
 					if (taskAssignees.length > 0) {
 						return taskAssignees.some(
@@ -374,3 +674,110 @@ export const groupedTasks = derived(
 		}));
 	}
 );
+
+/**
+ * Move a task under a new parent task (or pass `null` to make it a standalone root task).
+ * Syncs department with the new parent task when moving under a parent.
+ */
+export async function assignTaskParent(
+	taskId: string,
+	newParentId: string | null
+): Promise<boolean> {
+	const currentList = get(tasks);
+	const targetTask = currentList.find((t) => t.id === taskId);
+	if (!targetTask) return false;
+
+	if (newParentId && wouldCreateSubtaskCycle(currentList, taskId, newParentId)) {
+		throw new Error('Cannot move a parent task inside its own subtask');
+	}
+
+	const newParent = newParentId ? currentList.find((t) => t.id === newParentId) : null;
+	const nextDepartment = newParent ? newParent.department : targetTask.department;
+
+	// Optimistic update
+	tasks.update((list) =>
+		list.map((t) =>
+			t.id === taskId
+				? {
+						...t,
+						parent_task_id: newParentId,
+						department: nextDepartment,
+						updated_at: new Date().toISOString()
+					}
+				: t
+		)
+	);
+
+	await updateTaskParentId(
+		taskId,
+		newParentId,
+		newParent ? nextDepartment : undefined
+	);
+	return true;
+}
+
+/**
+ * Promote a child subtask to a standalone root task (`parent_task_id = null`).
+ */
+export async function promoteSubtaskToParent(subtaskId: string): Promise<boolean> {
+	return assignTaskParent(subtaskId, null);
+}
+
+/**
+ * Dynamically interchange (swap) a parent task and one of its subtasks:
+ * - The subtask becomes the new parent task (inheriting the old parent's `parent_task_id` and `department`).
+ * - The old parent becomes a subtask of the newly promoted task.
+ * - All other subtasks of the old parent become subtasks of the newly promoted task.
+ */
+export async function swapParentAndSubtask(
+	parentTaskId: string,
+	subtaskId: string
+): Promise<void> {
+	const currentList = get(tasks);
+	const parentTask = currentList.find((t) => t.id === parentTaskId);
+	const childTask = currentList.find((t) => t.id === subtaskId);
+
+	if (!parentTask || !childTask) {
+		throw new Error('Task not found for swap');
+	}
+
+	const grandParentId = parentTask.parent_task_id ?? null;
+	const siblingIds = currentList
+		.filter((t) => t.parent_task_id === parentTaskId && t.id !== subtaskId)
+		.map((t) => t.id);
+
+	const nowIso = new Date().toISOString();
+
+	// Optimistic reactive store update
+	tasks.update((list) =>
+		list.map((t) => {
+			if (t.id === subtaskId) {
+				return {
+					...t,
+					parent_task_id: grandParentId,
+					department: parentTask.department,
+					updated_at: nowIso
+				};
+			}
+			if (t.id === parentTaskId) {
+				return {
+					...t,
+					parent_task_id: subtaskId,
+					department: parentTask.department,
+					updated_at: nowIso
+				};
+			}
+			if (siblingIds.includes(t.id)) {
+				return {
+					...t,
+					parent_task_id: subtaskId,
+					department: parentTask.department,
+					updated_at: nowIso
+				};
+			}
+			return t;
+		})
+	);
+
+	await swapParentAndChildTaskInDb(parentTask, childTask, siblingIds);
+}

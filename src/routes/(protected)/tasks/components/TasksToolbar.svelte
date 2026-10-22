@@ -7,11 +7,21 @@
 		sortBy,
 		viewMode,
 		taskSummaryStats,
-		availableAssignees
+		availableAssignees,
+		filteredTasks,
+		orderedDepartments,
+		bucketPreferences,
+		hiddenBucketsCount,
+		departmentColors,
+		toggleBucketVisibility,
+		moveBucket,
+		showAllBuckets,
+		resetBucketPreferences
 	} from '../stores';
 	import {
 		TASK_STATUSES,
 		TASK_SORT_OPTIONS,
+		getDepartmentDotColor,
 		type TaskTab,
 		type TaskGroupBy,
 		type DueDateFilter
@@ -21,6 +31,21 @@
 		newTask: void;
 		addBucket: void;
 	}>();
+
+	let bucketMenuOpen = false;
+
+	$: isBucketCustomized =
+		$bucketPreferences.order.length > 0 || $bucketPreferences.hidden.length > 0;
+
+	function isBucketHidden(dept: string, hiddenList: string[]): boolean {
+		const lower = dept.toLowerCase();
+		return hiddenList.some((h) => h.toLowerCase() === lower);
+	}
+
+	function getDeptTaskCount(dept: string, tasksList: typeof $filteredTasks): number {
+		const lower = dept.toLowerCase();
+		return tasksList.filter((t) => (t.department || '').toLowerCase() === lower).length;
+	}
 
 	const tabs: { id: TaskTab; label: string }[] = [
 		{ id: 'all', label: 'All tasks' },
@@ -288,6 +313,156 @@
 					<option value={opt.value} class="bg-[#141619] text-gray-200">{opt.label}</option>
 				{/each}
 			</select>
+
+			<!-- Customize Buckets (Order & Visibility) -->
+			{#if $groupBy === 'department'}
+				<div class="relative">
+					<button
+						type="button"
+						on:click={() => (bucketMenuOpen = !bucketMenuOpen)}
+						class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition sm:text-sm {bucketMenuOpen || $hiddenBucketsCount > 0
+							? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+							: 'border-[#262a30] bg-[#141619] text-gray-200 hover:border-[#333842] hover:text-white'}"
+						title="Customize bucket order and visibility"
+					>
+						<svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+							/>
+						</svg>
+						<span>Buckets</span>
+						{#if $hiddenBucketsCount > 0}
+							<span class="inline-flex items-center rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
+								{$hiddenBucketsCount} hidden
+							</span>
+						{/if}
+					</button>
+
+					{#if bucketMenuOpen}
+						<!-- Backdrop -->
+						<div
+							class="fixed inset-0 z-30"
+							on:click={() => (bucketMenuOpen = false)}
+						></div>
+
+						<!-- Popover Panel -->
+						<div
+							class="absolute right-0 top-full z-40 mt-2 w-72 rounded-xl border border-[#262a30] bg-[#141619] p-3 shadow-2xl"
+						>
+							<div class="mb-2 flex items-center justify-between border-b border-[#262a30] pb-2">
+								<div>
+									<h4 class="text-xs font-bold uppercase tracking-wider text-white">
+										Customize Buckets
+									</h4>
+									<p class="text-[11px] text-gray-400">
+										Show, hide, or reorder for your view
+									</p>
+								</div>
+								{#if isBucketCustomized}
+									<button
+										type="button"
+										on:click={() => resetBucketPreferences()}
+										class="text-[11px] font-semibold text-lime-400 transition hover:text-lime-300"
+									>
+										Reset
+									</button>
+								{/if}
+							</div>
+
+							<div class="max-h-64 space-y-1 overflow-y-auto pr-0.5">
+								{#each $orderedDepartments as dept, idx (dept)}
+									{@const hidden = isBucketHidden(dept, $bucketPreferences.hidden)}
+									{@const dotClass = $departmentColors[dept] || getDepartmentDotColor(dept)}
+									{@const count = getDeptTaskCount(dept, $filteredTasks)}
+									<div
+										class="flex items-center justify-between gap-2 rounded-lg border border-transparent px-2 py-1.5 transition hover:border-[#262a30] hover:bg-[#1a1d23] {hidden ? 'opacity-55' : ''}"
+									>
+										<!-- Visibility Toggle Button -->
+										<button
+											type="button"
+											on:click={() => toggleBucketVisibility(dept)}
+											class="flex flex-1 items-center gap-2 text-left text-xs font-medium {hidden ? 'text-gray-500 line-through' : 'text-gray-200'} focus:outline-none"
+											title={hidden ? `Show ${dept}` : `Hide ${dept}`}
+										>
+											{#if hidden}
+												<svg class="h-4 w-4 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+													/>
+												</svg>
+											{:else}
+												<svg class="h-4 w-4 flex-shrink-0 text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+													/>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+													/>
+												</svg>
+											{/if}
+											<span class="h-2 w-2 flex-shrink-0 rounded-full {dotClass}"></span>
+											<span class="truncate">{dept}</span>
+											<span class="ml-auto rounded-full bg-[#20242b] px-1.5 py-0.2 text-[10px] font-semibold text-gray-400">
+												{count}
+											</span>
+										</button>
+
+										<!-- Move Up / Move Down Buttons -->
+										<div class="flex items-center gap-0.5">
+											<button
+												type="button"
+												disabled={idx === 0}
+												on:click={() => moveBucket(dept, 'left', false)}
+												class="rounded p-1 text-gray-400 transition hover:bg-[#262a30] hover:text-white disabled:opacity-25 disabled:hover:bg-transparent"
+												title="Move earlier"
+											>
+												<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+												</svg>
+											</button>
+											<button
+												type="button"
+												disabled={idx === $orderedDepartments.length - 1}
+												on:click={() => moveBucket(dept, 'right', false)}
+												class="rounded p-1 text-gray-400 transition hover:bg-[#262a30] hover:text-white disabled:opacity-25 disabled:hover:bg-transparent"
+												title="Move later"
+											>
+												<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+												</svg>
+											</button>
+										</div>
+									</div>
+								{/each}
+							</div>
+
+							{#if $hiddenBucketsCount > 0}
+								<div class="mt-2 border-t border-[#262a30] pt-2">
+									<button
+										type="button"
+										on:click={() => showAllBuckets()}
+										class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#262a30] bg-[#181b20] py-1.5 text-xs font-semibold text-gray-200 transition hover:border-lime-500/40 hover:text-lime-400"
+									>
+										<span>Show all buckets ({$hiddenBucketsCount} hidden)</span>
+									</button>
+								</div>
+							{/if}
+						</div>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- Board View Button -->
 			<button

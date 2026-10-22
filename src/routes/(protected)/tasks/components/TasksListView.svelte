@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { groupedTasks, groupBy, sortBy } from '../stores';
+	import { currentUser } from '$lib/firebase';
+	import { userProfile } from '$lib/userProfile';
+	import { groupedTasks, groupBy, sortBy, seenTaskIds } from '../stores';
 	import {
 		type TaskItem,
 		type TaskStatus,
@@ -15,7 +17,8 @@
 		formatShortDate,
 		formatDateTimeShort,
 		isImageAttachment,
-		getTaskAssignees
+		getTaskAssignees,
+		isTaskAssignedToUser
 	} from '../types';
 
 	const dispatch = createEventDispatcher<{
@@ -129,6 +132,10 @@
 						</thead>
 						<tbody class="divide-y divide-[#262a30] bg-[#141619]">
 							{#each group.tasks as task (task.id)}
+								{@const isNewAssigned =
+									task.status !== 'Completed' &&
+									isTaskAssignedToUser(task, $currentUser?.email, $userProfile?.firstName) &&
+									!$seenTaskIds.has(task.id)}
 								{@const progress = getTaskProgress(task.steps)}
 								{@const dueDisplay = getDueDateDisplay(task.due_date, task.status)}
 								{@const taskPhotos = (task.attachments || []).filter(isImageAttachment)}
@@ -140,6 +147,15 @@
 									<!-- Task Title & Department -->
 									<td class="px-4 py-3 font-semibold text-white">
 										<div class="flex items-center gap-2">
+											{#if isNewAssigned}
+												<span
+													class="relative flex h-2.5 w-2.5 flex-shrink-0 items-center justify-center"
+													title="New task assigned to you"
+												>
+													<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+													<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-red-500/30"></span>
+												</span>
+											{/if}
 											<span>{task.title}</span>
 											{#if taskPhotos.length > 0}
 												<button

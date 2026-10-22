@@ -18,7 +18,8 @@ import {
 	getDepartmentDotColor,
 	getDueDateDisplay,
 	getTaskAssignees,
-	compareTasks
+	compareTasks,
+	isTaskAssignedToUser
 } from './types';
 import { saveCustomDepartment, deleteCustomDepartment } from './tasksService';
 
@@ -107,7 +108,8 @@ export const taskFilters = writable<TaskFilters>({
 	search: '',
 	assignee: 'all',
 	status: 'all',
-	dueDate: 'all'
+	dueDate: 'all',
+	onlyNew: false
 });
 
 /**
@@ -131,16 +133,76 @@ export const availableAssignees = derived(
 	}
 );
 
+// --- Seen Tasks Store (Persistent per user) ---
+const STORAGE_PREFIX = 'rapidtools_tasks_seen_';
+
+function getStorageKey(userEmail?: string | null): string {
+	const sanitized = (userEmail || 'anonymous').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+	return `${STORAGE_PREFIX}${sanitized}`;
+}
+
+export const seenTaskIds = writable<Set<string>>(new Set());
+
+// Initialize / sync seen task IDs when currentUser changes
+currentUser.subscribe(($user) => {
+	if (typeof window === 'undefined') return;
+	try {
+		const key = getStorageKey($user?.email);
+		const raw = localStorage.getItem(key);
+		if (raw) {
+			const arr = JSON.parse(raw);
+			if (Array.isArray(arr)) {
+				seenTaskIds.set(new Set(arr));
+				return;
+			}
+		}
+		seenTaskIds.set(new Set());
+	} catch {
+		seenTaskIds.set(new Set());
+	}
+});
+
+/**
+ * Marks a task as seen by the current user and persists to localStorage.
+ */
+export function markTaskAsSeen(taskId: string): void {
+	if (!taskId) return;
+	seenTaskIds.update((set) => {
+		if (set.has(taskId)) return set;
+		const next = new Set(set);
+		next.add(taskId);
+		if (typeof window !== 'undefined') {
+			try {
+				let email: string | null = null;
+				currentUser.subscribe((u) => (email = u?.email || null))();
+				const key = getStorageKey(email);
+				localStorage.setItem(key, JSON.stringify(Array.from(next)));
+			} catch (err) {
+				console.error('Failed to persist seen tasks:', err);
+			}
+		}
+		return next;
+	});
+}
+
 /**
  * Tasks filtered by activeTab ("All tasks", "My tasks", "Assigned by me") and toolbar filters.
  */
 export const filteredTasks = derived(
-	[tasks, activeTab, taskFilters, currentUser, userProfile],
-	([$tasks, $activeTab, $filters, $currentUser, $userProfile]) => {
+	[tasks, activeTab, taskFilters, currentUser, userProfile, seenTaskIds],
+	([$tasks, $activeTab, $filters, $currentUser, $userProfile, $seenIds]) => {
 		const myEmail = ($currentUser?.email || '').toLowerCase();
 		const myFirstName = ($userProfile?.firstName || '').trim().toLowerCase();
 
 		return $tasks.filter((task) => {
+			// 0. Only new assigned filter
+			if ($filters.onlyNew) {
+				if (task.status === 'Completed') return false;
+				const isAssigned = isTaskAssignedToUser(task, myEmail, myFirstName);
+				if (!isAssigned) return false;
+				if ($seenIds.has(task.id)) return false;
+			}
+
 			// 1. Tab filter
 			if ($activeTab === 'my_tasks') {
 				const taskAssignees = getTaskAssignees(task);
@@ -202,28 +264,54 @@ export const filteredTasks = derived(
 );
 
 /**
- * Top-right summary metrics: "5 open · 1 due today · 1 overdue"
+ * Derived store of new / unread tasks assigned to the current user.
  */
-export const taskSummaryStats = derived(filteredTasks, ($filteredTasks) => {
-	let openCount = 0;
-	let dueTodayCount = 0;
-	let overdueCount = 0;
+export const newAssignedTasks = derived(
+	[tasks, seenTaskIds, currentUser, userProfile],
+	([$tasks, $seenIds, $currentUser, $userProfile]) => {
+		const email = $currentUser?.email || '';
+		const name = $userProfile?.firstName || '';
 
-	for (const task of $filteredTasks) {
-		const isCompleted = task.status === 'Completed';
-		if (!isCompleted) {
-			openCount += 1;
-		}
-		const dueInfo = getDueDateDisplay(task.due_date, task.status);
-		if (dueInfo.bucket === 'today' && !isCompleted) {
-			dueTodayCount += 1;
-		} else if (dueInfo.bucket === 'overdue' && !isCompleted) {
-			overdueCount += 1;
-		}
+		return $tasks.filter((task) => {
+			if (task.status === 'Completed') return false;
+			const isAssigned = isTaskAssignedToUser(task, email, name);
+			if (!isAssigned) return false;
+			return !$seenIds.has(task.id);
+		});
 	}
+);
 
-	return { openCount, dueTodayCount, overdueCount };
-});
+/**
+ * Top-right summary metrics: "X new · 5 open · 1 due today · 1 overdue"
+ */
+export const taskSummaryStats = derived(
+	[filteredTasks, newAssignedTasks],
+	([$filteredTasks, $newAssignedTasks]) => {
+		let openCount = 0;
+		let dueTodayCount = 0;
+		let overdueCount = 0;
+
+		for (const task of $filteredTasks) {
+			const isCompleted = task.status === 'Completed';
+			if (!isCompleted) {
+				openCount += 1;
+			}
+			const dueInfo = getDueDateDisplay(task.due_date, task.status);
+			if (dueInfo.bucket === 'today' && !isCompleted) {
+				dueTodayCount += 1;
+			} else if (dueInfo.bucket === 'overdue' && !isCompleted) {
+				overdueCount += 1;
+			}
+		}
+
+		return {
+			newAssignedCount: $newAssignedTasks.length,
+			openCount,
+			dueTodayCount,
+			overdueCount
+		};
+	}
+);
 
 /**
  * Grouped columns for the Kanban Board and List views.

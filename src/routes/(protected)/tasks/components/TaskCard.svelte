@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { currentUser } from '$lib/firebase';
+	import { userProfile } from '$lib/userProfile';
+	import { seenTaskIds } from '../stores';
 	import {
 		type TaskItem,
 		type TaskStatus,
@@ -12,7 +15,8 @@
 		getDueDateDisplay,
 		formatShortDate,
 		isImageAttachment,
-		getTaskAssignees
+		getTaskAssignees,
+		isTaskAssignedToUser
 	} from '../types';
 
 	export let task: TaskItem;
@@ -26,6 +30,11 @@
 
 	let statusMenuOpen = false;
 	let actionMenuOpen = false;
+
+	$: isNewAssigned =
+		task.status !== 'Completed' &&
+		isTaskAssignedToUser(task, $currentUser?.email, $userProfile?.firstName) &&
+		!$seenTaskIds.has(task.id);
 
 	$: progress = getTaskProgress(task.steps);
 	$: progressBarColor = getProgressBarColor(task.status);
@@ -57,6 +66,16 @@
 	on:click={handleCardClick}
 	class="group relative cursor-pointer rounded-xl border border-[#262a30] bg-[#181b20] p-3.5 shadow-md transition-all duration-150 hover:border-[#333842] hover:bg-[#1b1f25]"
 >
+	{#if isNewAssigned}
+		<span
+			class="absolute -top-1.5 -right-1.5 flex h-4 w-4 z-10"
+			title="New task assigned to you"
+		>
+			<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+			<span class="relative inline-flex rounded-full h-4 w-4 bg-red-500 border-2 border-[#181b20] shadow-sm"></span>
+		</span>
+	{/if}
+
 	<!-- 1. Top Row: Status Dropdown Pill + "..." Menu -->
 	<div class="mb-2.5 flex items-center justify-between gap-2">
 		<!-- Status Pill Dropdown -->

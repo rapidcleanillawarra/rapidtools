@@ -96,6 +96,18 @@
 
 		<!-- Summary Stats -->
 		<div class="flex items-center gap-2 pb-2.5 text-xs sm:pb-3 sm:text-sm">
+			{#if $taskSummaryStats.newAssignedCount > 0}
+				<button
+					type="button"
+					on:click={() => taskFilters.update((f) => ({ ...f, onlyNew: !f.onlyNew }))}
+					class="inline-flex items-center gap-1.5 font-semibold text-rose-400 hover:text-rose-300 transition rounded-md px-1 py-0.5 {$taskFilters.onlyNew ? 'bg-rose-500/20 ring-1 ring-rose-500/40' : ''}"
+					title={$taskFilters.onlyNew ? 'Showing only new assigned tasks (click to show all)' : 'Click to filter only new assigned tasks'}
+				>
+					<span class="h-2.5 w-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+					<span>{$taskSummaryStats.newAssignedCount} new</span>
+				</button>
+				<span class="text-gray-600">&middot;</span>
+			{/if}
 			<span class="font-medium text-gray-200">{$taskSummaryStats.openCount} open</span>
 			<span class="text-gray-600">&middot;</span>
 			<span class="font-medium text-amber-400">{$taskSummaryStats.dueTodayCount} due today</span>
@@ -213,6 +225,28 @@
 					{/each}
 				</select>
 			</label>
+
+			<!-- New Assigned Tasks Filter Pill Button -->
+			<button
+				type="button"
+				on:click={() => taskFilters.update((f) => ({ ...f, onlyNew: !f.onlyNew }))}
+				class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition sm:text-sm {$taskFilters.onlyNew
+					? 'border-rose-500/50 bg-rose-500/15 text-rose-300 shadow-sm'
+					: 'border-[#262a30] bg-[#141619] text-gray-300 hover:border-[#333842] hover:text-white'}"
+				title={$taskFilters.onlyNew ? 'Showing only new assigned tasks' : 'Filter by new assigned tasks'}
+			>
+				<span class="h-2 w-2 rounded-full bg-rose-500 {$taskFilters.onlyNew ? 'animate-ping' : ''}"></span>
+				<span>New assigned</span>
+				{#if $taskSummaryStats.newAssignedCount > 0}
+					<span
+						class="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold {$taskFilters.onlyNew
+							? 'bg-rose-500 text-white'
+							: 'bg-[#2a2f37] text-gray-300'}"
+					>
+						{$taskSummaryStats.newAssignedCount}
+					</span>
+				{/if}
+			</button>
 		</div>
 
 		<!-- Right: Sort By + Group By Dropdown + Board / List View Toggle -->

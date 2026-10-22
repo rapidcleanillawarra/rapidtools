@@ -63,6 +63,7 @@ Feed one markdown file at a time in the exact order below:
 | **Phase 8** | [`08_TASK_DETAIL_DRAWER.md`](./08_TASK_DETAIL_DRAWER.md) | `TaskDetailModal.svelte` | Task detail modal/drawer to check/uncheck steps with live progress bar updates, edit metadata, update latest note, manage attachments, and post comments. |
 | **Phase 9** | [`09_PHOTO_VIEWER.md`](./09_PHOTO_VIEWER.md) | `TaskPhotoViewer.svelte` | Fullscreen photo viewer lightbox (zoom, pan, rotate, download, thumbnail carousel), task gallery grid, card/list photo triggers, and creation preview. |
 | **Phase 10** | [`10_TASK_SORTING.md`](./10_TASK_SORTING.md) | `types.ts`, `stores.ts`, `TasksToolbar.svelte`, `TasksListView.svelte` | Task sorting by Date time added (`created_at`), Priority (`Urgent`/`High`/`Normal`), and Due date (`due_date`) across Board and List views. |
+| **Phase 11** | [`11_NEW_TASK_INDICATOR_AND_SUMMARY.md`](./11_NEW_TASK_INDICATOR_AND_SUMMARY.md) | `types.ts`, `stores.ts`, `TaskCard.svelte`, `TasksListView.svelte`, `TasksToolbar.svelte`, `+page.svelte` | Red dot indicator on unread cards assigned to the current user, auto-dismiss when opened, and new assigned tasks summary counter. |
 
 
 ---

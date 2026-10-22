@@ -14,7 +14,8 @@
 		viewMode,
 		allDepartments,
 		customDepartments,
-		departmentColors
+		departmentColors,
+		markTaskAsSeen
 	} from './stores';
 	import {
 		fetchAllTasks,
@@ -82,6 +83,7 @@
 	}
 
 	function openTaskDetail(task: TaskItem) {
+		markTaskAsSeen(task.id);
 		selectedTask = task;
 	}
 

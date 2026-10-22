@@ -121,6 +121,7 @@ export interface TaskFilters {
 	assignee: string; // 'all' or assignee_name
 	status: string;   // 'all' or TaskStatus
 	dueDate: DueDateFilter;
+	onlyNew?: boolean;
 }
 
 export interface CreateTaskPayload {
@@ -523,5 +524,32 @@ export function getImageAttachments(attachments?: TaskAttachment[] | null): Task
 export function getNonImageAttachments(attachments?: TaskAttachment[] | null): TaskAttachment[] {
 	if (!attachments) return [];
 	return attachments.filter((att) => !isImageAttachment(att));
+}
+
+/**
+ * Helper to check if a task is assigned to a given user by email or name.
+ */
+export function isTaskAssignedToUser(
+	task: TaskItem,
+	userEmail?: string | null,
+	userName?: string | null
+): boolean {
+	const email = (userEmail || '').trim().toLowerCase();
+	const name = (userName || '').trim().toLowerCase();
+
+	if (!email && !name) return false;
+
+	const assignees = getTaskAssignees(task);
+	if (assignees.length > 0) {
+		return assignees.some((a) => {
+			const emailMatch = email && (a.email || '').trim().toLowerCase() === email;
+			const nameMatch = name && (a.name || '').trim().toLowerCase() === name;
+			return Boolean(emailMatch || nameMatch);
+		});
+	}
+
+	const singleEmailMatch = email && (task.assignee_email || '').trim().toLowerCase() === email;
+	const singleNameMatch = name && (task.assignee_name || '').trim().toLowerCase() === name;
+	return Boolean(singleEmailMatch || singleNameMatch);
 }
 

@@ -62,6 +62,7 @@ Feed one markdown file at a time in the exact order below:
 | **Phase 7** | [`07_CREATE_TASK_MODAL.md`](./07_CREATE_TASK_MODAL.md) | `CreateTaskModal.svelte` | Exact **New task** modal (`Task title *`, `Description`, `Assignee *`, `Department`, `Priority`, `Due date *`, `Status`, dynamic `Checklist` steps builder, and `Add attachments`). |
 | **Phase 8** | [`08_TASK_DETAIL_DRAWER.md`](./08_TASK_DETAIL_DRAWER.md) | `TaskDetailModal.svelte` | Task detail modal/drawer to check/uncheck steps with live progress bar updates, edit metadata, update latest note, manage attachments, and post comments. |
 | **Phase 9** | [`09_PHOTO_VIEWER.md`](./09_PHOTO_VIEWER.md) | `TaskPhotoViewer.svelte` | Fullscreen photo viewer lightbox (zoom, pan, rotate, download, thumbnail carousel), task gallery grid, card/list photo triggers, and creation preview. |
+| **Phase 10** | [`10_TASK_SORTING.md`](./10_TASK_SORTING.md) | `types.ts`, `stores.ts`, `TasksToolbar.svelte`, `TasksListView.svelte` | Task sorting by Date time added (`created_at`), Priority (`Urgent`/`High`/`Normal`), and Due date (`due_date`) across Board and List views. |
 
 
 ---

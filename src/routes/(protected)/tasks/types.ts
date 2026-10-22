@@ -26,6 +26,25 @@ export type TaskViewMode = 'board' | 'list';
 
 export type DueDateFilter = 'all' | 'overdue' | 'today' | 'tomorrow' | 'upcoming';
 
+export type TaskSortField = 'created_at' | 'priority' | 'due_date';
+
+export type TaskSortDirection = 'asc' | 'desc';
+
+export type TaskSortKey =
+	| 'created_at_desc'
+	| 'created_at_asc'
+	| 'priority_desc'
+	| 'priority_asc'
+	| 'due_date_asc'
+	| 'due_date_desc';
+
+export interface TaskSortOption {
+	key: TaskSortKey;
+	field: TaskSortField;
+	direction: TaskSortDirection;
+	label: string;
+}
+
 export interface TaskStep {
 	id: string;
 	task_id: string;
@@ -149,6 +168,95 @@ export const TASK_PRIORITIES: TaskPriority[] = [
 	'High',
 	'Urgent'
 ];
+
+export const TASK_PRIORITY_WEIGHT: Record<TaskPriority, number> = {
+	Urgent: 3,
+	High: 2,
+	Normal: 1
+};
+
+export const TASK_SORT_OPTIONS: TaskSortOption[] = [
+	{
+		key: 'created_at_desc',
+		field: 'created_at',
+		direction: 'desc',
+		label: 'Sort: Added (Newest)'
+	},
+	{
+		key: 'created_at_asc',
+		field: 'created_at',
+		direction: 'asc',
+		label: 'Sort: Added (Oldest)'
+	},
+	{
+		key: 'priority_desc',
+		field: 'priority',
+		direction: 'desc',
+		label: 'Sort: Priority (High → Normal)'
+	},
+	{
+		key: 'priority_asc',
+		field: 'priority',
+		direction: 'asc',
+		label: 'Sort: Priority (Normal → High)'
+	},
+	{
+		key: 'due_date_asc',
+		field: 'due_date',
+		direction: 'asc',
+		label: 'Sort: Due date (Soonest)'
+	},
+	{
+		key: 'due_date_desc',
+		field: 'due_date',
+		direction: 'desc',
+		label: 'Sort: Due date (Latest)'
+	}
+];
+
+/**
+ * Compare two tasks according to the selected TaskSortKey.
+ * Uses created_at (newest first) as a deterministic tie-breaker.
+ */
+export function compareTasks(a: TaskItem, b: TaskItem, sortKey: TaskSortKey): number {
+	const timeA = new Date(a.created_at || 0).getTime();
+	const timeB = new Date(b.created_at || 0).getTime();
+
+	if (sortKey === 'created_at_desc') {
+		return timeB - timeA;
+	}
+	if (sortKey === 'created_at_asc') {
+		return timeA - timeB;
+	}
+
+	if (sortKey === 'priority_desc' || sortKey === 'priority_asc') {
+		const weightA = TASK_PRIORITY_WEIGHT[a.priority] ?? 0;
+		const weightB = TASK_PRIORITY_WEIGHT[b.priority] ?? 0;
+		if (weightA !== weightB) {
+			return sortKey === 'priority_desc' ? weightB - weightA : weightA - weightB;
+		}
+		// Tie-breaker: soonest due date, then newest created_at
+		const dueA = parseLocalDate(a.due_date).getTime();
+		const dueB = parseLocalDate(b.due_date).getTime();
+		if (dueA !== dueB) return dueA - dueB;
+		return timeB - timeA;
+	}
+
+	if (sortKey === 'due_date_asc' || sortKey === 'due_date_desc') {
+		const dueA = a.due_date ? parseLocalDate(a.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+		const dueB = b.due_date ? parseLocalDate(b.due_date).getTime() : Number.MAX_SAFE_INTEGER;
+		if (dueA !== dueB) {
+			return sortKey === 'due_date_asc' ? dueA - dueB : dueB - dueA;
+		}
+		// Tie-breaker: highest priority first, then newest created_at
+		const weightA = TASK_PRIORITY_WEIGHT[a.priority] ?? 0;
+		const weightB = TASK_PRIORITY_WEIGHT[b.priority] ?? 0;
+		if (weightA !== weightB) return weightB - weightA;
+		return timeB - timeA;
+	}
+
+	return 0;
+}
 
 /** Dot color for default Department column headers */
 export const DEPARTMENT_DOT_COLORS: Record<string, string> = {
@@ -311,6 +419,19 @@ export function formatShortDate(dateStr: string | null | undefined): string {
 	const date = dateStr.includes('T') ? new Date(dateStr) : parseLocalDate(dateStr);
 	if (isNaN(date.getTime())) return '';
 	return date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
+}
+
+/** Format date + time (e.g. "22 Oct, 9:45 am") for created_at timestamps */
+export function formatDateTimeShort(dateStr: string | null | undefined): string {
+	if (!dateStr) return '';
+	const date = new Date(dateStr);
+	if (isNaN(date.getTime())) return '';
+	return date.toLocaleString('en-AU', {
+		day: 'numeric',
+		month: 'short',
+		hour: 'numeric',
+		minute: '2-digit'
+	});
 }
 
 /** Classify due date relative to today and return display text + color class */

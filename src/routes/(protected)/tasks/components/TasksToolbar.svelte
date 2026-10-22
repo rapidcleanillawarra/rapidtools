@@ -4,11 +4,18 @@
 		activeTab,
 		taskFilters,
 		groupBy,
+		sortBy,
 		viewMode,
 		taskSummaryStats,
 		availableAssignees
 	} from '../stores';
-	import { TASK_STATUSES, type TaskTab, type TaskGroupBy, type DueDateFilter } from '../types';
+	import {
+		TASK_STATUSES,
+		TASK_SORT_OPTIONS,
+		type TaskTab,
+		type TaskGroupBy,
+		type DueDateFilter
+	} from '../types';
 
 	const dispatch = createEventDispatcher<{
 		newTask: void;
@@ -208,8 +215,36 @@
 			</label>
 		</div>
 
-		<!-- Right: Group By Dropdown + Board / List View Toggle -->
-		<div class="flex items-center gap-2.5">
+		<!-- Right: Sort By + Group By Dropdown + Board / List View Toggle -->
+		<div class="flex flex-wrap items-center gap-2.5">
+			<!-- Sort By -->
+			<label
+				class="flex cursor-pointer items-center rounded-lg border border-[#262a30] bg-[#141619] pl-3 text-xs font-medium text-gray-200 transition hover:border-[#333842] focus-within:border-lime-500 sm:text-sm"
+			>
+				<svg
+					class="pointer-events-none h-4 w-4 flex-shrink-0 text-gray-400"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"
+					/>
+				</svg>
+				<select
+					bind:value={$sortBy}
+					aria-label="Sort tasks"
+					class="cursor-pointer border-0 bg-transparent py-2 pl-2 pr-8 text-xs font-medium text-gray-200 focus:ring-0 focus:outline-none sm:text-sm"
+				>
+					{#each TASK_SORT_OPTIONS as opt}
+						<option value={opt.key} class="bg-[#141619] text-gray-200">{opt.label}</option>
+					{/each}
+				</select>
+			</label>
+
 			<!-- Group By -->
 			<select
 				bind:value={$groupBy}

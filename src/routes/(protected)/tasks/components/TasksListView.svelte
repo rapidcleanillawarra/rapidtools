@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { groupedTasks, groupBy } from '../stores';
+	import { groupedTasks, groupBy, sortBy } from '../stores';
 	import {
 		type TaskItem,
 		type TaskStatus,
+		type TaskSortField,
 		TASK_STATUSES,
 		STATUS_DOT_COLORS,
 		getTaskProgress,
@@ -12,6 +13,7 @@
 		getAvatarColorClasses,
 		getDueDateDisplay,
 		formatShortDate,
+		formatDateTimeShort,
 		isImageAttachment,
 		getTaskAssignees
 	} from '../types';
@@ -24,6 +26,19 @@
 		addBucket: void;
 		openPhotos: { task: TaskItem; initialIndex: number };
 	}>();
+
+	function toggleColumnSort(field: TaskSortField) {
+		sortBy.update((current) => {
+			if (field === 'created_at') {
+				return current === 'created_at_desc' ? 'created_at_asc' : 'created_at_desc';
+			}
+			if (field === 'priority') {
+				return current === 'priority_desc' ? 'priority_asc' : 'priority_desc';
+			}
+			// due_date defaults to soonest (asc) first
+			return current === 'due_date_asc' ? 'due_date_desc' : 'due_date_asc';
+		});
+	}
 </script>
 
 <div class="space-y-6">
@@ -66,8 +81,48 @@
 								<th class="px-4 py-2.5 text-left">Status</th>
 								<th class="px-4 py-2.5 text-left">Progress</th>
 								<th class="px-4 py-2.5 text-left">Assignee</th>
-								<th class="px-4 py-2.5 text-left">Priority</th>
-								<th class="px-4 py-2.5 text-left">Due date</th>
+								<th class="px-4 py-2.5 text-left">
+									<button
+										type="button"
+										on:click={() => toggleColumnSort('priority')}
+										class="inline-flex items-center gap-1 uppercase tracking-wider transition hover:text-white {$sortBy.startsWith('priority_') ? 'text-lime-400' : 'text-gray-400'}"
+									>
+										<span>Priority</span>
+										{#if $sortBy === 'priority_desc'}
+											<span aria-hidden="true">↓</span>
+										{:else if $sortBy === 'priority_asc'}
+											<span aria-hidden="true">↑</span>
+										{/if}
+									</button>
+								</th>
+								<th class="px-4 py-2.5 text-left">
+									<button
+										type="button"
+										on:click={() => toggleColumnSort('due_date')}
+										class="inline-flex items-center gap-1 uppercase tracking-wider transition hover:text-white {$sortBy.startsWith('due_date_') ? 'text-lime-400' : 'text-gray-400'}"
+									>
+										<span>Due date</span>
+										{#if $sortBy === 'due_date_asc'}
+											<span aria-hidden="true">↑</span>
+										{:else if $sortBy === 'due_date_desc'}
+											<span aria-hidden="true">↓</span>
+										{/if}
+									</button>
+								</th>
+								<th class="px-4 py-2.5 text-left">
+									<button
+										type="button"
+										on:click={() => toggleColumnSort('created_at')}
+										class="inline-flex items-center gap-1 uppercase tracking-wider transition hover:text-white {$sortBy.startsWith('created_at_') ? 'text-lime-400' : 'text-gray-400'}"
+									>
+										<span>Added</span>
+										{#if $sortBy === 'created_at_desc'}
+											<span aria-hidden="true">↓</span>
+										{:else if $sortBy === 'created_at_asc'}
+											<span aria-hidden="true">↑</span>
+										{/if}
+									</button>
+								</th>
 								<th class="px-4 py-2.5 text-left">Latest note</th>
 								<th class="px-4 py-2.5 text-right">Actions</th>
 							</tr>
@@ -225,6 +280,11 @@
 										>
 											{dueDisplay.label}
 										</span>
+									</td>
+
+									<!-- Added (Date/Time Created) -->
+									<td class="whitespace-nowrap px-4 py-3 text-xs text-gray-400">
+										{formatDateTimeShort(task.created_at)}
 									</td>
 
 									<!-- Latest Note -->

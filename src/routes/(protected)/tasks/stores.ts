@@ -6,6 +6,7 @@ import {
 	type TaskTab,
 	type TaskFilters,
 	type TaskGroupBy,
+	type TaskSortKey,
 	type TaskViewMode,
 	type TaskColumnGroup,
 	DEFAULT_TASK_DEPARTMENTS,
@@ -16,7 +17,8 @@ import {
 	STATUS_DOT_COLORS,
 	getDepartmentDotColor,
 	getDueDateDisplay,
-	getTaskAssignees
+	getTaskAssignees,
+	compareTasks
 } from './types';
 import { saveCustomDepartment, deleteCustomDepartment } from './tasksService';
 
@@ -26,6 +28,7 @@ export const isLoadingTasks = writable<boolean>(true);
 
 export const activeTab = writable<TaskTab>('all');
 export const groupBy = writable<TaskGroupBy>('department');
+export const sortBy = writable<TaskSortKey>('created_at_desc');
 export const viewMode = writable<TaskViewMode>('board');
 
 export const customDepartments = writable<string[]>([]);
@@ -226,14 +229,18 @@ export const taskSummaryStats = derived(filteredTasks, ($filteredTasks) => {
  * Grouped columns for the Kanban Board and List views.
  */
 export const groupedTasks = derived(
-	[filteredTasks, groupBy, availableAssignees, allDepartments, departmentColors],
-	([$filteredTasks, $groupBy, $availableAssignees, $allDepartments, $departmentColors]): TaskColumnGroup[] => {
+	[filteredTasks, groupBy, sortBy, availableAssignees, allDepartments, departmentColors],
+	([$filteredTasks, $groupBy, $sortBy, $availableAssignees, $allDepartments, $departmentColors]): TaskColumnGroup[] => {
+		const sortList = (list: TaskItem[]) => [...list].sort((a, b) => compareTasks(a, b, $sortBy));
+
 		if ($groupBy === 'department') {
 			return $allDepartments.map((dept) => ({
 				key: dept,
 				label: dept,
 				dotColorClass: $departmentColors[dept] || getDepartmentDotColor(dept),
-				tasks: $filteredTasks.filter((t) => (t.department || '').toLowerCase() === dept.toLowerCase())
+				tasks: sortList(
+					$filteredTasks.filter((t) => (t.department || '').toLowerCase() === dept.toLowerCase())
+				)
 			}));
 		}
 
@@ -242,7 +249,7 @@ export const groupedTasks = derived(
 				key: status,
 				label: status,
 				dotColorClass: STATUS_DOT_COLORS[status] || 'bg-gray-400',
-				tasks: $filteredTasks.filter((t) => t.status === status)
+				tasks: sortList($filteredTasks.filter((t) => t.status === status))
 			}));
 		}
 
@@ -256,7 +263,7 @@ export const groupedTasks = derived(
 				key: priority,
 				label: priority,
 				dotColorClass: priorityDots[priority] || 'bg-gray-400',
-				tasks: $filteredTasks.filter((t) => t.priority === priority)
+				tasks: sortList($filteredTasks.filter((t) => t.priority === priority))
 			}));
 		}
 
@@ -265,15 +272,17 @@ export const groupedTasks = derived(
 			key: assignee,
 			label: assignee,
 			dotColorClass: 'bg-lime-400',
-			tasks: $filteredTasks.filter((t) => {
-				const taskAssignees = getTaskAssignees(t);
-				if (taskAssignees.length > 0) {
-					return taskAssignees.some(
-						(a) => a.name.toLowerCase() === assignee.toLowerCase()
-					);
-				}
-				return t.assignee_name.toLowerCase() === assignee.toLowerCase();
-			})
+			tasks: sortList(
+				$filteredTasks.filter((t) => {
+					const taskAssignees = getTaskAssignees(t);
+					if (taskAssignees.length > 0) {
+						return taskAssignees.some(
+							(a) => a.name.toLowerCase() === assignee.toLowerCase()
+						);
+					}
+					return t.assignee_name.toLowerCase() === assignee.toLowerCase();
+				})
+			)
 		}));
 	}
 );

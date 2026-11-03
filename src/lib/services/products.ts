@@ -199,6 +199,12 @@ export async function updateProduct(productId: string, updateData: any): Promise
       SEOPageHeading: updateData.seo_page_heading || updateData.SEOPageHeading
     };
 
+    if (typeof updateData.approved === 'boolean') {
+      itemData.Approved = updateData.approved;
+    } else if (typeof updateData.Approved === 'boolean') {
+      itemData.Approved = updateData.Approved;
+    }
+
     // Add categories if there are category operations
     if (updateData.categoryOperations && updateData.categoryOperations.length > 0) {
       itemData.Categories = {
@@ -244,6 +250,27 @@ export async function updateProduct(productId: string, updateData: any): Promise
     console.error('Error updating product:', error);
     throw error;
   }
+}
+
+export async function updateProductItem(item: { SKU: string; [key: string]: any }): Promise<any> {
+  const payload = {
+    Item: [item],
+    action: 'UpdateItem'
+  };
+
+  const response = await fetch(PRODUCTS_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    throw new Error(`API call failed: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
 export async function updateProductImages(

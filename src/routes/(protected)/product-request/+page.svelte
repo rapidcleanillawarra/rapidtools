@@ -29,6 +29,7 @@
     listPrice: string;
     rrp: string;
     taxIncluded: boolean;
+    approved: boolean;
     exists: boolean;
     images: ProductImageDraft[];
   }
@@ -85,6 +86,7 @@
       listPrice: '',
       rrp: '',
       taxIncluded: false,
+      approved: false,
       exists: false,
       images: []
     };
@@ -128,7 +130,8 @@
           gpm: row.gpm,
           listPrice: row.listPrice,
           rrp: row.rrp,
-          taxIncluded: row.taxIncluded
+          taxIncluded: row.taxIncluded,
+          approved: row.approved ?? false
         })),
         timestamp: Date.now()
       };
@@ -172,6 +175,7 @@
           rows = validRows.map((row: any) => {
             const processedRow = {
               ...row,
+              approved: row.approved ?? false,
               exists: false, // Reset exists flag
               images: [] as ProductImageDraft[]
             };
@@ -315,6 +319,7 @@
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">Purchase Price</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: right; font-weight: bold;">List Price</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Tax</th>
+      <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Webstore Approved</th>
       <th style="border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-weight: bold;">Images</th>
     </tr>
   </thead>
@@ -329,6 +334,7 @@
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">$${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: right;">${product.taxIncluded ? 'Yes' : 'No'}</td>
+      <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.approved ? 'Yes' : 'No'}</td>
       <td style="border: 1px solid #e5e7eb; padding: 8px; text-align: left;">${product.uploadedImages.length > 0 ? product.uploadedImages.map((image) => `<a href="${image.URL}">${image.Name}</a>`).join(', ') : '-'}</td>
     </tr>
     `).join('')}
@@ -337,7 +343,7 @@
 
       // For Teams, create a simplified ASCII table
       const teamsTable = products.map((product, index) => `
-${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | $${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | ${product.taxIncluded ? 'Yes' : 'No'} | ${product.uploadedImages.length > 0 ? product.uploadedImages.map((image) => image.URL).join(', ') : 'No images'}`).join('\n');
+${index + 1}. ${product.sku} | ${product.productName} | ${product.brand?.label || '-'} | ${product.supplier?.label || '-'} | $${parseFloat(removeCommas(product.purchasePrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | $${parseFloat(removeCommas(product.listPrice)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} | Tax: ${product.taxIncluded ? 'Yes' : 'No'} | Webstore Approved: ${product.approved ? 'Yes' : 'No'} | ${product.uploadedImages.length > 0 ? product.uploadedImages.map((image) => image.URL).join(', ') : 'No images'}`).join('\n');
 
       // Create email body with HTML formatting
       const emailBody = `
@@ -502,6 +508,7 @@ For any questions or concerns, please contact the system administrator.`;
             list_price: parseFloat(removeCommas(row.listPrice)) || 0,
             rrp: parseFloat(removeCommas(row.rrp)) || 0,
             tax_included: row.taxIncluded,
+            approved: row.approved ?? false,
             status: 'request',
             date_created: serverTimestamp(),
             requestor_uid: user?.uid || '',
@@ -1099,6 +1106,14 @@ For any questions or concerns, please contact the system administrator.`;
                 {@html applyToAllIcon}
                 Tax Included
               </button>
+              <button
+                on:click={() => applyToAll('approved', rows[0]?.approved)}
+                class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm hover:bg-lime-500/20 hover:border-lime-500/50 transition"
+                title="Apply approved (webstore) setting to all rows"
+              >
+                {@html applyToAllIcon}
+                Approved (Webstore)
+              </button>
             </div>
           </div>
         </div>
@@ -1149,6 +1164,18 @@ For any questions or concerns, please contact the system administrator.`;
                         on:click={() => applyToAll('taxIncluded', rows[0]?.taxIncluded)}
                         class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
                         title="Apply to all rows"
+                      >
+                        {@html applyToAllIcon}
+                      </button>
+                    </div>
+                  </th>
+                  <th class="px-3 py-3 text-center w-24">
+                    <div class="flex items-center justify-center gap-2">
+                      <span title="Visible / Approved for Webstore">Approved</span>
+                      <button
+                        on:click={() => applyToAll('approved', rows[0]?.approved)}
+                        class="inline-flex items-center justify-center p-1 rounded-md text-lime-400 hover:bg-lime-500/20 hover:text-lime-300 transition-colors"
+                        title="Apply approved setting to all rows"
                       >
                         {@html applyToAllIcon}
                       </button>
@@ -1264,6 +1291,16 @@ For any questions or concerns, please contact the system administrator.`;
                         type="checkbox"
                         bind:checked={row.taxIncluded}
                         class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+                      />
+                    </td>
+                    <td class="px-3 py-4 text-center w-24">
+                      <label class="sr-only" for={`approved-${i}`}>Approved (Webstore)</label>
+                      <input
+                        id={`approved-${i}`}
+                        type="checkbox"
+                        bind:checked={row.approved}
+                        class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
+                        title="Approved / visible to webstore"
                       />
                     </td>
                     <td class="py-4 pl-3 pr-6 text-right w-28">

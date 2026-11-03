@@ -22,6 +22,7 @@ export interface ProductRequest {
   rrp?: number;
   status: 'request' | 'approved' | 'rejected' | 'delete' | 'product_created';
   tax_included?: boolean;
+  approved?: boolean;
   product_creation_date?: string;
   images?: ProductRequestImage[];
   imageDrafts?: import('$lib/product-request/imageUpload').ProductImageDraft[];

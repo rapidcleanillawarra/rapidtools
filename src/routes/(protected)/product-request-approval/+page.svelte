@@ -14,7 +14,7 @@
 		toMaropostImages,
 		type ProductRequestImage
 	} from '$lib/product-request/imageUpload';
-	import { updateProductImages } from '$lib/services/products';
+	import { updateProductImages, updateProductItem } from '$lib/services/products';
 	import ProductRequestImages from '../product-request/ProductRequestImages.svelte';
 	import Select from 'svelte-select';
 
@@ -95,6 +95,7 @@
 		requestor_firstname: string;
 		requestor_lastname: string;
 		TaxIncluded: boolean;
+		Approved?: boolean;
 		SortOrder1: number;
 		SortOrder2: number;
 	}
@@ -406,6 +407,19 @@
 		});
 	}
 
+	function applyApprovedToAll() {
+		if (productRequests.length === 0) {
+			toastError('No data rows available');
+			return;
+		}
+		const sourceValue = productRequests[0].approved ?? false;
+		productRequests = productRequests.map((req) => ({
+			...req,
+			approved: sourceValue
+		}));
+		toastSuccess(`Applied Approved (${sourceValue ? 'Yes' : 'No'}) to all requests`);
+	}
+
 	function applyGPPToAll() {
 		if (productRequests.length === 0) {
 			toastError('No data rows available');
@@ -701,7 +715,8 @@
 				const data = doc.data();
 				return {
 					id: doc.id,
-					...data
+					...data,
+					approved: data.approved ?? false
 				};
 			}) as ProductRequest[];
 
@@ -733,6 +748,7 @@
 					list_price: request.list_price,
 					rrp: request.rrp,
 					tax_included: request.tax_included,
+					approved: request.approved,
 					requestor_email: request.requestor_email,
 					requestor_firstName: request.requestor_firstName,
 					requestor_lastName: request.requestor_lastName,
@@ -932,6 +948,7 @@
 							Misc02: parseFloat(request.client_mup.toString()),
 							Misc09: parseFloat(request.retail_mup.toString()),
 							Active: true,
+							Approved: Boolean(request.approved),
 							PriceGroups: {
 								PriceGroup: priceGroups
 							},
@@ -1049,12 +1066,23 @@
 						const isExistingProduct = existingSkus.includes(request.sku);
 						const requestImages = toMaropostImages(imagesByRequestId[request.id] ?? []);
 
-						if (isExistingProduct && requestImages.length > 0) {
+						if (isExistingProduct) {
 							try {
-								await updateProductImages(request.sku, requestImages);
+								const updatePayload: any = {
+									SKU: request.sku,
+									Approved: Boolean(request.approved)
+								};
+								if (requestImages.length > 0) {
+									updatePayload.Images = {
+										Image: requestImages
+									};
+								}
+								await updateProductItem(updatePayload);
 							} catch (imageError) {
-								console.error('Failed to update images for existing SKU:', request.sku, imageError);
-								failedImageUpdates.push(request.sku);
+								console.error('Failed to update existing SKU via UpdateItem:', request.sku, imageError);
+								if (requestImages.length > 0) {
+									failedImageUpdates.push(request.sku);
+								}
 							}
 						}
 
@@ -1083,6 +1111,7 @@
 							retail_mup: request.retail_mup,
 							client_price: request.client_price,
 							tax_included: request.tax_included || false,
+							approved: Boolean(request.approved),
 							approved_by: profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown User',
 							approved_by_email: profile?.email || 'Unknown Email',
 							inventory_id: inventoryId,
@@ -1135,8 +1164,9 @@
 							const clientPrice = request.client_price ? request.client_price.toFixed(2) : '0.00';
 							const rrp = request.rrp ? request.rrp.toFixed(2) : '0.00';
 							const taxInclusive = request.tax_included || false;
+							const approvedStatus = request.approved ? 'Yes' : 'No';
 
-							return `<tr><td><a href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku=${sku}">${sku}</a> ${statusIcon}</td><td>${productName}</td><td>${brand}</td><td>${supplier}</td><td>${clientPrice}</td><td>${rrp}</td><td>${taxInclusive}</td></tr>`;
+							return `<tr><td><a href="https://www.rapidsupplies.com.au/_cpanel/products/view?sku=${sku}">${sku}</a> ${statusIcon}</td><td>${productName}</td><td>${brand}</td><td>${supplier}</td><td>${clientPrice}</td><td>${rrp}</td><td>${taxInclusive}</td><td>${approvedStatus}</td></tr>`;
 						})
 						.join('');
 
@@ -1169,7 +1199,7 @@
 <p class=\"editor-paragraph\">Email: <b><strong class=\"editor-text-bold\">${requestorEmail}</strong></b></p>
 <p class=\"editor-paragraph\">📦<b><strong class=\"editor-text-bold\" style=\"color: rgb(139, 87, 42);\">Processed Products:</strong></b></p>
 <p class=\"editor-paragraph\"><small>✅ = Newly Created | ⚠️ = Already Existed</small></p>
-<table><thead><tr><th><strong>SKU</strong></th><th><strong>Product Name</strong></th><th><strong>Brand</strong></th><th><strong>Primary Supplier</strong></th><th><strong>Client Price</strong></th><th><strong>RRP</strong></th><th><strong>Tax Inclusive</strong></th></tr></thead><tbody>${tableRows}</tbody></table>`
+<table><thead><tr><th><strong>SKU</strong></th><th><strong>Product Name</strong></th><th><strong>Brand</strong></th><th><strong>Primary Supplier</strong></th><th><strong>Client Price</strong></th><th><strong>RRP</strong></th><th><strong>Tax Inclusive</strong></th><th><strong>Approved (Webstore)</strong></th></tr></thead><tbody>${tableRows}</tbody></table>`
 					};
 
 					console.log('Would send Teams notification:', notificationPayload);
@@ -1527,6 +1557,15 @@
 							{@html applyToAllIcon}
 							GPP
 						</button>
+						<button
+							type="button"
+							onclick={applyApprovedToAll}
+							class="inline-flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#1f2329] px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-lime-400 shadow-sm transition hover:border-lime-500/50 hover:bg-lime-500/20"
+							title="Apply Approved status to all rows"
+						>
+							{@html applyToAllIcon}
+							Approved
+						</button>
 					</div>
 				</div>
 			</div>
@@ -1810,6 +1849,23 @@
 				</label>
 			{/snippet}
 
+			{#snippet webstoreApprovedField(request: ProductRequest)}
+				<label class="mb-1 block text-xs font-medium text-gray-400">Webstore</label>
+				<label
+					for={`approved-${request.id}`}
+					class="flex h-[38px] cursor-pointer items-center gap-2 rounded-lg border border-[#262a30] bg-[#0e1012] px-3 transition hover:border-[#353a43]"
+					title="Approved for sale on web store (Maropost Approved status)"
+				>
+					<input
+						id={`approved-${request.id}`}
+						type="checkbox"
+						bind:checked={request.approved}
+						class={checkboxClass}
+					/>
+					<span class="select-none text-xs font-medium text-gray-300">Approved</span>
+				</label>
+			{/snippet}
+
 			{#snippet requestCheckbox(request: ProductRequest)}
 				<input
 					type="checkbox"
@@ -1938,13 +1994,14 @@
 											Calculates automatically as values change
 										</span>
 									</div>
-									<div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-3 lg:grid-cols-6">
+									<div class="grid grid-cols-2 items-end gap-3 sm:grid-cols-3 lg:grid-cols-7">
 										<div>{@render purchasePriceField(request)}</div>
 										<div>{@render markupPercentField(request)}</div>
 										<div>{@render gppField(request)}</div>
 										<div>{@render listPriceField(request)}</div>
 										<div>{@render rrpField(request)}</div>
 										<div>{@render taxFreeField(request)}</div>
+										<div>{@render webstoreApprovedField(request)}</div>
 									</div>
 								</div>
 							</div>

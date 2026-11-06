@@ -126,7 +126,20 @@ function persistBucketPreferences(prefs: UserBucketPreferences): void {
 	}
 }
 
-// Initialize / sync bucketPreferences and viewMode when currentUser changes
+// Persist & sync hideCompleted preference per user in localStorage
+const HIDE_COMPLETED_STORAGE_PREFIX = 'rapidtools_tasks_hide_completed_';
+
+function getHideCompletedStorageKey(userEmail?: string | null): string {
+	const sanitized = (userEmail || 'anonymous')
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9_-]/g, '_');
+	return `${HIDE_COMPLETED_STORAGE_PREFIX}${sanitized}`;
+}
+
+let isSyncingHideCompleted = false;
+
+// Initialize / sync bucketPreferences, viewMode, and hideCompleted when currentUser changes
 currentUser.subscribe(($user) => {
 	if (typeof window === 'undefined') return;
 	try {
@@ -138,6 +151,17 @@ currentUser.subscribe(($user) => {
 			viewMode.set(savedViewMode);
 			isSyncingViewMode = false;
 		}
+
+		// Sync Hide Completed Preference (defaults to true / ON)
+		const hideCompletedKey = getHideCompletedStorageKey($user?.email);
+		const savedHideCompleted = localStorage.getItem(hideCompletedKey);
+		isSyncingHideCompleted = true;
+		if (savedHideCompleted !== null) {
+			taskFilters.update((f) => ({ ...f, hideCompleted: savedHideCompleted === 'true' }));
+		} else {
+			taskFilters.update((f) => ({ ...f, hideCompleted: true }));
+		}
+		isSyncingHideCompleted = false;
 
 		// Sync Bucket Preferences
 		const key = getBucketPrefsStorageKey($user?.email);
@@ -373,8 +397,39 @@ export const taskFilters = writable<TaskFilters>({
 	assignee: 'all',
 	status: 'all',
 	dueDate: 'all',
-	onlyNew: false
+	onlyNew: false,
+	hideCompleted: true
 });
+
+// Persist hideCompleted changes to localStorage
+taskFilters.subscribe((val) => {
+	if (typeof window === 'undefined' || isSyncingHideCompleted) return;
+	try {
+		const user = get(currentUser);
+		const key = getHideCompletedStorageKey(user?.email);
+		if (typeof val.hideCompleted === 'boolean') {
+			localStorage.setItem(key, String(val.hideCompleted));
+		}
+	} catch (err) {
+		console.error('Failed to persist hide completed preference:', err);
+	}
+});
+
+/**
+ * Toggle whether completed tasks are hidden or visible.
+ * If enabling hideCompleted while status filter is 'Completed', resets status filter to 'all'.
+ */
+export function toggleHideCompleted(): void {
+	taskFilters.update((f) => {
+		const nextHide = !f.hideCompleted;
+		const nextStatus = nextHide && f.status === 'Completed' ? 'all' : f.status;
+		return {
+			...f,
+			hideCompleted: nextHide,
+			status: nextStatus
+		};
+	});
+}
 
 /**
  * Derived list of unique assignee names from both loaded tasks and team profiles.
@@ -541,12 +596,21 @@ export const filteredTasks = derived(
 				}
 			}
 
-			// 4. Status filter
+			// 4. Hide completed filter (active by default, bypassed if user specifically selects Completed status)
+			if (
+				$filters.hideCompleted &&
+				task.status === 'Completed' &&
+				$filters.status !== 'Completed'
+			) {
+				return false;
+			}
+
+			// 5. Status filter
 			if ($filters.status !== 'all') {
 				if (task.status !== $filters.status) return false;
 			}
 
-			// 5. Due date filter
+			// 6. Due date filter
 			if ($filters.dueDate !== 'all') {
 				const dueInfo = getDueDateDisplay(task.due_date, task.status);
 				if (dueInfo.bucket !== $filters.dueDate) return false;
@@ -576,11 +640,72 @@ export const newAssignedTasks = derived(
 );
 
 /**
+ * Count of completed tasks matching the current tab, search, and assignee filters.
+ */
+export const completedTasksCount = derived(
+	[tasks, activeTab, taskFilters, currentUser, userProfile],
+	([$tasks, $activeTab, $filters, $currentUser, $userProfile]): number => {
+		const myEmail = ($currentUser?.email || '').toLowerCase();
+		const myFirstName = ($userProfile?.firstName || '').trim().toLowerCase();
+
+		return $tasks.filter((task) => {
+			if (task.status !== 'Completed') return false;
+
+			// Tab filter
+			if ($activeTab === 'my_tasks') {
+				const taskAssignees = getTaskAssignees(task);
+				const matches = taskAssignees.some((a) => {
+					const emailMatch = myEmail && (a.email || '').toLowerCase() === myEmail;
+					const nameMatch = myFirstName && a.name.trim().toLowerCase() === myFirstName;
+					return emailMatch || nameMatch;
+				});
+				if (!matches) {
+					const rootEmailMatch =
+						myEmail && (task.assignee_email || '').toLowerCase() === myEmail;
+					const rootNameMatch =
+						myFirstName && task.assignee_name.trim().toLowerCase() === myFirstName;
+					if (!rootEmailMatch && !rootNameMatch) return false;
+				}
+			} else if ($activeTab === 'assigned_by_me') {
+				if (!myEmail || (task.assigned_by_email || '').toLowerCase() !== myEmail) {
+					return false;
+				}
+			}
+
+			// Search filter
+			if ($filters.search.trim()) {
+				const q = $filters.search.trim().toLowerCase();
+				const inTitle = task.title.toLowerCase().includes(q);
+				const inDesc = (task.description || '').toLowerCase().includes(q);
+				const inAssignee =
+					task.assignee_name.toLowerCase().includes(q) ||
+					getTaskAssignees(task).some((a) => a.name.toLowerCase().includes(q));
+				const inDept = task.department.toLowerCase().includes(q);
+				if (!inTitle && !inDesc && !inAssignee && !inDept) return false;
+			}
+
+			// Assignee filter
+			if ($filters.assignee !== 'all') {
+				const target = $filters.assignee.toLowerCase();
+				const hasAssignee = getTaskAssignees(task).some(
+					(a) => a.name.toLowerCase() === target
+				);
+				if (!hasAssignee && !task.assignee_name.toLowerCase().includes(target)) {
+					return false;
+				}
+			}
+
+			return true;
+		}).length;
+	}
+);
+
+/**
  * Top-right summary metrics: "X new · 5 open · 1 due today · 1 overdue"
  */
 export const taskSummaryStats = derived(
-	[filteredTasks, newAssignedTasks],
-	([$filteredTasks, $newAssignedTasks]) => {
+	[filteredTasks, newAssignedTasks, completedTasksCount],
+	([$filteredTasks, $newAssignedTasks, $completedCount]) => {
 		let openCount = 0;
 		let dueTodayCount = 0;
 		let overdueCount = 0;
@@ -602,7 +727,9 @@ export const taskSummaryStats = derived(
 			newAssignedCount: $newAssignedTasks.length,
 			openCount,
 			dueTodayCount,
-			overdueCount
+			overdueCount,
+			completedCount: $completedCount
+		};
 		};
 	}
 );

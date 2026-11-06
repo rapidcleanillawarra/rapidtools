@@ -123,6 +123,7 @@ export interface TaskFilters {
 	status: string;   // 'all' or TaskStatus
 	dueDate: DueDateFilter;
 	onlyNew?: boolean;
+	hideCompleted?: boolean;
 }
 
 export interface CreateTaskPayload {

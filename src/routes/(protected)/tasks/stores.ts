@@ -730,7 +730,6 @@ export const taskSummaryStats = derived(
 			overdueCount,
 			completedCount: $completedCount
 		};
-		};
 	}
 );
 

@@ -832,30 +832,6 @@
           </div>
         </div>
       {/if}
-            <div class="space-y-4">
-              <!-- Calendar skeleton -->
-              <div class="bg-gray-200 rounded-lg p-6">
-                <div class="space-y-3">
-                  <!-- Header skeleton -->
-                  <div class="flex justify-between items-center">
-                    <SkeletonLoader type="text" width="120px" height="1.5rem" />
-                    <SkeletonLoader type="text" width="80px" height="1.5rem" />
-                  </div>
-                  <!-- Calendar grid skeleton -->
-                  <div class="grid grid-cols-7 gap-1">
-                    {#each Array(35) as _}
-                      <SkeletonLoader type="card" width="100%" height="60px" />
-                    {/each}
-                  </div>
-                </div>
-              </div>
-              <div class="text-gray-600 font-medium">
-                {isLoadingSchedules ? 'Loading company data...' : 'Loading calendar events...'}
-              </div>
-            </div>
-          </div>
-        </div>
-      {/if}
       <FullCalendarWrapper 
         events={calendarEvents} 
         onMonthChange={handleMonthChange}

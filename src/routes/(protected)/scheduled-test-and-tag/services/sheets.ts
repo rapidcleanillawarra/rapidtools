@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabase';
+﻿import { supabase } from '$lib/supabase';
 import type { SheetEquipmentInfo, SheetLineRow, SheetRow, SheetRowPartRow } from './types';
 
 const SHEETS_TABLE = 'machine_inspection_sheets';

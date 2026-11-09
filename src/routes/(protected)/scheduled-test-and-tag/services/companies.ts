@@ -15,6 +15,7 @@ const LOCATIONS_TABLE = 'machine_inspection_locations';
 const CONTACTS_TABLE = 'machine_inspection_contacts';
 const NOTES_TABLE = 'machine_inspection_notes';
 const EVENTS_TABLE = 'machine_inspection_events';
+const PLACEMENTS_TABLE = 'machine_inspection_equipment_placements';
 
 const COMPANY_SELECT = `
   *,
@@ -104,19 +105,142 @@ async function insertNestedCompanyData(
 	}
 }
 
-async function replaceNestedCompanyData(
+async function syncNestedCompanyData(
 	companyId: string,
 	companyData: ScheduleFormData
 ): Promise<void> {
-	const { error: deleteLocationsError } = await supabase
+	// 1. Load existing locations for this company to sync in-place without breaking foreign keys
+	const { data: existingLocations, error: fetchLocationsError } = await supabase
 		.from(LOCATIONS_TABLE)
-		.delete()
+		.select('id, information_id, location, sub_company_name')
 		.eq('company_id', companyId);
 
-	if (deleteLocationsError) {
-		throw new Error(`Failed to clear locations: ${deleteLocationsError.message}`);
+	if (fetchLocationsError) {
+		throw new Error(`Failed to load existing locations: ${fetchLocationsError.message}`);
 	}
 
+	const existingByInfoId = new Map<string, { id: string; information_id: string; location: string; sub_company_name: string }>();
+	const existingByLocName = new Map<string, { id: string; information_id: string; location: string; sub_company_name: string }>();
+
+	for (const loc of existingLocations ?? []) {
+		if (loc.information_id) {
+			existingByInfoId.set(loc.information_id, loc);
+		}
+		if (loc.location) {
+			existingByLocName.set(loc.location.trim().toLowerCase(), loc);
+		}
+	}
+
+	const retainedLocationIds = new Set<string>();
+	const information = companyData.information ?? [];
+
+	for (let index = 0; index < information.length; index++) {
+		const info = information[index];
+		const incomingInfoId = info.information_id?.trim();
+		const incomingLocName = (info.location ?? '').trim().toLowerCase();
+
+		const existing = (incomingInfoId ? existingByInfoId.get(incomingInfoId) : undefined) ??
+			(incomingLocName ? existingByLocName.get(incomingLocName) : undefined);
+
+		let locationId: string;
+		const informationId = existing?.information_id || incomingInfoId || crypto.randomUUID();
+
+		if (existing) {
+			locationId = existing.id;
+			retainedLocationIds.add(locationId);
+
+			const { error: updateLocError } = await supabase
+				.from(LOCATIONS_TABLE)
+				.update({
+					information_id: informationId,
+					sub_company_name: info.sub_company_name,
+					location: info.location,
+					sort_order: index,
+					updated_at: new Date().toISOString()
+				})
+				.eq('id', locationId);
+
+			if (updateLocError) {
+				throw new Error(`Failed to update location "${info.location}": ${updateLocError.message}`);
+			}
+		} else {
+			const { data: newLoc, error: insertLocError } = await supabase
+				.from(LOCATIONS_TABLE)
+				.insert({
+					company_id: companyId,
+					information_id: informationId,
+					sub_company_name: info.sub_company_name,
+					location: info.location,
+					sort_order: index
+				})
+				.select('id')
+				.single();
+
+			if (insertLocError || !newLoc) {
+				throw new Error(`Failed to create location "${info.location}": ${insertLocError?.message ?? 'Unknown error'}`);
+			}
+
+			locationId = newLoc.id;
+			retainedLocationIds.add(locationId);
+		}
+
+		// Re-create contacts for this location
+		const { error: deleteContactsError } = await supabase
+			.from(CONTACTS_TABLE)
+			.delete()
+			.eq('location_id', locationId);
+
+		if (deleteContactsError) {
+			throw new Error(`Failed to clear contacts for location: ${deleteContactsError.message}`);
+		}
+
+		const contacts = info.contacts ?? [];
+		if (contacts.length > 0) {
+			const { error: contactsError } = await supabase.from(CONTACTS_TABLE).insert(
+				contacts.map((contact, contactIndex) => ({
+					location_id: locationId,
+					name: contact.name ?? '',
+					phone: contact.phone ?? '',
+					email: contact.email ?? '',
+					sort_order: contactIndex
+				}))
+			);
+
+			if (contactsError) {
+				throw new Error(`Failed to create contacts: ${contactsError.message}`);
+			}
+		}
+	}
+
+	// 2. Remove locations that were explicitly deleted by the user
+	const locationsToDelete = (existingLocations ?? []).filter(
+		(loc) => !retainedLocationIds.has(loc.id)
+	);
+
+	if (locationsToDelete.length > 0) {
+		const locIdsToDelete = locationsToDelete.map((loc) => loc.id);
+
+		// Clean up any equipment placements targeting deleted locations
+		const { error: deletePlacementsError } = await supabase
+			.from(PLACEMENTS_TABLE)
+			.delete()
+			.in('location_id', locIdsToDelete);
+
+		if (deletePlacementsError) {
+			throw new Error(`Failed to clear placements for deleted locations: ${deletePlacementsError.message}`);
+		}
+
+		const { error: deleteLocationsError } = await supabase
+			.from(LOCATIONS_TABLE)
+			.delete()
+			.in('id', locIdsToDelete);
+
+		if (deleteLocationsError) {
+			throw new Error(`Failed to delete removed locations: ${deleteLocationsError.message}`);
+		}
+	}
+
+	// 3. Sync notes
 	const { error: deleteNotesError } = await supabase
 		.from(NOTES_TABLE)
 		.delete()
@@ -126,7 +250,21 @@ async function replaceNestedCompanyData(
 		throw new Error(`Failed to clear notes: ${deleteNotesError.message}`);
 	}
 
-	await insertNestedCompanyData(companyId, companyData);
+	const notes = companyData.notes ?? [];
+	if (notes.length > 0) {
+		const { error: notesError } = await supabase.from(NOTES_TABLE).insert(
+			notes.map((note, noteIndex) => ({
+				company_id: companyId,
+				title: note.title ?? '',
+				content: note.content ?? '',
+				sort_order: noteIndex
+			}))
+		);
+
+		if (notesError) {
+			throw new Error(`Failed to create notes: ${notesError.message}`);
+		}
+	}
 }
 
 export async function loadCompanies(): Promise<void> {
@@ -224,7 +362,7 @@ export async function updateCompany(id: string, companyData: ScheduleFormData): 
 		throw new Error(`Failed to update company: ${updateError.message}`);
 	}
 
-	await replaceNestedCompanyData(id, companyData);
+	await syncNestedCompanyData(id, companyData);
 
 	const { data: fullCompany, error: loadError } = await supabase
 		.from(COMPANIES_TABLE)

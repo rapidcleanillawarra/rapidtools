@@ -1,4 +1,4 @@
-import type { CompanyListItem } from '../companies/types';
+﻿import type { CompanyListItem } from '../companies/types';
 import type { Contact, LocationInfo, Note, Schedule } from '../stores';
 
 export type { Schedule, Contact, LocationInfo, Note };

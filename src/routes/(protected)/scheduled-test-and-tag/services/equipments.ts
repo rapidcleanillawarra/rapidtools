@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabase';
+﻿import { supabase } from '$lib/supabase';
 import type { EquipmentPlacementRow, EquipmentRow } from './types';
 
 const EQUIPMENTS_TABLE = 'machine_inspection_equipments';

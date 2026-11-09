@@ -1,4 +1,4 @@
-/** @deprecated Import from ./companies instead */
+﻿/** @deprecated Import from ./companies instead */
 export {
 	createCompany as createSchedule,
 	createCompany,

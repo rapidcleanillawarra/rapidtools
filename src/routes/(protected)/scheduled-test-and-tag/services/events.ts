@@ -1,4 +1,4 @@
-import { supabase } from '$lib/supabase';
+﻿import { supabase } from '$lib/supabase';
 import type { MachineInspectionEventRow } from './types';
 
 const EVENTS_TABLE = 'machine_inspection_events';

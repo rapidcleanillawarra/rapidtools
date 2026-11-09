@@ -27,9 +27,9 @@
 	on:change={handleChange}
 	aria-label="Result"
 >
-	<option value="">—</option>
+	<option value="" class="result-option">—</option>
 	{#each RESULT_OPTIONS as option (option)}
-		<option value={option}>{labels[option]}</option>
+		<option value={option} class="result-option">{labels[option]}</option>
 	{/each}
 </select>
 
@@ -44,22 +44,27 @@
 		margin: 0;
 		font: inherit;
 		font-weight: 600;
-		color: #6b7280;
+		color: #9ca3af;
 		cursor: pointer;
 		appearance: none;
 	}
 
+	.result-option {
+		background: #141619;
+		color: #e5e7eb;
+	}
+
 	.result-select--pass {
-		color: #16a34a;
+		color: #4ade80;
 	}
 
 	.result-select--fail {
-		color: #dc2626;
+		color: #f87171;
 	}
 
 	.result-select:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
 	}
 </style>

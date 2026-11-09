@@ -469,9 +469,9 @@
 		<span slot="header">Existing sheet found</span>
 		<div slot="body" class="existing-sheet-modal-body">
 			<p class="existing-sheet-modal-copy">
-				A sheet for <strong>{activeCompany.company}</strong> already exists for
-				<strong>{defaultSheetName()}</strong>:
-				<strong>{pendingExistingSheet.name || defaultSheetName()}</strong>
+				A sheet for <strong class="text-white">{activeCompany.company}</strong> already exists for
+				<strong class="text-white">{defaultSheetName()}</strong>:
+				<strong class="text-white">{pendingExistingSheet.name || defaultSheetName()}</strong>
 				(service date {formatServiceDate(pendingExistingSheet.service_date)}).
 			</p>
 			<p class="existing-sheet-modal-copy">Would you like to load it?</p>
@@ -479,7 +479,7 @@
 		<div slot="footer" class="existing-sheet-modal-footer">
 			<button
 				type="button"
-				class="sheet-toolbar-btn"
+				class="btn-secondary text-xs px-3 py-1.5"
 				on:click={continueWithNewSheet}
 				disabled={isTableLoading}
 			>
@@ -487,7 +487,7 @@
 			</button>
 			<button
 				type="button"
-				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				class="btn-primary text-xs px-3 py-1.5"
 				on:click={loadPendingExistingSheet}
 				disabled={isTableLoading}
 			>
@@ -501,25 +501,25 @@
 	<div class="sheet-toolbar no-print">
 		<a href="{base}/scheduled-test-and-tag/companies" class="sheet-toolbar-link">← Back to Companies</a>
 		<div class="sheet-toolbar-actions">
-			<button type="button" class="sheet-toolbar-btn" on:click={openEquipments}>
+			<button type="button" class="btn-secondary text-xs px-3 py-1.5" on:click={openEquipments}>
 				Manage Equipments
 			</button>
 			{#if sheetUrlId}
 				<button
 					type="button"
-					class="sheet-toolbar-btn"
+					class="btn-secondary text-xs px-3 py-1.5"
 					on:click={createNewSheet}
 					disabled={!$sheetHeader.companyId || isTableLoading}
 				>
 					New Sheet
 				</button>
 			{/if}
-			<button type="button" class="sheet-toolbar-btn" on:click={handlePrint} disabled={isPrinting || isTableLoading}>
+			<button type="button" class="btn-secondary text-xs px-3 py-1.5" on:click={handlePrint} disabled={isPrinting || isTableLoading}>
 				{isPrinting ? 'Preparing…' : 'Print'}
 			</button>
 			<button
 				type="button"
-				class="sheet-toolbar-btn"
+				class="btn-secondary text-xs px-3 py-1.5"
 				on:click={handlePrintFillable}
 				disabled={isPrintingFillable || isTableLoading}
 			>
@@ -527,8 +527,7 @@
 			</button>
 			<button
 				type="button"
-				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
-				class:sheet-toolbar-btn--update={isSheetLoaded}
+				class="btn-primary text-xs px-3 py-1.5"
 				on:click={handleSave}
 				disabled={isSaving}
 			>
@@ -610,7 +609,7 @@
 							<tr>
 								<td colspan={SHEET_COLUMNS.length + TABLE_EXTRA_COLS} class="sheet-empty">
 									<p>No machines recorded yet.</p>
-									<button type="button" class="sheet-toolbar-btn sheet-toolbar-btn--primary" on:click={openEquipments}>
+									<button type="button" class="btn-primary text-xs px-3 py-1.5" on:click={openEquipments}>
 										Add Equipment
 									</button>
 								</td>
@@ -793,9 +792,10 @@
 <style>
 	.sheet-page {
 		min-height: 100vh;
-		background: #e8e8e8;
+		background: #0e1012;
+		color: #f3f4f6;
 		padding: 1.5rem 1rem 2.5rem;
-		font-family: Arial, Helvetica, sans-serif;
+		font-family: inherit;
 	}
 
 	.sheet-toolbar {
@@ -810,32 +810,19 @@
 
 	.sheet-toolbar-link {
 		font-size: 0.875rem;
-		color: #374151;
+		color: #9ca3af;
 		text-decoration: none;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-toolbar-link:hover {
-		color: #111827;
+		color: #a3e635;
 		text-decoration: underline;
 	}
 
 	.sheet-toolbar-actions {
 		display: flex;
 		gap: 0.5rem;
-	}
-
-	.sheet-toolbar-btn {
-		border: 1px solid #d1d5db;
-		background: #fff;
-		color: #374151;
-		border-radius: 0.25rem;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.8125rem;
-		cursor: pointer;
-	}
-
-	.sheet-toolbar-btn:hover {
-		background: #f9fafb;
 	}
 
 	.existing-sheet-modal-body {
@@ -848,31 +835,13 @@
 		margin: 0;
 		font-size: 0.875rem;
 		line-height: 1.5;
-		color: #374151;
+		color: #d1d5db;
 	}
 
 	.existing-sheet-modal-footer {
 		display: flex;
 		justify-content: flex-end;
 		gap: 0.5rem;
-	}
-
-	.sheet-toolbar-btn--primary {
-		background: #1a1a1a;
-		border-color: #1a1a1a;
-		color: #fff;
-	}
-
-	.sheet-toolbar-btn--primary:hover {
-		background: #333;
-	}
-
-	.sheet-toolbar-btn--update {
-		color: #facc15;
-	}
-
-	.sheet-toolbar-btn--update:hover {
-		color: #fde047;
 	}
 
 	.sheet-layout {
@@ -886,15 +855,20 @@
 
 	.sheet-document {
 		min-width: 0;
-		background: #fff;
+		background: #141619;
+		border: 1px solid #262a30;
+		border-radius: 1rem;
+		overflow: hidden;
 		padding: 0;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 	}
 
 	.sheet-sidebar {
-		background: #fff;
-		padding: 1rem 0.75rem;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+		background: #141619;
+		border: 1px solid #262a30;
+		border-radius: 1rem;
+		padding: 1.25rem 1rem;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
@@ -905,47 +879,48 @@
 		flex-direction: column;
 		gap: 0.375rem;
 		font-size: 0.8125rem;
-		color: #374151;
+		color: #d1d5db;
 	}
 
 	.sheet-sidebar-label {
 		font-weight: 600;
-		font-size: 0.75rem;
+		font-size: 0.6875rem;
 		text-transform: uppercase;
-		letter-spacing: 0.02em;
-		color: #6b7280;
+		letter-spacing: 0.04em;
+		color: #9ca3af;
 	}
 
 	.sheet-sidebar-input {
 		width: 100%;
 		min-width: 0;
-		border: none;
-		border-bottom: 1px solid #9ca3af;
-		background: transparent;
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
+		background: #0e1012;
 		font-size: 0.8125rem;
-		color: #111;
-		padding: 0.375rem 0;
+		color: #f3f4f6;
+		padding: 0.4375rem 0.625rem;
 		text-align: left;
 		cursor: pointer;
+		transition: border-color 0.15s ease;
 	}
 
 	.sheet-sidebar-input:focus {
 		outline: none;
-		border-bottom-color: #111;
+		border-color: #84cc16;
 	}
 
 	.sheet-sidebar-inactive {
 		display: flex;
 		flex-direction: column;
 		gap: 0.5rem;
-		border-top: 1px solid #e5e7eb;
+		border-top: 1px solid #262a30;
 		padding-top: 1rem;
 	}
 
 	.sheet-sidebar-inactive-empty {
 		margin: 0;
 		font-size: 0.8125rem;
-		color: #9ca3af;
+		color: #6b7280;
 	}
 
 	.sheet-sidebar-inactive-list {
@@ -964,8 +939,8 @@
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 0.375rem;
-		padding: 0.375rem 0;
-		border-bottom: 1px solid #f3f4f6;
+		padding: 0.5rem 0;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.sheet-sidebar-inactive-item:last-child {
@@ -992,9 +967,9 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #92400e;
-		background: #fef3c7;
-		border: 1px solid #fcd34d;
+		color: #fbbf24;
+		background: rgba(120, 53, 15, 0.35);
+		border: 1px solid rgba(245, 158, 11, 0.3);
 		border-radius: 0.25rem;
 		padding: 0.0625rem 0.25rem;
 		line-height: 1.2;
@@ -1002,7 +977,7 @@
 
 	.sheet-sidebar-inactive-name {
 		font-size: 0.8125rem;
-		color: #374151;
+		color: #e5e7eb;
 		line-height: 1.3;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -1018,22 +993,26 @@
 
 	.sheet-sidebar-restore-btn {
 		flex-shrink: 0;
-		border: 1px solid #d1d5db;
-		background: #fff;
-		color: #374151;
-		border-radius: 0.25rem;
+		border: 1px solid #262a30;
+		background: #181b20;
+		color: #9ca3af;
+		border-radius: 0.375rem;
 		width: 1.5rem;
 		height: 1.5rem;
 		font-size: 1rem;
 		line-height: 1;
 		cursor: pointer;
 		padding: 0;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.15s ease;
 	}
 
 	.sheet-sidebar-restore-btn:hover {
-		background: #f3f4f6;
-		border-color: #9ca3af;
-		color: #111;
+		background: #1f2329;
+		border-color: #84cc16;
+		color: #a3e635;
 	}
 
 	.sheet-header {
@@ -1050,8 +1029,9 @@
 		align-items: start;
 		gap: 1rem;
 		padding: 1.5rem 2.5rem;
-		background: rgb(40, 40, 40);
-		color: #fff;
+		background: #181b20;
+		border-bottom: 1px solid #262a30;
+		color: #f3f4f6;
 	}
 
 	.sheet-header-logo {
@@ -1070,116 +1050,19 @@
 	}
 
 	.sheet-header-select option {
-		color: #111;
-		background-color: #fff;
+		color: #f3f4f6;
+		background-color: #141619;
 	}
 
 	.sheet-header-select {
-		color-scheme: light;
+		color-scheme: dark;
 		cursor: pointer;
-	}
-
-	.sheet-meta-input[type='date'],
-	.sheet-meta-input--date {
-		color-scheme: light;
-	}
-
-	.sheet-date-field {
-		position: relative;
-		width: 100%;
-		min-width: 0;
-	}
-
-	.sheet-date-display {
-		display: block;
-		width: 100%;
-		padding: 0.375rem 0;
-		border-bottom: 1px solid #9ca3af;
-		font-size: 0.875rem;
-		color: #111;
-		text-align: left;
-	}
-
-	.sheet-date-input {
-		position: absolute;
-		inset: 0;
-		width: 100%;
-		height: 100%;
-		margin: 0;
-		padding: 0;
-		border: none;
-		background: transparent;
-		opacity: 0;
-		cursor: pointer;
-		color-scheme: light;
-	}
-
-	.sheet-date-field:focus-within .sheet-date-display {
-		border-bottom-color: #111;
-	}
-
-	.sheet-date-field--header .sheet-date-display {
-		color: #fff;
-		border-bottom-color: rgba(255, 255, 255, 0.45);
-		text-align: right;
-		font-weight: 700;
-		font-size: 1rem;
-	}
-
-	.sheet-date-field--header:focus-within .sheet-date-display {
-		border-bottom-color: #fff;
 	}
 
 	.sheet-subtitle {
-		margin: 0.125rem 0 0;
-		font-size: 0.9375rem;
-		color: #d1d5db;
-	}
-
-	.sheet-meta {
-		display: flex;
-		flex-direction: column;
-		gap: 0.625rem;
-		width: 100%;
-		background: #fff;
-		padding: 0.875rem 2.5rem 0;
-	}
-
-	.sheet-meta-row {
-		display: grid;
-		grid-template-columns: 6.5rem minmax(0, 1fr);
-		align-items: center;
-		gap: 1rem;
-		width: 100%;
+		margin: 0.25rem 0 0;
 		font-size: 0.875rem;
-		color: #374151;
-	}
-
-	.sheet-meta-label {
-		font-weight: 600;
-		white-space: nowrap;
-	}
-
-	.sheet-meta-input {
-		width: 100%;
-		min-width: 0;
-		border: none;
-		border-bottom: 1px solid #9ca3af;
-		background: transparent;
-		font-size: 0.875rem;
-		color: #111;
-		padding: 0.375rem 0;
-		text-align: left;
-	}
-
-	.sheet-meta-input:focus {
-		outline: none;
-		border-bottom-color: #111;
-	}
-
-	.sheet-meta-input:disabled {
-		color: #6b7280;
-		cursor: not-allowed;
+		color: #9ca3af;
 	}
 
 	.sheet-header-date {
@@ -1202,9 +1085,9 @@
 		width: 100%;
 		min-width: 0;
 		border: none;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.45);
+		border-bottom: 1px solid #333842;
 		background: transparent;
-		color: #fff;
+		color: #f3f4f6;
 		font-size: 1rem;
 		font-weight: 700;
 		text-align: right;
@@ -1215,7 +1098,7 @@
 
 	.sheet-header-date-input:focus {
 		outline: none;
-		border-bottom-color: #fff;
+		border-bottom-color: #84cc16;
 	}
 
 	.sheet-header-date-input::-webkit-calendar-picker-indicator {
@@ -1224,7 +1107,7 @@
 	}
 
 	.sheet-table-wrap {
-		border-top: 3px solid #2d6a2d;
+		border-top: 2px solid #84cc16;
 		overflow-x: auto;
 	}
 
@@ -1239,19 +1122,19 @@
 		width: 100%;
 		border-collapse: collapse;
 		font-size: 0.875rem;
-		color: #111;
+		color: #e5e7eb;
 	}
 
 	.sheet-table thead tr {
-		background: #ececec;
+		background: #181b20;
 	}
 
 	.sheet-table th {
 		padding: 0.625rem 0.75rem;
 		text-align: left;
 		font-weight: 700;
-		font-size: 0.875rem;
-		color: #111;
+		font-size: 0.8125rem;
+		color: #9ca3af;
 		border: none;
 		white-space: nowrap;
 	}
@@ -1267,28 +1150,34 @@
 		font-weight: 700;
 		color: inherit;
 		cursor: pointer;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-sort-btn:hover {
-		color: #000;
+		color: #a3e635;
 	}
 
 	.sheet-sort-icon {
 		font-size: 0.6875rem;
-		color: #666;
+		color: #6b7280;
 		font-weight: 400;
 	}
 
 	.sheet-table tbody tr {
-		border-bottom: 2px solid #111;
+		border-bottom: 1px solid #262a30;
+		transition: background-color 0.15s ease;
+	}
+
+	.sheet-table tbody tr:hover {
+		background: rgba(31, 35, 41, 0.4);
 	}
 
 	.sheet-row--inactive {
-		background: #fafafa;
+		background: rgba(24, 27, 32, 0.6);
 	}
 
 	.sheet-table tbody tr:last-child {
-		border-bottom: 2px solid #111;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.sheet-cell {
@@ -1312,14 +1201,14 @@
 		padding: 0;
 		margin: 0;
 		font: inherit;
-		color: inherit;
+		color: #f3f4f6;
 		resize: none;
 	}
 
 	.sheet-cell-input:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
 	}
 
 	.sheet-cell-select {
@@ -1331,24 +1220,35 @@
 		padding: 0;
 		margin: 0;
 		font: inherit;
-		color: inherit;
+		color: #f3f4f6;
 		cursor: pointer;
+	}
+
+	.sheet-cell-select option {
+		background: #141619;
+		color: #f3f4f6;
 	}
 
 	.sheet-cell-select:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
 	}
 
 	.sheet-cell-select:disabled {
-		color: #9ca3af;
+		color: #6b7280;
 		cursor: not-allowed;
 	}
 
 	.sheet-cell-input--link {
-		color: #2563eb;
+		color: #38bdf8;
 		font-weight: 500;
+		transition: color 0.15s ease;
+	}
+
+	.sheet-cell-input--link:hover {
+		color: #7dd3fc;
+		text-decoration: underline;
 	}
 
 	.sheet-notes-col {
@@ -1370,12 +1270,25 @@
 		white-space: pre-wrap;
 		word-break: break-word;
 		field-sizing: content;
+		background: #0e1012;
+		border: 1px solid #262a30;
+		border-radius: 0.375rem;
+		padding: 0.5rem;
+		color: #f3f4f6;
+		transition: border-color 0.15s ease;
+	}
+
+	.sheet-cell-textarea:focus {
+		outline: none;
+		border-color: #84cc16;
+		background: #0e1012;
+		box-shadow: none;
 	}
 
 	.sheet-checkbox {
 		width: 1rem;
 		height: 1rem;
-		accent-color: #111;
+		accent-color: #84cc16;
 		cursor: pointer;
 	}
 
@@ -1383,7 +1296,7 @@
 		width: 2.5rem;
 		padding: 0.75rem 0.5rem;
 		text-align: center;
-		color: #666;
+		color: #6b7280;
 		font-weight: 600;
 		vertical-align: top;
 		white-space: nowrap;
@@ -1398,22 +1311,23 @@
 	.sheet-remove-btn {
 		border: none;
 		background: transparent;
-		color: #999;
+		color: #6b7280;
 		font-size: 1.25rem;
 		line-height: 1;
 		cursor: pointer;
 		padding: 0;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-remove-btn:hover {
-		color: #dc2626;
+		color: #f87171;
 	}
 
 	.sheet-empty {
 		padding: 2.5rem 1rem;
 		text-align: center;
-		color: #666;
-		border-bottom: 2px solid #111;
+		color: #9ca3af;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.sheet-empty p {
@@ -1428,14 +1342,15 @@
 	.sheet-add-btn {
 		border: none;
 		background: transparent;
-		color: #666;
+		color: #9ca3af;
 		font-size: 0.8125rem;
 		cursor: pointer;
 		padding: 0;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-add-btn:hover {
-		color: #111;
+		color: #a3e635;
 		text-decoration: underline;
 	}
 
@@ -1458,13 +1373,6 @@
 
 		.sheet-header-main {
 			padding: 1.25rem 1rem;
-		}
-
-		.sheet-meta {
-			padding: 0.875rem 1rem 0;
-		}
-
-		.sheet-header-main {
 			grid-template-columns: 1fr;
 			text-align: center;
 		}
@@ -1486,11 +1394,6 @@
 
 		.sheet-logo {
 			margin: 0 auto;
-		}
-
-		.sheet-meta-row {
-			grid-template-columns: 1fr;
-			gap: 0.25rem;
 		}
 	}
 

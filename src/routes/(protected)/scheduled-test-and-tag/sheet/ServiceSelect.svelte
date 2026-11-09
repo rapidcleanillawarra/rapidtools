@@ -58,7 +58,7 @@
 		align-items: center;
 		gap: 0.375rem;
 		font-size: 0.8125rem;
-		color: #111;
+		color: #e5e7eb;
 		cursor: pointer;
 		user-select: none;
 	}
@@ -69,6 +69,6 @@
 		margin: 0;
 		flex-shrink: 0;
 		cursor: pointer;
-		accent-color: #2d6a2d;
+		accent-color: #84cc16;
 	}
 </style>

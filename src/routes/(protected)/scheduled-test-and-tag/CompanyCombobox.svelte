@@ -170,7 +170,7 @@
 
 	.company-combobox-input:focus {
 		outline: none;
-		box-shadow: 0 1px 0 #fff;
+		box-shadow: 0 1px 0 #84cc16;
 	}
 
 	.company-combobox-list {
@@ -181,11 +181,12 @@
 		z-index: 40;
 		width: min(100%, 24rem);
 		margin: 0;
-		padding: 0.25rem 0;
+		padding: 0.375rem 0;
 		list-style: none;
-		background: #fff;
-		border: 1px solid #d1d5db;
-		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+		background: #141619;
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 		max-height: 14rem;
 		overflow-y: auto;
 		text-align: left;
@@ -194,7 +195,7 @@
 	.company-combobox-empty {
 		padding: 0.625rem 0.75rem;
 		font-size: 0.8125rem;
-		color: #6b7280;
+		color: #9ca3af;
 	}
 
 	.company-combobox-option {
@@ -209,45 +210,53 @@
 		text-align: left;
 		font: inherit;
 		cursor: pointer;
+		transition: background 150ms ease, color 150ms ease;
 	}
 
 	.company-combobox-option:hover,
 	.company-combobox-option--selected {
-		background: #f3f4f6;
+		background: #1f2329;
+	}
+
+	.company-combobox-option:hover .company-combobox-option-name,
+	.company-combobox-option--selected .company-combobox-option-name {
+		color: #a3e635;
 	}
 
 	.company-combobox-option-name {
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: #111;
+		color: #f3f4f6;
 	}
 
 	.company-combobox-option-id {
 		font-size: 0.6875rem;
 		font-family: 'Consolas', 'Courier New', monospace;
-		color: #6b7280;
+		color: #9ca3af;
 		word-break: break-all;
 	}
 
 	.company-combobox--light .company-combobox-input {
-		border: 1px solid #d1d5db;
-		border-radius: 0.25rem;
-		background: #fff;
-		color: #111;
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
+		background: #0e1012;
+		color: #e5e7eb;
 		font-size: 0.875rem;
 		font-weight: 500;
 		text-align: left;
 		padding: 0.5rem 0.75rem;
+		transition: border-color 150ms, box-shadow 150ms;
 	}
 
 	.company-combobox--light .company-combobox-input::placeholder {
-		color: #9ca3af;
+		color: #6b7280;
 		font-weight: 400;
 	}
 
 	.company-combobox--light .company-combobox-input:focus {
-		box-shadow: 0 0 0 1px #111;
-		border-color: #111;
+		outline: none;
+		box-shadow: 0 0 0 1px #84cc16;
+		border-color: #84cc16;
 	}
 
 	.company-combobox--light .company-combobox-list {

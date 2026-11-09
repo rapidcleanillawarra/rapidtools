@@ -198,6 +198,7 @@
         await deleteSchedule(id);
         toastSuccess('Company deleted successfully!', 'Deleted');
         resetForm();
+        await loadCompaniesList();
       } catch (error) {
         console.error('Error deleting schedule:', error);
         toastError(`Failed to delete company: ${error instanceof Error ? error.message : 'Unknown error'}`, 'Error');
@@ -359,22 +360,12 @@
       opacity: 0;
     }
   }
-  /* Enhanced button styles */
-  .btn-primary {
-    position: relative;
-    overflow: hidden;
-    transition: all 0.3s ease;
-  }
-  .btn-primary:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  }
   /* Interactive hover effects */
   .interactive-hover {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .interactive-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    background-color: #1f2329;
   }
   /* Confetti animation */
   .confetti-piece {
@@ -431,12 +422,6 @@
   .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
-  /* Enhanced table row animations */
-  tr.interactive-hover:hover {
-    background-color: #f8fafc;
-    transform: scale(1.01);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
   .compact-table th,
   .compact-table td {
     padding: 0.375rem 0.5rem;
@@ -461,30 +446,33 @@
   }
   @keyframes successGlow {
     0% {
-      box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+      box-shadow: 0 0 5px rgba(132, 204, 22, 0.5);
     }
     50% {
-      box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+      box-shadow: 0 0 20px rgba(132, 204, 22, 0.8);
     }
     100% {
-      box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+      box-shadow: 0 0 5px rgba(132, 204, 22, 0.5);
     }
   }
 </style>
 
-<div class="space-y-2">
+<div class="space-y-4">
   <!-- Header -->
   <div class="flex flex-wrap justify-between items-center gap-2 animate-fade-in">
-    <h2 class="text-lg font-semibold text-gray-900">Companies</h2>
-    <div class="flex gap-1.5">
+    <div>
+      <h2 class="text-xl font-bold text-white tracking-tight">Companies</h2>
+      <p class="text-xs text-gray-400 mt-0.5">Manage company test & tag details, contacts and recurrence.</p>
+    </div>
+    <div class="flex items-center gap-2">
       {#if selectedSchedules.size > 0}
         <button
           on:click={handleBulkDelete}
           disabled={isDeleting}
-          class="btn-primary bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-300 flex items-center gap-1.5 shadow hover:shadow-md"
+          class="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition shadow-sm"
         >
           {#if isDeleting}
-            <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+            <div class="animate-spin rounded-full h-3 w-3 border-2 border-red-400 border-t-transparent"></div>
             Deleting...
           {:else}
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -497,10 +485,10 @@
       <button
         on:click={handleCreate}
         disabled={isSaving}
-        class="btn-primary bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-2.5 py-1.5 rounded text-xs font-medium transition-all duration-300 flex items-center gap-1.5 shadow hover:shadow-md"
+        class="btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5"
       >
         {#if isSaving}
-          <div class="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent"></div>
+          <div class="animate-spin rounded-full h-3 w-3 border-2 border-gray-950 border-t-transparent"></div>
           Saving...
         {:else}
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -513,7 +501,7 @@
   </div>
 
   <!-- Search and Filters -->
-  <div class="bg-white rounded shadow p-2 animate-fade-in" style="animation-delay: 100ms;">
+  <div class="bg-[#181b20] border border-[#262a30] rounded-xl p-2.5 shadow-md animate-fade-in" style="animation-delay: 100ms;">
     <div class="flex gap-2">
       <div class="relative flex-1">
         <label for="search" class="sr-only">Search companies</label>
@@ -523,17 +511,17 @@
           placeholder="Search companies..."
           bind:value={$searchTerm}
           on:input={handleSearch}
-          class="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          class="w-full bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 placeholder-gray-500 transition-colors"
         />
         <div class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
-          <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
           </svg>
         </div>
       </div>
       <button
         on:click={() => searchTerm.set('')}
-        class="px-2 py-1.5 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded transition-colors flex items-center gap-1 shrink-0"
+        class="btn-secondary text-xs px-2.5 py-1.5 flex items-center gap-1 shrink-0"
       >
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -544,7 +532,7 @@
   </div>
 
   <!-- Results Summary -->
-  <div class="flex justify-between items-center text-xs text-gray-500 px-0.5">
+  <div class="flex justify-between items-center text-xs text-gray-400 px-0.5">
     <span>
       {($filteredSchedules.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0)}–{Math.min(currentPage * itemsPerPage, $filteredSchedules.length)} of {$filteredSchedules.length}
     </span>
@@ -554,94 +542,92 @@
   </div>
 
   <!-- Data Table -->
-  <div class="bg-white rounded shadow overflow-hidden animate-fade-in" style="animation-delay: 200ms;">
+  <div class="rounded-xl border border-[#262a30] bg-[#141619] shadow-xl overflow-hidden animate-fade-in" style="animation-delay: 200ms;">
     <div class="overflow-x-auto">
       {#if isTableLoading}
         <!-- Skeleton Table -->
-        <div class="p-2">
-          <div class="space-y-4">
-            {#each Array(5) as _, index}
-              <div class="flex items-center space-x-4 animate-pulse" style="animation-delay: {index * 100}ms;">
-                <SkeletonLoader type="circle" width="1rem" height="1rem" />
-                <SkeletonLoader type="text" width="150px" height="1.25rem" />
-                <SkeletonLoader type="text" width="100px" height="1.25rem" />
-                <SkeletonLoader type="text" width="120px" height="1.25rem" />
-                <SkeletonLoader type="circle" width="1.5rem" height="1.5rem" />
-                <SkeletonLoader type="text" width="80px" height="1.25rem" />
-                <SkeletonLoader type="text" width="80px" height="1.25rem" />
-                <SkeletonLoader type="text" width="60px" height="1.25rem" />
-                <div class="flex space-x-2">
-                  <SkeletonLoader type="button" width="2rem" height="2rem" />
-                  <SkeletonLoader type="button" width="2rem" height="2rem" />
-                  <SkeletonLoader type="button" width="2rem" height="2rem" />
-                </div>
+        <div class="p-4 space-y-4">
+          {#each Array(5) as _, index}
+            <div class="flex items-center space-x-4 animate-pulse" style="animation-delay: {index * 100}ms;">
+              <SkeletonLoader type="circle" width="1rem" height="1rem" />
+              <SkeletonLoader type="text" width="150px" height="1.25rem" />
+              <SkeletonLoader type="text" width="100px" height="1.25rem" />
+              <SkeletonLoader type="text" width="120px" height="1.25rem" />
+              <SkeletonLoader type="circle" width="1.5rem" height="1.5rem" />
+              <SkeletonLoader type="text" width="80px" height="1.25rem" />
+              <SkeletonLoader type="text" width="80px" height="1.25rem" />
+              <SkeletonLoader type="text" width="60px" height="1.25rem" />
+              <div class="flex space-x-2">
+                <SkeletonLoader type="button" width="2rem" height="2rem" />
+                <SkeletonLoader type="button" width="2rem" height="2rem" />
+                <SkeletonLoader type="button" width="2rem" height="2rem" />
               </div>
-            {/each}
-          </div>
+            </div>
+          {/each}
         </div>
       {:else}
-        <table class="compact-table min-w-full divide-y divide-gray-200 text-sm">
-        <thead class="bg-gray-50">
+        <table class="compact-table min-w-full divide-y divide-[#262a30] text-sm text-gray-200">
+        <thead class="bg-[#181b20] text-xs font-semibold uppercase tracking-wider text-gray-400">
           <tr>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               <input
                 type="checkbox"
                 checked={selectedSchedules.size === paginatedSchedules.length && paginatedSchedules.length > 0}
                 on:change={selectAllSchedules}
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
               />
             </th>
-            <th class="col-company text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-company text-left">
               <button
                 on:click={() => handleSort('company')}
-                class="flex items-center gap-1 hover:text-gray-700 transition-colors"
+                class="flex items-center gap-1 hover:text-white transition-colors"
               >
                 Company {getSortIcon('company')}
               </button>
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               <button
                 on:click={() => handleSort('start_month')}
-                class="flex items-center justify-center gap-1 hover:text-gray-700 transition-colors w-full"
+                class="flex items-center justify-center gap-1 hover:text-white transition-colors w-full"
               >
                 Start {getSortIcon('start_month')}
               </button>
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               <button
                 on:click={() => handleSort('occurence')}
-                class="flex items-center justify-center gap-1 hover:text-gray-700 transition-colors w-full"
+                class="flex items-center justify-center gap-1 hover:text-white transition-colors w-full"
               >
                 Freq {getSortIcon('occurence')}
               </button>
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Color
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Loc
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Cont
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Notes
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Sheet
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Equip
             </th>
-            <th class="col-tight text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <th class="col-tight">
               Actions
             </th>
           </tr>
         </thead>
-        <tbody class="bg-white divide-y divide-gray-200">
+        <tbody class="divide-y divide-[#262a30] bg-[#141619]">
           {#each paginatedSchedules as schedule, index}
             <tr
-              class="hover:bg-gray-50 transition-all duration-300 animate-fade-in interactive-hover cursor-pointer"
+              class="even:bg-[#181b20]/40 hover:bg-[#1f2329]/70 transition-all duration-150 animate-fade-in interactive-hover cursor-pointer"
               style="animation-delay: {index * 50}ms;"
               on:click={() => handleEdit(schedule)}
             >
@@ -650,39 +636,39 @@
                   type="checkbox"
                   checked={selectedSchedules.has(schedule.id)}
                   on:change={() => toggleScheduleSelection(schedule.id)}
-                  class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  class="h-4 w-4 rounded border-[#333842] bg-[#0e1012] text-lime-500 focus:ring-lime-500 focus:ring-offset-[#141619]"
                 />
               </td>
               <td class="col-company">
-                <div class="font-medium text-gray-900" title={schedule.company}>{schedule.company}</div>
+                <div class="font-medium text-white" title={schedule.company}>{schedule.company}</div>
               </td>
-              <td class="col-tight text-gray-900">
+              <td class="col-tight text-gray-300">
                 {getMonthName(schedule.start_month).slice(0, 3)}
               </td>
-              <td class="col-tight text-gray-900">
+              <td class="col-tight text-gray-300">
                 {schedule.occurence}
               </td>
               <td class="col-tight">
                 <div
-                  class="w-4 h-4 rounded-full border border-gray-300 shadow-sm mx-auto"
+                  class="w-4 h-4 rounded-full border border-[#333842] shadow-sm mx-auto"
                   style="background-color: {schedule.color || '#3b82f6'};"
                   title="{schedule.color || '#3b82f6'}"
                 ></div>
               </td>
-              <td class="col-tight text-gray-900">
+              <td class="col-tight text-gray-300">
                 {schedule.locationCount}
               </td>
-              <td class="col-tight text-gray-900">
+              <td class="col-tight text-gray-300">
                 {schedule.contactCount}
               </td>
-              <td class="col-tight text-gray-900">
+              <td class="col-tight text-gray-300">
                 {schedule.noteCount}
               </td>
               <td class="col-tight" on:click|stopPropagation>
                 <div class="flex justify-center">
                   <button
                     on:click={() => openSheet(schedule)}
-                    class="p-1 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded transition-all duration-300"
+                    class="p-1 text-sky-400 hover:text-sky-300 hover:bg-sky-950/40 rounded transition-colors"
                     title="Open service sheet"
                   >
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -695,7 +681,7 @@
                 <div class="flex justify-center">
                   <button
                     on:click={() => openEquipments(schedule)}
-                    class="p-1 text-emerald-600 hover:text-emerald-900 hover:bg-emerald-50 rounded transition-all duration-300"
+                    class="p-1 text-lime-400 hover:text-lime-300 hover:bg-lime-950/40 rounded transition-colors"
                     title="Manage equipments"
                   >
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -709,7 +695,7 @@
                 <div class="flex justify-center">
                   <button
                     on:click={() => handleDeleteDirect(schedule)}
-                    class="p-1 text-red-600 hover:text-red-900 hover:bg-red-50 rounded transition-all duration-300"
+                    class="p-1 text-red-400 hover:text-red-300 hover:bg-red-950/40 rounded transition-colors"
                     title="Delete"
                   >
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -728,15 +714,15 @@
     <!-- Empty State -->
     {#if $filteredSchedules.length === 0 && !isTableLoading}
       <div class="text-center py-12">
-        <div class="text-gray-400 text-6xl mb-4">🏢</div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">
+        <div class="text-gray-600 text-6xl mb-4">🏢</div>
+        <h3 class="text-lg font-semibold text-white mb-2">
           {#if $searchTerm}
             No companies found
           {:else}
             No companies yet
           {/if}
         </h3>
-        <p class="text-gray-600 mb-4">
+        <p class="text-gray-400 mb-4 max-w-sm mx-auto">
           {#if $searchTerm}
             Try adjusting your search terms or clear the search to see all companies.
           {:else}
@@ -746,7 +732,7 @@
         {#if !$searchTerm}
           <button
             on:click={handleCreate}
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            class="btn-primary text-sm"
           >
             Add Your First Company
           </button>
@@ -757,12 +743,12 @@
 
   <!-- Pagination -->
   {#if totalPages > 1}
-    <div class="flex justify-center">
-      <nav class="flex items-center gap-1">
+    <div class="flex justify-center mt-4">
+      <nav class="flex items-center gap-1.5">
         <button
           on:click={() => goToPage(currentPage - 1)}
           disabled={currentPage === 1}
-          class="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          class="btn-secondary text-xs px-3 py-1.5"
         >
           Previous
         </button>
@@ -770,14 +756,7 @@
         {#each Array.from({length: totalPages}, (_, i) => i + 1) as page}
           <button
             on:click={() => goToPage(page)}
-            class="px-3 py-2 text-sm border rounded-md transition-colors"
-            class:bg-blue-600={currentPage === page}
-            class:text-white={currentPage === page}
-            class:border-blue-600={currentPage === page}
-            class:text-gray-500={currentPage !== page}
-            class:bg-white={currentPage !== page}
-            class:border-gray-300={currentPage !== page}
-            class:hover:bg-gray-50={currentPage !== page}
+            class="px-3 py-1.5 text-xs rounded-lg transition-colors {currentPage === page ? 'bg-lime-500 text-gray-950 font-bold border border-lime-500 shadow-sm' : 'btn-secondary'}"
           >
             {page}
           </button>
@@ -786,7 +765,7 @@
         <button
           on:click={() => goToPage(currentPage + 1)}
           disabled={currentPage === totalPages}
-          class="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          class="btn-secondary text-xs px-3 py-1.5"
         >
           Next
         </button>
@@ -810,10 +789,10 @@
 
 <!-- Loading overlay for save/delete only (table uses its own skeleton) -->
 {#if $isLoading && (isSaving || isDeleting)}
-  <div class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg p-6 flex items-center gap-3 shadow-lg">
-      <div class="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-      <span class="text-gray-700 font-medium">Loading...</span>
+  <div class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+    <div class="bg-[#141619] border border-[#262a30] rounded-xl p-6 flex items-center gap-3 shadow-2xl">
+      <div class="w-6 h-6 border-2 border-[#333842] border-t-lime-500 rounded-full animate-spin"></div>
+      <span class="text-gray-200 font-medium">Loading...</span>
     </div>
   </div>
 {/if}

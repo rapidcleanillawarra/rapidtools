@@ -122,10 +122,10 @@
 		gap: 0.25rem;
 		min-width: 12rem;
 		padding: 0.375rem 0.5rem;
-		border: 1px solid #d1d5db;
-		border-radius: 0.375rem;
-		background: #f9fafb;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
+		background: #0e1012;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 	}
 
 	.equipment-info-card-top {
@@ -134,7 +134,7 @@
 		gap: 0.5rem;
 		min-width: 0;
 		padding-bottom: 0.125rem;
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.equipment-info-card-rci {
@@ -143,12 +143,13 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		letter-spacing: 0.02em;
-		color: #1d4ed8;
+		color: #a3e635;
 	}
 
 	.equipment-info-card--inactive {
-		border-color: #d1d5db;
-		background: #f3f4f6;
+		border-color: #333842;
+		background: #141619;
+		opacity: 0.75;
 	}
 
 	.equipment-info-card-inactive-badge {
@@ -157,9 +158,9 @@
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-		color: #92400e;
-		background: #fef3c7;
-		border: 1px solid #fcd34d;
+		color: #f59e0b;
+		background: rgba(245, 158, 11, 0.15);
+		border: 1px solid rgba(245, 158, 11, 0.3);
 		border-radius: 0.25rem;
 		padding: 0.0625rem 0.375rem;
 		white-space: nowrap;
@@ -169,8 +170,9 @@
 		flex-shrink: 0;
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #4b5563;
-		background: #e5e7eb;
+		color: #9ca3af;
+		background: #1f2329;
+		border: 1px solid #333842;
 		border-radius: 0.25rem;
 		padding: 0.0625rem 0.375rem;
 		white-space: nowrap;
@@ -183,7 +185,7 @@
 		border-bottom: 1px solid transparent;
 		background: transparent;
 		font-size: 0.75rem;
-		color: #111;
+		color: #e5e7eb;
 		padding: 0.125rem 0;
 	}
 
@@ -195,19 +197,21 @@
 	.equipment-info-card-input--name {
 		font-size: 0.8125rem;
 		font-weight: 600;
+		color: #fff;
 	}
 
 	.equipment-info-card-input--link {
-		color: #1d4ed8;
+		color: #38bdf8;
 	}
 
 	.equipment-info-card-input::placeholder {
-		color: #9ca3af;
+		color: #6b7280;
 	}
 
 	.equipment-info-card-input:focus {
 		outline: none;
-		border-bottom-color: #d1d5db;
+		border-bottom-color: #84cc16;
+		color: #fff;
 	}
 
 	.equipment-info-card-select {
@@ -216,19 +220,25 @@
 		border-bottom: 1px solid transparent;
 		background: transparent;
 		font-size: 0.75rem;
-		color: #111;
+		color: #e5e7eb;
 		padding: 0.125rem 0;
 		cursor: pointer;
 	}
 
+	.equipment-info-card-select option {
+		background: #141619;
+		color: #e5e7eb;
+	}
+
 	.equipment-info-card-select:disabled {
-		color: #9ca3af;
+		color: #6b7280;
 		cursor: not-allowed;
 	}
 
 	.equipment-info-card-select:focus {
 		outline: none;
-		border-bottom-color: #d1d5db;
+		border-bottom-color: #84cc16;
+		color: #fff;
 	}
 
 	.equipment-info-card-grid {
@@ -244,10 +254,12 @@
 		padding: 0.125rem 0;
 		border-bottom: 1px solid transparent;
 		box-shadow: none;
+		color: #38bdf8;
 	}
 
 	.equipment-info-card :global(.machine-type-input:focus) {
 		box-shadow: none;
-		border-bottom-color: #d1d5db;
+		border-bottom-color: #84cc16;
+		color: #fff;
 	}
 </style>

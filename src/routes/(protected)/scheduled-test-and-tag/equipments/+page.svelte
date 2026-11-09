@@ -445,12 +445,12 @@
 
 {#if showTransferModal && activeCompany}
 	<Modal show={showTransferModal} on:close={closeTransferModal} size="md" allowClose={!isTransferring}>
-		<span slot="header">Transfer equipment to company</span>
+		<span slot="header" class="text-white font-bold">Transfer equipment to company</span>
 		<div slot="body" class="transfer-modal-body">
 			<p class="transfer-modal-copy">
-				Move <strong>{selectedRowIds.size}</strong>
+				Move <strong class="text-white font-semibold">{selectedRowIds.size}</strong>
 				selected equipment row{selectedRowIds.size === 1 ? '' : 's'} from
-				<strong>{activeCompany.company}</strong>
+				<strong class="text-white font-semibold">{activeCompany.company}</strong>
 				to another company. Equipment is removed from the source and created on the target.
 			</p>
 			<label class="transfer-modal-label" for="transfer-target-company">Target company</label>
@@ -466,7 +466,7 @@
 		<div slot="footer" class="transfer-modal-footer">
 			<button
 				type="button"
-				class="sheet-toolbar-btn"
+				class="btn-secondary text-sm"
 				on:click={closeTransferModal}
 				disabled={isTransferring}
 			>
@@ -474,7 +474,7 @@
 			</button>
 			<button
 				type="button"
-				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				class="btn-primary text-sm"
 				on:click={handleTransferEquipments}
 				disabled={!transferTargetCompany || isTransferring}
 			>
@@ -493,10 +493,10 @@
 			class="sheet-toolbar-link"
 		>← Back to Sheets</a>
 		<div class="sheet-toolbar-actions">
-			<button type="button" class="sheet-toolbar-btn" on:click={addEquipment}>Add Equipment</button>
+			<button type="button" class="btn-secondary text-xs px-3 py-1.5" on:click={addEquipment}>Add Equipment</button>
 			<button
 				type="button"
-				class="sheet-toolbar-btn"
+				class="btn-secondary text-xs px-3 py-1.5"
 				on:click={openTransferModal}
 				disabled={!canTransferEquipments}
 			>
@@ -504,7 +504,7 @@
 			</button>
 			<button
 				type="button"
-				class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+				class="btn-primary text-xs px-3 py-1.5"
 				on:click={handleSave}
 				disabled={isSaving}
 			>
@@ -593,7 +593,7 @@
 				</label>
 				<button
 					type="button"
-					class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+					class="btn-primary text-xs px-3 py-1.5"
 					on:click={applyMassValues}
 					disabled={!canMassApply}
 				>
@@ -601,7 +601,7 @@
 				</button>
 				<button
 					type="button"
-					class="sheet-toolbar-btn sheet-bulk-apply-reset"
+					class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 disabled:opacity-30 transition sheet-bulk-apply-reset"
 					on:click={resetSelectedRciTags}
 					disabled={!canResetRciTags}
 				>
@@ -659,7 +659,7 @@
 									</p>
 									<button
 										type="button"
-										class="sheet-toolbar-btn sheet-toolbar-btn--primary"
+										class="btn-primary text-xs px-3 py-1.5"
 										on:click={addEquipment}
 									>
 										Add Equipment
@@ -804,9 +804,10 @@
 <style>
 	.sheet-page {
 		min-height: 100vh;
-		background: #e8e8e8;
+		background: #0e1012;
+		color: #f3f4f6;
 		padding: 1.5rem 1rem 2.5rem;
-		font-family: Arial, Helvetica, sans-serif;
+		font-family: inherit;
 	}
 
 	.sheet-toolbar {
@@ -821,47 +822,19 @@
 
 	.sheet-toolbar-link {
 		font-size: 0.875rem;
-		color: #374151;
+		color: #9ca3af;
 		text-decoration: none;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-toolbar-link:hover {
-		color: #111827;
+		color: #a3e635;
 		text-decoration: underline;
 	}
 
 	.sheet-toolbar-actions {
 		display: flex;
 		gap: 0.5rem;
-	}
-
-	.sheet-toolbar-btn {
-		border: 1px solid #d1d5db;
-		background: #fff;
-		color: #374151;
-		border-radius: 0.25rem;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.8125rem;
-		cursor: pointer;
-	}
-
-	.sheet-toolbar-btn:hover {
-		background: #f9fafb;
-	}
-
-	.sheet-toolbar-btn--primary {
-		background: #1a1a1a;
-		border-color: #1a1a1a;
-		color: #fff;
-	}
-
-	.sheet-toolbar-btn--primary:hover {
-		background: #333;
-	}
-
-	.sheet-toolbar-btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	.transfer-modal-body {
@@ -873,31 +846,28 @@
 	.transfer-modal-copy {
 		margin: 0;
 		font-size: 0.875rem;
-		color: #374151;
+		color: #d1d5db;
 		line-height: 1.5;
 	}
 
 	.transfer-modal-label {
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #6b7280;
+		color: #9ca3af;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
-	}
-
-	.transfer-modal-footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
 	}
 
 	.sheet-document {
 		max-width: 80rem;
 		margin: 0 auto;
 		min-width: 0;
-		background: #fff;
+		background: #141619;
+		border: 1px solid #262a30;
+		border-radius: 1rem;
+		overflow: hidden;
 		padding: 2rem 2.5rem 2.5rem;
-		box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 	}
 
 	.sheet-header {
@@ -914,8 +884,9 @@
 		align-items: start;
 		gap: 1rem;
 		padding: 1.5rem 2.5rem;
-		background: rgb(40, 40, 40);
-		color: #fff;
+		background: #181b20;
+		border-bottom: 1px solid #262a30;
+		color: #f3f4f6;
 	}
 
 	.sheet-header-logo {
@@ -933,24 +904,14 @@
 		padding-top: 0.25rem;
 	}
 
-	.sheet-header-select option {
-		color: #111;
-		background-color: #fff;
-	}
-
-	.sheet-header-select {
-		color-scheme: light;
-		cursor: pointer;
-	}
-
 	.sheet-subtitle {
-		margin: 0.125rem 0 0;
-		font-size: 0.9375rem;
-		color: #d1d5db;
+		margin: 0.25rem 0 0;
+		font-size: 0.875rem;
+		color: #9ca3af;
 	}
 
 	.sheet-table-wrap {
-		border-top: 3px solid #2d6a2d;
+		border-top: 2px solid #84cc16;
 		overflow-x: auto;
 	}
 
@@ -965,19 +926,19 @@
 		width: 100%;
 		border-collapse: collapse;
 		font-size: 0.875rem;
-		color: #111;
+		color: #e5e7eb;
 	}
 
 	.sheet-table thead tr {
-		background: #ececec;
+		background: #181b20;
 	}
 
 	.sheet-table th {
 		padding: 0.625rem 0.75rem;
 		text-align: left;
 		font-weight: 700;
-		font-size: 0.875rem;
-		color: #111;
+		font-size: 0.8125rem;
+		color: #9ca3af;
 		border: none;
 		white-space: nowrap;
 	}
@@ -993,20 +954,26 @@
 		font-weight: 700;
 		color: inherit;
 		cursor: pointer;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-sort-btn:hover {
-		color: #000;
+		color: #a3e635;
 	}
 
 	.sheet-sort-icon {
 		font-size: 0.6875rem;
-		color: #666;
+		color: #6b7280;
 		font-weight: 400;
 	}
 
 	.sheet-table tbody tr {
-		border-bottom: 2px solid #111;
+		border-bottom: 1px solid #262a30;
+		transition: background-color 0.15s ease;
+	}
+
+	.sheet-table tbody tr:hover {
+		background: rgba(31, 35, 41, 0.4);
 	}
 
 	.sheet-cell {
@@ -1025,14 +992,14 @@
 		padding: 0;
 		margin: 0;
 		font: inherit;
-		color: inherit;
+		color: #f3f4f6;
 		resize: none;
 	}
 
 	.sheet-cell-input:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
 	}
 
 	.sheet-cell-select {
@@ -1044,35 +1011,48 @@
 		padding: 0;
 		margin: 0;
 		font: inherit;
-		color: inherit;
+		color: #f3f4f6;
 		cursor: pointer;
+	}
+
+	.sheet-cell-select option {
+		background: #141619;
+		color: #f3f4f6;
 	}
 
 	.sheet-cell-select:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
 	}
 
 	.sheet-cell-input--rci {
 		font-family: 'Consolas', 'Courier New', monospace;
 		font-weight: 600;
 		letter-spacing: 0.02em;
+		color: #a3e635;
 	}
 
 	.sheet-cell-input--customer-tag {
 		font-style: italic;
+		color: #cbd5e1;
 	}
 
 	.sheet-cell-input--link {
-		color: #2563eb;
+		color: #38bdf8;
 		font-weight: 500;
+		transition: color 0.15s ease;
+	}
+
+	.sheet-cell-input--link:hover {
+		color: #7dd3fc;
+		text-decoration: underline;
 	}
 
 	.sheet-checkbox {
 		width: 1rem;
 		height: 1rem;
-		accent-color: #111;
+		accent-color: #84cc16;
 		cursor: pointer;
 	}
 
@@ -1082,14 +1062,14 @@
 		align-items: flex-end;
 		gap: 0.75rem 1rem;
 		padding: 0.875rem 0;
-		margin-bottom: 0.25rem;
-		border-bottom: 1px solid #e5e7eb;
+		margin-bottom: 0.75rem;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.sheet-bulk-apply-label {
 		font-size: 0.8125rem;
 		font-weight: 600;
-		color: #374151;
+		color: #e5e7eb;
 		white-space: nowrap;
 	}
 
@@ -1103,33 +1083,29 @@
 	.sheet-bulk-apply-field-label {
 		font-size: 0.6875rem;
 		font-weight: 600;
-		color: #6b7280;
+		color: #9ca3af;
 		text-transform: uppercase;
 		letter-spacing: 0.03em;
 	}
 
 	.sheet-bulk-apply-select {
-		border: 1px solid #d1d5db;
-		border-radius: 0.25rem;
-		padding: 0.375rem 0.5rem;
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
+		padding: 0.375rem 0.625rem;
 		font-size: 0.8125rem;
-		color: #111;
-		background: #fff;
+		color: #f3f4f6;
+		background: #0e1012;
 		min-width: 8rem;
+		transition: border-color 0.15s ease;
 	}
 
 	.sheet-bulk-apply-select:focus {
 		outline: none;
-		border-color: #111;
+		border-color: #84cc16;
 	}
 
 	.sheet-bulk-apply-reset {
 		margin-left: auto;
-	}
-
-	.sheet-bulk-apply-reset:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
 	}
 
 	.sheet-select-col {
@@ -1143,7 +1119,7 @@
 		width: 2.5rem;
 		padding: 0.75rem 0.5rem;
 		text-align: center;
-		color: #666;
+		color: #6b7280;
 		font-weight: 600;
 		vertical-align: top;
 		white-space: nowrap;
@@ -1158,22 +1134,23 @@
 	.sheet-remove-btn {
 		border: none;
 		background: transparent;
-		color: #999;
+		color: #6b7280;
 		font-size: 1.25rem;
 		line-height: 1;
 		cursor: pointer;
 		padding: 0;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-remove-btn:hover {
-		color: #dc2626;
+		color: #f87171;
 	}
 
 	.sheet-empty {
 		padding: 2.5rem 1rem;
 		text-align: center;
-		color: #666;
-		border-bottom: 2px solid #111;
+		color: #9ca3af;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.sheet-empty p {
@@ -1182,7 +1159,7 @@
 
 	.sheet-empty-hint {
 		font-size: 0.8125rem;
-		color: #9ca3af;
+		color: #6b7280;
 		margin-bottom: 1rem !important;
 	}
 
@@ -1194,14 +1171,15 @@
 	.sheet-add-btn {
 		border: none;
 		background: transparent;
-		color: #666;
+		color: #9ca3af;
 		font-size: 0.8125rem;
 		cursor: pointer;
 		padding: 0;
+		transition: color 0.15s ease;
 	}
 
 	.sheet-add-btn:hover {
-		color: #111;
+		color: #a3e635;
 		text-decoration: underline;
 	}
 

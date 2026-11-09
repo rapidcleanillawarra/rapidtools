@@ -170,14 +170,15 @@
 		padding: 0;
 		margin: 0;
 		font: inherit;
-		color: #2563eb;
+		color: #38bdf8;
 		font-weight: 500;
 	}
 
 	.machine-type-input:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
+		color: #fff;
 	}
 
 	.machine-type-options {
@@ -189,9 +190,10 @@
 		margin: 0;
 		padding: 0.25rem 0;
 		list-style: none;
-		background: #fff;
-		border: 1px solid #d1d5db;
-		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+		background: #141619;
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
+		box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 		max-height: 10rem;
 		overflow-y: auto;
 	}
@@ -204,13 +206,15 @@
 		padding: 0.375rem 0.625rem;
 		text-align: left;
 		font: inherit;
-		color: #2563eb;
+		color: #e5e7eb;
 		cursor: pointer;
+		transition: background 150ms ease, color 150ms ease;
 	}
 
 	.machine-type-option:hover,
 	.machine-type-option--selected {
-		background: #eff6ff;
+		background: #1f2329;
+		color: #a3e635;
 	}
 
 	.machine-type-option--empty {

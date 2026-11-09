@@ -644,8 +644,8 @@
 </script>
 
 <div class="grid grid-cols-12 gap-6">
-  <div class="col-span-4 bg-white rounded-lg border border-gray-200 p-6 shadow-lg">
-    <h3 class="text-lg font-medium text-gray-900 mb-6 flex items-center">
+  <div class="col-span-12 lg:col-span-4 bg-[#141619] rounded-2xl border border-[#262a30] p-5 shadow-xl">
+    <h3 class="text-base font-semibold text-white mb-4 flex items-center">
       <span class="mr-2">📅</span>
       Company Locations for {currentMonth > 0 ? months[currentMonth - 1] : 'Loading...'}
     </h3>
@@ -654,7 +654,7 @@
     <div class="mb-6">
       <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="h-5 w-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
@@ -662,12 +662,12 @@
           type="text"
           bind:value={searchQuery}
           placeholder="Search companies, locations, or contacts..."
-          class="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
+          class="block w-full pl-10 pr-3 py-2 text-sm bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg focus:outline-none focus:ring-1 focus:ring-lime-500 focus:border-lime-500 placeholder-gray-500 transition-colors"
         />
         {#if searchQuery}
           <button
             on:click={() => searchQuery = ''}
-            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 transition-colors"
           >
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -676,9 +676,9 @@
         {/if}
       </div>
       {#if searchQuery && filteredSchedules.length === 0}
-        <div class="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div class="flex items-center text-blue-800">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="mt-3 p-3 bg-[#181b20] border border-[#262a30] rounded-lg">
+          <div class="flex items-center text-gray-400">
+            <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span class="text-sm">No results found for "{searchQuery}"</span>
@@ -686,8 +686,8 @@
         </div>
       {/if}
       {#if searchQuery && filteredSchedules.length > 0}
-        <div class="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-          <div class="flex items-center text-green-800">
+        <div class="mt-3 p-3 bg-lime-500/10 border border-lime-500/20 rounded-lg">
+          <div class="flex items-center text-lime-400">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
@@ -702,14 +702,14 @@
         {#each Array(3) as _, index}
           <div class="company-skeleton animate-fade-in" style="animation-delay: {index * 100}ms;">
             <!-- Company header skeleton -->
-            <div class="flex items-center justify-between bg-gray-200 px-4 py-3 rounded-t-lg mb-3">
+            <div class="flex items-center justify-between bg-[#181b20] border border-[#262a30] px-4 py-3 rounded-t-lg mb-3">
               <SkeletonLoader type="text" width="150px" height="1.25rem" />
               <SkeletonLoader type="circle" width="1rem" height="1rem" />
             </div>
             <!-- Location items skeleton -->
             <div class="space-y-3">
               {#each Array(2) as _, itemIndex}
-                <div class="p-4 rounded-lg bg-gray-100 flex justify-between items-center">
+                <div class="p-4 rounded-lg bg-[#141619] border border-[#262a30] flex justify-between items-center">
                   <div class="flex-1">
                     <SkeletonLoader type="text" width="120px" height="1rem" className="mb-2" />
                     <SkeletonLoader type="text" width="80px" height="0.75rem" />
@@ -726,49 +726,49 @@
         {#each filteredSchedules as schedule, index (schedule.id)}
           <div class="company-container mb-6 animate-fade-in hover:transform hover:scale-[1.02] transition-all duration-300" style="animation-delay: {index * 100}ms;">
             <div 
-              class="flex items-center justify-between bg-gradient-to-r from-gray-800 to-gray-900 text-white px-4 py-3 rounded-t-lg mb-3 shadow-lg transform hover:scale-[1.02] transition-all duration-300 hover:shadow-xl"
+              class="flex items-center justify-between bg-[#181b20] border border-[#262a30] text-white px-4 py-2.5 rounded-t-lg mb-2 shadow"
             >
-              <h4 class="text-md font-semibold flex items-center">
-                <span class="mr-2 text-lg">🏢</span>
+              <h4 class="text-sm font-semibold flex items-center">
+                <span class="mr-2 text-base">🏢</span>
                 {schedule.company}
               </h4>
               <div 
-                class="w-4 h-4 rounded-full shadow-lg animate-pulse" 
+                class="w-3.5 h-3.5 rounded-full shadow border border-[#333842] animate-pulse" 
                 style="background-color: {schedule.color || '#3b82f6'}">
               </div>
             </div>
-            <div class="company-items space-y-3">
+            <div class="company-items space-y-2">
               {#each schedule.information as info, infoIndex (info.information_id)}
                 <div
-                  class="location-item interactive-hover p-4 rounded-lg text-white cursor-pointer flex justify-between items-center transform hover:scale-[1.03] hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-1"
+                  class="location-item interactive-hover p-3.5 rounded-lg text-white cursor-pointer flex justify-between items-center transform hover:scale-[1.02] hover:shadow-xl transition-all duration-300 ease-out hover:-translate-y-0.5"
                   style="background: linear-gradient(135deg, {schedule.color || '#3b82f6'}, {schedule.color ? schedule.color + 'cc' : '#3b82f6cc'})"
                   on:click={() => openModal(info, schedule, infoIndex, index)}
                   on:mouseenter={(e) => addFloatingAnimation(e.currentTarget)}
                   on:mouseleave={(e) => removeFloatingAnimation(e.currentTarget)}
                 >
-                  <div class="flex-1">
-                    <div class="font-medium text-sm mb-1 flex items-center">
-                      <span class="mr-2">📍</span>
-                      {info.sub_company_name}
+                  <div class="flex-1 min-w-0 pr-2">
+                    <div class="font-medium text-sm mb-0.5 flex items-center truncate">
+                      <span class="mr-1.5 shrink-0">📍</span>
+                      <span class="truncate">{info.sub_company_name}</span>
                     </div>
-                    <div class="text-xs opacity-90 flex items-center">
-                      <span class="mr-1">🏢</span>
-                      {info.location}
+                    <div class="text-xs opacity-90 flex items-center truncate">
+                      <span class="mr-1 shrink-0">🏢</span>
+                      <span class="truncate">{info.location}</span>
                     </div>
                   </div>
                   {#if scheduledItems.has(`${schedule.id}-${infoIndex}`)}
-                    <div class="flex items-center success-glow">
-                      <div class="bg-green-500 rounded-full p-1 mr-2 shadow-lg">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <div class="flex items-center success-glow shrink-0">
+                      <div class="bg-lime-500 rounded-full p-1 mr-1.5 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-gray-950" viewBox="0 0 20 20" fill="currentColor">
                           <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                         </svg>
                       </div>
-                      <span class="text-xs font-medium text-green-200 animate-pulse">Scheduled</span>
+                      <span class="text-xs font-semibold text-lime-200">Scheduled</span>
                     </div>
                   {:else}
-                    <div class="text-xs opacity-60 flex items-center">
+                    <div class="text-xs opacity-75 flex items-center shrink-0">
                       <span class="mr-1">⏰</span>
-                      Click to schedule
+                      Schedule
                     </div>
                   {/if}
                 </div>
@@ -777,28 +777,28 @@
           </div>
         {:else}
           <div class="text-center py-12">
-            <div class="text-6xl mb-4">📋</div>
-            <div class="text-gray-500 font-medium">No companies scheduled for {currentMonth > 0 ? months[currentMonth - 1] : 'this month'}</div>
-            <div class="text-sm text-gray-400 mt-2">Select a different month to view schedules</div>
+            <div class="text-5xl mb-4 text-gray-600">📋</div>
+            <div class="text-white font-medium">No companies scheduled for {currentMonth > 0 ? months[currentMonth - 1] : 'this month'}</div>
+            <div class="text-sm text-gray-400 mt-1">Select a different month to view schedules</div>
           </div>
         {/each}
       </div>
     {/if}
   </div>
 
-  <div class="col-span-8 bg-white rounded-lg border border-gray-200 p-6 shadow-lg">
+  <div class="col-span-12 lg:col-span-8 bg-[#141619] rounded-2xl border border-[#262a30] p-5 shadow-xl">
     <div class="flex justify-between items-center mb-6">
-      <h3 class="text-lg font-medium text-gray-900 flex items-center">
-        <span class="mr-2">🗓️</span>
+      <h3 class="text-base font-semibold text-white flex items-center">
+        <span class="mr-2 text-lg">🗓️</span>
         Schedule Calendar
       </h3>
       <button 
         on:click={refreshEvents}
         on:click={addRippleEffect}
         disabled={isLoadingSchedules || isLoadingEvents || !schedulesLoaded}
-        class="btn-primary floating-btn px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed flex items-center shadow-md"
+        class="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5"
       >
-        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
         </svg>
         Refresh
@@ -806,8 +806,32 @@
     </div>
     <div class="relative">
       {#if isLoadingSchedules || isLoadingEvents}
-        <div class="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10 rounded-lg backdrop-blur-sm">
-          <div class="text-center w-full max-w-md">
+        <div class="absolute inset-0 bg-[#141619]/90 backdrop-blur-sm flex items-center justify-center z-10 rounded-xl">
+          <div class="text-center w-full max-w-md p-6">
+            <div class="space-y-4">
+              <!-- Calendar skeleton -->
+              <div class="bg-[#181b20] border border-[#262a30] rounded-xl p-6">
+                <div class="space-y-3">
+                  <!-- Header skeleton -->
+                  <div class="flex justify-between items-center">
+                    <SkeletonLoader type="text" width="120px" height="1.5rem" />
+                    <SkeletonLoader type="text" width="80px" height="1.5rem" />
+                  </div>
+                  <!-- Calendar grid skeleton -->
+                  <div class="grid grid-cols-7 gap-1">
+                    {#each Array(35) as _}
+                      <SkeletonLoader type="card" width="100%" height="60px" />
+                    {/each}
+                  </div>
+                </div>
+              </div>
+              <div class="text-gray-400 font-medium text-sm">
+                {isLoadingSchedules ? 'Loading company data...' : 'Loading calendar events...'}
+              </div>
+            </div>
+          </div>
+        </div>
+      {/if}
             <div class="space-y-4">
               <!-- Calendar skeleton -->
               <div class="bg-gray-200 rounded-lg p-6">
@@ -858,39 +882,39 @@
   >
     <svelte:fragment slot="header">
       <div class="modal-enter flex items-center">
-        <div class="mr-3 p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="mr-3 p-2 rounded-full bg-lime-500 text-gray-950 font-bold">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
           </svg>
         </div>
         <div>
-          <div class="text-lg font-semibold">{isEditMode ? 'Edit Schedule' : 'Add Schedule'}</div>
-          <div class="text-sm text-gray-500">{selectedLocation.sub_company_name}</div>
+          <div class="text-lg font-bold text-white">{isEditMode ? 'Edit Schedule' : 'Add Schedule'}</div>
+          <div class="text-xs text-gray-400">{selectedLocation.sub_company_name}</div>
         </div>
       </div>
     </svelte:fragment>
     <svelte:fragment slot="body">
       <div class="modal-enter">
       <div class="p-6">
-        <div class="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
-          <h2 class="text-xl font-bold mb-2 flex items-center">
-            <span class="mr-2 text-2xl">📍</span>
+        <div class="mb-5 p-4 bg-[#181b20] rounded-xl border border-[#262a30]">
+          <h2 class="text-lg font-bold text-white mb-1 flex items-center">
+            <span class="mr-2 text-xl">📍</span>
             {selectedLocation.sub_company_name}
           </h2>
-          <p class="text-gray-600 flex items-center">
+          <p class="text-gray-400 text-sm flex items-center">
             <span class="mr-2">🏢</span>
             {selectedLocation.location}
           </p>
         </div>
         
-        <div class="mb-6">
-          <label class="block text-sm font-medium mb-3 text-gray-700 flex items-center">
-            <span class="mr-2 text-lg">📅</span>
+        <div class="mb-5">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 flex items-center">
+            <span class="mr-2 text-base">📅</span>
             Date Range
           </label>
-          <div class="flex space-x-4">
-            <div class="flex-1">
-              <label class="block text-xs text-gray-600 mb-2 font-medium flex items-center">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1.5 font-medium flex items-center">
                 <span class="mr-1">🎯</span>
                 Start Date
               </label>
@@ -898,18 +922,13 @@
                 <input 
                   type="date" 
                   bind:value={startDateStr}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
+                  class="w-full p-2.5 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 text-sm transition-colors"
                   min={new Date().toISOString().split('T')[0]}
                 />
-                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                  </svg>
-                </div>
               </div>
             </div>
-            <div class="flex-1">
-              <label class="block text-xs text-gray-600 mb-2 font-medium flex items-center">
+            <div>
+              <label class="block text-xs text-gray-400 mb-1.5 font-medium flex items-center">
                 <span class="mr-1">🏁</span>
                 End Date
               </label>
@@ -917,34 +936,29 @@
                 <input 
                   type="date" 
                   bind:value={endDateStr}
-                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400 hover:shadow-md"
+                  class="w-full p-2.5 bg-[#0e1012] text-gray-200 border border-[#262a30] rounded-lg focus:outline-none focus:border-lime-500 focus:ring-1 focus:ring-lime-500 text-sm transition-colors"
                   min={startDateStr || new Date().toISOString().split('T')[0]}
                 />
-                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                  <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                  </svg>
-                </div>
               </div>
             </div>
           </div>
           
           {#if validationErrors.length > 0}
-            <div class="mt-4 p-4 bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-lg animate-bounce-in">
-              <div class="text-sm text-red-800">
-                <div class="font-medium mb-3 flex items-center">
-                  <div class="mr-2 p-1 bg-red-500 rounded-full">
-                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-xl animate-bounce-in">
+              <div class="text-sm text-red-300">
+                <div class="font-semibold mb-2 flex items-center">
+                  <div class="mr-2 p-1 bg-red-500/20 text-red-400 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                   </div>
                   Please fix the following errors:
                 </div>
-                <ul class="space-y-2">
+                <ul class="space-y-1">
                   {#each validationErrors as error, index}
-                    <li class="flex items-center animate-slide-in" style="animation-delay: {index * 100}ms;">
-                      <span class="w-2 h-2 bg-red-500 rounded-full mr-3 animate-pulse"></span>
-                      <span class="text-red-700">{error}</span>
+                    <li class="flex items-center text-xs text-red-300">
+                      <span class="w-1.5 h-1.5 bg-red-400 rounded-full mr-2"></span>
+                      <span>{error}</span>
                     </li>
                   {/each}
                 </ul>
@@ -955,29 +969,29 @@
         
         <!-- Contact Information Section -->
         <div class="mb-6">
-          <label class="block text-sm font-medium mb-3 text-gray-700 flex items-center">
-            <span class="mr-2 text-lg">👥</span>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 flex items-center">
+            <span class="mr-2 text-base">👥</span>
             Contact Information
           </label>
-          <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div class="bg-[#181b20] rounded-xl p-4 border border-[#262a30]">
             {#if selectedLocation.contacts && selectedLocation.contacts.length > 0}
               <div class="space-y-3">
                 {#each selectedLocation.contacts as contact, contactIndex}
-                  <div class="bg-white rounded-lg p-3 border border-gray-200 shadow-sm">
+                  <div class="bg-[#0e1012] rounded-lg p-3 border border-[#262a30] shadow-sm">
                     <div class="flex items-center justify-between mb-2">
-                      <h4 class="font-medium text-gray-900 flex items-center">
+                      <h4 class="font-medium text-white flex items-center text-sm">
                         <span class="mr-2">👤</span>
                         {contact.name || 'Unnamed Contact'}
                       </h4>
-                      <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                      <span class="text-xs text-gray-400 bg-[#181b20] border border-[#333842] px-2 py-0.5 rounded-full">
                         Contact {contactIndex + 1}
                       </span>
                     </div>
-                    <div class="space-y-1 text-sm text-gray-600">
+                    <div class="space-y-1 text-xs text-gray-400">
                       {#if contact.phone}
                         <div class="flex items-center">
                           <span class="mr-2">📞</span>
-                          <a href="tel:{contact.phone}" class="text-blue-600 hover:text-blue-800 hover:underline">
+                          <a href="tel:{contact.phone}" class="text-lime-400 hover:text-lime-300 hover:underline">
                             {contact.phone}
                           </a>
                         </div>
@@ -985,13 +999,13 @@
                       {#if contact.email}
                         <div class="flex items-center">
                           <span class="mr-2">📧</span>
-                          <a href="mailto:{contact.email}" class="text-blue-600 hover:text-blue-800 hover:underline">
+                          <a href="mailto:{contact.email}" class="text-lime-400 hover:text-lime-300 hover:underline">
                             {contact.email}
                           </a>
                         </div>
                       {/if}
                       {#if !contact.phone && !contact.email}
-                        <div class="text-gray-400 italic">
+                        <div class="text-gray-500 italic">
                           No contact details available
                         </div>
                       {/if}
@@ -1001,8 +1015,8 @@
               </div>
             {:else}
               <div class="text-center py-6 text-gray-500">
-                <div class="text-4xl mb-2">👥</div>
-                <p class="text-sm">No contacts available for this location</p>
+                <div class="text-3xl mb-2">👥</div>
+                <p class="text-xs">No contacts available for this location</p>
               </div>
             {/if}
           </div>
@@ -1013,9 +1027,9 @@
             <button 
               on:click={removeCurrentEvent}
               disabled={isDeleting}
-              class="px-3 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center text-sm"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 transition"
             >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
               </svg>
               Remove
@@ -1032,22 +1046,16 @@
                 editingEventId = null;
               }}
               disabled={isSaving || isDeleting}
-              class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 hover:shadow-md flex items-center text-sm"
+              class="btn-secondary text-sm"
             >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
               Cancel
             </button>
             <button 
               on:click={addEvent}
               on:click={addRippleEffect}
               disabled={!startDateStr || !endDateStr || validationErrors.length > 0 || isSaving || isDeleting}
-              class="btn-primary px-4 py-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg disabled:from-gray-400 disabled:to-gray-500 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center text-sm"
+              class="btn-primary text-sm flex items-center"
             >
-              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-              </svg>
               {isEditMode ? 'Update' : 'Add'}
             </button>
           </div>
@@ -1063,20 +1071,20 @@
     onClose={cancelDelete}
   >
     <svelte:fragment slot="header">
-      Confirm Delete Schedule
+      <span class="text-white font-bold">Confirm Delete Schedule</span>
     </svelte:fragment>
     <svelte:fragment slot="body">
       <div class="p-6">
-        <div class="mb-4">
+        <div class="mb-4 bg-[#181b20] border border-[#262a30] rounded-xl p-4">
           <div class="flex items-center mb-3">
             <div 
-              class="w-4 h-4 rounded mr-3" 
+              class="w-4 h-4 rounded mr-3 shrink-0" 
               style="background-color: {eventToDelete.backgroundColor}">
             </div>
-            <h3 class="text-lg font-semibold">{eventToDelete.title}</h3>
+            <h3 class="text-base font-semibold text-white">{eventToDelete.title}</h3>
           </div>
-          <p class="text-gray-600 mb-2">Location: {eventToDelete.extendedProps.location}</p>
-          <p class="text-gray-600 mb-4">
+          <p class="text-gray-400 text-sm mb-1">Location: {eventToDelete.extendedProps.location}</p>
+          <p class="text-gray-400 text-sm">
             Date: {new Date(eventToDelete.start).toLocaleDateString()}
             {#if eventToDelete.end && eventToDelete.end !== eventToDelete.start}
               - {new Date(eventToDelete.end).toLocaleDateString()}
@@ -1084,14 +1092,14 @@
           </p>
         </div>
         
-        <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+        <div class="bg-amber-950/30 border border-amber-500/30 rounded-xl p-4 mb-4">
           <div class="flex">
-            <svg class="w-5 h-5 text-yellow-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 text-amber-400 mr-2 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
             </svg>
-            <div class="text-sm text-yellow-800">
+            <div class="text-sm text-amber-300">
               <p class="font-medium">Are you sure you want to delete this schedule?</p>
-              <p class="mt-1">This action cannot be undone.</p>
+              <p class="mt-1 text-xs text-amber-400">This action cannot be undone.</p>
             </div>
           </div>
         </div>
@@ -1100,18 +1108,15 @@
           <button 
             on:click={cancelDelete}
             disabled={isDeleting}
-            class="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 text-sm"
+            class="btn-secondary text-sm"
           >
             Cancel
           </button>
           <button 
             on:click={confirmDelete}
             disabled={isDeleting}
-            class="px-4 py-1.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 transform hover:scale-105 transition-all duration-200 shadow-md flex items-center text-sm"
+            class="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-950/20 px-4 py-2 text-sm font-semibold text-red-400 hover:bg-red-900/40 hover:text-red-300 transition"
           >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
             Delete Schedule
           </button>
         </div>
@@ -1468,7 +1473,7 @@
 
   /* Enhanced loading states */
   .loading-shimmer {
-    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background: linear-gradient(90deg, #181b20 25%, #1f2329 50%, #181b20 75%);
     background-size: 200px 100%;
     animation: shimmer 1.5s infinite;
   }
@@ -1480,7 +1485,7 @@
 
   .interactive-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
   }
 
   /* Success state animations */
@@ -1490,13 +1495,13 @@
 
   @keyframes successGlow {
     0% {
-      box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+      box-shadow: 0 0 5px rgba(132, 204, 22, 0.5);
     }
     50% {
-      box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+      box-shadow: 0 0 20px rgba(132, 204, 22, 0.8);
     }
     100% {
-      box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+      box-shadow: 0 0 5px rgba(132, 204, 22, 0.5);
     }
   }
 </style>

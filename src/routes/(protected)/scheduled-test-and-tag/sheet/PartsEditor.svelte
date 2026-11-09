@@ -172,8 +172,8 @@
 
 	.parts-editor-trigger:focus {
 		outline: none;
-		background: #fafafa;
-		box-shadow: inset 0 -1px 0 #111;
+		background: #1f2329;
+		box-shadow: inset 0 -1px 0 #84cc16;
 	}
 
 	.parts-editor-trigger-list {
@@ -191,7 +191,7 @@
 		flex-direction: column;
 		gap: 0.125rem;
 		padding-bottom: 0.5rem;
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid #262a30;
 	}
 
 	.parts-editor-trigger-row:last-child {
@@ -203,24 +203,24 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		font-family: 'Consolas', 'Courier New', monospace;
-		color: #1d4ed8;
+		color: #a3e635;
 		word-break: break-word;
 	}
 
 	.parts-editor-trigger-name {
 		font-size: 0.8125rem;
-		color: #111;
+		color: #e5e7eb;
 		word-break: break-word;
 	}
 
 	.parts-editor-trigger-empty {
-		color: #9ca3af;
+		color: #6b7280;
 	}
 
 	.parts-editor-modal-copy {
 		margin: 0 0 1rem;
 		font-size: 0.875rem;
-		color: #4b5563;
+		color: #9ca3af;
 	}
 
 	.parts-editor-list {
@@ -249,42 +249,46 @@
 	.parts-editor-label {
 		font-size: 0.75rem;
 		font-weight: 600;
-		color: #374151;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+		color: #9ca3af;
 	}
 
 	.parts-editor-input {
 		width: 100%;
 		min-width: 0;
-		border: 1px solid #d1d5db;
-		border-radius: 0.25rem;
+		background: #0e1012;
+		border: 1px solid #262a30;
+		border-radius: 0.5rem;
 		padding: 0.5rem 0.625rem;
 		font-size: 0.875rem;
-		color: #111;
+		color: #e5e7eb;
+		transition: border-color 150ms, box-shadow 150ms;
 	}
 
 	.parts-editor-input:focus {
 		outline: none;
-		border-color: #111;
-		box-shadow: 0 0 0 1px #111;
+		border-color: #84cc16;
+		box-shadow: 0 0 0 1px #84cc16;
 	}
 
 	.parts-editor-remove {
 		flex-shrink: 0;
 		width: 2rem;
 		height: 2.375rem;
-		border: 1px solid #e5e7eb;
-		border-radius: 0.25rem;
-		background: #fff;
-		color: #6b7280;
+		border: 1px solid rgba(239, 68, 68, 0.3);
+		border-radius: 0.5rem;
+		background: rgba(127, 29, 29, 0.2);
+		color: #f87171;
 		font-size: 1.25rem;
 		line-height: 1;
 		cursor: pointer;
+		transition: background 150ms, color 150ms;
 	}
 
 	.parts-editor-remove:hover {
-		color: #dc2626;
-		border-color: #fecaca;
-		background: #fef2f2;
+		color: #fca5a5;
+		background: rgba(127, 29, 29, 0.4);
 	}
 
 	.parts-editor-add {
@@ -294,11 +298,13 @@
 		padding: 0;
 		font-size: 0.875rem;
 		font-weight: 600;
-		color: #2d6a2d;
+		color: #a3e635;
 		cursor: pointer;
+		transition: color 150ms;
 	}
 
 	.parts-editor-add:hover {
+		color: #bef264;
 		text-decoration: underline;
 	}
 
@@ -309,27 +315,33 @@
 	}
 
 	.parts-editor-btn {
-		border: 1px solid #d1d5db;
-		border-radius: 0.25rem;
-		background: #fff;
+		border: 1px solid #333842;
+		border-radius: 0.5rem;
+		background: #1f2329;
 		padding: 0.5rem 0.875rem;
 		font-size: 0.875rem;
 		font-weight: 500;
-		color: #111;
+		color: #e5e7eb;
 		cursor: pointer;
+		transition: all 150ms;
 	}
 
 	.parts-editor-btn:hover {
-		background: #f9fafb;
+		background: #262a30;
+		color: #a3e635;
+		border-color: #84cc16;
 	}
 
 	.parts-editor-btn--primary {
-		border-color: #2d6a2d;
-		background: #2d6a2d;
-		color: #fff;
+		border-color: #84cc16;
+		background: #84cc16;
+		color: #090a0b;
+		font-weight: 700;
 	}
 
 	.parts-editor-btn--primary:hover {
-		background: #245a24;
+		background: #a3e635;
+		border-color: #a3e635;
+		color: #090a0b;
 	}
 </style>

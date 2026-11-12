@@ -4,7 +4,7 @@
 Implement a toggle button to hide completed tasks, enabled (**ON**) by default:
 1. **Hide Completed Button**: A filter pill button located in the toolbar (`TasksToolbar.svelte`) that toggles whether tasks with `status === 'Completed'` are visible or hidden in the board and list views.
 2. **On by Default**: When the user first visits the tasks page (or has no saved preference), `hideCompleted` defaults to `true`.
-3. **Per-User Persistence**: The user's preference (`hideCompleted: true | false`) is persisted per-user in `localStorage` under `rapidtools_tasks_hide_completed_<email>` so it remembers their chosen setting across refreshes and sessions.
+3. **Per-User Persistence (Full Toolbar & View State)**: All user view preferences and toolbar settings (`viewMode`, `activeTab`, `groupBy`, `sortBy`, `bucketPreferences` order/hidden buckets, and `taskFilters` including `search`, `assignee`, `status`, `dueDate`, `onlyNew`, and `hideCompleted`) are persisted per-user in `localStorage` and restored automatically across page reloads and sessions without overwriting saved state during initial hydration or Firebase auth loading.
 4. **Completed Count Indicator**: When completed tasks exist for the current active tab and filter criteria, display a counter pill badge showing the number of completed tasks.
 5. **Smart Status Filter Coordination**: If the user explicitly selects `Status: Completed` from the status dropdown, `hideCompleted` is automatically deactivated (`false`) so the view is not empty. If the user clicks `Hide completed` while `Status: Completed` is selected, the status dropdown resets to `'all'`.
 

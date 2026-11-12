@@ -18,6 +18,7 @@
 		showAllBuckets,
 		resetBucketPreferences,
 		toggleHideCompleted,
+		resetTaskFilters,
 		completedTasksCount
 	} from '../stores';
 	import {
@@ -38,6 +39,13 @@
 
 	$: isBucketCustomized =
 		$bucketPreferences.order.length > 0 || $bucketPreferences.hidden.length > 0;
+
+	$: hasActiveFilters =
+		Boolean($taskFilters.search?.trim()) ||
+		$taskFilters.assignee !== 'all' ||
+		$taskFilters.status !== 'all' ||
+		$taskFilters.dueDate !== 'all' ||
+		Boolean($taskFilters.onlyNew);
 
 	function isBucketHidden(dept: string, hiddenList: string[]): boolean {
 		const lower = dept.toLowerCase();
@@ -192,6 +200,9 @@
 					class="cursor-pointer border-0 bg-transparent py-2 pl-2 pr-8 text-xs font-medium text-gray-200 focus:ring-0 focus:outline-none sm:text-sm"
 				>
 					<option value="all" class="bg-[#141619] text-gray-200">Assignee</option>
+					{#if $taskFilters.assignee && $taskFilters.assignee !== 'all' && !$availableAssignees.includes($taskFilters.assignee)}
+						<option value={$taskFilters.assignee} class="bg-[#141619] text-gray-200">{$taskFilters.assignee}</option>
+					{/if}
 					{#each $availableAssignees as person}
 						<option value={person} class="bg-[#141619] text-gray-200">{person}</option>
 					{/each}
@@ -325,6 +336,20 @@
 					</span>
 				{/if}
 			</button>
+
+			{#if hasActiveFilters}
+				<button
+					type="button"
+					on:click={resetTaskFilters}
+					class="inline-flex items-center gap-1 rounded-lg border border-[#262a30] bg-[#141619] px-2.5 py-2 text-xs font-medium text-gray-400 transition hover:border-[#333842] hover:text-lime-400 sm:text-sm"
+					title="Clear active search and dropdown filters"
+				>
+					<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+					</svg>
+					<span>Clear filters</span>
+				</button>
+			{/if}
 		</div>
 
 		<!-- Right: Sort By + Group By Dropdown + Board / List View Toggle -->

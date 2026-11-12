@@ -577,6 +577,19 @@
 		</div>
 	{/each}
 
+	{#if $groupBy === 'department' && $groupedTasks.length === 0 && $hiddenBucketsCount > 0}
+		<div class="flex flex-col items-center justify-center gap-2 rounded-xl border border-[#262a30] bg-[#141619] p-6 text-center">
+			<p class="text-xs text-gray-400">All {$hiddenBucketsCount} buckets are hidden in your view.</p>
+			<button
+				type="button"
+				on:click={() => showAllBuckets()}
+				class="rounded-lg bg-lime-400 px-3 py-1.5 text-xs font-semibold text-gray-950 transition hover:bg-lime-300"
+			>
+				Show all buckets
+			</button>
+		</div>
+	{/if}
+
 	{#if $groupBy === 'department'}
 		<div class="pt-2">
 			<button

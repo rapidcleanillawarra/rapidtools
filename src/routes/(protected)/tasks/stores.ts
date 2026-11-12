@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { currentUser } from '$lib/firebase';
+import { currentUser, isLoadingAuth } from '$lib/firebase';
 import { userProfile, type UserProfile } from '$lib/userProfile';
 import {
 	type TaskItem,
@@ -8,6 +8,7 @@ import {
 	type TaskGroupBy,
 	type TaskSortKey,
 	type TaskViewMode,
+	type DueDateFilter,
 	type TaskColumnGroup,
 	type UserBucketPreferences,
 	DEFAULT_TASK_DEPARTMENTS,
@@ -39,28 +40,303 @@ export const groupBy = writable<TaskGroupBy>('department');
 export const sortBy = writable<TaskSortKey>('created_at_desc');
 export const viewMode = writable<TaskViewMode>('board');
 
-// Persist & sync viewMode per user in localStorage
-const VIEW_MODE_STORAGE_PREFIX = 'rapidtools_tasks_view_mode_';
+export const bucketPreferences = writable<UserBucketPreferences>({
+	order: [],
+	hidden: []
+});
 
-function getViewModeStorageKey(userEmail?: string | null): string {
-	const sanitized = (userEmail || 'anonymous')
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9_-]/g, '_');
-	return `${VIEW_MODE_STORAGE_PREFIX}${sanitized}`;
+const DEFAULT_TASK_FILTERS: TaskFilters = {
+	search: '',
+	assignee: 'all',
+	status: 'all',
+	dueDate: 'all',
+	onlyNew: false,
+	hideCompleted: true
+};
+
+export const taskFilters = writable<TaskFilters>({ ...DEFAULT_TASK_FILTERS });
+export const seenTaskIds = writable<Set<string>>(new Set());
+
+// --- LocalStorage Persistence Keys & Helpers ---
+const LAST_USER_STORAGE_KEY = 'rapidtools_tasks_last_user';
+const VIEW_MODE_STORAGE_PREFIX = 'rapidtools_tasks_view_mode_';
+const ACTIVE_TAB_STORAGE_PREFIX = 'rapidtools_tasks_active_tab_';
+const GROUP_BY_STORAGE_PREFIX = 'rapidtools_tasks_group_by_';
+const SORT_BY_STORAGE_PREFIX = 'rapidtools_tasks_sort_by_';
+const BUCKET_PREFS_STORAGE_PREFIX = 'rapidtools_tasks_bucket_prefs_';
+const FILTERS_STORAGE_PREFIX = 'rapidtools_tasks_filters_';
+const HIDE_COMPLETED_STORAGE_PREFIX = 'rapidtools_tasks_hide_completed_';
+const SEEN_TASKS_STORAGE_PREFIX = 'rapidtools_tasks_seen_';
+
+const VALID_TABS: TaskTab[] = ['all', 'my_tasks', 'assigned_by_me'];
+const VALID_GROUP_BY: TaskGroupBy[] = ['department', 'status', 'priority', 'assignee'];
+const VALID_SORT_KEYS: TaskSortKey[] = [
+	'created_at_desc',
+	'created_at_asc',
+	'priority_desc',
+	'priority_asc',
+	'due_date_asc',
+	'due_date_desc'
+];
+const VALID_VIEW_MODES: TaskViewMode[] = ['board', 'list'];
+const VALID_DUE_DATES: DueDateFilter[] = ['all', 'overdue', 'today', 'tomorrow', 'upcoming'];
+
+function sanitizeUserEmail(userEmail?: string | null): string {
+	const trimmed = (userEmail || '').trim().toLowerCase();
+	if (!trimmed) return '';
+	return trimmed.replace(/[^a-z0-9_-]/g, '_');
 }
 
-let isSyncingViewMode = false;
-
-viewMode.subscribe((val) => {
-	if (typeof window === 'undefined' || isSyncingViewMode) return;
-	try {
-		const user = get(currentUser);
-		const key = getViewModeStorageKey(user?.email);
-		localStorage.setItem(key, val);
-	} catch (err) {
-		console.error('Failed to persist view mode:', err);
+function getEffectiveUserKey(userEmail?: string | null): string {
+	const direct = sanitizeUserEmail(userEmail ?? get(currentUser)?.email);
+	if (direct) {
+		if (typeof window !== 'undefined') {
+			try {
+				localStorage.setItem(LAST_USER_STORAGE_KEY, direct);
+			} catch {}
+		}
+		return direct;
 	}
+	if (typeof window !== 'undefined') {
+		try {
+			const lastUser = localStorage.getItem(LAST_USER_STORAGE_KEY);
+			if (lastUser && lastUser.trim()) {
+				return lastUser.trim();
+			}
+		} catch {}
+	}
+	return 'anonymous';
+}
+
+function readStorageItem(prefix: string, userKey: string): string | null {
+	if (typeof window === 'undefined') return null;
+	try {
+		const primary = localStorage.getItem(`${prefix}${userKey}`);
+		if (primary !== null) return primary;
+		if (userKey !== 'anonymous') {
+			return localStorage.getItem(`${prefix}anonymous`);
+		}
+	} catch {}
+	return null;
+}
+
+function writeStorageItem(prefix: string, value: string, userEmail?: string | null): void {
+	if (typeof window === 'undefined') return;
+	try {
+		const userKey = getEffectiveUserKey(userEmail);
+		localStorage.setItem(`${prefix}${userKey}`, value);
+	} catch (err) {
+		console.error(`Failed to persist ${prefix}:`, err);
+	}
+}
+
+let isHydratingSettings = false;
+
+function hydrateUserSettings(userEmail?: string | null): void {
+	if (typeof window === 'undefined') return;
+	isHydratingSettings = true;
+	try {
+		const userKey = getEffectiveUserKey(userEmail);
+
+		// 1. View Mode
+		const savedViewMode = readStorageItem(VIEW_MODE_STORAGE_PREFIX, userKey);
+		if (savedViewMode && VALID_VIEW_MODES.includes(savedViewMode as TaskViewMode)) {
+			viewMode.set(savedViewMode as TaskViewMode);
+		} else {
+			viewMode.set('board');
+		}
+
+		// 2. Active Tab
+		const savedTab = readStorageItem(ACTIVE_TAB_STORAGE_PREFIX, userKey);
+		if (savedTab && VALID_TABS.includes(savedTab as TaskTab)) {
+			activeTab.set(savedTab as TaskTab);
+		} else {
+			activeTab.set('all');
+		}
+
+		// 3. Group By
+		const savedGroupBy = readStorageItem(GROUP_BY_STORAGE_PREFIX, userKey);
+		if (savedGroupBy && VALID_GROUP_BY.includes(savedGroupBy as TaskGroupBy)) {
+			groupBy.set(savedGroupBy as TaskGroupBy);
+		} else {
+			groupBy.set('department');
+		}
+
+		// 4. Sort By
+		const savedSortBy = readStorageItem(SORT_BY_STORAGE_PREFIX, userKey);
+		if (savedSortBy && VALID_SORT_KEYS.includes(savedSortBy as TaskSortKey)) {
+			sortBy.set(savedSortBy as TaskSortKey);
+		} else {
+			sortBy.set('created_at_desc');
+		}
+
+		// 5. Task Filters & Hide Completed
+		const savedHideCompleted = readStorageItem(HIDE_COMPLETED_STORAGE_PREFIX, userKey);
+		const defaultHideCompleted =
+			savedHideCompleted !== null ? savedHideCompleted === 'true' : true;
+
+		const rawFilters = readStorageItem(FILTERS_STORAGE_PREFIX, userKey);
+		if (rawFilters) {
+			try {
+				const parsed = JSON.parse(rawFilters);
+				const statusVal =
+					typeof parsed?.status === 'string' &&
+					(parsed.status === 'all' || TASK_STATUSES.includes(parsed.status as any))
+						? parsed.status
+						: 'all';
+				const dueDateVal =
+					typeof parsed?.dueDate === 'string' &&
+					VALID_DUE_DATES.includes(parsed.dueDate as DueDateFilter)
+						? (parsed.dueDate as DueDateFilter)
+						: 'all';
+				const hideCompletedVal =
+					typeof parsed?.hideCompleted === 'boolean'
+						? parsed.hideCompleted
+						: defaultHideCompleted;
+
+				taskFilters.set({
+					search: typeof parsed?.search === 'string' ? parsed.search : '',
+					assignee:
+						typeof parsed?.assignee === 'string' && parsed.assignee.trim()
+							? parsed.assignee
+							: 'all',
+					status: statusVal,
+					dueDate: dueDateVal,
+					onlyNew: typeof parsed?.onlyNew === 'boolean' ? parsed.onlyNew : false,
+					hideCompleted: statusVal === 'Completed' ? false : hideCompletedVal
+				});
+			} catch {
+				taskFilters.set({
+					...DEFAULT_TASK_FILTERS,
+					hideCompleted: defaultHideCompleted
+				});
+			}
+		} else {
+			taskFilters.set({
+				...DEFAULT_TASK_FILTERS,
+				hideCompleted: defaultHideCompleted
+			});
+		}
+
+		// 6. Bucket Preferences (Order & Hidden Buckets)
+		const rawBuckets = readStorageItem(BUCKET_PREFS_STORAGE_PREFIX, userKey);
+		if (rawBuckets) {
+			try {
+				const parsed = JSON.parse(rawBuckets);
+				bucketPreferences.set({
+					order: Array.isArray(parsed?.order)
+						? parsed.order.filter((x: unknown) => typeof x === 'string')
+						: [],
+					hidden: Array.isArray(parsed?.hidden)
+						? parsed.hidden.filter((x: unknown) => typeof x === 'string')
+						: []
+				});
+			} catch {
+				bucketPreferences.set({ order: [], hidden: [] });
+			}
+		} else {
+			bucketPreferences.set({ order: [], hidden: [] });
+		}
+
+		// 7. Seen Task IDs
+		const rawSeen = readStorageItem(SEEN_TASKS_STORAGE_PREFIX, userKey);
+		if (rawSeen) {
+			try {
+				const arr = JSON.parse(rawSeen);
+				if (Array.isArray(arr)) {
+					seenTaskIds.set(new Set(arr.filter((x: unknown) => typeof x === 'string')));
+				} else {
+					seenTaskIds.set(new Set());
+				}
+			} catch {
+				seenTaskIds.set(new Set());
+			}
+		} else {
+			seenTaskIds.set(new Set());
+		}
+	} finally {
+		isHydratingSettings = false;
+	}
+}
+
+function persistBucketPreferences(prefs: UserBucketPreferences): void {
+	writeStorageItem(BUCKET_PREFS_STORAGE_PREFIX, JSON.stringify(prefs));
+}
+
+// Hydrate immediately on module load in the browser
+if (typeof window !== 'undefined') {
+	hydrateUserSettings(get(currentUser)?.email);
+}
+
+// Subscribe to store updates after initial hydration to persist user changes
+let skipInitialViewMode = true;
+viewMode.subscribe((val) => {
+	if (skipInitialViewMode) {
+		skipInitialViewMode = false;
+		return;
+	}
+	if (isHydratingSettings) return;
+	writeStorageItem(VIEW_MODE_STORAGE_PREFIX, val);
+});
+
+let skipInitialActiveTab = true;
+activeTab.subscribe((val) => {
+	if (skipInitialActiveTab) {
+		skipInitialActiveTab = false;
+		return;
+	}
+	if (isHydratingSettings) return;
+	writeStorageItem(ACTIVE_TAB_STORAGE_PREFIX, val);
+});
+
+let skipInitialGroupBy = true;
+groupBy.subscribe((val) => {
+	if (skipInitialGroupBy) {
+		skipInitialGroupBy = false;
+		return;
+	}
+	if (isHydratingSettings) return;
+	writeStorageItem(GROUP_BY_STORAGE_PREFIX, val);
+});
+
+let skipInitialSortBy = true;
+sortBy.subscribe((val) => {
+	if (skipInitialSortBy) {
+		skipInitialSortBy = false;
+		return;
+	}
+	if (isHydratingSettings) return;
+	writeStorageItem(SORT_BY_STORAGE_PREFIX, val);
+});
+
+let skipInitialBucketPrefs = true;
+bucketPreferences.subscribe((prefs) => {
+	if (skipInitialBucketPrefs) {
+		skipInitialBucketPrefs = false;
+		return;
+	}
+	if (isHydratingSettings) return;
+	persistBucketPreferences(prefs);
+});
+
+let skipInitialTaskFilters = true;
+taskFilters.subscribe((val) => {
+	if (skipInitialTaskFilters) {
+		skipInitialTaskFilters = false;
+		return;
+	}
+	if (isHydratingSettings) return;
+	writeStorageItem(FILTERS_STORAGE_PREFIX, JSON.stringify(val));
+	if (typeof val.hideCompleted === 'boolean') {
+		writeStorageItem(HIDE_COMPLETED_STORAGE_PREFIX, String(val.hideCompleted));
+	}
+});
+
+// Re-sync settings when Firebase auth user resolves or changes
+currentUser.subscribe(($user) => {
+	if (typeof window === 'undefined') return;
+	if (!$user && get(isLoadingAuth)) return;
+	hydrateUserSettings($user?.email);
 });
 
 export const customDepartments = writable<string[]>([]);
@@ -98,87 +374,6 @@ export const allDepartments = derived(
 		return list;
 	}
 );
-
-// --- User Bucket Preferences (Order & Visibility per user) ---
-const BUCKET_PREFS_STORAGE_PREFIX = 'rapidtools_tasks_bucket_prefs_';
-
-function getBucketPrefsStorageKey(userEmail?: string | null): string {
-	const sanitized = (userEmail || 'anonymous')
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9_-]/g, '_');
-	return `${BUCKET_PREFS_STORAGE_PREFIX}${sanitized}`;
-}
-
-export const bucketPreferences = writable<UserBucketPreferences>({
-	order: [],
-	hidden: []
-});
-
-function persistBucketPreferences(prefs: UserBucketPreferences): void {
-	if (typeof window === 'undefined') return;
-	try {
-		const user = get(currentUser);
-		const key = getBucketPrefsStorageKey(user?.email);
-		localStorage.setItem(key, JSON.stringify(prefs));
-	} catch (err) {
-		console.error('Failed to persist bucket preferences:', err);
-	}
-}
-
-// Persist & sync hideCompleted preference per user in localStorage
-const HIDE_COMPLETED_STORAGE_PREFIX = 'rapidtools_tasks_hide_completed_';
-
-function getHideCompletedStorageKey(userEmail?: string | null): string {
-	const sanitized = (userEmail || 'anonymous')
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9_-]/g, '_');
-	return `${HIDE_COMPLETED_STORAGE_PREFIX}${sanitized}`;
-}
-
-let isSyncingHideCompleted = false;
-
-// Initialize / sync bucketPreferences, viewMode, and hideCompleted when currentUser changes
-currentUser.subscribe(($user) => {
-	if (typeof window === 'undefined') return;
-	try {
-		// Sync View Mode
-		const viewModeKey = getViewModeStorageKey($user?.email);
-		const savedViewMode = localStorage.getItem(viewModeKey);
-		if (savedViewMode === 'board' || savedViewMode === 'list') {
-			isSyncingViewMode = true;
-			viewMode.set(savedViewMode);
-			isSyncingViewMode = false;
-		}
-
-		// Sync Hide Completed Preference (defaults to true / ON)
-		const hideCompletedKey = getHideCompletedStorageKey($user?.email);
-		const savedHideCompleted = localStorage.getItem(hideCompletedKey);
-		isSyncingHideCompleted = true;
-		if (savedHideCompleted !== null) {
-			taskFilters.update((f) => ({ ...f, hideCompleted: savedHideCompleted === 'true' }));
-		} else {
-			taskFilters.update((f) => ({ ...f, hideCompleted: true }));
-		}
-		isSyncingHideCompleted = false;
-
-		// Sync Bucket Preferences
-		const key = getBucketPrefsStorageKey($user?.email);
-		const raw = localStorage.getItem(key);
-		if (raw) {
-			const parsed = JSON.parse(raw);
-			bucketPreferences.set({
-				order: Array.isArray(parsed?.order) ? parsed.order : [],
-				hidden: Array.isArray(parsed?.hidden) ? parsed.hidden : []
-			});
-			return;
-		}
-		bucketPreferences.set({ order: [], hidden: [] });
-	} catch {
-		bucketPreferences.set({ order: [], hidden: [] });
-	}
-});
 
 /**
  * All departments sorted according to the current user's custom bucket order.
@@ -392,29 +587,6 @@ export async function removeDepartment(name: string): Promise<void> {
 	await deleteCustomDepartment(trimmed);
 }
 
-export const taskFilters = writable<TaskFilters>({
-	search: '',
-	assignee: 'all',
-	status: 'all',
-	dueDate: 'all',
-	onlyNew: false,
-	hideCompleted: true
-});
-
-// Persist hideCompleted changes to localStorage
-taskFilters.subscribe((val) => {
-	if (typeof window === 'undefined' || isSyncingHideCompleted) return;
-	try {
-		const user = get(currentUser);
-		const key = getHideCompletedStorageKey(user?.email);
-		if (typeof val.hideCompleted === 'boolean') {
-			localStorage.setItem(key, String(val.hideCompleted));
-		}
-	} catch (err) {
-		console.error('Failed to persist hide completed preference:', err);
-	}
-});
-
 /**
  * Toggle whether completed tasks are hidden or visible.
  * If enabling hideCompleted while status filter is 'Completed', resets status filter to 'all'.
@@ -429,6 +601,16 @@ export function toggleHideCompleted(): void {
 			status: nextStatus
 		};
 	});
+}
+
+/**
+ * Reset toolbar search and dropdown filters back to default while preserving hideCompleted.
+ */
+export function resetTaskFilters(): void {
+	taskFilters.update((f) => ({
+		...DEFAULT_TASK_FILTERS,
+		hideCompleted: f.hideCompleted ?? true
+	}));
 }
 
 /**
@@ -452,35 +634,6 @@ export const availableAssignees = derived(
 	}
 );
 
-// --- Seen Tasks Store (Persistent per user) ---
-const STORAGE_PREFIX = 'rapidtools_tasks_seen_';
-
-function getStorageKey(userEmail?: string | null): string {
-	const sanitized = (userEmail || 'anonymous').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-	return `${STORAGE_PREFIX}${sanitized}`;
-}
-
-export const seenTaskIds = writable<Set<string>>(new Set());
-
-// Initialize / sync seen task IDs when currentUser changes
-currentUser.subscribe(($user) => {
-	if (typeof window === 'undefined') return;
-	try {
-		const key = getStorageKey($user?.email);
-		const raw = localStorage.getItem(key);
-		if (raw) {
-			const arr = JSON.parse(raw);
-			if (Array.isArray(arr)) {
-				seenTaskIds.set(new Set(arr));
-				return;
-			}
-		}
-		seenTaskIds.set(new Set());
-	} catch {
-		seenTaskIds.set(new Set());
-	}
-});
-
 /**
  * Marks a task as seen by the current user and persists to localStorage.
  */
@@ -490,16 +643,7 @@ export function markTaskAsSeen(taskId: string): void {
 		if (set.has(taskId)) return set;
 		const next = new Set(set);
 		next.add(taskId);
-		if (typeof window !== 'undefined') {
-			try {
-				let email: string | null = null;
-				currentUser.subscribe((u) => (email = u?.email || null))();
-				const key = getStorageKey(email);
-				localStorage.setItem(key, JSON.stringify(Array.from(next)));
-			} catch (err) {
-				console.error('Failed to persist seen tasks:', err);
-			}
-		}
+		writeStorageItem(SEEN_TASKS_STORAGE_PREFIX, JSON.stringify(Array.from(next)));
 		return next;
 	});
 }
